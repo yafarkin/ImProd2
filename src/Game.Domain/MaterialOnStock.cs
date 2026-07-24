@@ -1,8 +1,12 @@
 namespace Game.Domain;
 
+/// <summary>Остаток одного материала на складе команды.</summary>
 public sealed class MaterialOnStock
 {
+    /// <summary>Материал, для которого учитывается остаток.</summary>
     public Material Material { get; }
+
+    /// <summary>Текущее количество на складе; никогда не отрицательно.</summary>
     public decimal Quantity { get; private set; }
 
     public MaterialOnStock(Material material, decimal quantity = 0m)
@@ -15,6 +19,7 @@ public sealed class MaterialOnStock
         Quantity = quantity;
     }
 
+    /// <summary>Увеличивает остаток на положительное количество.</summary>
     public void Add(decimal amount)
     {
         if (amount <= 0)
@@ -23,6 +28,7 @@ public sealed class MaterialOnStock
         Quantity += amount;
     }
 
+    /// <summary>Уменьшает остаток; бросает исключение, если запрошено больше, чем есть в наличии.</summary>
     public void Remove(decimal amount)
     {
         if (amount <= 0)

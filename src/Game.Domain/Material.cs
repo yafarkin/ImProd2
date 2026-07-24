@@ -1,10 +1,21 @@
 namespace Game.Domain;
 
+/// <summary>
+/// Единица продукции: хранится на складе, продаётся, поставляется по контракту.
+/// Неизменяемый справочный объект, привязанный к сектору-владельцу.
+/// </summary>
 public sealed record Material
 {
+    /// <summary>Уникальный код материала.</summary>
     public string Id { get; }
+
+    /// <summary>Отображаемое имя материала.</summary>
     public string Name { get; }
+
+    /// <summary>Сектор, к которому принадлежит материал.</summary>
     public Sector Sector { get; }
+
+    /// <summary>Уровень передела: 0 — сырьё, покупаемое у системы; выше — продукт переработки.</summary>
     public int Level { get; }
 
     public Material(string id, string name, Sector sector, int level)
@@ -23,6 +34,6 @@ public sealed record Material
         Level = level;
     }
 
-    // Level 0 materials are bought directly from the system, not produced via a Recipe.
+    /// <summary>Level 0 materials are bought directly from the system, not produced via a Recipe.</summary>
     public bool IsRawMaterial => Level == 0;
 }
