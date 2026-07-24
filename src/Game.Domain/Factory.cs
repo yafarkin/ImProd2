@@ -6,8 +6,8 @@ namespace Game.Domain;
 /// </summary>
 public sealed class Factory
 {
-    /// <summary>Уникальный код фабрики в рамках команды.</summary>
-    public string Id { get; }
+    /// <summary>Уникальный идентификатор фабрики, сгенерированный при её постройке.</summary>
+    public Ulid Id { get; }
 
     /// <summary>Тип фабрики (какие рецепты доступны, к какому сектору она относится).</summary>
     public FactoryDefinition Definition { get; }
@@ -24,9 +24,9 @@ public sealed class Factory
     /// <summary>Накопленные вложения в R&amp;D этой фабрики.</summary>
     public decimal RndInvestment { get; private set; }
 
-    public Factory(string id, Sector ownerSector, FactoryDefinition definition, Recipe? selectedRecipe = null)
+    public Factory(Ulid id, Sector ownerSector, FactoryDefinition definition, Recipe? selectedRecipe = null)
     {
-        if (string.IsNullOrWhiteSpace(id))
+        if (id == Ulid.Empty)
         {
             throw new ArgumentException("Factory id must not be empty.", nameof(id));
         }

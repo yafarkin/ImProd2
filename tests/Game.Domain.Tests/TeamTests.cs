@@ -18,18 +18,24 @@ public class TeamTests
     private static readonly FactoryDefinition PlasticPlant =
         new("plastic-plant", "Нефтехимический завод", SectorB, new[] { PlasticRecipe });
 
+    [Fact]
+    public void Construction_Throws_When_Id_Is_Empty()
+    {
+        Assert.Throws<ArgumentException>(() => new Team(Ulid.Empty, "Команда А1", SectorA));
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
-    public void Construction_Throws_When_Id_Is_Empty(string id)
+    public void Construction_Throws_When_Name_Is_Empty(string name)
     {
-        Assert.Throws<ArgumentException>(() => new Team(id, "Команда А1", SectorA));
+        Assert.Throws<ArgumentException>(() => new Team(Ulid.NewUlid(), name, SectorA));
     }
 
     [Fact]
     public void Construction_Starts_With_No_Factories_And_Empty_Warehouse()
     {
-        var team = new Team("team-a1", "Команда А1", SectorA);
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
 
         Assert.Empty(team.Factories);
         Assert.Empty(team.Warehouse.Stock);
@@ -38,9 +44,9 @@ public class TeamTests
     [Fact]
     public void BuildFactory_Adds_Factory_Of_Own_Sector()
     {
-        var team = new Team("team-a1", "Команда А1", SectorA);
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
 
-        var factory = team.BuildFactory("f1", SteelMill);
+        var factory = team.BuildFactory(Ulid.NewUlid(), SteelMill);
 
         Assert.Same(factory, Assert.Single(team.Factories));
         Assert.Equal(SteelMill, factory.Definition);
@@ -49,9 +55,9 @@ public class TeamTests
     [Fact]
     public void BuildFactory_Throws_When_Definition_Sector_Differs_From_Team_Sector()
     {
-        var team = new Team("team-a1", "Команда А1", SectorA);
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
 
-        Assert.Throws<ArgumentException>(() => team.BuildFactory("f1", PlasticPlant));
+        Assert.Throws<ArgumentException>(() => team.BuildFactory(Ulid.NewUlid(), PlasticPlant));
         Assert.Empty(team.Factories);
     }
 }

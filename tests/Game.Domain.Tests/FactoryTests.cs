@@ -23,7 +23,7 @@ public class FactoryTests
     [Fact]
     public void Construction_Succeeds_And_Defaults_To_First_Recipe_And_Level_One()
     {
-        var factory = new Factory("f1", SectorA, MultiRecipeMill);
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
 
         Assert.Equal(0, factory.Workers);
         Assert.Equal(1, factory.Level);
@@ -32,21 +32,27 @@ public class FactoryTests
     }
 
     [Fact]
+    public void Construction_Throws_When_Id_Is_Empty()
+    {
+        Assert.Throws<ArgumentException>(() => new Factory(Ulid.Empty, SectorA, MultiRecipeMill));
+    }
+
+    [Fact]
     public void Construction_Throws_When_Owner_Sector_Does_Not_Match_Definition_Sector()
     {
-        Assert.Throws<ArgumentException>(() => new Factory("f1", SectorB, MultiRecipeMill));
+        Assert.Throws<ArgumentException>(() => new Factory(Ulid.NewUlid(), SectorB, MultiRecipeMill));
     }
 
     [Fact]
     public void Construction_Throws_When_Selected_Recipe_Not_In_Definition()
     {
-        Assert.Throws<ArgumentException>(() => new Factory("f1", SectorA, SingleRecipeMill, RebarRecipe));
+        Assert.Throws<ArgumentException>(() => new Factory(Ulid.NewUlid(), SectorA, SingleRecipeMill, RebarRecipe));
     }
 
     [Fact]
     public void Hire_Increases_Workers()
     {
-        var factory = new Factory("f1", SectorA, MultiRecipeMill);
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
 
         factory.Hire(5);
 
@@ -58,7 +64,7 @@ public class FactoryTests
     [InlineData(-1)]
     public void Hire_Throws_When_Count_Is_Not_Positive(int count)
     {
-        var factory = new Factory("f1", SectorA, MultiRecipeMill);
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
 
         Assert.Throws<ArgumentOutOfRangeException>(() => factory.Hire(count));
     }
@@ -66,7 +72,7 @@ public class FactoryTests
     [Fact]
     public void Fire_Decreases_Workers()
     {
-        var factory = new Factory("f1", SectorA, MultiRecipeMill);
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
         factory.Hire(5);
 
         factory.Fire(2);
@@ -77,7 +83,7 @@ public class FactoryTests
     [Fact]
     public void Fire_Throws_When_More_Than_Current_Workers()
     {
-        var factory = new Factory("f1", SectorA, MultiRecipeMill);
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
         factory.Hire(2);
 
         Assert.Throws<InvalidOperationException>(() => factory.Fire(3));
@@ -87,7 +93,7 @@ public class FactoryTests
     [Fact]
     public void SelectRecipe_Switches_Between_Definitions_Recipes()
     {
-        var factory = new Factory("f1", SectorA, MultiRecipeMill);
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
 
         factory.SelectRecipe(RebarRecipe);
 
@@ -97,7 +103,7 @@ public class FactoryTests
     [Fact]
     public void SelectRecipe_Throws_When_Recipe_Not_In_Definition()
     {
-        var factory = new Factory("f1", SectorA, MultiRecipeMill);
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
         var foreignRecipe = new Recipe("foreign", Rebar, 1m, new[] { new RecipeInput(Sheet, 1m) }, 1m);
 
         Assert.Throws<ArgumentException>(() => factory.SelectRecipe(foreignRecipe));
@@ -106,7 +112,7 @@ public class FactoryTests
     [Fact]
     public void InvestInRnd_Accumulates()
     {
-        var factory = new Factory("f1", SectorA, MultiRecipeMill);
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
 
         factory.InvestInRnd(100m);
         factory.InvestInRnd(50m);
@@ -119,7 +125,7 @@ public class FactoryTests
     [InlineData(-1)]
     public void InvestInRnd_Throws_When_Amount_Is_Not_Positive(decimal amount)
     {
-        var factory = new Factory("f1", SectorA, MultiRecipeMill);
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
 
         Assert.Throws<ArgumentOutOfRangeException>(() => factory.InvestInRnd(amount));
     }
@@ -127,7 +133,7 @@ public class FactoryTests
     [Fact]
     public void AdvanceLevel_Increments_Level()
     {
-        var factory = new Factory("f1", SectorA, MultiRecipeMill);
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
 
         factory.AdvanceLevel();
 

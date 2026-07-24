@@ -6,8 +6,8 @@ namespace Game.Domain;
 /// </summary>
 public sealed class Team
 {
-    /// <summary>Уникальный код команды.</summary>
-    public string Id { get; }
+    /// <summary>Уникальный идентификатор команды, сгенерированный при её создании.</summary>
+    public Ulid Id { get; }
 
     /// <summary>Отображаемое имя команды.</summary>
     public string Name { get; }
@@ -23,9 +23,9 @@ public sealed class Team
     /// <summary>Фабрики, построенные командой.</summary>
     public IReadOnlyList<Factory> Factories => _factories;
 
-    public Team(string id, string name, Sector sector)
+    public Team(Ulid id, string name, Sector sector)
     {
-        if (string.IsNullOrWhiteSpace(id))
+        if (id == Ulid.Empty)
         {
             throw new ArgumentException("Team id must not be empty.", nameof(id));
         }
@@ -43,7 +43,7 @@ public sealed class Team
 
     /// <summary>Строит фабрику заданного типа для команды; тип фабрики обязан быть из сектора команды.</summary>
     // Sector check is enforced by the Factory constructor too; this is the entry point teams use.
-    public Factory BuildFactory(string factoryId, FactoryDefinition definition, Recipe? selectedRecipe = null)
+    public Factory BuildFactory(Ulid factoryId, FactoryDefinition definition, Recipe? selectedRecipe = null)
     {
         var factory = new Factory(factoryId, Sector, definition, selectedRecipe);
         _factories.Add(factory);
