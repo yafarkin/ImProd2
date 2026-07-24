@@ -12,7 +12,8 @@ public sealed class MaterialOnStock
     public MaterialOnStock(Material material, decimal quantity = 0m)
     {
         ArgumentNullException.ThrowIfNull(material);
-        if (quantity < 0) {
+        if (quantity < 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(quantity), quantity, "Stock quantity must not be negative.");
         }
 
@@ -23,7 +24,8 @@ public sealed class MaterialOnStock
     /// <summary>Увеличивает остаток на положительное количество.</summary>
     public void Add(decimal amount)
     {
-        if (amount <= 0) {
+        if (amount <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(amount), amount, "Amount must be positive.");
         }
 
@@ -33,10 +35,12 @@ public sealed class MaterialOnStock
     /// <summary>Уменьшает остаток; бросает исключение, если запрошено больше, чем есть в наличии.</summary>
     public void Remove(decimal amount)
     {
-        if (amount <= 0) {
+        if (amount <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(amount), amount, "Amount must be positive.");
         }
-        if (amount > Quantity) {
+        if (amount > Quantity)
+        {
             throw new InvalidOperationException(
                 $"Not enough '{Material.Id}' in stock: requested {amount}, have {Quantity}.");
         }

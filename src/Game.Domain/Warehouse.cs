@@ -22,9 +22,12 @@ public sealed class Warehouse
     {
         ArgumentNullException.ThrowIfNull(material);
 
-        if (_stock.TryGetValue(material.Id, out var existing)) {
+        if (_stock.TryGetValue(material.Id, out var existing))
+        {
             existing.Add(amount);
-        } else {
+        }
+        else
+        {
             _stock[material.Id] = new MaterialOnStock(material, amount);
         }
     }
@@ -34,7 +37,8 @@ public sealed class Warehouse
     {
         ArgumentNullException.ThrowIfNull(material);
 
-        if (!_stock.TryGetValue(material.Id, out var existing)) {
+        if (!_stock.TryGetValue(material.Id, out var existing))
+        {
             throw new InvalidOperationException($"Not enough '{material.Id}' in stock: requested {amount}, have 0.");
         }
 

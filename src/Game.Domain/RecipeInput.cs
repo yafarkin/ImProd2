@@ -14,7 +14,8 @@ public sealed record RecipeInput
     public RecipeInput(Material material, decimal quantity)
     {
         ArgumentNullException.ThrowIfNull(material);
-        if (quantity <= 0) {
+        if (quantity <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(quantity), quantity, "Recipe input quantity must be positive.");
         }
 
