@@ -25,10 +25,12 @@ public sealed class Team
 
     public Team(string id, string name, Sector sector)
     {
-        if (string.IsNullOrWhiteSpace(id))
+        if (string.IsNullOrWhiteSpace(id)) {
             throw new ArgumentException("Team id must not be empty.", nameof(id));
-        if (string.IsNullOrWhiteSpace(name))
+        }
+        if (string.IsNullOrWhiteSpace(name)) {
             throw new ArgumentException("Team name must not be empty.", nameof(name));
+        }
         ArgumentNullException.ThrowIfNull(sector);
 
         Id = id;

@@ -20,13 +20,16 @@ public sealed record Material
 
     public Material(string id, string name, Sector sector, int level)
     {
-        if (string.IsNullOrWhiteSpace(id))
+        if (string.IsNullOrWhiteSpace(id)) {
             throw new ArgumentException("Material id must not be empty.", nameof(id));
-        if (string.IsNullOrWhiteSpace(name))
+        }
+        if (string.IsNullOrWhiteSpace(name)) {
             throw new ArgumentException("Material name must not be empty.", nameof(name));
+        }
         ArgumentNullException.ThrowIfNull(sector);
-        if (level < 0)
+        if (level < 0) {
             throw new ArgumentOutOfRangeException(nameof(level), level, "Material level must not be negative.");
+        }
 
         Id = id;
         Name = name;
