@@ -1,0 +1,110 @@
+{
+  "Sectors": [
+    { "Id": "A", "Name": "Металлургия" },
+    { "Id": "B", "Name": "Нефтегазохимия" }
+  ],
+  "Materials": [
+    { "Id": "ore", "Name": "Железная руда", "SectorId": "A", "Level": 0 },
+    { "Id": "sheet", "Name": "Стальные листы", "SectorId": "A", "Level": 1 },
+    { "Id": "rebar", "Name": "Арматура", "SectorId": "A", "Level": 2 },
+    { "Id": "oil", "Name": "Нефть", "SectorId": "B", "Level": 0 },
+    { "Id": "plastic", "Name": "Пластик", "SectorId": "B", "Level": 1 }
+  ],
+  "Recipes": [
+    {
+      "Id": "sheet-from-ore",
+      "OutputMaterialId": "sheet",
+      "OutputQuantity": 1,
+      "Inputs": [ { "MaterialId": "ore", "Quantity": 2 } ],
+      "ProductionRate": 1
+    },
+    {
+      "Id": "rebar-from-sheet",
+      "OutputMaterialId": "rebar",
+      "OutputQuantity": 10,
+      "Inputs": [ { "MaterialId": "sheet", "Quantity": 3 } ],
+      "ProductionRate": 2
+    },
+    {
+      "Id": "plastic-from-oil",
+      "OutputMaterialId": "plastic",
+      "OutputQuantity": 1,
+      "Inputs": [ { "MaterialId": "oil", "Quantity": 2 } ],
+      "ProductionRate": 1
+    }
+  ],
+  "FactoryDefinitions": [
+    { "Id": "steel-mill", "Name": "Сталелитейный завод", "SectorId": "A", "RecipeIds": [ "sheet-from-ore" ] },
+    { "Id": "rolling-mill", "Name": "Прокатный стан", "SectorId": "A", "RecipeIds": [ "rebar-from-sheet" ] },
+    { "Id": "petrochemical-plant", "Name": "Нефтехимический завод", "SectorId": "B", "RecipeIds": [ "plastic-from-oil" ] }
+  ],
+  "StartingConditions": {
+    "MaxStartingLoanAmount": 10000,
+    "BaseLoanInterestRate": 0.05,
+    "LoanInterestRateGrowthPerUnitBorrowed": 0.000001
+  },
+  "SessionPresets": [
+    { "Id": "short", "Name": "Короткая", "MinTurns": 15, "MaxTurns": 20, "TurnDurationMinutes": 7 },
+    { "Id": "medium", "Name": "Средняя", "MinTurns": 25, "MaxTurns": 35, "TurnDurationMinutes": 8 },
+    { "Id": "full", "Name": "Полная", "MinTurns": 40, "MaxTurns": 60, "TurnDurationMinutes": 10 }
+  ],
+  "PhaseTiming": {
+    "CalculationPhaseSeconds": 5,
+    "DecisionPhaseSeconds": 300,
+    "CompletionPhaseSeconds": 15
+  },
+  "Economy": {
+    "EmergencyPurchasePriceMultiplier": 1.5,
+    "MarginMultiplierByProcessingLevel": [
+      { "Level": 1, "MarginMultiplier": 1.0 },
+      { "Level": 2, "MarginMultiplier": 1.15 },
+      { "Level": 3, "MarginMultiplier": 1.3 },
+      { "Level": 4, "MarginMultiplier": 1.5 }
+    ],
+    "MarketCapacityOverflowDiscount": 0.5,
+    "ElectricityBasePrice": 2.0,
+    "TrendScenario": [
+      { "Trend": "Stable", "StartTurn": 1, "EndTurn": 10, "PriceChangePerTurn": 0, "CapacityChangePerTurn": 0 },
+      { "Trend": "Up", "StartTurn": 11, "EndTurn": 25, "PriceChangePerTurn": 0.5, "CapacityChangePerTurn": 2 },
+      { "Trend": "Down", "StartTurn": 26, "EndTurn": 35, "PriceChangePerTurn": -0.5, "CapacityChangePerTurn": -2 }
+    ]
+  },
+  "WorkerProductivity": {
+    "BaseWorkerCount": 10,
+    "DiminishingReturnsFactor": 0.5,
+    "HireCostPerWorker": 50,
+    "FireCostPerWorker": 30
+  },
+  "Warehouse": {
+    "FreeCapacity": 500,
+    "OverageFeePerUnit": 0.1
+  },
+  "Reputation": {
+    "HalfLifeTurns": 10,
+    "WarmupTurns": 3
+  },
+  "Contracts": {
+    "DeliveryMissPenaltyRate": 0.1,
+    "TerminationPenaltyRate": 0.5,
+    "VoluntaryTerminationFee": 1000,
+    "MaxActiveContractsPerTeam": null
+  },
+  "Taxes": {
+    "PropertyTaxRatePerTurn": 0.01,
+    "SalesTaxRate": 0.05
+  },
+  "Deposits": {
+    "InterestRatePerTurn": 0.01
+  },
+  "News": [
+    { "Id": "news-up-1", "Trend": "Up", "Headline": "Спрос на металл растёт третий ход подряд" },
+    { "Id": "news-stable-1", "Trend": "Stable", "Headline": "Рынок замер в ожидании новостей" },
+    { "Id": "news-down-1", "Trend": "Down", "Headline": "Цены на сырьё пошли вниз" },
+    { "Id": "news-down-2", "Trend": "Down", "Headline": "Аналитики прогнозируют дальнейшее падение спроса" }
+  ],
+  "FeatureFlags": {
+    "TaxesEnabled": false,
+    "DepositsEnabled": false,
+    "EmergencyPurchaseEnabled": true
+  }
+}
