@@ -1,0 +1,63 @@
+using System.Text.Json;
+using Game.Config.Catalog;
+using Game.Config.Loading;
+
+namespace Game.Config.Tests;
+
+public class GameConfigWriterTests
+{
+    [Fact]
+    public void Create_Save_And_Restore_A_Config_Round_Trips_Losslessly()
+    {
+        var sectorA = new SectorConfig { Id = "A", Name = "Металлургия" };
+        var ore = new MaterialConfig { Id = "ore", Name = "Руда", SectorId = "A", Level = 0 };
+        var sheet = new MaterialConfig { Id = "sheet", Name = "Лист", SectorId = "A", Level = 1 };
+        var sheetFromOre = new RecipeConfig
+        {
+            Id = "sheet-from-ore",
+            OutputMaterialId = "sheet",
+            OutputQuantity = 1m,
+            Inputs = new[] { new RecipeInputConfig { MaterialId = "ore", Quantity = 2m } },
+            ProductionRate = 1m,
+        };
+        var steelMill = new FactoryDefinitionConfig
+        {
+            Id = "steel-mill",
+            Name = "Сталелитейный завод",
+            SectorId = "A",
+            RecipeIds = new[] { "sheet-from-ore" },
+        };
+
+        var original = GameConfigTestBuilder.Build(
+            sectors: new[] { sectorA },
+            materials: new[] { ore, sheet },
+            recipes: new[] { sheetFromOre },
+            factoryDefinitions: new[] { steelMill });
+
+        var path = Path.Combine(Path.GetTempPath(), $"gameconfig-roundtrip-{Guid.NewGuid():N}.json");
+        try
+        {
+            GameConfigWriter.SaveToFile(original, path);
+            Assert.True(File.Exists(path));
+
+            var restored = GameConfigLoader.LoadFromFile(path);
+
+            // GameConfig is a record, but its list-typed properties break record equality
+            // (List<T> doesn't override Equals, so it falls back to reference equality).
+            // Comparing freshly-serialized JSON of both sides is what actually proves every
+            // field survived the round trip, not just that the top-level references differ.
+            Assert.Equal(JsonSerializer.Serialize(original), JsonSerializer.Serialize(restored.Raw));
+
+            // And prove the restored file is genuinely usable, not just textually identical.
+            Assert.Equal("Металлургия", restored.Sectors.Single().Name);
+            var sheetMaterial = restored.Materials["sheet"];
+            var recipe = restored.RecipeBook.GetRecipe(sheetMaterial);
+            Assert.Equal("sheet-from-ore", recipe.Id);
+            Assert.Equal("ore", recipe.Inputs.Single().Material.Id);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+}
