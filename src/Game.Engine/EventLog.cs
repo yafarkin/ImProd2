@@ -34,6 +34,29 @@ public sealed class EventLog<TState>
         _serializerOptions = serializerOptions ?? new JsonSerializerOptions();
     }
 
+    /// <summary>
+    /// Возобновляет журнал с уже существующими записями (Блок 3.2: durable-журнал перечитан
+    /// с диска, <paramref name="state"/> уже отражает их применение — снапшот плюс, возможно,
+    /// доигранный хвост). Записи проверяются той же цепочкой хешей, что и <see cref="VerifyIntegrity()"/>,
+    /// чтобы возобновление никогда не продолжало повреждённую или подменённую цепочку.
+    /// </summary>
+    public EventLog(TState state, IReadOnlyList<EventLogEntry<TState>> entries, JsonSerializerOptions? serializerOptions = null)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ArgumentNullException.ThrowIfNull(entries);
+
+        var options = serializerOptions ?? new JsonSerializerOptions();
+        if (!VerifyIntegrity(entries, options))
+        {
+            throw new ArgumentException(
+                "Cannot resume an event log from a corrupted or tampered entry sequence.", nameof(entries));
+        }
+
+        State = state;
+        _entries = new List<EventLogEntry<TState>>(entries);
+        _serializerOptions = options;
+    }
+
     /// <summary>Применяет <paramref name="change"/> к <see cref="State"/> и записывает его в журнал.</summary>
     public EventLogEntry<TState> Append(Change<TState> change)
     {

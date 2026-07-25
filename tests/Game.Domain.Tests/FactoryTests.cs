@@ -8,8 +8,8 @@ public class FactoryTests
     private static readonly Material Sheet = new("sheet", "Стальные листы", SectorA, level: 1);
     private static readonly Material Rebar = new("rebar", "Арматура", SectorA, level: 2);
 
-    // Recipe/FactoryDefinition compare by reference (they're config-graph objects loaded once per
-    // session), so tests share these instances rather than constructing look-alike copies.
+    // Recipe/FactoryDefinition сравниваются по ссылке (это объекты графа конфигурации, загружаемые
+    // один раз за сессию), поэтому тесты переиспользуют эти экземпляры, а не создают похожие копии.
     private static readonly Recipe SheetRecipe =
         new("sheet-from-ore", Sheet, 1m, new[] { new RecipeInput(Ore, 2m) }, 1m);
     private static readonly Recipe RebarRecipe =

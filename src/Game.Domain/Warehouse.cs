@@ -6,7 +6,7 @@ public sealed class Warehouse
     private readonly Dictionary<string, MaterialOnStock> _stock = new();
 
     /// <summary>Все остатки на складе, отсортированные по коду материала (без учёта порядка словаря).</summary>
-    // Sorted by material id: dictionary enumeration order is not a stable contract (AGENTS §2 rule 6).
+    // Сортировка по коду материала: порядок перечисления словаря — не устойчивый контракт (AGENTS §2, правило 6).
     public IReadOnlyList<MaterialOnStock> Stock =>
         _stock.Values.OrderBy(stock => stock.Material.Id, StringComparer.Ordinal).ToList();
 

@@ -7,7 +7,7 @@ public class CostCalculatorTests
     private static readonly Material Sheet = new("sheet", "Стальные листы", Sector, level: 1);
     private static readonly Material Nail = new("nail", "Гвозди", Sector, level: 2);
 
-    // sheet: 2 ore -> 1 sheet; nail: 3 sheet -> 10 nail.
+    // лист: 2 руды -> 1 лист; гвоздь: 3 листа -> 10 гвоздей.
     private static readonly Recipe SheetRecipe =
         new("sheet-from-ore", Sheet, 1m, new[] { new RecipeInput(Ore, 2m) }, 1m);
     private static readonly Recipe NailRecipe =

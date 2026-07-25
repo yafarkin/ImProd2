@@ -32,8 +32,8 @@ public static class GameConfigValidator
         ValidateProducerCardinality(config, producersByMaterialId, errors);
         ValidateFactoryDefinitions(config, sectorIds, recipeIds, errors);
 
-        // Cycle detection assumes every reference already resolves; running it over a broken
-        // graph would produce confusing follow-on errors on top of the real problem.
+        // Поиск циклов предполагает, что все ссылки уже разрешимы; на битом графе он выдал бы
+        // запутанные побочные ошибки поверх настоящей проблемы.
         if (errors.Count == 0)
         {
             DetectCycles(config, errors);
@@ -175,8 +175,8 @@ public static class GameConfigValidator
         var state = new Dictionary<string, int>();
         var path = new List<string>();
 
-        // Iterate in JSON declaration order (not dictionary/hashset order) so error output is
-        // deterministic (AGENTS §2 rule 6), even though this only affects error message ordering.
+        // Перебираем в порядке объявления в JSON (не в порядке словаря/hashset), чтобы вывод ошибок
+        // был детерминирован (AGENTS §2, правило 6), хотя это влияет лишь на порядок сообщений.
         foreach (var material in config.Materials)
         {
             if (!state.ContainsKey(material.Id))

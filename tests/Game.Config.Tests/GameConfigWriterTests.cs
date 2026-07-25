@@ -42,13 +42,13 @@ public class GameConfigWriterTests
 
             var restored = GameConfigLoader.LoadFromFile(path);
 
-            // GameConfig is a record, but its list-typed properties break record equality
-            // (List<T> doesn't override Equals, so it falls back to reference equality).
-            // Comparing freshly-serialized JSON of both sides is what actually proves every
-            // field survived the round trip, not just that the top-level references differ.
+            // GameConfig — record, но списковые свойства ломают его равенство (List<T> не
+            // переопределяет Equals, поэтому сравнение уходит в проверку по ссылке). Сравнение
+            // заново сериализованного JSON с обеих сторон и доказывает, что каждое поле пережило
+            // round trip, а не просто что верхнеуровневые ссылки различаются.
             Assert.Equal(JsonSerializer.Serialize(original), JsonSerializer.Serialize(restored.Raw));
 
-            // And prove the restored file is genuinely usable, not just textually identical.
+            // И доказываем, что восстановленный конфиг реально рабочий, а не только текстово идентичен.
             Assert.Equal("Металлургия", restored.Sectors.Single().Name);
             var sheetMaterial = restored.Materials["sheet"];
             var recipe = restored.RecipeBook.GetRecipe(sheetMaterial);

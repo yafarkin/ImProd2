@@ -37,7 +37,7 @@ public class GameConfigLoaderTests
     [Fact]
     public void Load_Throws_With_Clear_Message_When_Required_Section_Is_Missing()
     {
-        // "Sectors" (and everything else) is a required member of GameConfig.
+        // "Sectors" (как и всё остальное) — required-свойство GameConfig.
         var exception = Assert.Throws<GameConfigValidationException>(() => GameConfigLoader.Load("{}"));
 
         Assert.NotEmpty(exception.Errors);

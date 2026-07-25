@@ -61,8 +61,8 @@ public class EventLogTests
         log.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "first" });
         log.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "second" });
 
-        // Simulate someone editing the stored event content without recomputing its hash
-        // (e.g. hand-editing the durable journal file from Block 3.2).
+        // Симулируем правку содержимого события без пересчёта хеша (например, ручную правку
+        // durable-файла журнала из Блока 3.2).
         var tampered = log.Entries.ToList();
         tampered[0] = tampered[0] with { Change = new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "tampered" } };
 
@@ -77,7 +77,7 @@ public class EventLogTests
         log.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "second" });
         log.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "third" });
 
-        // Simulate a dropped record: the chain no longer lines up.
+        // Симулируем пропавшую запись: цепочка больше не сходится.
         var withGapInMiddle = new[] { log.Entries[0], log.Entries[2] };
 
         Assert.False(EventLog<TestState>.VerifyIntegrity(withGapInMiddle));
@@ -93,5 +93,34 @@ public class EventLogTests
         var reordered = new[] { log.Entries[1], log.Entries[0] };
 
         Assert.False(EventLog<TestState>.VerifyIntegrity(reordered));
+    }
+
+    [Fact]
+    public void Resuming_From_Valid_Entries_Continues_The_Chain()
+    {
+        var original = new EventLog<TestState>(new TestState());
+        original.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "first" });
+        original.Append(new IncrementCounterChange { Id = Ulid.NewUlid(), Amount = 2 });
+
+        var resumed = new EventLog<TestState>(new TestState { Counter = 2, Log = { "first" } }, original.Entries);
+        var entry = resumed.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "third" });
+
+        Assert.Equal(2, entry.SequenceNumber);
+        Assert.Equal(original.Entries[1].Hash, entry.PreviousHash);
+        Assert.Equal(new[] { "first", "third" }, resumed.State.Log);
+        Assert.True(resumed.VerifyIntegrity());
+    }
+
+    [Fact]
+    public void Resuming_From_A_Tampered_Entry_Sequence_Throws()
+    {
+        var original = new EventLog<TestState>(new TestState());
+        original.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "first" });
+        original.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "second" });
+
+        var tampered = original.Entries.ToList();
+        tampered[0] = tampered[0] with { Change = new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "tampered" } };
+
+        Assert.Throws<ArgumentException>(() => new EventLog<TestState>(new TestState(), tampered));
     }
 }

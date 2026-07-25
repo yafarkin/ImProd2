@@ -42,7 +42,7 @@ public sealed class Team
     }
 
     /// <summary>Строит фабрику заданного типа для команды; тип фабрики обязан быть из сектора команды.</summary>
-    // Sector check is enforced by the Factory constructor too; this is the entry point teams use.
+    // Проверку сектора дублирует и конструктор Factory — это лишь точка входа для команд.
     public Factory BuildFactory(Ulid factoryId, FactoryDefinition definition, Recipe? selectedRecipe = null)
     {
         var factory = new Factory(factoryId, Sector, definition, selectedRecipe);
