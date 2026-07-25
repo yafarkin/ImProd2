@@ -40,6 +40,6 @@ public sealed record Material
         Level = level;
     }
 
-    /// <summary>Level 0 materials are bought directly from the system, not produced via a Recipe.</summary>
+    /// <summary>Материалы уровня 0 покупаются напрямую у системы и не производятся по рецепту.</summary>
     public bool IsRawMaterial => Level == 0;
 }

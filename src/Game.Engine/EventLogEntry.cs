@@ -1,22 +1,22 @@
 namespace Game.Engine;
 
 /// <summary>
-/// One recorded, hash-chained position in an <see cref="EventLog{TState}"/>. Deliberately a
-/// record with public init accessors (not just constructed internally by the log) so tests — and,
-/// later, the durable journal reader (Block 3.2) — can rebuild a sequence of entries from storage
-/// and hand it to <see cref="EventLog{TState}.VerifyIntegrity"/> without going through <c>Append</c>.
+/// Одна записанная, хеш-сцепленная позиция в <see cref="EventLog{TState}"/>. Намеренно record с
+/// публичными init-свойствами (а не только с внутренним конструированием журналом), чтобы тесты —
+/// а позже и читатель durable-журнала (Блок 3.2) — могли собрать последовательность записей из
+/// хранилища и передать её в <see cref="EventLog{TState}.VerifyIntegrity"/>, минуя <c>Append</c>.
 /// </summary>
 public sealed record EventLogEntry<TState>
 {
-    /// <summary>Zero-based position of this entry in the journal.</summary>
+    /// <summary>Позиция этой записи в журнале, считая от нуля.</summary>
     public required int SequenceNumber { get; init; }
 
-    /// <summary>The event recorded at this position.</summary>
+    /// <summary>Событие, записанное на этой позиции.</summary>
     public required Change<TState> Change { get; init; }
 
-    /// <summary>Hash of the previous entry (the genesis entry chains from <see cref="EventLog{TState}.GenesisHash"/>).</summary>
+    /// <summary>Хеш предыдущей записи (первая запись сцепляется с <see cref="EventLog{TState}.GenesisHash"/>).</summary>
     public required string PreviousHash { get; init; }
 
-    /// <summary>SHA-256 of (<see cref="PreviousHash"/> + serialized <see cref="Change"/>).</summary>
+    /// <summary>SHA-256 от (<see cref="PreviousHash"/> + сериализованное <see cref="Change"/>).</summary>
     public required string Hash { get; init; }
 }

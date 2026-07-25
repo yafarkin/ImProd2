@@ -1,9 +1,9 @@
 namespace Game.Engine.Tests;
 
 /// <summary>
-/// Stand-in state and events for exercising <see cref="EventLog{TState}"/>. Block 3.1 is pure
-/// event-sourcing infrastructure — no concrete game event exists yet — so these fixtures play that
-/// role for tests only, the same way domain tests use small local fixture types.
+/// Условные состояние и события для проверки <see cref="EventLog{TState}"/>. Блок 3.1 — чистая
+/// инфраструктура event sourcing, ни одного конкретного игрового события ещё нет, поэтому эти
+/// фикстуры играют его роль только в тестах — как и локальные фикстуры в тестах домена.
 /// </summary>
 internal sealed class TestState
 {

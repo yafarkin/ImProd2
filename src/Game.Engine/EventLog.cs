@@ -5,24 +5,25 @@ using System.Text.Json;
 namespace Game.Engine;
 
 /// <summary>
-/// Append-only, hash-chained journal (AGENTS §2 rule 5): the only way to change <see cref="State"/>
-/// is <see cref="Append"/>, which serializes the event, hashes it together with the previous
-/// entry's hash (SHA-256), applies it to state, and only then records the entry — so a change that
-/// fails to apply never enters the journal, and there is no path that mutates state without going
-/// through it. Durable storage and replay-based recovery are Block 3.2, not this type.
+/// Append-only хеш-сцепленный журнал (AGENTS §2, правило 5): единственный способ изменить
+/// <see cref="State"/> — <see cref="Append"/>, который сериализует событие, хеширует его вместе
+/// с хешем предыдущей записи (SHA-256), применяет к состоянию и только потом записывает запись —
+/// поэтому изменение, которое не удалось применить, никогда не попадёт в журнал, и нет пути,
+/// меняющего состояние в обход журнала. Durable-хранение и восстановление воспроизведением —
+/// Блок 3.2, не этот тип.
 /// </summary>
 public sealed class EventLog<TState>
 {
-    /// <summary>Previous-hash value for the first entry in a journal — there is nothing before it.</summary>
+    /// <summary>Значение «хеш предыдущей записи» для самой первой записи журнала — перед ней ничего нет.</summary>
     public static readonly string GenesisHash = new('0', 64);
 
     private readonly List<EventLogEntry<TState>> _entries = new();
     private readonly JsonSerializerOptions _serializerOptions;
 
-    /// <summary>The live state this journal has been applying events to.</summary>
+    /// <summary>Живое состояние, к которому этот журнал применяет события.</summary>
     public TState State { get; }
 
-    /// <summary>All recorded entries, in append order.</summary>
+    /// <summary>Все записанные записи в порядке добавления.</summary>
     public IReadOnlyList<EventLogEntry<TState>> Entries => _entries;
 
     public EventLog(TState state, JsonSerializerOptions? serializerOptions = null)
@@ -33,7 +34,7 @@ public sealed class EventLog<TState>
         _serializerOptions = serializerOptions ?? new JsonSerializerOptions();
     }
 
-    /// <summary>Applies <paramref name="change"/> to <see cref="State"/> and records it in the journal.</summary>
+    /// <summary>Применяет <paramref name="change"/> к <see cref="State"/> и записывает его в журнал.</summary>
     public EventLogEntry<TState> Append(Change<TState> change)
     {
         ArgumentNullException.ThrowIfNull(change);
@@ -47,24 +48,24 @@ public sealed class EventLog<TState>
             Hash = ComputeHash(change, previousHash, _serializerOptions),
         };
 
-        // Apply before recording: a change that throws must never end up in the journal.
+        // Применяем до записи: изменение, бросившее исключение, не должно попасть в журнал.
         change.Apply(State);
         _entries.Add(entry);
 
         return entry;
     }
 
-    /// <summary>Re-checks every recorded hash against this log's own entries; see the static overload for details.</summary>
+    /// <summary>Перепроверяет все хеши по собственным записям этого журнала; подробности — в статической перегрузке.</summary>
     public bool VerifyIntegrity()
     {
         return VerifyIntegrity(_entries, _serializerOptions);
     }
 
     /// <summary>
-    /// Recomputes each entry's hash from its recorded <see cref="EventLogEntry{TState}.Change"/> and
-    /// <see cref="EventLogEntry{TState}.PreviousHash"/>, and checks that the chain of previous-hash
-    /// references is unbroken. Returns false if any entry was substituted, edited, reordered, or
-    /// removed after being appended — this is how tampering is detected.
+    /// Пересчитывает хеш каждой записи по её сохранённым <see cref="EventLogEntry{TState}.Change"/> и
+    /// <see cref="EventLogEntry{TState}.PreviousHash"/>, и проверяет, что цепочка ссылок на хеш
+    /// предыдущей записи не разорвана. Возвращает false, если какая-то запись была подменена,
+    /// отредактирована, переставлена или удалена после добавления — так детектируется подмена.
     /// </summary>
     public static bool VerifyIntegrity(
         IReadOnlyList<EventLogEntry<TState>> entries, JsonSerializerOptions? serializerOptions = null)
