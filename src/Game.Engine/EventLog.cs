@@ -19,6 +19,7 @@ public sealed class EventLog<TState>
 
     private readonly List<EventLogEntry<TState>> _entries = new();
     private readonly JsonSerializerOptions _serializerOptions;
+    private readonly Func<DateTimeOffset> _clock;
 
     /// <summary>Живое состояние, к которому этот журнал применяет события.</summary>
     public TState State { get; }
@@ -26,12 +27,13 @@ public sealed class EventLog<TState>
     /// <summary>Все записанные записи в порядке добавления.</summary>
     public IReadOnlyList<EventLogEntry<TState>> Entries => _entries;
 
-    public EventLog(TState state, JsonSerializerOptions? serializerOptions = null)
+    public EventLog(TState state, JsonSerializerOptions? serializerOptions = null, Func<DateTimeOffset>? clock = null)
     {
         ArgumentNullException.ThrowIfNull(state);
 
         State = state;
         _serializerOptions = serializerOptions ?? new JsonSerializerOptions();
+        _clock = clock ?? (() => DateTimeOffset.UtcNow);
     }
 
     /// <summary>
@@ -40,7 +42,11 @@ public sealed class EventLog<TState>
     /// доигранный хвост). Записи проверяются той же цепочкой хешей, что и <see cref="VerifyIntegrity()"/>,
     /// чтобы возобновление никогда не продолжало повреждённую или подменённую цепочку.
     /// </summary>
-    public EventLog(TState state, IReadOnlyList<EventLogEntry<TState>> entries, JsonSerializerOptions? serializerOptions = null)
+    public EventLog(
+        TState state,
+        IReadOnlyList<EventLogEntry<TState>> entries,
+        JsonSerializerOptions? serializerOptions = null,
+        Func<DateTimeOffset>? clock = null)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(entries);
@@ -55,6 +61,7 @@ public sealed class EventLog<TState>
         State = state;
         _entries = new List<EventLogEntry<TState>>(entries);
         _serializerOptions = options;
+        _clock = clock ?? (() => DateTimeOffset.UtcNow);
     }
 
     /// <summary>Применяет <paramref name="change"/> к <see cref="State"/> и записывает его в журнал.</summary>
@@ -63,12 +70,14 @@ public sealed class EventLog<TState>
         ArgumentNullException.ThrowIfNull(change);
 
         var previousHash = _entries.Count == 0 ? GenesisHash : _entries[^1].Hash;
+        var timestamp = _clock();
         var entry = new EventLogEntry<TState>
         {
             SequenceNumber = _entries.Count,
             Change = change,
+            Timestamp = timestamp,
             PreviousHash = previousHash,
-            Hash = ComputeHash(change, previousHash, _serializerOptions),
+            Hash = ComputeHash(change, timestamp, previousHash, _serializerOptions),
         };
 
         // Применяем до записи: изменение, бросившее исключение, не должно попасть в журнал.
@@ -85,10 +94,11 @@ public sealed class EventLog<TState>
     }
 
     /// <summary>
-    /// Пересчитывает хеш каждой записи по её сохранённым <see cref="EventLogEntry{TState}.Change"/> и
-    /// <see cref="EventLogEntry{TState}.PreviousHash"/>, и проверяет, что цепочка ссылок на хеш
-    /// предыдущей записи не разорвана. Возвращает false, если какая-то запись была подменена,
-    /// отредактирована, переставлена или удалена после добавления — так детектируется подмена.
+    /// Пересчитывает хеш каждой записи по её сохранённым <see cref="EventLogEntry{TState}.Change"/>,
+    /// <see cref="EventLogEntry{TState}.Timestamp"/> и <see cref="EventLogEntry{TState}.PreviousHash"/>,
+    /// и проверяет, что цепочка ссылок на хеш предыдущей записи не разорвана. Возвращает false, если
+    /// какая-то запись (включая метку времени) была подменена, отредактирована, переставлена или
+    /// удалена после добавления — так детектируется подмена.
     /// </summary>
     public static bool VerifyIntegrity(
         IReadOnlyList<EventLogEntry<TState>> entries, JsonSerializerOptions? serializerOptions = null)
@@ -110,7 +120,7 @@ public sealed class EventLog<TState>
                 return false;
             }
 
-            if (entry.Hash != ComputeHash(entry.Change, entry.PreviousHash, options))
+            if (entry.Hash != ComputeHash(entry.Change, entry.Timestamp, entry.PreviousHash, options))
             {
                 return false;
             }
@@ -121,10 +131,10 @@ public sealed class EventLog<TState>
         return true;
     }
 
-    private static string ComputeHash(Change<TState> change, string previousHash, JsonSerializerOptions options)
+    private static string ComputeHash(Change<TState> change, DateTimeOffset timestamp, string previousHash, JsonSerializerOptions options)
     {
         var changeJson = JsonSerializer.Serialize(change, change.GetType(), options);
-        var payload = previousHash + changeJson;
+        var payload = previousHash + timestamp.ToString("O") + changeJson;
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
 
         return Convert.ToHexString(hashBytes);

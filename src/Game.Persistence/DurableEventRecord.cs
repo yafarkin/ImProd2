@@ -16,9 +16,12 @@ internal sealed record DurableEventRecord
     /// <summary>Событие, сериализованное в JSON тем же способом, что участвовал в расчёте <see cref="Hash"/>.</summary>
     public required string ChangeJson { get; init; }
 
+    /// <summary>Реальная метка времени добавления записи — см. <see cref="Game.Engine.EventLogEntry{TState}.Timestamp"/>.</summary>
+    public required DateTimeOffset Timestamp { get; init; }
+
     /// <summary>Хеш предыдущей записи.</summary>
     public required string PreviousHash { get; init; }
 
-    /// <summary>SHA-256 от (PreviousHash + ChangeJson) — как считает <see cref="Game.Engine.EventLog{TState}"/>.</summary>
+    /// <summary>SHA-256 от (PreviousHash + Timestamp + ChangeJson) — как считает <see cref="Game.Engine.EventLog{TState}"/>.</summary>
     public required string Hash { get; init; }
 }

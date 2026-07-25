@@ -31,16 +31,24 @@ public sealed class GameSession
     /// Начинает новую сессию: разыгрывает ход окончания в диапазоне пресета и пишет об этом первую
     /// запись в журнал. Сессия сразу открывается в фазе расчёта первого хода.
     /// </summary>
-    public static GameSession Start(SessionPresetConfig preset, Random endTurnRandom, JsonSerializerOptions? serializerOptions = null)
+    public static GameSession Start(
+        SessionPresetConfig preset,
+        Random endTurnRandom,
+        JsonSerializerOptions? serializerOptions = null,
+        Func<DateTimeOffset>? clock = null)
     {
         var endTurn = SessionEndTurnDraw.Draw(preset, endTurnRandom);
-        return StartWithEndTurn(preset.Id, endTurn, serializerOptions);
+        return StartWithEndTurn(preset.Id, endTurn, serializerOptions, clock);
     }
 
     /// <summary>Начинает сессию с уже известным ходом окончания (например, для тестов).</summary>
-    public static GameSession StartWithEndTurn(string presetId, int endTurn, JsonSerializerOptions? serializerOptions = null)
+    public static GameSession StartWithEndTurn(
+        string presetId,
+        int endTurn,
+        JsonSerializerOptions? serializerOptions = null,
+        Func<DateTimeOffset>? clock = null)
     {
-        var log = new EventLog<GameSessionState>(new GameSessionState(), serializerOptions);
+        var log = new EventLog<GameSessionState>(new GameSessionState(), serializerOptions, clock);
         log.Append(new SessionStarted { Id = Ulid.NewUlid(), PresetId = presetId, EndTurn = endTurn });
 
         return new GameSession(log);

@@ -122,6 +122,27 @@ public class DurableEventLogTests
     }
 
     [Fact]
+    public void Timestamps_Survive_A_Restart_Unchanged()
+    {
+        var (journalPath, snapshotPath) = TempPaths();
+        try
+        {
+            var fixedInstant = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+            var log = DurableEventLog<TestState>.Open(
+                journalPath, snapshotPath, () => new TestState(), clock: () => fixedInstant);
+            log.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "a" });
+
+            var restarted = DurableEventLog<TestState>.Open(journalPath, snapshotPath, () => new TestState());
+
+            Assert.Equal(fixedInstant, restarted.Entries[0].Timestamp);
+        }
+        finally
+        {
+            CleanUp(journalPath, snapshotPath);
+        }
+    }
+
+    [Fact]
     public void Open_Throws_When_The_Journal_File_Was_Tampered_With()
     {
         var (journalPath, snapshotPath) = TempPaths();

@@ -123,4 +123,30 @@ public class EventLogTests
 
         Assert.Throws<ArgumentException>(() => new EventLog<TestState>(new TestState(), tampered));
     }
+
+    [Fact]
+    public void Append_Records_The_Timestamp_Provided_By_The_Injected_Clock()
+    {
+        var fixedInstant = new DateTimeOffset(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        var log = new EventLog<TestState>(new TestState(), clock: () => fixedInstant);
+
+        var entry = log.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "first" });
+
+        Assert.Equal(fixedInstant, entry.Timestamp);
+    }
+
+    [Fact]
+    public void VerifyIntegrity_Detects_A_Tampered_Timestamp()
+    {
+        var log = new EventLog<TestState>(new TestState());
+        log.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "first" });
+        log.Append(new AddLogEntryChange { Id = Ulid.NewUlid(), Text = "second" });
+
+        // Метка времени подправлена без пересчёта хеша — цепочка должна это заметить, как и
+        // подмену самого события.
+        var tampered = log.Entries.ToList();
+        tampered[0] = tampered[0] with { Timestamp = tampered[0].Timestamp.AddDays(1) };
+
+        Assert.False(EventLog<TestState>.VerifyIntegrity(tampered));
+    }
 }

@@ -44,7 +44,8 @@ public sealed class DurableEventLog<TState>
         string journalPath,
         string snapshotPath,
         Func<TState> createInitialState,
-        JsonSerializerOptions? serializerOptions = null)
+        JsonSerializerOptions? serializerOptions = null,
+        Func<DateTimeOffset>? clock = null)
     {
         ArgumentNullException.ThrowIfNull(createInitialState);
         var options = serializerOptions ?? new JsonSerializerOptions();
@@ -60,7 +61,7 @@ public sealed class DurableEventLog<TState>
         EventLog<TState> log;
         try
         {
-            log = new EventLog<TState>(state, entries, options);
+            log = new EventLog<TState>(state, entries, options, clock);
         }
         catch (ArgumentException ex)
         {

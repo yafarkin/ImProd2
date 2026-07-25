@@ -41,6 +41,7 @@ internal static class JournalFile
             {
                 SequenceNumber = record.SequenceNumber,
                 Change = change,
+                Timestamp = record.Timestamp,
                 PreviousHash = record.PreviousHash,
                 Hash = record.Hash,
             });
@@ -59,6 +60,7 @@ internal static class JournalFile
                          ?? throw new InvalidOperationException(
                              $"Event type '{entry.Change.GetType()}' has no assembly-qualified name."),
             ChangeJson = JsonSerializer.Serialize(entry.Change, entry.Change.GetType(), options),
+            Timestamp = entry.Timestamp,
             PreviousHash = entry.PreviousHash,
             Hash = entry.Hash,
         };

@@ -14,6 +14,14 @@ public sealed record EventLogEntry<TState>
     /// <summary>Событие, записанное на этой позиции.</summary>
     public required Change<TState> Change { get; init; }
 
+    /// <summary>
+    /// Реальная метка времени добавления записи (настенные часы, не игровое время). Часть
+    /// хешируемого содержимого — задним числом её не подправить незаметно. Не участвует в
+    /// бизнес-логике и детерминизме воспроизведения (AGENTS §2, правило 6), нужна только для
+    /// дебрифинга/аудита (SPEC §12) и разбора инцидентов.
+    /// </summary>
+    public required DateTimeOffset Timestamp { get; init; }
+
     /// <summary>Хеш предыдущей записи (первая запись сцепляется с <see cref="EventLog{TState}.GenesisHash"/>).</summary>
     public required string PreviousHash { get; init; }
 
