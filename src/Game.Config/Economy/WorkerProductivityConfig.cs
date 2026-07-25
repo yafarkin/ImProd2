@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Economy;
 
 /// <summary>
 /// Кривая производительности фабрики от числа рабочих (SPEC §5.6): линейная до базовой

@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Catalog;
 
 /// <summary>
 /// Правило преобразования, как оно задано в GameConfig: набор входов (по коду материала) даёт

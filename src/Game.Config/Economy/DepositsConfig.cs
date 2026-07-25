@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Economy;
 
 /// <summary>
 /// Параметры банковских депозитов (SPEC §5.9) — кандидат к включению в MVP (SPEC §2), включаются

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Game.Config;
+namespace Game.Config.Economy;
 
 /// <summary>Сценарный тренд внешней экономики сессии (SPEC §5.4).</summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]

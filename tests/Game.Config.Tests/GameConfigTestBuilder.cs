@@ -1,3 +1,9 @@
+using Game.Config.Catalog;
+using Game.Config.Contracts;
+using Game.Config.Economy;
+using Game.Config.News;
+using Game.Config.Session;
+
 namespace Game.Config.Tests;
 
 /// <summary>

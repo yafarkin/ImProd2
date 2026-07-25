@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Economy;
 
 /// <summary>
 /// Параметры налогов (SPEC §5.10) — кандидат к включению в MVP (SPEC §2), включаются флагом

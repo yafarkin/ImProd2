@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Catalog;
 
 /// <summary>Отрасль экономики, как она задана в GameConfig.</summary>
 public sealed record SectorConfig

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Game.Config;
+namespace Game.Config.Loading;
 
 /// <summary>
 /// Загружает GameConfig из JSON, валидирует ссылочную целостность и строит объектный граф

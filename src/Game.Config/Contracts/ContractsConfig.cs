@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Contracts;
 
 /// <summary>
 /// Параметры контрактов (SPEC §6): штрафы за два уровня несоблюдения (Delivery Miss ниже

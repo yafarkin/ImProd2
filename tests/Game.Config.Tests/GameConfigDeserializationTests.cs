@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Game.Config.Economy;
 
 namespace Game.Config.Tests;
 

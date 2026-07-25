@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Session;
 
 /// <summary>
 /// Длительности трёх фаз хода (SPEC §4: расчёт → решения → завершение). Завершение — короткое

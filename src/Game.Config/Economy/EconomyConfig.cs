@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Economy;
 
 /// <summary>
 /// Параметры внешней экономики сессии (SPEC §5.3-5.5): аварийная закупка, маржа по переделу,

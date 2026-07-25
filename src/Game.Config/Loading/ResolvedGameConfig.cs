@@ -1,6 +1,6 @@
 using Game.Domain;
 
-namespace Game.Config;
+namespace Game.Config.Loading;
 
 /// <summary>
 /// Результат успешной загрузки GameConfig: исходные данные плюс каталог (секторы, материалы,

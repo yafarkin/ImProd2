@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Economy;
 
 /// <summary>
 /// Один отрезок сценарного тренда экономики сессии: с хода по ход действует заданный тренд,

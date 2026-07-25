@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Session;
 
 /// <summary>
 /// Стартовые условия команды (SPEC §5.1): фабрик нет, только деньги — кредит свободной суммы

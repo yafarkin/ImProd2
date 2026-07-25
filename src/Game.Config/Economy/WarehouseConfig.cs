@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Economy;
 
 /// <summary>
 /// Параметры склада (SPEC §5.7): бесплатный лимит вместимости + плата за превышение.

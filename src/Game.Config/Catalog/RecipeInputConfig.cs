@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Catalog;
 
 /// <summary>Один вход рецепта: материал (по коду) и требуемое количество.</summary>
 public sealed record RecipeInputConfig

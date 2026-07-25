@@ -1,3 +1,6 @@
+using Game.Config.Catalog;
+using Game.Config.Loading;
+
 namespace Game.Config.Tests;
 
 public class GameConfigLoaderTests

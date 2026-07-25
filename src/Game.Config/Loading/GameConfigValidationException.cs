@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Loading;
 
 /// <summary>
 /// Брошено, когда GameConfig не проходит валидацию: сломан JSON или нарушена ссылочная

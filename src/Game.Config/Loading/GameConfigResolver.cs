@@ -1,6 +1,7 @@
+using Game.Config.Catalog;
 using Game.Domain;
 
-namespace Game.Config;
+namespace Game.Config.Loading;
 
 /// <summary>
 /// Строит объектный граф Game.Domain из уже провалидированного GameConfig. Не проверяет

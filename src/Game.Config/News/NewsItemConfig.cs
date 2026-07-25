@@ -1,4 +1,6 @@
-namespace Game.Config;
+using Game.Config.Economy;
+
+namespace Game.Config.News;
 
 /// <summary>
 /// Один заголовок новостной ленты (SPEC §13): привязан к тренду, выбирается без повторов

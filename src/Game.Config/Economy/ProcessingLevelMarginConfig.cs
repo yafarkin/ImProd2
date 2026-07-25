@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Economy;
 
 /// <summary>
 /// Множитель маржи при продаже системе для заданного уровня передела (SPEC §5.4): продукция

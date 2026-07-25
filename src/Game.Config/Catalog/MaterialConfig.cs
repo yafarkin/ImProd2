@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Catalog;
 
 /// <summary>Материал справочника, как он задан в GameConfig. Ссылается на сектор по коду.</summary>
 public sealed record MaterialConfig

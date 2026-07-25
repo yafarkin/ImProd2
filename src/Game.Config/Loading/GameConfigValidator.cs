@@ -1,4 +1,6 @@
-namespace Game.Config;
+using Game.Config.Catalog;
+
+namespace Game.Config.Loading;
 
 /// <summary>
 /// Проверяет ссылочную целостность GameConfig до попытки построить из него доменный граф:

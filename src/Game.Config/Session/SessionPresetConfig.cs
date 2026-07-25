@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Session;
 
 /// <summary>
 /// Пресет длительности сессии (SPEC §4): короткая/средняя/полная игра. Точный ход окончания

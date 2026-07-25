@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Contracts;
 
 /// <summary>
 /// Параметры репутации (SPEC §7): затухание свежих срывов, «пристрелочные» ходы в начале сессии,

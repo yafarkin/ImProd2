@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Catalog;
 
 /// <summary>Тип фабрики, как он задан в GameConfig: свой сектор и список рецептов, которые может выпускать.</summary>
 public sealed record FactoryDefinitionConfig

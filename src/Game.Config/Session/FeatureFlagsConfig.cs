@@ -1,4 +1,4 @@
-namespace Game.Config;
+namespace Game.Config.Session;
 
 /// <summary>Флаги MVP (SPEC §2): механики, которые можно включать/выключать без перекомпиляции.</summary>
 public sealed record FeatureFlagsConfig
