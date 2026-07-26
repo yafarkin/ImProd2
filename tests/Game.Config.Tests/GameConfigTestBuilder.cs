@@ -45,7 +45,7 @@ internal static class GameConfigTestBuilder
             Economy = new EconomyConfig
             {
                 EmergencyPurchasePriceMultiplier = 1m,
-                SystemPricePerMaterial = Array.Empty<MaterialSystemPriceConfig>(),
+                BaseMarketPerMaterial = Array.Empty<MaterialMarketConfig>(),
                 MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,

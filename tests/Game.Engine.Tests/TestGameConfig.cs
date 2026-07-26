@@ -150,12 +150,15 @@ internal static class TestGameConfig
             Economy = new EconomyConfig
             {
                 EmergencyPurchasePriceMultiplier = 2m,
-                SystemPricePerMaterial = new[]
+                BaseMarketPerMaterial = new[]
                 {
-                    new MaterialSystemPriceConfig { MaterialId = "ore", Price = 10m },
-                    new MaterialSystemPriceConfig { MaterialId = "sheet", Price = 25m },
+                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100m },
+                    new MaterialMarketConfig { MaterialId = "sheet", BasePrice = 25m, BaseCapacity = 8m },
                 },
-                MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
+                MarginMultiplierByProcessingLevel = new[]
+                {
+                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m },
+                },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
                 TrendScenario = Array.Empty<EconomyTrendPhaseConfig>(),

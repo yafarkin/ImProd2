@@ -230,8 +230,9 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Аварийная закупка материала у системы (SPEC §5.3): цена — системная цена материала ×
-    /// множитель, служит потолком монопольных цен. Требует включённого флага и фазы решений.
+    /// Аварийная закупка материала у системы (SPEC §5.3): цена — текущая рыночная котировка
+    /// материала (Блок 6.1) × множитель, служит потолком монопольных цен. Требует включённого
+    /// флага и фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> EmergencyPurchase(Ulid teamId, string materialId, decimal volume)
     {
@@ -249,15 +250,8 @@ public sealed class GameSession
         {
             throw new ArgumentException($"Unknown team '{teamId}'.", nameof(teamId));
         }
-        if (!State.Config.Materials.ContainsKey(materialId))
-        {
-            throw new ArgumentException($"Unknown material '{materialId}'.", nameof(materialId));
-        }
 
-        var systemPrice = State.Config.Raw.Economy.SystemPricePerMaterial
-            .FirstOrDefault(price => price.MaterialId == materialId)
-            ?? throw new InvalidOperationException($"No system price configured for material '{materialId}'.");
-        var unitPrice = systemPrice.Price * State.Config.Raw.Economy.EmergencyPurchasePriceMultiplier;
+        var unitPrice = GetQuoteOrThrow(materialId).Price * State.Config.Raw.Economy.EmergencyPurchasePriceMultiplier;
 
         return _log.Append(new EmergencyPurchased
         {
@@ -268,6 +262,66 @@ public sealed class GameSession
             UnitPrice = unitPrice,
             TotalCost = unitPrice * volume,
         });
+    }
+
+    /// <summary>
+    /// Продажа материала (любого уровня передела) системе по рыночной цене (Блок 6.1, SPEC §5.4):
+    /// в пределах оставшейся на этот ход ёмкости — по полной цене с множителем маржи передела,
+    /// сверх — с понижающим коэффициентом. Требует фазы решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> SellToSystem(Ulid teamId, string materialId, decimal volume)
+    {
+        EnsureDecisionsAllowed();
+
+        if (volume <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(volume), volume, "Sale volume must be positive.");
+        }
+        if (!State.Teams.TryGetValue(teamId, out var team))
+        {
+            throw new ArgumentException($"Unknown team '{teamId}'.", nameof(teamId));
+        }
+        if (!State.Config.Materials.TryGetValue(materialId, out var material))
+        {
+            throw new ArgumentException($"Unknown material '{materialId}'.", nameof(materialId));
+        }
+        GetQuoteOrThrow(materialId);
+
+        var available = team.Warehouse.QuantityOf(material);
+        if (available < volume)
+        {
+            throw new InvalidOperationException(
+                $"Team '{teamId}' cannot sell {volume} of '{materialId}': only {available} in stock.");
+        }
+
+        var sale = MarketSaleCalculator.Calculate(State.Market, State.Config.Raw.Economy, material, volume);
+
+        return _log.Append(new MaterialSoldToSystem
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            MaterialId = materialId,
+            Volume = volume,
+            WithinCapacityVolume = sale.WithinCapacityVolume,
+            OverflowVolume = sale.OverflowVolume,
+            UnitPrice = sale.UnitPrice,
+            TotalRevenue = sale.TotalRevenue,
+        });
+    }
+
+    /// <summary>Текущая рыночная котировка материала или внятная ошибка, если рынок ещё не публиковал её.</summary>
+    private MaterialQuote GetQuoteOrThrow(string materialId)
+    {
+        if (!State.Config.Materials.ContainsKey(materialId))
+        {
+            throw new ArgumentException($"Unknown material '{materialId}'.", nameof(materialId));
+        }
+        if (!State.Market.HasQuote(materialId))
+        {
+            throw new InvalidOperationException($"No market quote available yet for material '{materialId}'.");
+        }
+
+        return State.Market.QuoteOf(materialId);
     }
 
     private Contract GetContract(Ulid contractId)
@@ -282,12 +336,13 @@ public sealed class GameSession
 
     /// <summary>
     /// Прогоняет расчёт одного тика в фиксированном порядке (SPEC §4): для всех команд финансы →
-    /// производство снизу вверх по уровню материала, затем исполнение контрактов. События
-    /// дописываются в журнал сразу по мере расчёта — не собираются заранее единым списком, — чтобы
-    /// фабрика более высокого уровня видела в складе выход нижней в этом же тике, а последующая
-    /// поставка — склад после предыдущей. Рынок/новости — заглушки (Фаза 6 ещё не реализована). Не
-    /// вызывается автоматически при переходе фаз — таймер-driven вызов появится с real-time слоем
-    /// (Блок 8.2).
+    /// производство снизу вверх по уровню материала, затем исполнение контрактов, затем обновление
+    /// рынка (Блок 6.1) — публикуется даже без единой команды в сессии, оно не зависит от них.
+    /// События дописываются в журнал сразу по мере расчёта — не собираются заранее единым списком, —
+    /// чтобы фабрика более высокого уровня видела в складе выход нижней в этом же тике, а
+    /// последующая поставка — склад после предыдущей. Новости — заглушка (Блок 6.3 ещё не
+    /// реализован). Не вызывается автоматически при переходе фаз — таймер-driven вызов появится с
+    /// real-time слоем (Блок 8.2).
     /// </summary>
     public IReadOnlyList<EventLogEntry<GameSessionState>> RunTick()
     {
@@ -325,6 +380,14 @@ public sealed class GameSession
         }
 
         ExecuteContracts(appended);
+
+        var marketUpdate = MarketCalculator.Calculate(State.CurrentTurn, config.Raw.Economy);
+        appended.Add(_log.Append(new MarketUpdated
+        {
+            Id = Ulid.NewUlid(),
+            Quotes = marketUpdate.Quotes,
+            ElectricityPrice = marketUpdate.ElectricityPrice,
+        }));
 
         return appended;
     }

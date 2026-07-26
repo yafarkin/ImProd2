@@ -29,6 +29,12 @@ public sealed class GameSessionState
     /// <summary>Контракты сессии по идентификатору — наполняется событием <see cref="ContractSigned"/> (Блок 5.2).</summary>
     public IReadOnlyDictionary<Ulid, Contract> Contracts => _contracts;
 
+    /// <summary>
+    /// Внешняя экономика сессии (Блок 6.1, SPEC §5.4-5.5) — котировки на первый ход заполняются
+    /// событием <see cref="SessionStarted"/>, далее обновляются каждый ход событием <see cref="MarketUpdated"/>.
+    /// </summary>
+    public Market Market { get; } = new();
+
     public GameSessionState(ResolvedGameConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);

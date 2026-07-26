@@ -6,7 +6,9 @@ namespace Game.Engine;
 /// Сессия начата: ход окончания разыгран жеребьёвкой в диапазоне пресета и зафиксирован в журнале
 /// (SPEC §4) — это первая запись в истории сессии, точный ход окончания не сообщается игрокам.
 /// Заодно регистрирует состав команд: по SPEC §9.6 регистрация происходит до старта таймера, так
-/// что ростер уже известен целиком в момент, когда ведущий запускает сессию.
+/// что ростер уже известен целиком в момент, когда ведущий запускает сессию. Заодно публикует
+/// котировки рынка первого хода (Блок 6.1) — они нужны с самого начала фазы решений, до того как
+/// для этого хода вообще будет вызван <see cref="GameSession.RunTick"/>.
 /// </summary>
 public sealed record SessionStarted : Change<GameSessionState>
 {
@@ -58,5 +60,11 @@ public sealed record SessionStarted : Change<GameSessionState>
 
             state.AddTeam(team);
         }
+
+        // Рынок первого хода публикуется прямо здесь, а не первым RunTick: до RunTick для хода 1
+        // ещё дойдёт очередь (расчёт — отдельный, не автоматический шаг, см. GameSession.RunTick),
+        // а решения (в т.ч. аварийная закупка) уже разрешены с фазы расчёта первого хода.
+        var marketUpdate = MarketCalculator.Calculate(state.CurrentTurn, state.Config.Raw.Economy);
+        state.Market.ReplaceQuotes(marketUpdate.Quotes, marketUpdate.ElectricityPrice);
     }
 }

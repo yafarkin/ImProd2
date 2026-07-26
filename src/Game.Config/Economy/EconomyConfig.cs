@@ -10,11 +10,8 @@ public sealed record EconomyConfig
     /// <summary>Множитель к текущей рыночной цене материала при аварийной закупке у системы.</summary>
     public required decimal EmergencyPurchasePriceMultiplier { get; init; }
 
-    /// <summary>
-    /// Временные системные цены материалов — заглушка под рыночную цену до Блока 6.1. Используется
-    /// аварийной закупкой (SPEC §5.3) как база для потолка цены.
-    /// </summary>
-    public required IReadOnlyList<MaterialSystemPriceConfig> SystemPricePerMaterial { get; init; }
+    /// <summary>Базовые цена и ёмкость по каждому материалу (Блок 6.1), от которых тренд отсчитывает изменение по ходам.</summary>
+    public required IReadOnlyList<MaterialMarketConfig> BaseMarketPerMaterial { get; init; }
 
     /// <summary>Множители маржи по уровню передела.</summary>
     public required IReadOnlyList<ProcessingLevelMarginConfig> MarginMultiplierByProcessingLevel { get; init; }

@@ -84,12 +84,16 @@ public class GameSessionRunTickTests
     }
 
     [Fact]
-    public void RunTick_With_No_Teams_Is_A_No_Op()
+    public void RunTick_With_No_Teams_Still_Publishes_The_Market_Update()
     {
         var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "test", endTurn: 999, Array.Empty<TeamSpec>());
 
         var appended = session.RunTick();
 
-        Assert.Empty(appended);
+        // Финансы/производство/контракты пропускаются без команд, но рынок (Блок 6.1) — внешняя
+        // экономика, она обновляется независимо от того, есть ли вообще участники.
+        var update = Assert.IsType<MarketUpdated>(Assert.Single(appended).Change);
+        Assert.True(session.State.Market.HasQuote(TestGameConfig.Ore.Id));
+        Assert.Equal(update.ElectricityPrice, session.State.Market.ElectricityPrice);
     }
 }

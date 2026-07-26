@@ -73,9 +73,10 @@ public class GameConfigDeserializationTests
         Assert.Equal(4, config.Economy.MarginMultiplierByProcessingLevel.Count);
         Assert.Equal(0.5m, config.Economy.MarketCapacityOverflowDiscount);
 
-        Assert.Equal(5, config.Economy.SystemPricePerMaterial.Count);
-        var orePrice = Assert.Single(config.Economy.SystemPricePerMaterial, p => p.MaterialId == "ore");
-        Assert.Equal(10m, orePrice.Price);
+        Assert.Equal(5, config.Economy.BaseMarketPerMaterial.Count);
+        var orePrice = Assert.Single(config.Economy.BaseMarketPerMaterial, p => p.MaterialId == "ore");
+        Assert.Equal(10m, orePrice.BasePrice);
+        Assert.Equal(200m, orePrice.BaseCapacity);
 
         Assert.Equal(3, config.Economy.TrendScenario.Count);
         var upPhase = Assert.Single(config.Economy.TrendScenario, phase => phase.Trend == EconomyTrend.Up);
