@@ -17,4 +17,10 @@ public sealed record FactoryDefinitionConfig
 
     /// <summary>Стоимость постройки фабрики этого типа, списывается сразу (SPEC §5.6). Заглушка, требует калибровки.</summary>
     public required decimal BuildCost { get; init; }
+
+    /// <summary>
+    /// Доля от <see cref="BuildCost"/>, которую платит система при продаже/ликвидации фабрики этого
+    /// типа (SPEC §5.6, §5.11), 0..1. Заглушка, требует калибровки.
+    /// </summary>
+    public required decimal LiquidationValueCoefficient { get; init; }
 }

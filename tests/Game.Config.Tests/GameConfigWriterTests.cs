@@ -35,6 +35,7 @@ public class GameConfigWriterTests
             SectorId = "A",
             RecipeIds = new[] { "ore-mining" },
             BuildCost = 100m,
+            LiquidationValueCoefficient = 0.5m,
         };
         var steelMill = new FactoryDefinitionConfig
         {
@@ -43,6 +44,7 @@ public class GameConfigWriterTests
             SectorId = "A",
             RecipeIds = new[] { "sheet-from-ore" },
             BuildCost = 100m,
+            LiquidationValueCoefficient = 0.5m,
         };
 
         var original = GameConfigTestBuilder.Build(

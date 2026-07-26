@@ -8,7 +8,17 @@ namespace Game.Bots;
 /// </summary>
 public static class BotSessionRunner
 {
-    public static void RunToCompletion(GameSession session, IReadOnlyList<SimpleBot> bots, Random random)
+    /// <summary>
+    /// <paramref name="onTurnCompleted"/> — необязательный колбэк для харнесса балансировки (Блок
+    /// 7.2): получает все события хода — и тика (финансы/производство/контракты/рынок/новости), и
+    /// решений ботов, принятых по его итогам (постройка/наём/контракты/продажа), — сразу после
+    /// того, как решения этого хода приняты, но ещё до перехода к следующему ходу.
+    /// </summary>
+    public static void RunToCompletion(
+        GameSession session,
+        IReadOnlyList<SimpleBot> bots,
+        Random random,
+        Action<IReadOnlyList<EventLogEntry<GameSessionState>>>? onTurnCompleted = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(bots);
@@ -16,12 +26,14 @@ public static class BotSessionRunner
 
         var contractPairs = PairBySector(bots);
         var hasBuiltOut = false;
+        var turnStartIndex = session.Entries.Count;
 
         while (!session.State.IsFinished)
         {
             switch (session.State.CurrentPhase)
             {
                 case TurnPhase.Calculation:
+                    turnStartIndex = session.Entries.Count;
                     session.RunTick(random);
                     session.AdvancePhase(PhaseTransitionTrigger.Timer);
                     break;
@@ -45,6 +57,7 @@ public static class BotSessionRunner
                         bot.SellSurplusToSystem(session);
                     }
 
+                    onTurnCompleted?.Invoke(session.Entries.Skip(turnStartIndex).ToList());
                     session.AdvancePhase(PhaseTransitionTrigger.Timer);
                     break;
 

@@ -47,9 +47,9 @@ public class GameConfigValidatorTests
             recipes: new[] { OreMining(), SheetFromOre(), RebarFromSheet() },
             factoryDefinitions: new[]
             {
-                new FactoryDefinitionConfig { Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m },
-                new FactoryDefinitionConfig { Id = "steel-mill", Name = "Завод", SectorId = "A", RecipeIds = new[] { "sheet-from-ore" }, BuildCost = 100m },
-                new FactoryDefinitionConfig { Id = "rolling-mill", Name = "Стан", SectorId = "A", RecipeIds = new[] { "rebar-from-sheet" }, BuildCost = 100m },
+                new FactoryDefinitionConfig { Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m },
+                new FactoryDefinitionConfig { Id = "steel-mill", Name = "Завод", SectorId = "A", RecipeIds = new[] { "sheet-from-ore" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m },
+                new FactoryDefinitionConfig { Id = "rolling-mill", Name = "Стан", SectorId = "A", RecipeIds = new[] { "rebar-from-sheet" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m },
             });
 
         var errors = GameConfigValidator.Validate(config);
@@ -138,7 +138,7 @@ public class GameConfigValidatorTests
             recipes: new[] { OreMining() },
             factoryDefinitions: new[]
             {
-                new FactoryDefinitionConfig { Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m },
+                new FactoryDefinitionConfig { Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m },
             });
 
         var errors = GameConfigValidator.Validate(config);
@@ -182,7 +182,7 @@ public class GameConfigValidatorTests
             recipes: new[] { SheetFromOre() },
             factoryDefinitions: new[]
             {
-                new FactoryDefinitionConfig { Id = "wrong-mill", Name = "Не тот завод", SectorId = "B", RecipeIds = new[] { "sheet-from-ore" }, BuildCost = 100m },
+                new FactoryDefinitionConfig { Id = "wrong-mill", Name = "Не тот завод", SectorId = "B", RecipeIds = new[] { "sheet-from-ore" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m },
             });
 
         var errors = GameConfigValidator.Validate(config);
@@ -197,7 +197,7 @@ public class GameConfigValidatorTests
             sectors: new[] { SectorA },
             factoryDefinitions: new[]
             {
-                new FactoryDefinitionConfig { Id = "steel-mill", Name = "Завод", SectorId = "A", RecipeIds = new[] { "no-such-recipe" }, BuildCost = 100m },
+                new FactoryDefinitionConfig { Id = "steel-mill", Name = "Завод", SectorId = "A", RecipeIds = new[] { "no-such-recipe" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m },
             });
 
         var errors = GameConfigValidator.Validate(config);

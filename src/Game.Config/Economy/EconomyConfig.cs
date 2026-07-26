@@ -24,4 +24,10 @@ public sealed record EconomyConfig
 
     /// <summary>Сценарный тренд сессии, разбитый на отрезки ходов.</summary>
     public required IReadOnlyList<EconomyTrendPhaseConfig> TrendScenario { get; init; }
+
+    /// <summary>
+    /// Доля от текущей рыночной цены, по которой склад оценивается в итоговом счёте (SPEC §5.11:
+    /// «≈50% рыночной цены»), 0..1. Заглушка, требует калибровки.
+    /// </summary>
+    public required decimal WarehouseLiquidationRate { get; init; }
 }

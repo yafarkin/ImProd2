@@ -51,6 +51,7 @@ internal static class GameConfigTestBuilder
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
                 TrendScenario = Array.Empty<EconomyTrendPhaseConfig>(),
+                WarehouseLiquidationRate = 0.5m,
             },
             WorkerProductivity = new WorkerProductivityConfig
             {

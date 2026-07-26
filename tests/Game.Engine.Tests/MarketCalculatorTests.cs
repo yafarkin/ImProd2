@@ -18,6 +18,7 @@ public class MarketCalculatorTests
             MarketCapacityOverflowDiscount = 0.5m,
             ElectricityBasePrice = 5m,
             TrendScenario = trend,
+            WarehouseLiquidationRate = 0.5m,
         };
     }
 

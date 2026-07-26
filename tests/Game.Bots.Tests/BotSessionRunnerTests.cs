@@ -1,4 +1,3 @@
-using Game.Config.Loading;
 using Game.Domain;
 using Game.Engine;
 
@@ -10,40 +9,11 @@ namespace Game.Bots.Tests;
 /// </summary>
 public class BotSessionRunnerTests
 {
-    private static string SampleConfigPath => Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
-
-    /// <summary>4 команды сектора А + 4 сектора Б — по одному <see cref="SimpleBot"/> на команду.</summary>
-    private static (GameSession Session, IReadOnlyList<SimpleBot> Bots) StartEightBotSession(ResolvedGameConfig config)
-    {
-        var sectorA = config.Sectors.Single(s => s.Id == "A");
-        var sectorB = config.Sectors.Single(s => s.Id == "B");
-
-        var teams = new List<TeamSpec>();
-        var bots = new List<SimpleBot>();
-        for (var i = 0; i < 4; i++)
-        {
-            var sector = i % 2 == 0 ? sectorA : sectorB;
-            var teamId = Ulid.NewUlid();
-            teams.Add(new TeamSpec { Id = teamId, Name = $"Бот А{i}", SectorId = sector.Id, StartingLoanAmount = 10_000m });
-            bots.Add(new SimpleBot(teamId, sector, config));
-        }
-        for (var i = 0; i < 4; i++)
-        {
-            var sector = i % 2 == 0 ? sectorA : sectorB;
-            var teamId = Ulid.NewUlid();
-            teams.Add(new TeamSpec { Id = teamId, Name = $"Бот Б{i}", SectorId = sector.Id, StartingLoanAmount = 10_000m });
-            bots.Add(new SimpleBot(teamId, sector, config));
-        }
-
-        var session = GameSession.StartWithEndTurn(config, "short", endTurn: 15, teams);
-        return (session, bots);
-    }
-
     [Fact]
     public void Eight_Bots_Complete_A_Full_Session_On_The_Pilot_Config_Without_Any_Intervention()
     {
-        var config = GameConfigLoader.LoadFromFile(SampleConfigPath);
-        var (session, bots) = StartEightBotSession(config);
+        var config = PilotBotSession.LoadConfig();
+        var (session, bots) = PilotBotSession.StartEightBotSession(config, endTurn: 15);
 
         BotSessionRunner.RunToCompletion(session, bots, new Random(1));
 
@@ -66,7 +36,7 @@ public class BotSessionRunnerTests
     [Fact]
     public void BuildFactory_Throws_When_The_Factory_Definition_Belongs_To_Another_Sector()
     {
-        var config = GameConfigLoader.LoadFromFile(SampleConfigPath);
+        var config = PilotBotSession.LoadConfig();
         var sectorA = config.Sectors.Single(s => s.Id == "A");
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(

@@ -101,7 +101,8 @@
       "RecipeIds": [
         "ore-mining"
       ],
-      "BuildCost": 500
+      "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5
     },
     {
       "Id": "steel-mill",
@@ -110,7 +111,8 @@
       "RecipeIds": [
         "sheet-from-ore"
       ],
-      "BuildCost": 1500
+      "BuildCost": 1500,
+      "LiquidationValueCoefficient": 0.5
     },
     {
       "Id": "rolling-mill",
@@ -119,7 +121,8 @@
       "RecipeIds": [
         "rebar-from-sheet"
       ],
-      "BuildCost": 3000
+      "BuildCost": 3000,
+      "LiquidationValueCoefficient": 0.5
     },
     {
       "Id": "oil-well",
@@ -128,7 +131,8 @@
       "RecipeIds": [
         "oil-drilling"
       ],
-      "BuildCost": 500
+      "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5
     },
     {
       "Id": "petrochemical-plant",
@@ -137,7 +141,8 @@
       "RecipeIds": [
         "plastic-from-oil"
       ],
-      "BuildCost": 1500
+      "BuildCost": 1500,
+      "LiquidationValueCoefficient": 0.5
     }
   ],
   "StartingConditions": {
@@ -246,7 +251,8 @@
         "PriceChangePerTurn": -0.5,
         "CapacityChangePerTurn": -2
       }
-    ]
+    ],
+    "WarehouseLiquidationRate": 0.5
   },
   "WorkerProductivity": {
     "BaseWorkerCount": 10,

@@ -157,8 +157,8 @@ internal static class TestGameConfig
             },
             FactoryDefinitions = new[]
             {
-                new FactoryDefinitionConfig { Id = "iron-mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m },
-                new FactoryDefinitionConfig { Id = "steel-mill", Name = "Сталелитейный завод", SectorId = "A", RecipeIds = new[] { "sheet-from-ore" }, BuildCost = 100m },
+                new FactoryDefinitionConfig { Id = "iron-mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m },
+                new FactoryDefinitionConfig { Id = "steel-mill", Name = "Сталелитейный завод", SectorId = "A", RecipeIds = new[] { "sheet-from-ore" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m },
             },
             StartingConditions = new StartingConditionsConfig
             {
@@ -188,6 +188,7 @@ internal static class TestGameConfig
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
                 TrendScenario = trendScenario ?? Array.Empty<EconomyTrendPhaseConfig>(),
+                WarehouseLiquidationRate = 0.5m,
             },
             WorkerProductivity = new WorkerProductivityConfig
             {

@@ -44,6 +44,7 @@ public class GameConfigDeserializationTests
         Assert.Equal("A", steelMill.SectorId);
         Assert.Equal(new[] { "sheet-from-ore" }, steelMill.RecipeIds);
         Assert.Equal(1500m, steelMill.BuildCost);
+        Assert.Equal(0.5m, steelMill.LiquidationValueCoefficient);
     }
 
     [Fact]
@@ -74,6 +75,7 @@ public class GameConfigDeserializationTests
         Assert.Equal(1.5m, config.Economy.EmergencyPurchasePriceMultiplier);
         Assert.Equal(4, config.Economy.MarginMultiplierByProcessingLevel.Count);
         Assert.Equal(0.5m, config.Economy.MarketCapacityOverflowDiscount);
+        Assert.Equal(0.5m, config.Economy.WarehouseLiquidationRate);
 
         Assert.Equal(5, config.Economy.BaseMarketPerMaterial.Count);
         var orePrice = Assert.Single(config.Economy.BaseMarketPerMaterial, p => p.MaterialId == "ore");
