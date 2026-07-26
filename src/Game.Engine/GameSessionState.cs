@@ -47,6 +47,12 @@ public sealed class GameSessionState
         _contracts.Add(contract.Id, contract);
     }
 
+    /// <summary>
+    /// Контент-хеш конфига, с которым начата сессия (продублирован из <see cref="Config"/> для
+    /// самодостаточного экспорта/дебрифа §12) — заполняется событием <see cref="SessionStarted"/>.
+    /// </summary>
+    public string ConfigHash { get; internal set; } = string.Empty;
+
     /// <summary>Пресет длительности сессии, по которому был разыгран <see cref="EndTurn"/>.</summary>
     public string PresetId { get; internal set; } = string.Empty;
 

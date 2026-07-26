@@ -42,6 +42,7 @@ internal static class TestGameConfig
             Id = Ulid.NewUlid(),
             PresetId = "test",
             EndTurn = 999,
+            ConfigHash = Resolved.ContentHash,
             Teams = new[]
             {
                 new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
@@ -64,6 +65,7 @@ internal static class TestGameConfig
             Id = Ulid.NewUlid(),
             PresetId = "test",
             EndTurn = 999,
+            ConfigHash = Resolved.ContentHash,
             Teams = new[]
             {
                 new TeamSpec { Id = buyerId, Name = "Покупатель", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },

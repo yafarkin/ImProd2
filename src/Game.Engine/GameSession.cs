@@ -69,7 +69,14 @@ public sealed class GameSession
         }
 
         var log = new EventLog<GameSessionState>(new GameSessionState(config), serializerOptions, clock);
-        log.Append(new SessionStarted { Id = Ulid.NewUlid(), PresetId = presetId, EndTurn = endTurn, Teams = teams });
+        log.Append(new SessionStarted
+        {
+            Id = Ulid.NewUlid(),
+            PresetId = presetId,
+            EndTurn = endTurn,
+            ConfigHash = config.ContentHash,
+            Teams = teams,
+        });
 
         return new GameSession(log);
     }

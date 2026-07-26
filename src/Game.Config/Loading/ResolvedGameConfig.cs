@@ -13,6 +13,12 @@ public sealed class ResolvedGameConfig
     /// <summary>Исходные (невалидированные ссылочно) данные конфига, как они пришли из JSON.</summary>
     public GameConfig Raw { get; }
 
+    /// <summary>
+    /// Контент-хеш конфига (SHA-256 от канонической сериализации <see cref="Raw"/>). Журнал сессии
+    /// записывает его в первую запись и сверяет при восстановлении — привязка лога к своему конфигу.
+    /// </summary>
+    public string ContentHash { get; }
+
     /// <summary>Секторы.</summary>
     public IReadOnlyList<Sector> Sectors { get; }
 
@@ -37,5 +43,6 @@ public sealed class ResolvedGameConfig
         Materials = materials;
         RecipeBook = recipeBook;
         FactoryDefinitions = factoryDefinitions;
+        ContentHash = GameConfigHash.Compute(raw);
     }
 }

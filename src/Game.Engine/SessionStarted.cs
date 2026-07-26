@@ -16,11 +16,29 @@ public sealed record SessionStarted : Change<GameSessionState>
     /// <summary>Разыгранный ход окончания игры.</summary>
     public required int EndTurn { get; init; }
 
+    /// <summary>
+    /// Контент-хеш GameConfig, с которым была начата сессия (см. <see cref="Game.Config.Loading.GameConfigHash"/>).
+    /// Привязывает журнал к своему конфигу: при восстановлении хеш сверяется с фактически поданным
+    /// конфигом, и дрейф/подмена обнаруживаются.
+    /// </summary>
+    public required string ConfigHash { get; init; }
+
     /// <summary>Состав команд сессии.</summary>
     public required IReadOnlyList<TeamSpec> Teams { get; init; }
 
     public override void Apply(GameSessionState state)
     {
+        // Guard целостности, а не бизнес-валидация: на нормальном старте хеш взят из этого же
+        // конфига и всегда совпадает; несовпадение возможно только при попытке доиграть журнал
+        // поверх другого/подменённого конфига — это тот же класс защиты, что и VerifyIntegrity.
+        if (ConfigHash != state.Config.ContentHash)
+        {
+            throw new InvalidOperationException(
+                "Session journal was created with a different GameConfig than the one supplied for replay " +
+                $"(expected content hash '{ConfigHash}', got '{state.Config.ContentHash}').");
+        }
+
+        state.ConfigHash = ConfigHash;
         state.PresetId = PresetId;
         state.EndTurn = EndTurn;
         state.CurrentTurn = 1;
