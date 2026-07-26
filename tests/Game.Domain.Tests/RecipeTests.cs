@@ -27,6 +27,21 @@ public class RecipeTests
             new Recipe("bad", Sheet, 1m, Array.Empty<RecipeInput>(), 1m));
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void Construction_Throws_When_Inputs_Are_Empty_At_Any_Level_Above_Zero(int level)
+    {
+        // Правило завязано на Material.IsRawMaterial (Level == 0), а не конкретно на уровень 1 —
+        // проверяем, что пустые входы недопустимы на любом переделе выше сырья, а не только на первом.
+        var material = new Material("m", "Материал", Sector, level);
+
+        Assert.Throws<ArgumentException>(() =>
+            new Recipe("bad", material, 1m, Array.Empty<RecipeInput>(), 1m));
+    }
+
     [Fact]
     public void Construction_Throws_When_A_Raw_Materials_Recipe_Has_Inputs()
     {
