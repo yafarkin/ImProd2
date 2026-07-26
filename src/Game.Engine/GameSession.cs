@@ -354,7 +354,7 @@ public sealed class GameSession
                 {
                     Id = Ulid.NewUlid(),
                     ContractId = contract.Id,
-                    ShortfallVolume = terms.Volume - available,
+                    ShortfallVolume = terms.Volume,
                     PenaltyAmount = penalty,
                 }));
             }

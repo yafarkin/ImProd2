@@ -100,6 +100,23 @@ public class GameSessionContractsTests
     }
 
     [Fact]
+    public void RunTick_Delivery_Miss_Is_All_Or_Nothing_Even_With_Partial_Stock()
+    {
+        var (session, buyerId, sellerId) = TestGameConfig.StartGameSessionWithTwoTeams();
+        ToDecisionPhase(session);
+        var contractId = SignAndConfirmSpot(session, buyerId, sellerId); // объём 10
+        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 9m); // на 1 меньше нужного
+        ToNextCalculation(session);
+
+        var appended = session.RunTick();
+
+        var miss = Assert.IsType<DeliveryMissed>(appended.Select(e => e.Change).Single(c => c is DeliveryMissed));
+        Assert.Equal(10m, miss.ShortfallVolume); // сорван весь объём, а не только недостача в 1
+        Assert.Equal(0m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet)); // покупатель не получил ничего
+        Assert.Equal(9m, session.State.Teams[sellerId].Warehouse.QuantityOf(TestGameConfig.Sheet)); // продавец остался со своими 9
+    }
+
+    [Fact]
     public void TerminateContract_Mutually_Costs_Nothing()
     {
         var (session, buyerId, sellerId) = TestGameConfig.StartGameSessionWithTwoTeams();

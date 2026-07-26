@@ -12,7 +12,10 @@ public sealed record DeliveryMissed : Change<GameSessionState>
     /// <summary>Идентификатор контракта.</summary>
     public required Ulid ContractId { get; init; }
 
-    /// <summary>Сколько единиц не удалось поставить (для аудита и будущей репутации).</summary>
+    /// <summary>
+    /// Сколько единиц не удалось поставить (для аудита и будущей репутации). Поставка «всё или
+    /// ничего» (SPEC §6), так что при срыве это весь объём поставки — покупатель не получает ничего.
+    /// </summary>
     public required decimal ShortfallVolume { get; init; }
 
     /// <summary>Сумма штрафа: сумма поставки × ставка штрафа за срыв.</summary>
