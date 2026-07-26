@@ -32,6 +32,15 @@ public class ProductionCalculatorTests
         DiminishingReturnsFactor = 0.5m,
         HireCostPerWorker = 100m,
         FireCostPerWorker = 50m,
+        SalaryPerWorkerPerTurn = 5m,
+    };
+
+    // Нулевой бонус — большинство тестов проверяют мощность/сырьё изолированно от R&D;
+    // сам бонус проверяет Calculate_Rnd_Level_Bonus_Multiplies_The_Production_Rate.
+    private static readonly RndConfig NoRndBonus = new()
+    {
+        CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
+        ProductionRateBonusPerLevel = 0m,
     };
 
     private static Factory NewFactory(int workers)
@@ -52,7 +61,7 @@ public class ProductionCalculatorTests
         warehouse.Add(Ore, 1000m);
         warehouse.Add(Coal, 1000m);
 
-        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity);
+        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
         Assert.Equal(5m, result.CapacityLimitedOutputQuantity); // 5 рабочих * ставка 1
         Assert.Equal(5m, result.OutputQuantity);
@@ -68,7 +77,7 @@ public class ProductionCalculatorTests
         warehouse.Add(Ore, 1000m);
         warehouse.Add(Coal, 1000m);
 
-        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity);
+        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
         // Эффективная мощность = 5 + 4 * 0.5 = 7 -> выход = 7 * ставка 1.
         Assert.Equal(7m, result.CapacityLimitedOutputQuantity);
@@ -83,7 +92,7 @@ public class ProductionCalculatorTests
         warehouse.Add(Ore, 4m); // хватит только на 2 листа (2 руды на лист)
         warehouse.Add(Coal, 1000m);
 
-        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity);
+        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
         Assert.Equal(5m, result.CapacityLimitedOutputQuantity); // мощность прежняя
         Assert.Equal(2m, result.OutputQuantity); // но ограничено рудой
@@ -97,7 +106,7 @@ public class ProductionCalculatorTests
         var factory = NewFactory(workers: 5);
         var warehouse = new Warehouse();
 
-        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity);
+        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
         Assert.Equal(5m, result.CapacityLimitedOutputQuantity); // мощность была бы достаточной
         Assert.Equal(0m, result.OutputQuantity); // но сырья нет вовсе
@@ -113,7 +122,7 @@ public class ProductionCalculatorTests
         warehouse.Add(Ore, 1000m);
         warehouse.Add(Coal, 1000m);
 
-        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity);
+        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
         Assert.Equal(0m, result.CapacityLimitedOutputQuantity);
         Assert.Equal(0m, result.OutputQuantity);
@@ -126,11 +135,32 @@ public class ProductionCalculatorTests
         mine.Hire(9); // 5 базовых + 4 сверх базы
 
         // Пустой склад — но добыче сырья он не нужен: она не расходует материалы вовсе.
-        var result = ProductionCalculator.Calculate(mine, new Warehouse(), Productivity);
+        var result = ProductionCalculator.Calculate(mine, new Warehouse(), Productivity, NoRndBonus);
 
         Assert.Equal(7m, result.CapacityLimitedOutputQuantity); // 5 + 4 * 0.5
         Assert.Equal(7m, result.OutputQuantity);
         Assert.Empty(result.ConsumedInputs);
+    }
+
+    [Fact]
+    public void Calculate_Rnd_Level_Bonus_Multiplies_The_Production_Rate()
+    {
+        var factory = NewFactory(workers: 5); // мощность 5
+        factory.AdvanceLevel(); // уровень 2
+        var warehouse = new Warehouse();
+        warehouse.Add(Ore, 1000m);
+        warehouse.Add(Coal, 1000m);
+        var rnd = new RndConfig
+        {
+            CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
+            ProductionRateBonusPerLevel = 0.2m, // +20% за уровень сверх первого
+        };
+
+        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, rnd);
+
+        // Базовый выход 5 (мощность * ставка 1) * бонус уровня (1 + 1*0.2) = 6.
+        Assert.Equal(6m, result.CapacityLimitedOutputQuantity);
+        Assert.Equal(6m, result.OutputQuantity);
     }
 
     [Fact]
@@ -141,7 +171,7 @@ public class ProductionCalculatorTests
         warehouse.Add(Ore, 1000m); // руды с избытком
         warehouse.Add(Coal, 1m); // угля хватит только на 1 лист
 
-        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity);
+        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
         Assert.Equal(1m, result.OutputQuantity);
         Assert.Equal(2m, result.ConsumedInputs[Ore.Id]);

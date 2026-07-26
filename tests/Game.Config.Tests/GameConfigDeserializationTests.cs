@@ -52,6 +52,7 @@ public class GameConfigDeserializationTests
 
         Assert.Equal(10000m, config.StartingConditions.MaxStartingLoanAmount);
         Assert.Equal(0.05m, config.StartingConditions.BaseLoanInterestRate);
+        Assert.Equal(0.05m, config.StartingConditions.ForcedLoanPenaltyRatePerOccurrence);
 
         Assert.Equal(3, config.SessionPresets.Count);
         var shortPreset = Assert.Single(config.SessionPresets, preset => preset.Id == "short");
@@ -84,6 +85,9 @@ public class GameConfigDeserializationTests
         var config = LoadSampleConfig();
 
         Assert.Equal(10, config.WorkerProductivity.BaseWorkerCount);
+        Assert.Equal(5m, config.WorkerProductivity.SalaryPerWorkerPerTurn);
+        Assert.Equal(new[] { 1000m, 3000m, 6000m }, config.Rnd.CumulativeInvestmentThresholdsByLevel);
+        Assert.Equal(0.1m, config.Rnd.ProductionRateBonusPerLevel);
         Assert.Equal(500m, config.Warehouse.FreeCapacity);
         Assert.Equal(10, config.Reputation.HalfLifeTurns);
         Assert.Equal(3, config.Reputation.WarmupTurns);

@@ -15,17 +15,20 @@ public static class ProductionCalculator
     /// Считает, сколько фабрика произведёт за тик: мощность от числа рабочих (линейно до базовой
     /// численности, дальше — с убывающей отдачей, SPEC §5.6) ограничивает выпуск сверху; фактически
     /// доступное на складе сырьё может ограничить его ещё сильнее. Каждый вход рецепта тратится
-    /// пропорционально фактически произведённому количеству.
+    /// пропорционально фактически произведённому количеству. Уровень фабрики (R&amp;D, SPEC §5.8)
+    /// повышает эффективную скорость производства сверх базовой ставки рецепта.
     /// </summary>
-    public static ProductionResult Calculate(Factory factory, Warehouse warehouse, WorkerProductivityConfig productivity)
+    public static ProductionResult Calculate(Factory factory, Warehouse warehouse, WorkerProductivityConfig productivity, RndConfig rnd)
     {
         ArgumentNullException.ThrowIfNull(factory);
         ArgumentNullException.ThrowIfNull(warehouse);
         ArgumentNullException.ThrowIfNull(productivity);
+        ArgumentNullException.ThrowIfNull(rnd);
 
         var recipe = factory.SelectedRecipe;
         var effectiveCapacity = CalculateEffectiveCapacity(factory.Workers, productivity);
-        var capacityLimitedOutput = recipe.ProductionRate * effectiveCapacity;
+        var levelBonus = 1m + (factory.Level - 1) * rnd.ProductionRateBonusPerLevel;
+        var capacityLimitedOutput = recipe.ProductionRate * levelBonus * effectiveCapacity;
 
         var batches = capacityLimitedOutput / recipe.OutputQuantity;
         foreach (var input in recipe.Inputs)

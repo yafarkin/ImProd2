@@ -18,4 +18,7 @@ public sealed record WorkerProductivityConfig
 
     /// <summary>Разовая плата за увольнение одного рабочего.</summary>
     public required decimal FireCostPerWorker { get; init; }
+
+    /// <summary>Зарплата одного рабочего за ход — списывается на финансовом шаге каждого тика.</summary>
+    public required decimal SalaryPerWorkerPerTurn { get; init; }
 }

@@ -40,6 +40,9 @@ public sealed record GameConfig
     /// <summary>Параметры производительности от числа рабочих.</summary>
     public required WorkerProductivityConfig WorkerProductivity { get; init; }
 
+    /// <summary>Параметры R&amp;D — стоимость перехода фабрики на следующий уровень и его эффект.</summary>
+    public required RndConfig Rnd { get; init; }
+
     /// <summary>Параметры склада.</summary>
     public required WarehouseConfig Warehouse { get; init; }
 

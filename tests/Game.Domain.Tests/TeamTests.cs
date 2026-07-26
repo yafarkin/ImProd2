@@ -39,6 +39,66 @@ public class TeamTests
 
         Assert.Empty(team.Factories);
         Assert.Empty(team.Warehouse.Stock);
+        Assert.Equal(0m, team.Balance);
+        Assert.Equal(0m, team.Debt);
+        Assert.Equal(0m, team.PenaltyRateSurcharge);
+    }
+
+    [Fact]
+    public void Credit_Increases_Balance_Only()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+
+        team.Credit(100m);
+
+        Assert.Equal(100m, team.Balance);
+        Assert.Equal(0m, team.Debt);
+    }
+
+    [Fact]
+    public void Debit_Decreases_Balance_And_May_Go_Negative()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+        team.Credit(50m);
+
+        team.Debit(70m);
+
+        Assert.Equal(-20m, team.Balance);
+    }
+
+    [Fact]
+    public void TakeLoan_Increases_Both_Balance_And_Debt_By_The_Same_Amount()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+
+        team.TakeLoan(300m);
+
+        Assert.Equal(300m, team.Balance);
+        Assert.Equal(300m, team.Debt);
+    }
+
+    [Fact]
+    public void IncreasePenaltyRateSurcharge_Accumulates()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+
+        team.IncreasePenaltyRateSurcharge(0.05m);
+        team.IncreasePenaltyRateSurcharge(0.05m);
+
+        Assert.Equal(0.1m, team.PenaltyRateSurcharge);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Credit_Debit_TakeLoan_And_Surcharge_Reject_Non_Positive_Amounts(decimal amount)
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => team.Credit(amount));
+        Assert.Throws<ArgumentOutOfRangeException>(() => team.Debit(amount));
+        Assert.Throws<ArgumentOutOfRangeException>(() => team.TakeLoan(amount));
+        Assert.Throws<ArgumentOutOfRangeException>(() => team.IncreasePenaltyRateSurcharge(amount));
     }
 
     [Fact]

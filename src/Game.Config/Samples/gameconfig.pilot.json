@@ -57,7 +57,8 @@
   "StartingConditions": {
     "MaxStartingLoanAmount": 10000,
     "BaseLoanInterestRate": 0.05,
-    "LoanInterestRateGrowthPerUnitBorrowed": 0.000001
+    "LoanInterestRateGrowthPerUnitBorrowed": 0.000001,
+    "ForcedLoanPenaltyRatePerOccurrence": 0.05
   },
   "SessionPresets": [
     { "Id": "short", "Name": "Короткая", "MinTurns": 15, "MaxTurns": 20, "TurnDurationMinutes": 7 },
@@ -89,7 +90,12 @@
     "BaseWorkerCount": 10,
     "DiminishingReturnsFactor": 0.5,
     "HireCostPerWorker": 50,
-    "FireCostPerWorker": 30
+    "FireCostPerWorker": 30,
+    "SalaryPerWorkerPerTurn": 5
+  },
+  "Rnd": {
+    "CumulativeInvestmentThresholdsByLevel": [ 1000, 3000, 6000 ],
+    "ProductionRateBonusPerLevel": 0.1
   },
   "Warehouse": {
     "FreeCapacity": 500,

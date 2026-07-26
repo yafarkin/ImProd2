@@ -75,8 +75,14 @@ public class FactoryProducedTests
             DiminishingReturnsFactor = 0.5m,
             HireCostPerWorker = 100m,
             FireCostPerWorker = 50m,
+            SalaryPerWorkerPerTurn = 5m,
         };
-        var result = ProductionCalculator.Calculate(factory, team.Warehouse, productivity);
+        var rnd = new RndConfig
+        {
+            CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
+            ProductionRateBonusPerLevel = 0m,
+        };
+        var result = ProductionCalculator.Calculate(factory, team.Warehouse, productivity, rnd);
 
         var log = new EventLog<Team>(team);
         log.Append(new FactoryProduced

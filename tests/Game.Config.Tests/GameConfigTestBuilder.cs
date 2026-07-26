@@ -30,6 +30,7 @@ internal static class GameConfigTestBuilder
                 MaxStartingLoanAmount = 1000m,
                 BaseLoanInterestRate = 0.05m,
                 LoanInterestRateGrowthPerUnitBorrowed = 0m,
+                ForcedLoanPenaltyRatePerOccurrence = 0.05m,
             },
             SessionPresets = new[]
             {
@@ -55,6 +56,12 @@ internal static class GameConfigTestBuilder
                 DiminishingReturnsFactor = 0.5m,
                 HireCostPerWorker = 1m,
                 FireCostPerWorker = 1m,
+                SalaryPerWorkerPerTurn = 1m,
+            },
+            Rnd = new RndConfig
+            {
+                CumulativeInvestmentThresholdsByLevel = new[] { 100m, 300m, 600m },
+                ProductionRateBonusPerLevel = 0.1m,
             },
             Warehouse = new WarehouseConfig { FreeCapacity = 1m, OverageFeePerUnit = 0.1m },
             Reputation = new ReputationConfig { HalfLifeTurns = 1, WarmupTurns = 0 },
