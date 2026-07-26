@@ -139,7 +139,8 @@
     "MaxStartingLoanAmount": 10000,
     "BaseLoanInterestRate": 0.05,
     "LoanInterestRateGrowthPerUnitBorrowed": 1e-06,
-    "ForcedLoanPenaltyRatePerOccurrence": 0.05
+    "ForcedLoanPenaltyRatePerOccurrence": 0.05,
+    "MaxReputationRatePenalty": 0.1
   },
   "SessionPresets": [
     {
@@ -263,7 +264,8 @@
   },
   "Reputation": {
     "HalfLifeTurns": 10,
-    "WarmupTurns": 3
+    "WarmupTurns": 3,
+    "TerminationSeverityMultiplier": 3
   },
   "Contracts": {
     "DeliveryMissPenaltyRate": 0.1,

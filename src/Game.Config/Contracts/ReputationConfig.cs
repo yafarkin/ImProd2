@@ -11,4 +11,11 @@ public sealed record ReputationConfig
 
     /// <summary>Число «пристрелочных» ходов в начале сессии, когда срывы не идут в публичную репутацию.</summary>
     public required int WarmupTurns { get; init; }
+
+    /// <summary>
+    /// Во сколько раз вес одностороннего (voluntary) расторжения контракта тяжелее веса обычного
+    /// срыва поставки того же хода (SPEC §6: «существенно выше... репутационный удар»). Обоюдное
+    /// (mutual) расторжение на репутацию не влияет вовсе — это не несоблюдение.
+    /// </summary>
+    public required decimal TerminationSeverityMultiplier { get; init; }
 }

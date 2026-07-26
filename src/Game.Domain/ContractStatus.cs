@@ -19,6 +19,6 @@ public enum ContractStatus
     /// </summary>
     Completed,
 
-    /// <summary>Контракт прекращён целиком (SPEC §6: mutual/voluntary — расчёт штрафа и репутации делает Блок 5.2).</summary>
+    /// <summary>Контракт прекращён целиком (SPEC §6: штраф считает Блок 5.2, репутационный удар — Блок 6.2).</summary>
     Terminated
 }

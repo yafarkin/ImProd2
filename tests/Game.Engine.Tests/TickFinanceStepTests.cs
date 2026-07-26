@@ -3,7 +3,7 @@ namespace Game.Engine.Tests;
 public class TickFinanceStepTests
 {
     // TestGameConfig: BaseLoanInterestRate=0.05, LoanInterestRateGrowthPerUnitBorrowed=0,
-    // ForcedLoanPenaltyRatePerOccurrence=0.1; BaseWorkerCount=5, SalaryPerWorkerPerTurn=5.
+    // ForcedLoanPenaltyRatePerOccurrence=0.1, MaxReputationRatePenalty=0.1; BaseWorkerCount=5, SalaryPerWorkerPerTurn=5.
     private static readonly Config.Session.StartingConditionsConfig LoanConfig = TestGameConfig.Resolved.Raw.StartingConditions;
     private static readonly Config.Economy.WorkerProductivityConfig WorkerConfig = TestGameConfig.Resolved.Raw.WorkerProductivity;
 
@@ -12,7 +12,7 @@ public class TickFinanceStepTests
     {
         var (_, team) = TestGameConfig.StartSessionWithOneTeam();
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, reputationPercentage: 100m);
 
         Assert.Empty(changes);
     }
@@ -26,7 +26,7 @@ public class TickFinanceStepTests
         var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
         factory.Hire(4); // зарплата = 4 * 5 = 20
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, reputationPercentage: 100m);
 
         Assert.Equal(2, changes.Count);
         var interest = Assert.IsType<LoanInterestCharged>(changes[0]);
@@ -46,7 +46,7 @@ public class TickFinanceStepTests
         var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
         factory.Hire(4); // зарплата = 20
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, reputationPercentage: 100m);
 
         Assert.Equal(3, changes.Count);
         var forcedLoan = Assert.IsType<ForcedLoanTaken>(changes[2]);
@@ -56,19 +56,34 @@ public class TickFinanceStepTests
     }
 
     [Fact]
+    public void Run_Charges_A_Higher_Interest_Rate_When_Reputation_Is_Damaged()
+    {
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        team.TakeLoan(1000m);
+        team.Credit(1000m);
+
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, reputationPercentage: 0m);
+
+        // ставка = 0.05 (база) + 0.1 (вся надбавка при 0% репутации) = 0.15; проценты = 1000 * 0.15 = 150
+        var interest = Assert.IsType<LoanInterestCharged>(Assert.Single(changes));
+        Assert.Equal(0.15m, interest.Rate);
+        Assert.Equal(150m, interest.Amount);
+    }
+
+    [Fact]
     public void Applying_Two_Consecutive_Shortfall_Ticks_Escalates_The_Penalty_Rate_Surcharge()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
         team.TakeLoan(1000m);
         team.Debit(1000m); // баланс обнулён — весь заём уже потрачен, платить проценты нечем
 
-        foreach (var change in TickFinanceStep.Run(team, LoanConfig, WorkerConfig))
+        foreach (var change in TickFinanceStep.Run(team, LoanConfig, WorkerConfig, reputationPercentage: 100m))
         {
             log.Append(change);
         }
         Assert.Equal(0.1m, team.PenaltyRateSurcharge);
 
-        foreach (var change in TickFinanceStep.Run(team, LoanConfig, WorkerConfig))
+        foreach (var change in TickFinanceStep.Run(team, LoanConfig, WorkerConfig, reputationPercentage: 100m))
         {
             log.Append(change);
         }

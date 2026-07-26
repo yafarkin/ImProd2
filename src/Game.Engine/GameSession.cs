@@ -155,6 +155,13 @@ public sealed class GameSession
     public bool VerifyIntegrity() => _log.VerifyIntegrity();
 
     /// <summary>
+    /// Публичная репутация команды на данный момент (Блок 6.2, SPEC §7) — пересчитывается по
+    /// журналу заново при каждом обращении, не хранится как отдельное состояние.
+    /// </summary>
+    public ReputationResult GetReputation(Ulid teamId) =>
+        ReputationCalculator.Calculate(Entries, State.Contracts, teamId, State.CurrentTurn, State.Config.Raw.Reputation);
+
+    /// <summary>
     /// Сводит две независимо поданные заявки в контракт (SPEC §6). При совпадении — записывает
     /// подписанный контракт (статус «ждёт подтверждения») в журнал; при конфликте ничего не пишет и
     /// возвращает список того, что разошлось. Заключать сделки можно только в фазе решений.
@@ -223,6 +230,7 @@ public sealed class GameSession
         {
             Id = Ulid.NewUlid(),
             ContractId = contractId,
+            Turn = State.CurrentTurn,
             Reason = reason,
             TerminatingTeamId = reason == ContractTerminationReason.Voluntary ? terminatingTeamId : null,
             Fee = fee,
@@ -335,12 +343,14 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Прогоняет расчёт одного тика в фиксированном порядке (SPEC §4): для всех команд финансы →
-    /// производство снизу вверх по уровню материала, затем исполнение контрактов, затем обновление
-    /// рынка (Блок 6.1) — публикуется даже без единой команды в сессии, оно не зависит от них.
-    /// События дописываются в журнал сразу по мере расчёта — не собираются заранее единым списком, —
-    /// чтобы фабрика более высокого уровня видела в складе выход нижней в этом же тике, а
-    /// последующая поставка — склад после предыдущей. Новости — заглушка (Блок 6.3 ещё не
+    /// Прогоняет расчёт одного тика в фиксированном порядке (SPEC §4): для всех команд финансы (по
+    /// репутации, накопленной за все предыдущие ходы, — Блок 6.2) → производство снизу вверх по
+    /// уровню материала, затем исполнение контрактов, затем обновление рынка (Блок 6.1) —
+    /// публикуется даже без единой команды в сессии, оно не зависит от них. События дописываются в
+    /// журнал сразу по мере расчёта — не собираются заранее единым списком, — чтобы фабрика более
+    /// высокого уровня видела в складе выход нижней в этом же тике, а последующая поставка — склад
+    /// после предыдущей, и (для финансов) чтобы собственные срывы/расторжения этого же хода не
+    /// успевали ударить по ставке, начисленной в его начале. Новости — заглушка (Блок 6.3 ещё не
     /// реализован). Не вызывается автоматически при переходе фаз — таймер-driven вызов появится с
     /// real-time слоем (Блок 8.2).
     /// </summary>
@@ -357,7 +367,8 @@ public sealed class GameSession
 
         foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
         {
-            foreach (var change in TickFinanceStep.Run(team, config.Raw.StartingConditions, config.Raw.WorkerProductivity))
+            var reputation = GetReputation(team.Id);
+            foreach (var change in TickFinanceStep.Run(team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, reputation.Percentage))
             {
                 appended.Add(_log.Append(change));
             }
@@ -415,7 +426,7 @@ public sealed class GameSession
 
             if (available >= terms.Volume)
             {
-                appended.Add(_log.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = contract.Id }));
+                appended.Add(_log.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = contract.Id, Turn = currentTurn }));
             }
             else
             {
@@ -424,6 +435,7 @@ public sealed class GameSession
                 {
                     Id = Ulid.NewUlid(),
                     ContractId = contract.Id,
+                    Turn = currentTurn,
                     ShortfallVolume = terms.Volume,
                     PenaltyAmount = penalty,
                 }));

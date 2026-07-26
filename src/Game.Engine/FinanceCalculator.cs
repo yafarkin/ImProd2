@@ -12,20 +12,25 @@ public static class FinanceCalculator
 {
     /// <summary>
     /// Эффективная ставка по текущему долгу команды: база + рост от размера долга + накопленная
-    /// штрафная надбавка за прошлые принудительные займы (SPEC §5.9).
+    /// штрафная надбавка за прошлые принудительные займы + надбавка за репутацию (SPEC §5.9:
+    /// «ставка зависит от закредитованности и репутации», Блок 6.2) — линейно от 0 при 100%
+    /// репутации до <see cref="StartingConditionsConfig.MaxReputationRatePenalty"/> при 0%.
     /// </summary>
-    public static decimal CalculateEffectiveLoanRate(Team team, StartingConditionsConfig loanConfig)
+    public static decimal CalculateEffectiveLoanRate(Team team, StartingConditionsConfig loanConfig, decimal reputationPercentage)
     {
         ArgumentNullException.ThrowIfNull(team);
         ArgumentNullException.ThrowIfNull(loanConfig);
 
+        var reputationPenalty = loanConfig.MaxReputationRatePenalty * (100m - reputationPercentage) / 100m;
+
         return loanConfig.BaseLoanInterestRate
                + loanConfig.LoanInterestRateGrowthPerUnitBorrowed * team.Debt
-               + team.PenaltyRateSurcharge;
+               + team.PenaltyRateSurcharge
+               + reputationPenalty;
     }
 
     /// <summary>Проценты по текущему долгу за один ход; 0, если долга нет.</summary>
-    public static decimal CalculateInterest(Team team, StartingConditionsConfig loanConfig)
+    public static decimal CalculateInterest(Team team, StartingConditionsConfig loanConfig, decimal reputationPercentage)
     {
         ArgumentNullException.ThrowIfNull(team);
 
@@ -34,7 +39,7 @@ public static class FinanceCalculator
             return 0m;
         }
 
-        return team.Debt * CalculateEffectiveLoanRate(team, loanConfig);
+        return team.Debt * CalculateEffectiveLoanRate(team, loanConfig, reputationPercentage);
     }
 
     /// <summary>Суммарная зарплата за один ход для заданного числа рабочих.</summary>

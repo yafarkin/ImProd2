@@ -141,6 +141,7 @@ internal static class TestGameConfig
                 BaseLoanInterestRate = 0.05m,
                 LoanInterestRateGrowthPerUnitBorrowed = 0m,
                 ForcedLoanPenaltyRatePerOccurrence = 0.1m,
+                MaxReputationRatePenalty = 0.1m,
             },
             SessionPresets = new[]
             {
@@ -177,7 +178,7 @@ internal static class TestGameConfig
                 ProductionRateBonusPerLevel = 0.1m,
             },
             Warehouse = new WarehouseConfig { FreeCapacity = 1000m, OverageFeePerUnit = 0.1m },
-            Reputation = new ReputationConfig { HalfLifeTurns = 10, WarmupTurns = 3 },
+            Reputation = new ReputationConfig { HalfLifeTurns = 10, WarmupTurns = 3, TerminationSeverityMultiplier = 3m },
             Contracts = new ContractsConfig
             {
                 DeliveryMissPenaltyRate = 0.1m,

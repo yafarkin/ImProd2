@@ -13,9 +13,14 @@ namespace Game.Engine;
 /// </summary>
 public static class TickFinanceStep
 {
-    /// <summary>(Опц.) налоги и депозиты (SPEC §5.9-§5.10) в этот шаг не входят — сознательно отложены, см. AGENTS-память.</summary>
+    /// <summary>
+    /// (Опц.) налоги и депозиты (SPEC §5.9-§5.10) в этот шаг не входят — сознательно отложены, см.
+    /// AGENTS-память. <paramref name="reputationPercentage"/> — репутация команды на момент начала
+    /// этого хода (Блок 6.2), посчитанная вызывающим кодом по истории журнала <em>до</em> событий
+    /// этого же тика: собственные поставки/срывы текущего хода ещё не должны влиять на его же ставку.
+    /// </summary>
     public static IReadOnlyList<Change<GameSessionState>> Run(
-        Team team, StartingConditionsConfig loanConfig, WorkerProductivityConfig workerConfig)
+        Team team, StartingConditionsConfig loanConfig, WorkerProductivityConfig workerConfig, decimal reputationPercentage)
     {
         ArgumentNullException.ThrowIfNull(team);
         ArgumentNullException.ThrowIfNull(loanConfig);
@@ -24,7 +29,7 @@ public static class TickFinanceStep
         var changes = new List<Change<GameSessionState>>();
         var projectedBalance = team.Balance;
 
-        var interest = FinanceCalculator.CalculateInterest(team, loanConfig);
+        var interest = FinanceCalculator.CalculateInterest(team, loanConfig, reputationPercentage);
         if (interest > 0)
         {
             changes.Add(new LoanInterestCharged
@@ -32,7 +37,7 @@ public static class TickFinanceStep
                 Id = Ulid.NewUlid(),
                 TeamId = team.Id,
                 Amount = interest,
-                Rate = FinanceCalculator.CalculateEffectiveLoanRate(team, loanConfig),
+                Rate = FinanceCalculator.CalculateEffectiveLoanRate(team, loanConfig, reputationPercentage),
             });
             projectedBalance -= interest;
         }

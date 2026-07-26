@@ -12,6 +12,9 @@ public sealed record ContractDelivered : Change<GameSessionState>
     /// <summary>Идентификатор контракта.</summary>
     public required Ulid ContractId { get; init; }
 
+    /// <summary>Ход, на котором состоялась поставка — нужен модулю репутации (Блок 6.2, SPEC §7) для затухания по свежести.</summary>
+    public required int Turn { get; init; }
+
     public override void Apply(GameSessionState state)
     {
         var contract = state.Contracts[ContractId];

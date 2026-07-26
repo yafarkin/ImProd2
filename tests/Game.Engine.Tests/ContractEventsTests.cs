@@ -53,7 +53,7 @@ public class ContractEventsTests
         var (log, buyer, seller, spec) = SignAndConfirm(volume: 10m, unitPrice: 20m);
         seller.Warehouse.Add(TestGameConfig.Sheet, 10m);
 
-        log.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = spec.ContractId });
+        log.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = spec.ContractId, Turn = 1 });
 
         Assert.Equal(0m, seller.Warehouse.QuantityOf(TestGameConfig.Sheet));
         Assert.Equal(10m, buyer.Warehouse.QuantityOf(TestGameConfig.Sheet));
@@ -68,7 +68,7 @@ public class ContractEventsTests
         var (log, buyer, seller, spec) = SignAndConfirm(volume: 10m, unitPrice: 20m, penaltyRate: 0.1m);
 
         // штраф = 10 * 20 * 0.1 = 20
-        log.Append(new DeliveryMissed { Id = Ulid.NewUlid(), ContractId = spec.ContractId, ShortfallVolume = 10m, PenaltyAmount = 20m });
+        log.Append(new DeliveryMissed { Id = Ulid.NewUlid(), ContractId = spec.ContractId, Turn = 1, ShortfallVolume = 10m, PenaltyAmount = 20m });
 
         Assert.Equal(-20m, seller.Balance);
         Assert.Equal(20m, buyer.Balance);
@@ -83,7 +83,7 @@ public class ContractEventsTests
 
         log.Append(new ContractTerminated
         {
-            Id = Ulid.NewUlid(), ContractId = spec.ContractId,
+            Id = Ulid.NewUlid(), ContractId = spec.ContractId, Turn = 1,
             Reason = ContractTerminationReason.Mutual, TerminatingTeamId = null, Fee = 0m,
         });
 
@@ -98,7 +98,7 @@ public class ContractEventsTests
 
         log.Append(new ContractTerminated
         {
-            Id = Ulid.NewUlid(), ContractId = spec.ContractId,
+            Id = Ulid.NewUlid(), ContractId = spec.ContractId, Turn = 1,
             Reason = ContractTerminationReason.Voluntary, TerminatingTeamId = buyer.Id, Fee = 1000m,
         });
 
