@@ -26,6 +26,13 @@ public class ProductionCalculatorTests
     private static readonly FactoryDefinition Mine =
         new("iron-mine", "Рудник", SectorA, new[] { OreMining });
 
+    // Вход, не делящийся на остаток без остатка (для регресса на decimal-округление batches).
+    private static readonly Recipe SheetFromOreOnly = new(
+        "sheet-from-ore-only", Sheet, outputQuantity: 1m, inputs: new[] { new RecipeInput(Ore, 3m) }, productionRate: 1m);
+
+    private static readonly FactoryDefinition MillOreOnly =
+        new("steel-mill-ore-only", "Сталелитейный завод (без угля)", SectorA, new[] { SheetFromOreOnly });
+
     private static readonly WorkerProductivityConfig Productivity = new()
     {
         BaseWorkerCount = 5,
@@ -98,6 +105,23 @@ public class ProductionCalculatorTests
         Assert.Equal(2m, result.OutputQuantity); // но ограничено рудой
         Assert.Equal(4m, result.ConsumedInputs[Ore.Id]);
         Assert.Equal(2m, result.ConsumedInputs[Coal.Id]);
+    }
+
+    [Fact]
+    public void Calculate_Never_Consumes_More_Input_Than_Is_Actually_In_Stock()
+    {
+        // 5 руды / 3 за партию — периодическая дробь; частное округляется до предела точности
+        // decimal, и умножение обратно на 3 способно на исчезающую долю превысить фактический
+        // остаток склада (было: Warehouse.Remove бросал на ровном месте).
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MillOreOnly);
+        factory.Hire(5); // мощность (5) не станет узким местом рядом с сырьевым лимитом (~1.67)
+        var warehouse = new Warehouse();
+        warehouse.Add(Ore, 5m);
+
+        var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
+
+        Assert.Equal(5m, result.ConsumedInputs[Ore.Id]);
+        warehouse.Remove(Ore, result.ConsumedInputs[Ore.Id]); // не должно бросить
     }
 
     [Fact]

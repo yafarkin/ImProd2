@@ -43,6 +43,7 @@ public class GameConfigDeserializationTests
         var steelMill = Assert.Single(config.FactoryDefinitions, factory => factory.Id == "steel-mill");
         Assert.Equal("A", steelMill.SectorId);
         Assert.Equal(new[] { "sheet-from-ore" }, steelMill.RecipeIds);
+        Assert.Equal(1500m, steelMill.BuildCost);
     }
 
     [Fact]

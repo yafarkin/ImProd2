@@ -76,6 +76,22 @@ internal static class TestGameConfig
         return (log, state.Teams[buyerId], state.Teams[sellerId]);
     }
 
+    /// <summary>Полноценная сессия с одной командой сектора А (для сквозных сценариев через GameSession).</summary>
+    public static (GameSession Session, Ulid TeamId) StartGameSessionWithOneTeam(decimal startingLoan = 100_000m)
+    {
+        var teamId = Ulid.NewUlid();
+        var session = GameSession.StartWithEndTurn(
+            Resolved,
+            "test",
+            endTurn: 999,
+            new[]
+            {
+                new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
+            });
+
+        return (session, teamId);
+    }
+
     /// <summary>Полноценная сессия с двумя командами сектора А (для сквозных сценариев через GameSession).</summary>
     public static (GameSession Session, Ulid BuyerId, Ulid SellerId) StartGameSessionWithTwoTeams(decimal startingLoan = 100_000m)
     {
@@ -141,8 +157,8 @@ internal static class TestGameConfig
             },
             FactoryDefinitions = new[]
             {
-                new FactoryDefinitionConfig { Id = "iron-mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" } },
-                new FactoryDefinitionConfig { Id = "steel-mill", Name = "Сталелитейный завод", SectorId = "A", RecipeIds = new[] { "sheet-from-ore" } },
+                new FactoryDefinitionConfig { Id = "iron-mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m },
+                new FactoryDefinitionConfig { Id = "steel-mill", Name = "Сталелитейный завод", SectorId = "A", RecipeIds = new[] { "sheet-from-ore" }, BuildCost = 100m },
             },
             StartingConditions = new StartingConditionsConfig
             {

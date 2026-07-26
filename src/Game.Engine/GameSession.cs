@@ -318,6 +318,105 @@ public sealed class GameSession
     }
 
     /// <summary>
+    /// Строит фабрику заданного типа для команды (SPEC §5.6, Блок 7.1): постройка мгновенная —
+    /// фабрика естественным образом начинает работать со следующего хода, отдельного «отложенного»
+    /// состояния не требуется, так как ближайший расчёт тика уже увидит её в составе команды.
+    /// Фабрика без рабочих ничего не производит — наём отдельным действием (<see cref="HireWorkers"/>).
+    /// Требует фазы решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> BuildFactory(Ulid teamId, string factoryDefinitionId, string? recipeId = null)
+    {
+        EnsureDecisionsAllowed();
+
+        var team = GetTeam(teamId);
+        var definition = State.Config.FactoryDefinitions.FirstOrDefault(f => f.Id == factoryDefinitionId);
+        if (definition is null)
+        {
+            throw new ArgumentException($"Unknown factory definition '{factoryDefinitionId}'.", nameof(factoryDefinitionId));
+        }
+        if (definition.Sector != team.Sector)
+        {
+            throw new ArgumentException(
+                $"Factory definition '{factoryDefinitionId}' belongs to sector '{definition.Sector.Id}', " +
+                $"not team's sector '{team.Sector.Id}'.",
+                nameof(factoryDefinitionId));
+        }
+
+        var recipe = recipeId is null
+            ? definition.Recipes[0]
+            : definition.Recipes.FirstOrDefault(r => r.Id == recipeId);
+        if (recipe is null)
+        {
+            throw new ArgumentException(
+                $"Recipe '{recipeId}' is not produced by factory definition '{factoryDefinitionId}'.", nameof(recipeId));
+        }
+
+        var cost = State.Config.Raw.FactoryDefinitions.First(f => f.Id == factoryDefinitionId).BuildCost;
+
+        return _log.Append(new FactoryBuilt
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            FactoryId = Ulid.NewUlid(),
+            FactoryDefinitionId = factoryDefinitionId,
+            RecipeId = recipe.Id,
+            Cost = cost,
+        });
+    }
+
+    /// <summary>Нанимает рабочих на фабрику (SPEC §5.6: наём мгновенный, с разовой платой за действие). Требует фазы решений.</summary>
+    public EventLogEntry<GameSessionState> HireWorkers(Ulid teamId, Ulid factoryId, int count)
+    {
+        EnsureDecisionsAllowed();
+
+        if (count <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count), count, "Hire count must be positive.");
+        }
+        var team = GetTeam(teamId);
+        GetFactory(team, factoryId);
+
+        var cost = count * State.Config.Raw.WorkerProductivity.HireCostPerWorker;
+
+        return _log.Append(new WorkersHired
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            FactoryId = factoryId,
+            Count = count,
+            Cost = cost,
+        });
+    }
+
+    /// <summary>Увольняет рабочих с фабрики (SPEC §5.6: увольнение мгновенное, с разовой платой за действие). Требует фазы решений.</summary>
+    public EventLogEntry<GameSessionState> FireWorkers(Ulid teamId, Ulid factoryId, int count)
+    {
+        EnsureDecisionsAllowed();
+
+        if (count <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count), count, "Fire count must be positive.");
+        }
+        var team = GetTeam(teamId);
+        var factory = GetFactory(team, factoryId);
+        if (count > factory.Workers)
+        {
+            throw new InvalidOperationException($"Cannot fire {count} workers, factory '{factoryId}' only has {factory.Workers}.");
+        }
+
+        var cost = count * State.Config.Raw.WorkerProductivity.FireCostPerWorker;
+
+        return _log.Append(new WorkersFired
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            FactoryId = factoryId,
+            Count = count,
+            Cost = cost,
+        });
+    }
+
+    /// <summary>
     /// Ручное событие ведущего (SPEC §9.5): публикует конкретный заголовок из библиотеки, минуя
     /// автоматический подбор по тренду (Блок 6.3) — тем же событием <see cref="NewsPublished"/> и с
     /// тем же ограничением на повтор, так что использованный вручную заголовок больше никогда не
@@ -369,6 +468,27 @@ public sealed class GameSession
         }
 
         return contract;
+    }
+
+    private Team GetTeam(Ulid teamId)
+    {
+        if (!State.Teams.TryGetValue(teamId, out var team))
+        {
+            throw new ArgumentException($"Unknown team '{teamId}'.", nameof(teamId));
+        }
+
+        return team;
+    }
+
+    private static Factory GetFactory(Team team, Ulid factoryId)
+    {
+        var factory = team.Factories.FirstOrDefault(f => f.Id == factoryId);
+        if (factory is null)
+        {
+            throw new ArgumentException($"Team '{team.Id}' has no factory '{factoryId}'.", nameof(factoryId));
+        }
+
+        return factory;
     }
 
     /// <summary>

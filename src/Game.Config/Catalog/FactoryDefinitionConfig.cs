@@ -14,4 +14,7 @@ public sealed record FactoryDefinitionConfig
 
     /// <summary>Коды рецептов, доступных фабрике этого типа (<see cref="RecipeConfig.Id"/>).</summary>
     public required IReadOnlyList<string> RecipeIds { get; init; }
+
+    /// <summary>Стоимость постройки фабрики этого типа, списывается сразу (SPEC §5.6). Заглушка, требует калибровки.</summary>
+    public required decimal BuildCost { get; init; }
 }

@@ -100,7 +100,8 @@
       "SectorId": "A",
       "RecipeIds": [
         "ore-mining"
-      ]
+      ],
+      "BuildCost": 500
     },
     {
       "Id": "steel-mill",
@@ -108,7 +109,8 @@
       "SectorId": "A",
       "RecipeIds": [
         "sheet-from-ore"
-      ]
+      ],
+      "BuildCost": 1500
     },
     {
       "Id": "rolling-mill",
@@ -116,7 +118,8 @@
       "SectorId": "A",
       "RecipeIds": [
         "rebar-from-sheet"
-      ]
+      ],
+      "BuildCost": 3000
     },
     {
       "Id": "oil-well",
@@ -124,7 +127,8 @@
       "SectorId": "B",
       "RecipeIds": [
         "oil-drilling"
-      ]
+      ],
+      "BuildCost": 500
     },
     {
       "Id": "petrochemical-plant",
@@ -132,7 +136,8 @@
       "SectorId": "B",
       "RecipeIds": [
         "plastic-from-oil"
-      ]
+      ],
+      "BuildCost": 1500
     }
   ],
   "StartingConditions": {

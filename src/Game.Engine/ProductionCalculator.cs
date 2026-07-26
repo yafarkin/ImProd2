@@ -41,9 +41,14 @@ public static class ProductionCalculator
         }
         batches = Math.Max(batches, 0m);
 
+        // Min с фактическим остатком: decimal-деление batchesFromInput и обратное умножение здесь —
+        // не точная операция (частное округляется до ограниченной точности), так что для входа,
+        // который и задал лимит по batches, умножение обратно на input.Quantity может на исчезающую
+        // долю превысить то, что реально на складе, — и Warehouse.Remove бросит исключение на ровном
+        // месте. Списываем не больше, чем есть.
         var consumedInputs = recipe.Inputs.ToDictionary(
             input => input.Material.Id,
-            input => batches * input.Quantity);
+            input => Math.Min(batches * input.Quantity, warehouse.QuantityOf(input.Material)));
 
         return new ProductionResult
         {

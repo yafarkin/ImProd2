@@ -34,6 +34,7 @@ public class GameConfigWriterTests
             Name = "Рудник",
             SectorId = "A",
             RecipeIds = new[] { "ore-mining" },
+            BuildCost = 100m,
         };
         var steelMill = new FactoryDefinitionConfig
         {
@@ -41,6 +42,7 @@ public class GameConfigWriterTests
             Name = "Сталелитейный завод",
             SectorId = "A",
             RecipeIds = new[] { "sheet-from-ore" },
+            BuildCost = 100m,
         };
 
         var original = GameConfigTestBuilder.Build(
