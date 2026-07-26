@@ -41,6 +41,14 @@ public sealed class GameSessionState
     /// </summary>
     public NewsFeed NewsFeed { get; } = new();
 
+    private readonly Dictionary<string, ParticipantRegistration> _participants = new();
+
+    /// <summary>
+    /// Зарегистрированные участники сессии по коду входа (Блок 8.1, SPEC §3) — наполняется событием
+    /// <see cref="ParticipantRegistered"/>.
+    /// </summary>
+    public IReadOnlyDictionary<string, ParticipantRegistration> Participants => _participants;
+
     public GameSessionState(ResolvedGameConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -51,6 +59,12 @@ public sealed class GameSessionState
     internal void AddTeam(Team team)
     {
         _teams.Add(team.Id, team);
+    }
+
+    /// <summary>Регистрирует участника в сессии; вызывается только из <see cref="ParticipantRegistered.Apply"/>.</summary>
+    internal void AddParticipant(ParticipantRegistration registration)
+    {
+        _participants.Add(registration.Code, registration);
     }
 
     /// <summary>Регистрирует контракт в сессии; вызывается только из <see cref="ContractSigned.Apply"/>.</summary>

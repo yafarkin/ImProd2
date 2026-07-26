@@ -1,0 +1,40 @@
+@page "/dev/codes"
+@inject GameSessionHost Host
+
+<PageTitle>Коды входа (временная страница)</PageTitle>
+
+<div class="alert alert-warning">
+    Временная замена Блока 9.8 (админка: регистрация команд, генерация QR/кодов). Без авторизации —
+    не для боевого использования.
+</div>
+
+<h1>Коды входа</h1>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Код</th>
+            <th>Роль</th>
+            <th>Команда</th>
+            <th>Имя</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var registration in Host.SeedCodes)
+        {
+            <tr>
+                <td><code>@registration.Code</code></td>
+                <td>@registration.Role</td>
+                <td>@TeamNameOf(registration.TeamId)</td>
+                <td>@registration.DisplayName</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<p><a href="/login">Войти по коду</a></p>
+
+@code {
+    private string TeamNameOf(Ulid? teamId) =>
+        teamId is { } id && Host.Session.State.Teams.TryGetValue(id, out var team) ? team.Name : "—";
+}

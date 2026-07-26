@@ -1,0 +1,25 @@
+@page "/login"
+
+<PageTitle>Вход</PageTitle>
+
+<h1>Вход по коду</h1>
+
+@if (Error)
+{
+    <p class="text-danger">Код не найден. Проверьте и попробуйте снова.</p>
+}
+
+<form method="post" action="/auth/login">
+    <div class="mb-3">
+        <label for="code" class="form-label">Код</label>
+        <input type="text" class="form-control" id="code" name="code" autofocus />
+    </div>
+    <button type="submit" class="btn btn-primary">Войти</button>
+</form>
+
+@code {
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? ErrorParam { get; set; }
+
+    private bool Error => ErrorParam == "1";
+}

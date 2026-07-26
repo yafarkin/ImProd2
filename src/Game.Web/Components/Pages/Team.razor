@@ -1,0 +1,56 @@
+@page "/team"
+@attribute [Authorize(Roles = "Manager,Negotiator")]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject GameSessionHost Host
+
+<PageTitle>Команда</PageTitle>
+
+<h1>Вы вошли как @DisplayName (@Role)</h1>
+<p>Команда: @TeamName</p>
+
+<p><em>Настоящий дашборд команды — Фаза 9. Пока это только подтверждение того, что вход по роли работает.</em></p>
+
+<p>
+    Серверное время (тикает, пока жив circuit — интерактивная страница, чтобы было что проверять на
+    устойчивость переподключения при блокировке телефона, SPEC §11): <strong>@_serverTime.ToString("HH:mm:ss")</strong>
+</p>
+
+<form method="post" action="/auth/logout">
+    <button type="submit" class="btn btn-secondary">Выйти</button>
+</form>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private string? DisplayName;
+    private string? Role;
+    private string? TeamName;
+    private DateTime _serverTime = DateTime.Now;
+    private Timer? _tickTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        var user = authState.User;
+
+        DisplayName = user.Identity?.Name;
+        Role = user.FindFirst(ClaimTypes.Role)?.Value;
+
+        var teamIdClaim = user.FindFirst("teamId")?.Value;
+        if (teamIdClaim is not null && Ulid.TryParse(teamIdClaim, out var teamId)
+            && Host.Session.State.Teams.TryGetValue(teamId, out var team))
+        {
+            TeamName = team.Name;
+        }
+
+        _tickTimer = new Timer(_ =>
+        {
+            _serverTime = DateTime.Now;
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    }
+
+    public void Dispose() => _tickTimer?.Dispose();
+}

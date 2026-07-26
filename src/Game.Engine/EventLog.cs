@@ -12,7 +12,7 @@ namespace Game.Engine;
 /// меняющего состояние в обход журнала. Durable-хранение и восстановление воспроизведением —
 /// Блок 3.2, не этот тип.
 /// </summary>
-public sealed class EventLog<TState>
+public sealed class EventLog<TState> : IEventLog<TState>
 {
     /// <summary>Значение «хеш предыдущей записи» для самой первой записи журнала — перед ней ничего нет.</summary>
     public static readonly string GenesisHash = new('0', 64);

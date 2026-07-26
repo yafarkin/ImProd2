@@ -10,9 +10,11 @@ namespace Game.Persistence;
 /// единственная точка входа как для новой сессии (файлов ещё нет), так и для восстановления после
 /// сбоя (SPEC §11): снапшот + доигрывание хвоста журнала поверх него. Детерминизм (AGENTS §2,
 /// правило 6) обеспечивается тем, что доигрывание — это те же самые события, применяемые в том же
-/// порядке, что и исходно.
+/// порядке, что и исходно. Реализует <see cref="IEventLog{TState}"/> (Блок 8.1), поэтому
+/// <c>GameSession</c> оборачивает её так же, как обычный <see cref="EventLog{TState}"/> — не зная,
+/// что история заодно пишется на диск.
 /// </summary>
-public sealed class DurableEventLog<TState>
+public sealed class DurableEventLog<TState> : IEventLog<TState>
 {
     private readonly EventLog<TState> _log;
     private readonly string _journalPath;

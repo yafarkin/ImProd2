@@ -10,4 +10,9 @@
       <DependentUpon>appsettings.json</DependentUpon>
     </Content>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Game.Config\Samples\gameconfig.pilot.json" Link="Samples\gameconfig.pilot.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

@@ -14,7 +14,7 @@ namespace Game.Engine;
 /// </summary>
 public sealed class GameSession
 {
-    private readonly EventLog<GameSessionState> _log;
+    private readonly IEventLog<GameSessionState> _log;
 
     /// <summary>Живое состояние сессии.</summary>
     public GameSessionState State => _log.State;
@@ -22,8 +22,12 @@ public sealed class GameSession
     /// <summary>Полная история событий сессии.</summary>
     public IReadOnlyList<EventLogEntry<GameSessionState>> Entries => _log.Entries;
 
-    /// <summary>Оборачивает уже существующий журнал (например, восстановленный durable-слоем).</summary>
-    public GameSession(EventLog<GameSessionState> log)
+    /// <summary>
+    /// Оборачивает уже существующий журнал — как обычный <see cref="EventLog{TState}"/> (тесты,
+    /// боты), так и <c>DurableEventLog</c> из Game.Persistence, восстановленный после сбоя (Блок 8.1)
+    /// — <see cref="GameSession"/> одинаково работает с любой реализацией <see cref="IEventLog{TState}"/>.
+    /// </summary>
+    public GameSession(IEventLog<GameSessionState> log)
     {
         ArgumentNullException.ThrowIfNull(log);
         _log = log;
@@ -45,7 +49,7 @@ public sealed class GameSession
         return StartWithEndTurn(config, preset.Id, endTurn, teams, serializerOptions, clock);
     }
 
-    /// <summary>Начинает сессию с уже известным ходом окончания (например, для тестов).</summary>
+    /// <summary>Начинает сессию с уже известным ходом окончания (например, для тестов), заводя собственный in-memory журнал.</summary>
     public static GameSession StartWithEndTurn(
         ResolvedGameConfig config,
         string presetId,
@@ -55,8 +59,24 @@ public sealed class GameSession
         Func<DateTimeOffset>? clock = null)
     {
         ArgumentNullException.ThrowIfNull(config);
+
+        var log = new EventLog<GameSessionState>(new GameSessionState(config), serializerOptions, clock);
+        return StartWithEndTurn(log, presetId, endTurn, teams);
+    }
+
+    /// <summary>
+    /// Начинает новую сессию поверх уже открытого, но ещё пустого журнала (Блок 8.1: например,
+    /// свежеоткрытый durable-журнал из Game.Persistence, в котором ещё нет ни одной прежней записи)
+    /// — та же логика, что и у перегрузки с <see cref="ResolvedGameConfig"/>, но без создания
+    /// собственного <see cref="EventLog{TState}"/>.
+    /// </summary>
+    public static GameSession StartWithEndTurn(
+        IEventLog<GameSessionState> log, string presetId, int endTurn, IReadOnlyList<TeamSpec> teams)
+    {
+        ArgumentNullException.ThrowIfNull(log);
         ArgumentNullException.ThrowIfNull(teams);
 
+        var config = log.State.Config;
         foreach (var spec in teams)
         {
             if (spec.StartingLoanAmount > config.Raw.StartingConditions.MaxStartingLoanAmount)
@@ -68,7 +88,6 @@ public sealed class GameSession
             }
         }
 
-        var log = new EventLog<GameSessionState>(new GameSessionState(config), serializerOptions, clock);
         log.Append(new SessionStarted
         {
             Id = Ulid.NewUlid(),
@@ -444,6 +463,55 @@ public sealed class GameSession
             Headline = item.Headline,
         });
     }
+
+    /// <summary>
+    /// Регистрирует участника сессии под свежим кодом входа (Блок 8.1, SPEC §3): управляющий и
+    /// переговорщик обязаны быть привязаны к существующей команде, остальные роли — обязаны не быть
+    /// привязаны ни к какой. Не привязано к фазе решений — это настройка, а не игровое решение.
+    /// </summary>
+    public EventLogEntry<GameSessionState> RegisterParticipant(
+        ParticipantRole role, Ulid? teamId, string displayName, Random codeRandom)
+    {
+        ArgumentNullException.ThrowIfNull(codeRandom);
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            throw new ArgumentException("Display name must not be empty.", nameof(displayName));
+        }
+
+        var isTeamScoped = role is ParticipantRole.Manager or ParticipantRole.Negotiator;
+        if (isTeamScoped)
+        {
+            if (teamId is null)
+            {
+                throw new ArgumentException($"Role '{role}' requires a team.", nameof(teamId));
+            }
+            GetTeam(teamId.Value);
+        }
+        else if (teamId is not null)
+        {
+            throw new ArgumentException($"Role '{role}' must not be bound to a team.", nameof(teamId));
+        }
+
+        string code;
+        do
+        {
+            code = ShortCode.Generate(codeRandom);
+        }
+        while (State.Participants.ContainsKey(code));
+
+        return _log.Append(new ParticipantRegistered
+        {
+            Id = Ulid.NewUlid(),
+            Code = code,
+            Role = role,
+            TeamId = teamId,
+            DisplayName = displayName,
+        });
+    }
+
+    /// <summary>Ищет зарегистрированного участника по коду входа; null, если код не зарегистрирован.</summary>
+    public ParticipantRegistration? TryAuthenticate(string code) =>
+        State.Participants.GetValueOrDefault(code);
 
     /// <summary>Текущая рыночная котировка материала или внятная ошибка, если рынок ещё не публиковал её.</summary>
     private MaterialQuote GetQuoteOrThrow(string materialId)
