@@ -1,5 +1,3 @@
-using Game.Domain;
-
 namespace Game.Engine;
 
 /// <summary>
@@ -7,16 +5,19 @@ namespace Game.Engine;
 /// добавляется к долгу — простые, не капитализируемые проценты: если денег не хватает, баланс
 /// уходит в минус, и это уже дело <see cref="ForcedLoanTaken"/>, а не этого события.
 /// </summary>
-public sealed record LoanInterestCharged : Change<Team>
+public sealed record LoanInterestCharged : Change<GameSessionState>
 {
+    /// <summary>Команда, с которой списаны проценты.</summary>
+    public required Ulid TeamId { get; init; }
+
     /// <summary>Сумма начисленных процентов.</summary>
     public required decimal Amount { get; init; }
 
     /// <summary>Эффективная ставка, по которой посчитана сумма (база + рост от размера долга + штрафная надбавка) — для аудита.</summary>
     public required decimal Rate { get; init; }
 
-    public override void Apply(Team state)
+    public override void Apply(GameSessionState state)
     {
-        state.Debit(Amount);
+        state.Teams[TeamId].Debit(Amount);
     }
 }

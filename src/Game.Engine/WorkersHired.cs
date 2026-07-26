@@ -8,8 +8,11 @@ namespace Game.Engine;
 /// зарплаты, процентов и принудительного кредита (см. <see cref="LoanInterestCharged"/>,
 /// <see cref="SalariesPaid"/>), которые накапливаются и применяются раз в ход.
 /// </summary>
-public sealed record WorkersHired : Change<Team>
+public sealed record WorkersHired : Change<GameSessionState>
 {
+    /// <summary>Команда, нанявшая рабочих.</summary>
+    public required Ulid TeamId { get; init; }
+
     /// <summary>Фабрика, на которую наняты рабочие.</summary>
     public required Ulid FactoryId { get; init; }
 
@@ -19,13 +22,14 @@ public sealed record WorkersHired : Change<Team>
     /// <summary>Разовая плата за наём (Count × HireCostPerWorker на момент действия).</summary>
     public required decimal Cost { get; init; }
 
-    public override void Apply(Team state)
+    public override void Apply(GameSessionState state)
     {
-        var factory = state.Factories.Single(f => f.Id == FactoryId);
+        var team = state.Teams[TeamId];
+        var factory = team.Factories.Single(f => f.Id == FactoryId);
         factory.Hire(Count);
         if (Cost > 0)
         {
-            state.Debit(Cost);
+            team.Debit(Cost);
         }
     }
 }

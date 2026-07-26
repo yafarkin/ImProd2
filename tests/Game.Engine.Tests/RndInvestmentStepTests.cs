@@ -1,35 +1,19 @@
-using Game.Config.Economy;
 using Game.Domain;
 
 namespace Game.Engine.Tests;
 
 public class RndInvestmentStepTests
 {
-    private static readonly Sector SectorA = new("A", "Металлургия");
-    private static readonly Material Ore = new("ore", "Железная руда", SectorA, level: 0);
-    private static readonly Recipe OreMining =
-        new("ore-mining", Ore, outputQuantity: 1m, inputs: Array.Empty<RecipeInput>(), productionRate: 1m);
-    private static readonly FactoryDefinition Mine = new("iron-mine", "Рудник", SectorA, new[] { OreMining });
-
-    private static readonly RndConfig Config = new()
-    {
-        CumulativeInvestmentThresholdsByLevel = new[] { 100m, 300m },
-        ProductionRateBonusPerLevel = 0.1m,
-    };
-
-    private static Team NewTeamWithFactory(out Factory factory)
-    {
-        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
-        factory = team.BuildFactory(Ulid.NewUlid(), Mine);
-        return team;
-    }
+    // Пороги TestGameConfig.Resolved.Raw.Rnd: { 100m, 300m } — 1->2, 2->3.
+    private static Factory NewFactory(Team team) => team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
 
     [Fact]
     public void Run_Returns_Only_The_Investment_When_The_Threshold_Is_Not_Reached()
     {
-        var team = NewTeamWithFactory(out var factory);
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = NewFactory(team);
 
-        var changes = RndInvestmentStep.Run(factory, 50m, Config);
+        var changes = RndInvestmentStep.Run(team.Id, factory, 50m, TestGameConfig.Resolved.Raw.Rnd);
 
         var invested = Assert.Single(changes);
         Assert.IsType<RndInvested>(invested);
@@ -38,9 +22,10 @@ public class RndInvestmentStepTests
     [Fact]
     public void Run_Appends_A_Level_Advance_When_The_Investment_Reaches_The_Threshold()
     {
-        var team = NewTeamWithFactory(out var factory);
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = NewFactory(team);
 
-        var changes = RndInvestmentStep.Run(factory, 100m, Config);
+        var changes = RndInvestmentStep.Run(team.Id, factory, 100m, TestGameConfig.Resolved.Raw.Rnd);
 
         Assert.Equal(2, changes.Count);
         Assert.IsType<RndInvested>(changes[0]);
@@ -51,9 +36,10 @@ public class RndInvestmentStepTests
     [Fact]
     public void Run_Appends_One_Level_Advance_Per_Threshold_Crossed_In_A_Single_Investment()
     {
-        var team = NewTeamWithFactory(out var factory);
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = NewFactory(team);
 
-        var changes = RndInvestmentStep.Run(factory, 400m, Config); // покрывает оба порога сразу
+        var changes = RndInvestmentStep.Run(team.Id, factory, 400m, TestGameConfig.Resolved.Raw.Rnd); // покрывает оба порога сразу
 
         Assert.Equal(3, changes.Count);
         Assert.Equal(2, Assert.IsType<FactoryLevelAdvanced>(changes[1]).NewLevel);
@@ -63,10 +49,11 @@ public class RndInvestmentStepTests
     [Fact]
     public void Run_Accounts_For_Investment_Already_Made_In_Earlier_Ticks()
     {
-        var team = NewTeamWithFactory(out var factory);
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = NewFactory(team);
         factory.InvestInRnd(80m); // уже вложено раньше, до порога не дотянуло
 
-        var changes = RndInvestmentStep.Run(factory, 20m, Config); // теперь ровно 100 — порог пройден
+        var changes = RndInvestmentStep.Run(team.Id, factory, 20m, TestGameConfig.Resolved.Raw.Rnd); // теперь ровно 100 — порог пройден
 
         Assert.Equal(2, changes.Count);
         Assert.Equal(2, Assert.IsType<FactoryLevelAdvanced>(changes[1]).NewLevel);
@@ -75,11 +62,11 @@ public class RndInvestmentStepTests
     [Fact]
     public void Applying_The_Returned_Changes_End_To_End_Updates_Balance_Investment_And_Level()
     {
-        var team = NewTeamWithFactory(out var factory);
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = NewFactory(team);
         team.Credit(1000m);
-        var log = new EventLog<Team>(team);
 
-        foreach (var change in RndInvestmentStep.Run(factory, 100m, Config))
+        foreach (var change in RndInvestmentStep.Run(team.Id, factory, 100m, TestGameConfig.Resolved.Raw.Rnd))
         {
             log.Append(change);
         }

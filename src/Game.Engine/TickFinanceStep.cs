@@ -14,14 +14,14 @@ namespace Game.Engine;
 public static class TickFinanceStep
 {
     /// <summary>(Опц.) налоги и депозиты (SPEC §5.9-§5.10) в этот шаг не входят — сознательно отложены, см. AGENTS-память.</summary>
-    public static IReadOnlyList<Change<Team>> Run(
+    public static IReadOnlyList<Change<GameSessionState>> Run(
         Team team, StartingConditionsConfig loanConfig, WorkerProductivityConfig workerConfig)
     {
         ArgumentNullException.ThrowIfNull(team);
         ArgumentNullException.ThrowIfNull(loanConfig);
         ArgumentNullException.ThrowIfNull(workerConfig);
 
-        var changes = new List<Change<Team>>();
+        var changes = new List<Change<GameSessionState>>();
         var projectedBalance = team.Balance;
 
         var interest = FinanceCalculator.CalculateInterest(team, loanConfig);
@@ -30,6 +30,7 @@ public static class TickFinanceStep
             changes.Add(new LoanInterestCharged
             {
                 Id = Ulid.NewUlid(),
+                TeamId = team.Id,
                 Amount = interest,
                 Rate = FinanceCalculator.CalculateEffectiveLoanRate(team, loanConfig),
             });
@@ -40,7 +41,7 @@ public static class TickFinanceStep
         var salaries = FinanceCalculator.CalculateSalaries(totalWorkers, workerConfig);
         if (salaries > 0)
         {
-            changes.Add(new SalariesPaid { Id = Ulid.NewUlid(), TotalWorkers = totalWorkers, Amount = salaries });
+            changes.Add(new SalariesPaid { Id = Ulid.NewUlid(), TeamId = team.Id, TotalWorkers = totalWorkers, Amount = salaries });
             projectedBalance -= salaries;
         }
 
@@ -49,6 +50,7 @@ public static class TickFinanceStep
             changes.Add(new ForcedLoanTaken
             {
                 Id = Ulid.NewUlid(),
+                TeamId = team.Id,
                 Amount = -projectedBalance,
                 NewPenaltyRateSurcharge = team.PenaltyRateSurcharge + loanConfig.ForcedLoanPenaltyRatePerOccurrence,
             });

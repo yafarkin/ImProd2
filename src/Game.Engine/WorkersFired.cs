@@ -3,8 +3,11 @@ using Game.Domain;
 namespace Game.Engine;
 
 /// <summary>Команда уволила рабочих с фабрики (SPEC §5.6: увольнение мгновенное, с разовой платой за действие).</summary>
-public sealed record WorkersFired : Change<Team>
+public sealed record WorkersFired : Change<GameSessionState>
 {
+    /// <summary>Команда, уволившая рабочих.</summary>
+    public required Ulid TeamId { get; init; }
+
     /// <summary>Фабрика, с которой уволены рабочие.</summary>
     public required Ulid FactoryId { get; init; }
 
@@ -14,13 +17,14 @@ public sealed record WorkersFired : Change<Team>
     /// <summary>Разовая плата за увольнение (Count × FireCostPerWorker на момент действия).</summary>
     public required decimal Cost { get; init; }
 
-    public override void Apply(Team state)
+    public override void Apply(GameSessionState state)
     {
-        var factory = state.Factories.Single(f => f.Id == FactoryId);
+        var team = state.Teams[TeamId];
+        var factory = team.Factories.Single(f => f.Id == FactoryId);
         factory.Fire(Count);
         if (Cost > 0)
         {
-            state.Debit(Cost);
+            team.Debit(Cost);
         }
     }
 }

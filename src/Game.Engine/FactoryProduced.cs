@@ -12,8 +12,11 @@ namespace Game.Engine;
 /// просто мощностью — не нужно пересчитывать это по соседним записям склада (AGENTS-память о
 /// трассируемости причин).
 /// </summary>
-public sealed record FactoryProduced : Change<Team>
+public sealed record FactoryProduced : Change<GameSessionState>
 {
+    /// <summary>Команда, на фабрике которой произошло производство.</summary>
+    public required Ulid TeamId { get; init; }
+
     /// <summary>Фабрика, на которой произошло производство.</summary>
     public required Ulid FactoryId { get; init; }
 
@@ -26,9 +29,10 @@ public sealed record FactoryProduced : Change<Team>
     /// <summary>Фактически списанное количество каждого входного материала (код материала → количество).</summary>
     public required IReadOnlyDictionary<string, decimal> ConsumedInputs { get; init; }
 
-    public override void Apply(Team state)
+    public override void Apply(GameSessionState state)
     {
-        var factory = state.Factories.Single(f => f.Id == FactoryId);
+        var team = state.Teams[TeamId];
+        var factory = team.Factories.Single(f => f.Id == FactoryId);
         var recipe = factory.SelectedRecipe;
 
         foreach (var (materialId, quantity) in ConsumedInputs)
@@ -39,12 +43,12 @@ public sealed record FactoryProduced : Change<Team>
             }
 
             var material = recipe.Inputs.First(input => input.Material.Id == materialId).Material;
-            state.Warehouse.Remove(material, quantity);
+            team.Warehouse.Remove(material, quantity);
         }
 
         if (OutputQuantity > 0)
         {
-            state.Warehouse.Add(recipe.Output, OutputQuantity);
+            team.Warehouse.Add(recipe.Output, OutputQuantity);
         }
     }
 }

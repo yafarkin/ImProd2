@@ -11,7 +11,7 @@ namespace Game.Engine;
 /// </summary>
 public static class RndInvestmentStep
 {
-    public static IReadOnlyList<Change<Team>> Run(Factory factory, decimal amount, RndConfig config)
+    public static IReadOnlyList<Change<GameSessionState>> Run(Ulid teamId, Factory factory, decimal amount, RndConfig config)
     {
         ArgumentNullException.ThrowIfNull(factory);
         ArgumentNullException.ThrowIfNull(config);
@@ -20,16 +20,16 @@ public static class RndInvestmentStep
             throw new ArgumentOutOfRangeException(nameof(amount), amount, "Investment amount must be positive.");
         }
 
-        var changes = new List<Change<Team>>
+        var changes = new List<Change<GameSessionState>>
         {
-            new RndInvested { Id = Ulid.NewUlid(), FactoryId = factory.Id, Amount = amount },
+            new RndInvested { Id = Ulid.NewUlid(), TeamId = teamId, FactoryId = factory.Id, Amount = amount },
         };
 
         var cumulativeInvestment = factory.RndInvestment + amount;
         var resultingLevel = RndCalculator.CalculateResultingLevel(factory.Level, cumulativeInvestment, config);
         for (var level = factory.Level + 1; level <= resultingLevel; level++)
         {
-            changes.Add(new FactoryLevelAdvanced { Id = Ulid.NewUlid(), FactoryId = factory.Id, NewLevel = level });
+            changes.Add(new FactoryLevelAdvanced { Id = Ulid.NewUlid(), TeamId = teamId, FactoryId = factory.Id, NewLevel = level });
         }
 
         return changes;

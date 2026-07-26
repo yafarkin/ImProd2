@@ -10,17 +10,21 @@ namespace Game.Engine;
 /// займа заведомо хуже любого добровольного» — иначе появится стратегия «не платить ради дешёвого
 /// капитала»).
 /// </summary>
-public sealed record ForcedLoanTaken : Change<Team>
+public sealed record ForcedLoanTaken : Change<GameSessionState>
 {
+    /// <summary>Команда, получившая принудительный заём.</summary>
+    public required Ulid TeamId { get; init; }
+
     /// <summary>Сумма принудительного займа — ровно недостающая часть, баланс после применения равен нулю.</summary>
     public required decimal Amount { get; init; }
 
     /// <summary>Штрафная надбавка команды к ставке после этого займа (накопительно, см. <see cref="Team.PenaltyRateSurcharge"/>).</summary>
     public required decimal NewPenaltyRateSurcharge { get; init; }
 
-    public override void Apply(Team state)
+    public override void Apply(GameSessionState state)
     {
-        state.TakeLoan(Amount);
-        state.IncreasePenaltyRateSurcharge(NewPenaltyRateSurcharge - state.PenaltyRateSurcharge);
+        var team = state.Teams[TeamId];
+        team.TakeLoan(Amount);
+        team.IncreasePenaltyRateSurcharge(NewPenaltyRateSurcharge - team.PenaltyRateSurcharge);
     }
 }

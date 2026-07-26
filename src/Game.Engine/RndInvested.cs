@@ -1,5 +1,3 @@
-using Game.Domain;
-
 namespace Game.Engine;
 
 /// <summary>
@@ -7,18 +5,22 @@ namespace Game.Engine;
 /// возможного следствия (перехода уровня, см. <see cref="FactoryLevelAdvanced"/>): вложение может
 /// не дотянуть до порога следующего уровня, и это тоже факт, достойный своей записи.
 /// </summary>
-public sealed record RndInvested : Change<Team>
+public sealed record RndInvested : Change<GameSessionState>
 {
+    /// <summary>Команда, сделавшая вложение.</summary>
+    public required Ulid TeamId { get; init; }
+
     /// <summary>Фабрика, в которую вложены деньги.</summary>
     public required Ulid FactoryId { get; init; }
 
     /// <summary>Сумма вложения.</summary>
     public required decimal Amount { get; init; }
 
-    public override void Apply(Team state)
+    public override void Apply(GameSessionState state)
     {
-        var factory = state.Factories.Single(f => f.Id == FactoryId);
-        state.Debit(Amount);
+        var team = state.Teams[TeamId];
+        var factory = team.Factories.Single(f => f.Id == FactoryId);
+        team.Debit(Amount);
         factory.InvestInRnd(Amount);
     }
 }

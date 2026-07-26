@@ -1,5 +1,3 @@
-using Game.Domain;
-
 namespace Game.Engine;
 
 /// <summary>
@@ -8,13 +6,16 @@ namespace Game.Engine;
 /// и цель займа — решение команды, зафиксированное этим событием, не связанное напрямую ни с каким
 /// изменением состояния до него.
 /// </summary>
-public sealed record LoanTaken : Change<Team>
+public sealed record LoanTaken : Change<GameSessionState>
 {
+    /// <summary>Команда, взявшая заём.</summary>
+    public required Ulid TeamId { get; init; }
+
     /// <summary>Сумма займа.</summary>
     public required decimal Amount { get; init; }
 
-    public override void Apply(Team state)
+    public override void Apply(GameSessionState state)
     {
-        state.TakeLoan(Amount);
+        state.Teams[TeamId].TakeLoan(Amount);
     }
 }

@@ -17,7 +17,7 @@ public class GameSessionTests
     public void Start_Draws_An_End_Turn_Within_The_Preset_Range_And_Records_It_As_The_First_Entry()
     {
         var preset = Preset();
-        var session = GameSession.Start(preset, new Random(42));
+        var session = GameSession.Start(TestGameConfig.Resolved, preset, Array.Empty<TeamSpec>(), new Random(42));
 
         Assert.InRange(session.State.EndTurn, preset.MinTurns, preset.MaxTurns);
         Assert.Equal(1, session.State.CurrentTurn);
@@ -46,7 +46,7 @@ public class GameSessionTests
     [Fact]
     public void AdvancePhase_Cycles_Through_Calculation_Decision_And_Closing_Then_Increments_The_Turn()
     {
-        var session = GameSession.StartWithEndTurn("short", endTurn: 10);
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer);
         Assert.Equal(TurnPhase.Decision, session.State.CurrentPhase);
@@ -64,7 +64,7 @@ public class GameSessionTests
     [Fact]
     public void AdvancePhase_Records_Whether_The_Timer_Or_The_Facilitator_Caused_The_Transition()
     {
-        var session = GameSession.StartWithEndTurn("short", endTurn: 10);
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
 
         var entry = session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
 
@@ -75,7 +75,7 @@ public class GameSessionTests
     [Fact]
     public void Reaching_Closing_Of_The_End_Turn_Finishes_The_Session_And_Blocks_Further_Advances()
     {
-        var session = GameSession.StartWithEndTurn("short", endTurn: 1);
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 1, Array.Empty<TeamSpec>());
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Closing
@@ -92,7 +92,7 @@ public class GameSessionTests
     [Fact]
     public void EnsureDecisionsAllowed_Throws_Outside_The_Decision_Phase_And_Passes_During_It()
     {
-        var session = GameSession.StartWithEndTurn("short", endTurn: 10);
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
 
         Assert.Throws<InvalidOperationException>(session.EnsureDecisionsAllowed); // Calculation
 
@@ -106,7 +106,7 @@ public class GameSessionTests
     [Fact]
     public void ExtendCurrentPhase_Accumulates_And_Resets_When_The_Phase_Changes()
     {
-        var session = GameSession.StartWithEndTurn("short", endTurn: 10);
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
 
         session.ExtendCurrentPhase(TimeSpan.FromSeconds(30));
         session.ExtendCurrentPhase(TimeSpan.FromSeconds(15));
@@ -119,7 +119,7 @@ public class GameSessionTests
     [Fact]
     public void ExtendCurrentPhase_Rejects_A_Non_Positive_Duration()
     {
-        var session = GameSession.StartWithEndTurn("short", endTurn: 10);
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
 
         Assert.Throws<ArgumentOutOfRangeException>(() => session.ExtendCurrentPhase(TimeSpan.Zero));
         Assert.Throws<ArgumentOutOfRangeException>(() => session.ExtendCurrentPhase(TimeSpan.FromSeconds(-1)));
@@ -128,7 +128,7 @@ public class GameSessionTests
     [Fact]
     public void Pause_And_Resume_Toggle_IsPaused_And_Reject_Redundant_Transitions()
     {
-        var session = GameSession.StartWithEndTurn("short", endTurn: 10);
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
 
         session.Pause();
         Assert.True(session.State.IsPaused);
@@ -142,7 +142,7 @@ public class GameSessionTests
     [Fact]
     public void The_Full_Session_History_Verifies_As_A_Valid_Hash_Chain()
     {
-        var session = GameSession.StartWithEndTurn("short", endTurn: 1);
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 1, Array.Empty<TeamSpec>());
 
         session.Pause();
         session.Resume();
