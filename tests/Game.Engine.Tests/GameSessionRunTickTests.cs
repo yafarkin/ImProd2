@@ -36,7 +36,7 @@ public class GameSessionRunTickTests
         var mill = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mill);
         mill.Hire(5);
 
-        session.RunTick();
+        session.RunTick(new Random(1));
 
         // Рудник (уровень 0) должен отработать раньше завода (уровень 1) в этом же тике — иначе
         // заводу нечего было бы перерабатывать, и лист остался бы нулевым.
@@ -59,13 +59,13 @@ public class GameSessionRunTickTests
         var mill = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mill);
         mill.Hire(5);
 
-        session.RunTick(); // ход 1
+        session.RunTick(new Random(1)); // ход 1
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Closing
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation, ход 2
 
-        session.RunTick(); // ход 2
+        session.RunTick(new Random(1)); // ход 2
 
         Assert.Equal(2, session.State.CurrentTurn);
         Assert.Equal(TurnPhase.Calculation, session.State.CurrentPhase);
@@ -80,7 +80,7 @@ public class GameSessionRunTickTests
         var session = StartSessionWithOneFundedTeam(out _);
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision
 
-        Assert.Throws<InvalidOperationException>(() => session.RunTick());
+        Assert.Throws<InvalidOperationException>(() => session.RunTick(new Random(1)));
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public class GameSessionRunTickTests
     {
         var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "test", endTurn: 999, Array.Empty<TeamSpec>());
 
-        var appended = session.RunTick();
+        var appended = session.RunTick(new Random(1));
 
         // Финансы/производство/контракты пропускаются без команд, но рынок (Блок 6.1) — внешняя
         // экономика, она обновляется независимо от того, есть ли вообще участники.

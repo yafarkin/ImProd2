@@ -73,7 +73,7 @@ public class GameSessionContractsTests
         session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
         ToNextCalculation(session); // ход 2, фаза расчёта
 
-        session.RunTick();
+        session.RunTick(new Random(1));
 
         Assert.Equal(10m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet));
         Assert.Equal(0m, session.State.Teams[sellerId].Warehouse.QuantityOf(TestGameConfig.Sheet));
@@ -89,7 +89,7 @@ public class GameSessionContractsTests
         var contractId = SignAndConfirmSpot(session, buyerId, sellerId); // продавцу нечего поставить
         ToNextCalculation(session);
 
-        var appended = session.RunTick();
+        var appended = session.RunTick(new Random(1));
 
         var changes = appended.Select(e => e.Change).ToList();
         var miss = Assert.IsType<DeliveryMissed>(changes.Single(c => c is DeliveryMissed));
@@ -108,7 +108,7 @@ public class GameSessionContractsTests
         session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 9m); // на 1 меньше нужного
         ToNextCalculation(session);
 
-        var appended = session.RunTick();
+        var appended = session.RunTick(new Random(1));
 
         var miss = Assert.IsType<DeliveryMissed>(appended.Select(e => e.Change).Single(c => c is DeliveryMissed));
         Assert.Equal(10m, miss.ShortfallVolume); // сорван весь объём, а не только недостача в 1
@@ -175,14 +175,14 @@ public class GameSessionContractsTests
         // ход 2: продавец обеспечен -> поставка
         session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
         ToNextCalculation(session);
-        session.RunTick();
+        session.RunTick(new Random(1));
         Assert.Equal(10m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet));
         Assert.Equal(ContractStatus.Active, session.State.Contracts[contractId].Status); // recurring продолжается
 
         // ход 3: снова обеспечен -> вторая поставка
         session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
         ToNextCalculation(session);
-        session.RunTick();
+        session.RunTick(new Random(1));
         Assert.Equal(20m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet));
     }
 }

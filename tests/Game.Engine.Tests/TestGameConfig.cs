@@ -107,7 +107,16 @@ internal static class TestGameConfig
             new ContractProposal(buyerId, sellerId, sellerId, terms));
     }
 
-    private static ResolvedGameConfig Build()
+    /// <summary>
+    /// Собирает вариант базового конфига с другой новостной библиотекой и/или сценарным трендом
+    /// (Блок 6.3) — для тестов новостной ленты, которым не подходит пустая <c>News</c> у <see cref="Resolved"/>.
+    /// </summary>
+    public static ResolvedGameConfig BuildWithNews(
+        IReadOnlyList<NewsItemConfig> news, IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null) =>
+        Build(news, trendScenario);
+
+    private static ResolvedGameConfig Build(
+        IReadOnlyList<NewsItemConfig>? news = null, IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null)
     {
         var config = new GameConfig
         {
@@ -162,7 +171,7 @@ internal static class TestGameConfig
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
-                TrendScenario = Array.Empty<EconomyTrendPhaseConfig>(),
+                TrendScenario = trendScenario ?? Array.Empty<EconomyTrendPhaseConfig>(),
             },
             WorkerProductivity = new WorkerProductivityConfig
             {
@@ -188,7 +197,7 @@ internal static class TestGameConfig
             },
             Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
             Deposits = new DepositsConfig { InterestRatePerTurn = 0m },
-            News = Array.Empty<NewsItemConfig>(),
+            News = news ?? Array.Empty<NewsItemConfig>(),
             FeatureFlags = new FeatureFlagsConfig
             {
                 TaxesEnabled = false,

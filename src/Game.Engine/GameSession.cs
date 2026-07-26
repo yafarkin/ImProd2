@@ -317,6 +317,35 @@ public sealed class GameSession
         });
     }
 
+    /// <summary>
+    /// Ручное событие ведущего (SPEC §9.5): публикует конкретный заголовок из библиотеки, минуя
+    /// автоматический подбор по тренду (Блок 6.3) — тем же событием <see cref="NewsPublished"/> и с
+    /// тем же ограничением на повтор, так что использованный вручную заголовок больше никогда не
+    /// прозвучит, включая автоматический подбор следующих ходов. Не привязано к фазе решений — это
+    /// действие ведущего, а не команды.
+    /// </summary>
+    public EventLogEntry<GameSessionState> PublishManualNews(string newsItemId)
+    {
+        var item = State.Config.Raw.News.FirstOrDefault(candidate => candidate.Id == newsItemId);
+        if (item is null)
+        {
+            throw new ArgumentException($"Unknown news item '{newsItemId}'.", nameof(newsItemId));
+        }
+        if (State.NewsFeed.IsPublished(newsItemId))
+        {
+            throw new InvalidOperationException($"News item '{newsItemId}' has already been published this session.");
+        }
+
+        return _log.Append(new NewsPublished
+        {
+            Id = Ulid.NewUlid(),
+            Turn = State.CurrentTurn,
+            NewsItemId = item.Id,
+            Trend = item.Trend,
+            Headline = item.Headline,
+        });
+    }
+
     /// <summary>Текущая рыночная котировка материала или внятная ошибка, если рынок ещё не публиковал её.</summary>
     private MaterialQuote GetQuoteOrThrow(string materialId)
     {
@@ -345,16 +374,19 @@ public sealed class GameSession
     /// <summary>
     /// Прогоняет расчёт одного тика в фиксированном порядке (SPEC §4): для всех команд финансы (по
     /// репутации, накопленной за все предыдущие ходы, — Блок 6.2) → производство снизу вверх по
-    /// уровню материала, затем исполнение контрактов, затем обновление рынка (Блок 6.1) —
-    /// публикуется даже без единой команды в сессии, оно не зависит от них. События дописываются в
-    /// журнал сразу по мере расчёта — не собираются заранее единым списком, — чтобы фабрика более
-    /// высокого уровня видела в складе выход нижней в этом же тике, а последующая поставка — склад
-    /// после предыдущей, и (для финансов) чтобы собственные срывы/расторжения этого же хода не
-    /// успевали ударить по ставке, начисленной в его начале. Новости — заглушка (Блок 6.3 ещё не
-    /// реализован). Не вызывается автоматически при переходе фаз — таймер-driven вызов появится с
-    /// real-time слоем (Блок 8.2).
+    /// уровню материала, затем исполнение контрактов, затем обновление рынка (Блок 6.1), затем
+    /// новости по тренду (Блок 6.3) — оба публикуются даже без единой команды в сессии, они не
+    /// зависят от них. События дописываются в журнал сразу по мере расчёта — не собираются заранее
+    /// единым списком, — чтобы фабрика более высокого уровня видела в складе выход нижней в этом же
+    /// тике, а последующая поставка — склад после предыдущей, и (для финансов) чтобы собственные
+    /// срывы/расторжения этого же хода не успевали ударить по ставке, начисленной в его начале.
+    /// <paramref name="newsRandom"/> — случайность подбора заголовка (AGENTS §2, правило 6:
+    /// никакой случайности без явного, при необходимости засеянного, экземпляра); если пул
+    /// заголовков текущего тренда в этой сессии исчерпан, новости в этот ход не будет. Не
+    /// вызывается автоматически при переходе фаз — таймер-driven вызов появится с real-time слоем
+    /// (Блок 8.2).
     /// </summary>
-    public IReadOnlyList<EventLogEntry<GameSessionState>> RunTick()
+    public IReadOnlyList<EventLogEntry<GameSessionState>> RunTick(Random newsRandom)
     {
         if (State.CurrentPhase != TurnPhase.Calculation)
         {
@@ -399,6 +431,20 @@ public sealed class GameSession
             Quotes = marketUpdate.Quotes,
             ElectricityPrice = marketUpdate.ElectricityPrice,
         }));
+
+        var currentTrend = NewsCalculator.CurrentTrend(State.CurrentTurn, config.Raw.Economy.TrendScenario);
+        var nextNews = NewsCalculator.SelectNext(config.Raw.News, State.NewsFeed, currentTrend, newsRandom);
+        if (nextNews is not null)
+        {
+            appended.Add(_log.Append(new NewsPublished
+            {
+                Id = Ulid.NewUlid(),
+                Turn = State.CurrentTurn,
+                NewsItemId = nextNews.Id,
+                Trend = nextNews.Trend,
+                Headline = nextNews.Headline,
+            }));
+        }
 
         return appended;
     }

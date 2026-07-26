@@ -65,7 +65,7 @@ public class GameSessionMarketTests
         Assert.Equal(0m, session.State.Market.RemainingCapacityOf("sheet"));
 
         ToNextCalculation(session);
-        session.RunTick(); // публикует котировки хода 2 и обнуляет счётчик проданного
+        session.RunTick(new Random(1)); // публикует котировки хода 2 и обнуляет счётчик проданного
 
         Assert.Equal(8m, session.State.Market.RemainingCapacityOf("sheet"));
     }
@@ -93,7 +93,7 @@ public class GameSessionMarketTests
         var (session, buyerId, _) = TestGameConfig.StartGameSessionWithTwoTeams();
         ToDecisionPhase(session);
         ToNextCalculation(session);
-        session.RunTick(); // republishes turn-2 quotes (no trend configured -> same as turn 1)
+        session.RunTick(new Random(1)); // republishes turn-2 quotes (no trend configured -> same as turn 1)
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision, turn 2
         var balanceBefore = session.State.Teams[buyerId].Balance;
 

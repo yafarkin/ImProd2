@@ -35,6 +35,12 @@ public sealed class GameSessionState
     /// </summary>
     public Market Market { get; } = new();
 
+    /// <summary>
+    /// Новостная лента сессии (Блок 6.3, SPEC §5.4, §13) — какие заголовки уже прозвучали,
+    /// наполняется событием <see cref="NewsPublished"/>.
+    /// </summary>
+    public NewsFeed NewsFeed { get; } = new();
+
     public GameSessionState(ResolvedGameConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);

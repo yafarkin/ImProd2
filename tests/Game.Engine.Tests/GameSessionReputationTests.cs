@@ -31,7 +31,7 @@ public class GameSessionReputationTests
         session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
 
         ToNextCalculation(session); // ход 2
-        session.RunTick();
+        session.RunTick(new Random(1));
 
         var reputation = session.GetReputation(sellerId);
         Assert.Equal(100m, reputation.Percentage);
@@ -54,7 +54,7 @@ public class GameSessionReputationTests
         LoanInterestCharged? RunTurnAndGetSellerInterest()
         {
             ToNextCalculation(session);
-            var appended = session.RunTick();
+            var appended = session.RunTick(new Random(1));
             foreach (var entry in appended)
             {
                 if (entry.Change is LoanInterestCharged charged && charged.TeamId == sellerId)
