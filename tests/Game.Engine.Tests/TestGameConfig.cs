@@ -51,6 +51,60 @@ internal static class TestGameConfig
         return (log, state.Teams[teamId]);
     }
 
+    /// <summary>Журнал сессии с двумя командами сектора А (для событий контрактов на уровне Apply).</summary>
+    public static (EventLog<GameSessionState> Log, Team Buyer, Team Seller) StartSessionWithTwoTeams(decimal startingLoan = 0m)
+    {
+        var state = new GameSessionState(Resolved);
+        var log = new EventLog<GameSessionState>(state);
+        var buyerId = Ulid.NewUlid();
+        var sellerId = Ulid.NewUlid();
+
+        log.Append(new SessionStarted
+        {
+            Id = Ulid.NewUlid(),
+            PresetId = "test",
+            EndTurn = 999,
+            Teams = new[]
+            {
+                new TeamSpec { Id = buyerId, Name = "Покупатель", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
+                new TeamSpec { Id = sellerId, Name = "Продавец", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
+            },
+        });
+
+        return (log, state.Teams[buyerId], state.Teams[sellerId]);
+    }
+
+    /// <summary>Полноценная сессия с двумя командами сектора А (для сквозных сценариев через GameSession).</summary>
+    public static (GameSession Session, Ulid BuyerId, Ulid SellerId) StartGameSessionWithTwoTeams(decimal startingLoan = 100_000m)
+    {
+        var buyerId = Ulid.NewUlid();
+        var sellerId = Ulid.NewUlid();
+        var session = GameSession.StartWithEndTurn(
+            Resolved,
+            "test",
+            endTurn: 999,
+            new[]
+            {
+                new TeamSpec { Id = buyerId, Name = "Покупатель", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
+                new TeamSpec { Id = sellerId, Name = "Продавец", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
+            });
+
+        return (session, buyerId, sellerId);
+    }
+
+    /// <summary>Пара согласованных заявок (от покупателя и продавца) на spot-поставку листа.</summary>
+    public static (ContractProposal Buyer, ContractProposal Seller) MatchingSheetSpotProposals(
+        Ulid buyerId, Ulid sellerId, decimal volume = 10m, decimal unitPrice = 20m,
+        decimal penaltyRate = 0.1m, int effectiveTurn = 2, int deliveryTurn = 2)
+    {
+        var terms = new ContractTerms(
+            ContractType.Spot, Sheet, volume, unitPrice, penaltyRate, effectiveTurn, deliveryTurn, recurringEndTurn: null);
+
+        return (
+            new ContractProposal(buyerId, sellerId, buyerId, terms),
+            new ContractProposal(buyerId, sellerId, sellerId, terms));
+    }
+
     private static ResolvedGameConfig Build()
     {
         var config = new GameConfig
@@ -93,7 +147,12 @@ internal static class TestGameConfig
             PhaseTiming = new PhaseTimingConfig { CalculationPhaseSeconds = 1, DecisionPhaseSeconds = 1, CompletionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {
-                EmergencyPurchasePriceMultiplier = 1m,
+                EmergencyPurchasePriceMultiplier = 2m,
+                SystemPricePerMaterial = new[]
+                {
+                    new MaterialSystemPriceConfig { MaterialId = "ore", Price = 10m },
+                    new MaterialSystemPriceConfig { MaterialId = "sheet", Price = 25m },
+                },
                 MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,

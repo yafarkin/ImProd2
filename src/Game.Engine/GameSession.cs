@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Game.Config.Loading;
 using Game.Config.Session;
+using Game.Domain;
 
 namespace Game.Engine;
 
@@ -147,13 +148,139 @@ public sealed class GameSession
     public bool VerifyIntegrity() => _log.VerifyIntegrity();
 
     /// <summary>
-    /// Прогоняет расчёт одного тика для всех команд: финансы, затем производство снизу вверх по
-    /// уровню производимого материала (SPEC §4). Производство дописывается в журнал сразу по мере
-    /// расчёта каждой фабрики — не собирается заранее единым списком, — чтобы фабрика более
-    /// высокого уровня в этой же команде видела в складе выход, произведённый в этом же тике
-    /// фабрикой более низкого уровня. Контракты/рынок/новости — заглушки (Фазы 5-6 ещё не
-    /// реализованы). Не вызывается автоматически при переходе фаз — таймер-driven вызов из
-    /// реального сеанса появится вместе с real-time слоем (Блок 8.2).
+    /// Сводит две независимо поданные заявки в контракт (SPEC §6). При совпадении — записывает
+    /// подписанный контракт (статус «ждёт подтверждения») в журнал; при конфликте ничего не пишет и
+    /// возвращает список того, что разошлось. Заключать сделки можно только в фазе решений.
+    /// </summary>
+    public ContractFormationResult SubmitContractProposals(
+        ContractProposal proposalA, ContractProposal proposalB, Random confirmationCodeRandom)
+    {
+        EnsureDecisionsAllowed();
+
+        var result = ContractFormation.TryMatch(proposalA, proposalB, Ulid.NewUlid(), confirmationCodeRandom);
+        if (result.IsMatched)
+        {
+            _log.Append(new ContractSigned { Id = Ulid.NewUlid(), Contract = ContractSpec.From(result.Contract!) });
+        }
+
+        return result;
+    }
+
+    /// <summary>Финальное подтверждение сделки управляющим (SPEC §3, §6). Только в фазе решений.</summary>
+    public EventLogEntry<GameSessionState> ConfirmContract(Ulid contractId, TeamRole confirmingRole)
+    {
+        EnsureDecisionsAllowed();
+
+        if (confirmingRole != TeamRole.Manager)
+        {
+            throw new InvalidOperationException("Only a team manager can give the final confirmation of a contract.");
+        }
+
+        var contract = GetContract(contractId);
+        if (contract.Status != ContractStatus.PendingConfirmation)
+        {
+            throw new InvalidOperationException($"Cannot confirm a contract in status '{contract.Status}'.");
+        }
+
+        return _log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = contractId });
+    }
+
+    /// <summary>
+    /// Прекращает действующий контракт (SPEC §6): mutual — без платы; voluntary — инициатор платит
+    /// фиксированную плату из конфига. Только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> TerminateContract(
+        Ulid contractId, ContractTerminationReason reason, Ulid? terminatingTeamId)
+    {
+        EnsureDecisionsAllowed();
+
+        var contract = GetContract(contractId);
+        if (contract.Status != ContractStatus.Active)
+        {
+            throw new InvalidOperationException($"Cannot terminate a contract in status '{contract.Status}'.");
+        }
+
+        decimal fee = 0m;
+        if (reason == ContractTerminationReason.Voluntary)
+        {
+            if (terminatingTeamId is not { } initiator || (initiator != contract.BuyerTeamId && initiator != contract.SellerTeamId))
+            {
+                throw new ArgumentException(
+                    "Voluntary termination requires the initiating team to be a party to the contract.", nameof(terminatingTeamId));
+            }
+
+            fee = State.Config.Raw.Contracts.VoluntaryTerminationFee;
+        }
+
+        return _log.Append(new ContractTerminated
+        {
+            Id = Ulid.NewUlid(),
+            ContractId = contractId,
+            Reason = reason,
+            TerminatingTeamId = reason == ContractTerminationReason.Voluntary ? terminatingTeamId : null,
+            Fee = fee,
+        });
+    }
+
+    /// <summary>
+    /// Аварийная закупка материала у системы (SPEC §5.3): цена — системная цена материала ×
+    /// множитель, служит потолком монопольных цен. Требует включённого флага и фазы решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> EmergencyPurchase(Ulid teamId, string materialId, decimal volume)
+    {
+        EnsureDecisionsAllowed();
+
+        if (!State.Config.Raw.FeatureFlags.EmergencyPurchaseEnabled)
+        {
+            throw new InvalidOperationException("Emergency purchase is disabled in this session.");
+        }
+        if (volume <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(volume), volume, "Emergency purchase volume must be positive.");
+        }
+        if (!State.Teams.ContainsKey(teamId))
+        {
+            throw new ArgumentException($"Unknown team '{teamId}'.", nameof(teamId));
+        }
+        if (!State.Config.Materials.ContainsKey(materialId))
+        {
+            throw new ArgumentException($"Unknown material '{materialId}'.", nameof(materialId));
+        }
+
+        var systemPrice = State.Config.Raw.Economy.SystemPricePerMaterial
+            .FirstOrDefault(price => price.MaterialId == materialId)
+            ?? throw new InvalidOperationException($"No system price configured for material '{materialId}'.");
+        var unitPrice = systemPrice.Price * State.Config.Raw.Economy.EmergencyPurchasePriceMultiplier;
+
+        return _log.Append(new EmergencyPurchased
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            MaterialId = materialId,
+            Volume = volume,
+            UnitPrice = unitPrice,
+            TotalCost = unitPrice * volume,
+        });
+    }
+
+    private Contract GetContract(Ulid contractId)
+    {
+        if (!State.Contracts.TryGetValue(contractId, out var contract))
+        {
+            throw new ArgumentException($"Unknown contract '{contractId}'.", nameof(contractId));
+        }
+
+        return contract;
+    }
+
+    /// <summary>
+    /// Прогоняет расчёт одного тика в фиксированном порядке (SPEC §4): для всех команд финансы →
+    /// производство снизу вверх по уровню материала, затем исполнение контрактов. События
+    /// дописываются в журнал сразу по мере расчёта — не собираются заранее единым списком, — чтобы
+    /// фабрика более высокого уровня видела в складе выход нижней в этом же тике, а последующая
+    /// поставка — склад после предыдущей. Рынок/новости — заглушки (Фаза 6 ещё не реализована). Не
+    /// вызывается автоматически при переходе фаз — таймер-driven вызов появится с real-time слоем
+    /// (Блок 8.2).
     /// </summary>
     public IReadOnlyList<EventLogEntry<GameSessionState>> RunTick()
     {
@@ -190,6 +317,47 @@ public sealed class GameSession
             }
         }
 
+        ExecuteContracts(appended);
+
         return appended;
+    }
+
+    /// <summary>
+    /// Исполнение контрактов, у которых на текущем ходу положена поставка (SPEC §6). Контракты
+    /// перебираются в детерминированном порядке (по идентификатору, не по порядку словаря — AGENTS
+    /// §2, правило 6); по каждому решается, обеспечена ли поставка складом продавца — успех или
+    /// Delivery Miss, — и событие дописывается сразу, чтобы последующие поставки видели уже
+    /// обновлённые склады.
+    /// </summary>
+    private void ExecuteContracts(List<EventLogEntry<GameSessionState>> appended)
+    {
+        var currentTurn = State.CurrentTurn;
+        var dueContracts = State.Contracts.Values
+            .Where(contract => ContractExecution.IsDeliveryDue(contract, currentTurn))
+            .OrderBy(contract => contract.Id)
+            .ToList();
+
+        foreach (var contract in dueContracts)
+        {
+            var terms = contract.Terms;
+            var seller = State.Teams[contract.SellerTeamId];
+            var available = seller.Warehouse.QuantityOf(terms.Material);
+
+            if (available >= terms.Volume)
+            {
+                appended.Add(_log.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = contract.Id }));
+            }
+            else
+            {
+                var penalty = terms.Volume * terms.UnitPrice * terms.PenaltyRate;
+                appended.Add(_log.Append(new DeliveryMissed
+                {
+                    Id = Ulid.NewUlid(),
+                    ContractId = contract.Id,
+                    ShortfallVolume = terms.Volume - available,
+                    PenaltyAmount = penalty,
+                }));
+            }
+        }
     }
 }

@@ -99,4 +99,23 @@ public sealed class Contract
         Status = ContractStatus.Terminated;
         TerminationReason = reason;
     }
+
+    /// <summary>
+    /// Помечает разовый (spot) контракт завершившим свою единственную поставку — успешную или
+    /// сорванную (SPEC §6). Больше исполнять нечего, но это не расторжение: штраф/репутация за
+    /// само завершение не начисляются.
+    /// </summary>
+    public void Complete()
+    {
+        if (Status != ContractStatus.Active)
+        {
+            throw new InvalidOperationException($"Cannot complete a contract in status '{Status}'.");
+        }
+        if (Terms.Type != ContractType.Spot)
+        {
+            throw new InvalidOperationException("Only a spot contract completes after a single delivery.");
+        }
+
+        Status = ContractStatus.Completed;
+    }
 }

@@ -72,6 +72,13 @@
   },
   "Economy": {
     "EmergencyPurchasePriceMultiplier": 1.5,
+    "SystemPricePerMaterial": [
+      { "MaterialId": "ore", "Price": 10 },
+      { "MaterialId": "sheet", "Price": 25 },
+      { "MaterialId": "rebar", "Price": 30 },
+      { "MaterialId": "oil", "Price": 12 },
+      { "MaterialId": "plastic", "Price": 28 }
+    ],
     "MarginMultiplierByProcessingLevel": [
       { "Level": 1, "MarginMultiplier": 1.0 },
       { "Level": 2, "MarginMultiplier": 1.15 },

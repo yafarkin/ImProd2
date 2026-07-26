@@ -24,6 +24,11 @@ public sealed class GameSessionState
     /// <summary>Команды сессии по идентификатору — наполняется событием <see cref="SessionStarted"/>.</summary>
     public IReadOnlyDictionary<Ulid, Team> Teams => _teams;
 
+    private readonly Dictionary<Ulid, Contract> _contracts = new();
+
+    /// <summary>Контракты сессии по идентификатору — наполняется событием <see cref="ContractSigned"/> (Блок 5.2).</summary>
+    public IReadOnlyDictionary<Ulid, Contract> Contracts => _contracts;
+
     public GameSessionState(ResolvedGameConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -34,6 +39,12 @@ public sealed class GameSessionState
     internal void AddTeam(Team team)
     {
         _teams.Add(team.Id, team);
+    }
+
+    /// <summary>Регистрирует контракт в сессии; вызывается только из <see cref="ContractSigned.Apply"/>.</summary>
+    internal void AddContract(Contract contract)
+    {
+        _contracts.Add(contract.Id, contract);
     }
 
     /// <summary>Пресет длительности сессии, по которому был разыгран <see cref="EndTurn"/>.</summary>

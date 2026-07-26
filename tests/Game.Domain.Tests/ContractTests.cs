@@ -86,4 +86,34 @@ public class ContractTests
 
         Assert.Throws<InvalidOperationException>(() => contract.Terminate(ContractTerminationReason.Voluntary));
     }
+
+    [Fact]
+    public void Complete_Moves_An_Active_Spot_Contract_To_Completed()
+    {
+        var contract = NewPendingContract(); // Terms — spot
+        contract.Confirm(TeamRole.Manager);
+
+        contract.Complete();
+
+        Assert.Equal(ContractStatus.Completed, contract.Status);
+    }
+
+    [Fact]
+    public void Complete_Throws_For_A_Recurring_Contract()
+    {
+        var recurringTerms = new ContractTerms(
+            ContractType.Recurring, Sheet, 10m, 20m, 0.1m, effectiveTurn: 3, spotDeliveryTurn: null, recurringEndTurn: 15);
+        var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), recurringTerms, "ABC123");
+        contract.Confirm(TeamRole.Manager);
+
+        Assert.Throws<InvalidOperationException>(() => contract.Complete());
+    }
+
+    [Fact]
+    public void Complete_Throws_When_The_Contract_Is_Not_Active()
+    {
+        var contract = NewPendingContract();
+
+        Assert.Throws<InvalidOperationException>(() => contract.Complete());
+    }
 }
