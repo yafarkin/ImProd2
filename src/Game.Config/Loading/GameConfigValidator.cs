@@ -5,9 +5,11 @@ namespace Game.Config.Loading;
 /// <summary>
 /// Проверяет ссылочную целостность GameConfig до попытки построить из него доменный граф:
 /// материалы принадлежат существующим секторам, рецепты ссылаются на существующие материалы,
-/// у каждого не-сырьевого материала ровно один производитель (SPEC §5.2 — иначе он, включая
-/// флагманы, недостижим в цепочке), фабрики предлагают рецепты своего сектора, в графе рецептов
-/// нет циклов. Возвращает все найденные проблемы разом, а не только первую.
+/// у каждого материала — включая сырьё уровня 0, которое добывается фабрикой-добытчиком, а не
+/// покупается у системы — ровно один производитель (SPEC §5.2 — иначе он, включая флагманы,
+/// недостижим в цепочке), рецепт сырья не имеет входов (добывается, а не строится из других
+/// материалов), фабрики предлагают рецепты своего сектора, в графе рецептов нет циклов.
+/// Возвращает все найденные проблемы разом, а не только первую.
 /// </summary>
 public static class GameConfigValidator
 {
@@ -56,11 +58,15 @@ public static class GameConfigValidator
             else
             {
                 var outputMaterial = config.Materials.First(material => material.Id == recipe.OutputMaterialId);
-                if (outputMaterial.Level == 0)
+                if (outputMaterial.Level == 0 && recipe.Inputs.Count > 0)
                 {
                     errors.Add(
                         $"Recipe '{recipe.Id}' produces raw material '{outputMaterial.Id}' (level 0); " +
-                        "raw materials are bought from the system and must not have a recipe.");
+                        "raw materials are mined, not built from other materials, so their recipe must have no inputs.");
+                }
+                if (outputMaterial.Level > 0 && recipe.Inputs.Count == 0)
+                {
+                    errors.Add($"Recipe '{recipe.Id}' has no inputs.");
                 }
 
                 if (!producersByMaterialId.TryGetValue(recipe.OutputMaterialId, out var producers))
@@ -70,11 +76,6 @@ public static class GameConfigValidator
                 }
 
                 producers.Add(recipe.Id);
-            }
-
-            if (recipe.Inputs.Count == 0)
-            {
-                errors.Add($"Recipe '{recipe.Id}' has no inputs.");
             }
 
             foreach (var input in recipe.Inputs)
@@ -101,12 +102,9 @@ public static class GameConfigValidator
         {
             if (!producersByMaterialId.TryGetValue(material.Id, out var producers))
             {
-                if (material.Level > 0)
-                {
-                    errors.Add(
-                        $"Material '{material.Id}' (level {material.Level}) has no recipe producing it; " +
-                        "it is unreachable in the production chain.");
-                }
+                errors.Add(
+                    $"Material '{material.Id}' (level {material.Level}) has no recipe producing it; " +
+                    "it is unreachable in the production chain.");
 
                 continue;
             }

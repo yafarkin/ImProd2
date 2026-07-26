@@ -12,6 +12,20 @@
   ],
   "Recipes": [
     {
+      "Id": "ore-mining",
+      "OutputMaterialId": "ore",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 1
+    },
+    {
+      "Id": "oil-drilling",
+      "OutputMaterialId": "oil",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 1
+    },
+    {
       "Id": "sheet-from-ore",
       "OutputMaterialId": "sheet",
       "OutputQuantity": 1,
@@ -34,8 +48,10 @@
     }
   ],
   "FactoryDefinitions": [
+    { "Id": "iron-mine", "Name": "Рудник", "SectorId": "A", "RecipeIds": [ "ore-mining" ] },
     { "Id": "steel-mill", "Name": "Сталелитейный завод", "SectorId": "A", "RecipeIds": [ "sheet-from-ore" ] },
     { "Id": "rolling-mill", "Name": "Прокатный стан", "SectorId": "A", "RecipeIds": [ "rebar-from-sheet" ] },
+    { "Id": "oil-well", "Name": "Нефтяная скважина", "SectorId": "B", "RecipeIds": [ "oil-drilling" ] },
     { "Id": "petrochemical-plant", "Name": "Нефтехимический завод", "SectorId": "B", "RecipeIds": [ "plastic-from-oil" ] }
   ],
   "StartingConditions": {

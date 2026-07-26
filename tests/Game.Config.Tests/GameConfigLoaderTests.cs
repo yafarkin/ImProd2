@@ -15,12 +15,17 @@ public class GameConfigLoaderTests
 
         Assert.Equal(2, resolved.Sectors.Count);
         Assert.Equal(5, resolved.Materials.Count);
-        Assert.Equal(3, resolved.FactoryDefinitions.Count);
+        Assert.Equal(5, resolved.FactoryDefinitions.Count);
 
         var rebar = resolved.Materials["rebar"];
         var rebarRecipe = resolved.RecipeBook.GetRecipe(rebar);
         Assert.Equal("rebar-from-sheet", rebarRecipe.Id);
         Assert.Same(resolved.Materials["sheet"], rebarRecipe.Inputs[0].Material);
+
+        var ore = resolved.Materials["ore"];
+        var oreRecipe = resolved.RecipeBook.GetRecipe(ore);
+        Assert.Equal("ore-mining", oreRecipe.Id);
+        Assert.Empty(oreRecipe.Inputs); // сырьё добывается, а не строится из других материалов
 
         var steelMill = Assert.Single(resolved.FactoryDefinitions, factory => factory.Id == "steel-mill");
         Assert.Same(resolved.Materials["ore"].Sector, steelMill.Sector);

@@ -12,6 +12,6 @@ public sealed record MaterialConfig
     /// <summary>Код сектора, к которому принадлежит материал (<see cref="SectorConfig.Id"/>).</summary>
     public required string SectorId { get; init; }
 
-    /// <summary>Уровень передела; 0 — сырьё, закупаемое у системы.</summary>
+    /// <summary>Уровень передела; 0 — сырьё, добываемое рецептом без входов (шахта, скважина и т.п.).</summary>
     public required int Level { get; init; }
 }

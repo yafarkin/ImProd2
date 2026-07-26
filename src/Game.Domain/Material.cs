@@ -15,7 +15,7 @@ public sealed record Material
     /// <summary>Сектор, к которому принадлежит материал.</summary>
     public Sector Sector { get; }
 
-    /// <summary>Уровень передела: 0 — сырьё, покупаемое у системы; выше — продукт переработки.</summary>
+    /// <summary>Уровень передела: 0 — сырьё, добываемое собственной фабрикой команды; выше — продукт переработки.</summary>
     public int Level { get; }
 
     public Material(string id, string name, Sector sector, int level)
@@ -40,6 +40,9 @@ public sealed record Material
         Level = level;
     }
 
-    /// <summary>Материалы уровня 0 покупаются напрямую у системы и не производятся по рецепту.</summary>
+    /// <summary>
+    /// Материалы уровня 0 добываются фабрикой-добытчиком (шахта, скважина, плантация — рецепт без
+    /// входов, только рабочие) — как и любой другой материал, а не покупаются извне.
+    /// </summary>
     public bool IsRawMaterial => Level == 0;
 }

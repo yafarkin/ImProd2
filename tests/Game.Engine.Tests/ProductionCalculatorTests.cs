@@ -19,6 +19,13 @@ public class ProductionCalculatorTests
     private static readonly FactoryDefinition Mill =
         new("steel-mill", "Сталелитейный завод", SectorA, new[] { SheetFromOreAndCoal });
 
+    // Добыча руды: рецепт без входов — сырьё не строится из других материалов, а добывается.
+    private static readonly Recipe OreMining =
+        new("ore-mining", Ore, outputQuantity: 1m, inputs: Array.Empty<RecipeInput>(), productionRate: 1m);
+
+    private static readonly FactoryDefinition Mine =
+        new("iron-mine", "Рудник", SectorA, new[] { OreMining });
+
     private static readonly WorkerProductivityConfig Productivity = new()
     {
         BaseWorkerCount = 5,
@@ -110,6 +117,20 @@ public class ProductionCalculatorTests
 
         Assert.Equal(0m, result.CapacityLimitedOutputQuantity);
         Assert.Equal(0m, result.OutputQuantity);
+    }
+
+    [Fact]
+    public void Calculate_For_A_Raw_Material_Extraction_Recipe_Is_Limited_Only_By_Capacity()
+    {
+        var mine = new Factory(Ulid.NewUlid(), SectorA, Mine);
+        mine.Hire(9); // 5 базовых + 4 сверх базы
+
+        // Пустой склад — но добыче сырья он не нужен: она не расходует материалы вовсе.
+        var result = ProductionCalculator.Calculate(mine, new Warehouse(), Productivity);
+
+        Assert.Equal(7m, result.CapacityLimitedOutputQuantity); // 5 + 4 * 0.5
+        Assert.Equal(7m, result.OutputQuantity);
+        Assert.Empty(result.ConsumedInputs);
     }
 
     [Fact]

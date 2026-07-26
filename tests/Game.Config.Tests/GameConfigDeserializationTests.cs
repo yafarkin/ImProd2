@@ -27,7 +27,7 @@ public class GameConfigDeserializationTests
         Assert.Equal("A", ore.SectorId);
         Assert.Equal(0, ore.Level);
 
-        Assert.Equal(3, config.Recipes.Count);
+        Assert.Equal(5, config.Recipes.Count);
         var rebarRecipe = Assert.Single(config.Recipes, recipe => recipe.Id == "rebar-from-sheet");
         Assert.Equal("rebar", rebarRecipe.OutputMaterialId);
         Assert.Equal(10m, rebarRecipe.OutputQuantity);
@@ -35,7 +35,11 @@ public class GameConfigDeserializationTests
         Assert.Equal("sheet", rebarInput.MaterialId);
         Assert.Equal(3m, rebarInput.Quantity);
 
-        Assert.Equal(3, config.FactoryDefinitions.Count);
+        var oreMiningRecipe = Assert.Single(config.Recipes, recipe => recipe.Id == "ore-mining");
+        Assert.Equal("ore", oreMiningRecipe.OutputMaterialId);
+        Assert.Empty(oreMiningRecipe.Inputs); // сырьё добывается, а не строится из других материалов
+
+        Assert.Equal(5, config.FactoryDefinitions.Count);
         var steelMill = Assert.Single(config.FactoryDefinitions, factory => factory.Id == "steel-mill");
         Assert.Equal("A", steelMill.SectorId);
         Assert.Equal(new[] { "sheet-from-ore" }, steelMill.RecipeIds);

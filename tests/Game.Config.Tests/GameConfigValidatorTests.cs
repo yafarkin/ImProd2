@@ -11,6 +11,15 @@ public class GameConfigValidatorTests
     private static readonly MaterialConfig Sheet = new() { Id = "sheet", Name = "Лист", SectorId = "A", Level = 1 };
     private static readonly MaterialConfig Rebar = new() { Id = "rebar", Name = "Арматура", SectorId = "A", Level = 2 };
 
+    private static RecipeConfig OreMining() => new()
+    {
+        Id = "ore-mining",
+        OutputMaterialId = "ore",
+        OutputQuantity = 1m,
+        Inputs = Array.Empty<RecipeInputConfig>(),
+        ProductionRate = 1m,
+    };
+
     private static RecipeConfig SheetFromOre() => new()
     {
         Id = "sheet-from-ore",
@@ -35,9 +44,10 @@ public class GameConfigValidatorTests
         var config = GameConfigTestBuilder.Build(
             sectors: new[] { SectorA },
             materials: new[] { Ore, Sheet, Rebar },
-            recipes: new[] { SheetFromOre(), RebarFromSheet() },
+            recipes: new[] { OreMining(), SheetFromOre(), RebarFromSheet() },
             factoryDefinitions: new[]
             {
+                new FactoryDefinitionConfig { Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" } },
                 new FactoryDefinitionConfig { Id = "steel-mill", Name = "Завод", SectorId = "A", RecipeIds = new[] { "sheet-from-ore" } },
                 new FactoryDefinitionConfig { Id = "rolling-mill", Name = "Стан", SectorId = "A", RecipeIds = new[] { "rebar-from-sheet" } },
             });
@@ -98,7 +108,7 @@ public class GameConfigValidatorTests
     }
 
     [Fact]
-    public void Recipe_Producing_Raw_Material_Is_Reported()
+    public void Recipe_Producing_Raw_Material_With_Inputs_Is_Reported()
     {
         var otherOre = new MaterialConfig { Id = "ore2", Name = "Другая руда", SectorId = "A", Level = 0 };
         var badRecipe = new RecipeConfig
@@ -112,7 +122,7 @@ public class GameConfigValidatorTests
         var config = GameConfigTestBuilder.Build(
             sectors: new[] { SectorA },
             materials: new[] { Ore, otherOre },
-            recipes: new[] { badRecipe });
+            recipes: new[] { badRecipe, OreMining() with { Id = "ore2-mining", OutputMaterialId = "ore2" } });
 
         var errors = GameConfigValidator.Validate(config);
 
@@ -120,7 +130,24 @@ public class GameConfigValidatorTests
     }
 
     [Fact]
-    public void Non_Raw_Material_Without_Any_Recipe_Is_Reported_As_Unreachable()
+    public void Recipe_Producing_Raw_Material_Without_Inputs_Is_Valid()
+    {
+        var config = GameConfigTestBuilder.Build(
+            sectors: new[] { SectorA },
+            materials: new[] { Ore },
+            recipes: new[] { OreMining() },
+            factoryDefinitions: new[]
+            {
+                new FactoryDefinitionConfig { Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" } },
+            });
+
+        var errors = GameConfigValidator.Validate(config);
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void Material_Without_Any_Recipe_Is_Reported_As_Unreachable_Raw_Or_Not()
     {
         var config = GameConfigTestBuilder.Build(
             sectors: new[] { SectorA },
@@ -129,6 +156,7 @@ public class GameConfigValidatorTests
         var errors = GameConfigValidator.Validate(config);
 
         Assert.Contains(errors, error => error.Contains("Material 'sheet'") && error.Contains("unreachable"));
+        Assert.Contains(errors, error => error.Contains("Material 'ore'") && error.Contains("unreachable"));
     }
 
     [Fact]

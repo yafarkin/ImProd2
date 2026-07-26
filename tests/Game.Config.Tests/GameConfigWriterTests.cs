@@ -12,6 +12,14 @@ public class GameConfigWriterTests
         var sectorA = new SectorConfig { Id = "A", Name = "Металлургия" };
         var ore = new MaterialConfig { Id = "ore", Name = "Руда", SectorId = "A", Level = 0 };
         var sheet = new MaterialConfig { Id = "sheet", Name = "Лист", SectorId = "A", Level = 1 };
+        var oreMining = new RecipeConfig
+        {
+            Id = "ore-mining",
+            OutputMaterialId = "ore",
+            OutputQuantity = 1m,
+            Inputs = Array.Empty<RecipeInputConfig>(),
+            ProductionRate = 1m,
+        };
         var sheetFromOre = new RecipeConfig
         {
             Id = "sheet-from-ore",
@@ -19,6 +27,13 @@ public class GameConfigWriterTests
             OutputQuantity = 1m,
             Inputs = new[] { new RecipeInputConfig { MaterialId = "ore", Quantity = 2m } },
             ProductionRate = 1m,
+        };
+        var mine = new FactoryDefinitionConfig
+        {
+            Id = "mine",
+            Name = "Рудник",
+            SectorId = "A",
+            RecipeIds = new[] { "ore-mining" },
         };
         var steelMill = new FactoryDefinitionConfig
         {
@@ -31,8 +46,8 @@ public class GameConfigWriterTests
         var original = GameConfigTestBuilder.Build(
             sectors: new[] { sectorA },
             materials: new[] { ore, sheet },
-            recipes: new[] { sheetFromOre },
-            factoryDefinitions: new[] { steelMill });
+            recipes: new[] { oreMining, sheetFromOre },
+            factoryDefinitions: new[] { mine, steelMill });
 
         var path = Path.Combine(Path.GetTempPath(), $"gameconfig-roundtrip-{Guid.NewGuid():N}.json");
         try

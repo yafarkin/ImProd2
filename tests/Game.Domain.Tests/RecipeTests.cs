@@ -21,19 +21,28 @@ public class RecipeTests
     }
 
     [Fact]
-    public void Construction_Throws_When_Inputs_Are_Empty()
+    public void Construction_Throws_When_A_Non_Raw_Materials_Inputs_Are_Empty()
     {
         Assert.Throws<ArgumentException>(() =>
             new Recipe("bad", Sheet, 1m, Array.Empty<RecipeInput>(), 1m));
     }
 
     [Fact]
-    public void Construction_Throws_When_Output_Is_Raw_Material()
+    public void Construction_Throws_When_A_Raw_Materials_Recipe_Has_Inputs()
     {
         var anotherOre = new Material("ore2", "Руда редких металлов", Sector, level: 0);
 
         Assert.Throws<ArgumentException>(() =>
             new Recipe("bad", Ore, 1m, new[] { new RecipeInput(anotherOre, 1m) }, 1m));
+    }
+
+    [Fact]
+    public void Construction_Succeeds_For_A_Raw_Material_Mined_Without_Any_Inputs()
+    {
+        var recipe = new Recipe("ore-mining", Ore, outputQuantity: 1m, inputs: Array.Empty<RecipeInput>(), productionRate: 1m);
+
+        Assert.Equal(Ore, recipe.Output);
+        Assert.Empty(recipe.DirectInputMaterials);
     }
 
     [Fact]

@@ -34,17 +34,18 @@ public sealed class Recipe
             throw new ArgumentException("Recipe id must not be empty.", nameof(id));
         }
         ArgumentNullException.ThrowIfNull(output);
-        if (output.IsRawMaterial)
-        {
-            throw new ArgumentException(
-                $"Material '{output.Id}' is a raw material (level 0) and cannot have a recipe.", nameof(output));
-        }
         if (outputQuantity <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(outputQuantity), outputQuantity, "Recipe output quantity must be positive.");
         }
         ArgumentNullException.ThrowIfNull(inputs);
-        if (inputs.Count == 0)
+        if (output.IsRawMaterial && inputs.Count > 0)
+        {
+            throw new ArgumentException(
+                $"Material '{output.Id}' is a raw material (level 0); it is mined, not built from other " +
+                "materials, so its recipe must have no inputs.", nameof(inputs));
+        }
+        if (!output.IsRawMaterial && inputs.Count == 0)
         {
             throw new ArgumentException("Recipe must have at least one input.", nameof(inputs));
         }
