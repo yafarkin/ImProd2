@@ -19,6 +19,16 @@ public sealed class GameSessionHost
     /// <summary>Единственная живая сессия процесса.</summary>
     public GameSession Session { get; }
 
+    /// <summary>
+    /// Лок на запись/чтение <see cref="Session"/> (Блок 8.2) — <see cref="EventLog{TState}"/> и
+    /// <see cref="Game.Persistence.DurableEventLog{TState}"/> сами не синхронизированы, а с этого
+    /// блока в сессию пишет не только один поток посева при старте, но и фоновый
+    /// <c>PhaseTimerBackgroundService</c> параллельно с чтением из потоков Blazor-circuit. Любой код
+    /// в <c>Game.Web</c>, читающий или пишущий в <see cref="Session"/> после старта, обязан брать
+    /// этот лок первым.
+    /// </summary>
+    public object SyncRoot { get; } = new();
+
     /// <summary>Посеянные коды входа (для отладочной страницы <c>/dev/codes</c> — Блок 9.8 её заменит).</summary>
     public IReadOnlyList<ParticipantRegistration> SeedCodes { get; }
 

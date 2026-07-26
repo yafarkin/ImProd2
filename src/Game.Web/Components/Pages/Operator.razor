@@ -1,11 +1,22 @@
 @page "/operator"
 @attribute [Authorize(Roles = "Operator")]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject GameSessionHost Host
 
 <PageTitle>Оператор</PageTitle>
 
 <h1>Вы вошли как @DisplayName (Оператор)</h1>
 
 <p><em>Настоящий экран оператора (очередь сделок, подтверждение по коду) — Фаза 9. Пока это только подтверждение того, что вход по роли работает.</em></p>
+
+<p>
+    Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы: <strong>@_countdown</strong>.
+</p>
+@if (_lastNewsHeadline is not null)
+{
+    <p><em>Последняя новость: @_lastNewsHeadline</em></p>
+}
 
 <form method="post" action="/auth/logout">
     <button type="submit" class="btn btn-secondary">Выйти</button>
@@ -16,10 +27,36 @@
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     private string? DisplayName;
+    private int _currentTurn;
+    private string _phaseLabel = string.Empty;
+    private string _countdown = string.Empty;
+    private string? _lastNewsHeadline;
+    private Timer? _tickTimer;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateTask!;
         DisplayName = authState.User.Identity?.Name;
+
+        RefreshPhaseStatus();
+
+        _tickTimer = new Timer(_ =>
+        {
+            RefreshPhaseStatus();
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
+
+    private void RefreshPhaseStatus()
+    {
+        lock (Host.SyncRoot)
+        {
+            _currentTurn = Host.Session.State.CurrentTurn;
+            _phaseLabel = PhaseDisplay.PhaseLabel(Host.Session.State.CurrentPhase);
+            _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session, DateTimeOffset.UtcNow));
+            _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session);
+        }
+    }
+
+    public void Dispose() => _tickTimer?.Dispose();
 }

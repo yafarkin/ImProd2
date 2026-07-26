@@ -131,8 +131,18 @@ internal static class TestGameConfig
         IReadOnlyList<NewsItemConfig> news, IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null) =>
         Build(news, trendScenario);
 
+    /// <summary>
+    /// Собирает вариант базового конфига с другими длительностями фаз хода (Блок 8.2) — для тестов
+    /// таймера, которым нужны различающиеся между собой Calculation/Decision/Closing, а не
+    /// одинаковые заглушки по умолчанию.
+    /// </summary>
+    public static ResolvedGameConfig BuildWithPhaseTiming(PhaseTimingConfig phaseTiming) =>
+        Build(phaseTiming: phaseTiming);
+
     private static ResolvedGameConfig Build(
-        IReadOnlyList<NewsItemConfig>? news = null, IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null)
+        IReadOnlyList<NewsItemConfig>? news = null,
+        IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null,
+        PhaseTimingConfig? phaseTiming = null)
     {
         var config = new GameConfig
         {
@@ -172,7 +182,7 @@ internal static class TestGameConfig
             {
                 new SessionPresetConfig { Id = "test", Name = "Test", MinTurns = 1, MaxTurns = 999, TurnDurationMinutes = 1 },
             },
-            PhaseTiming = new PhaseTimingConfig { CalculationPhaseSeconds = 1, DecisionPhaseSeconds = 1, CompletionPhaseSeconds = 1 },
+            PhaseTiming = phaseTiming ?? new PhaseTimingConfig { CalculationPhaseSeconds = 1, DecisionPhaseSeconds = 1, CompletionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {
                 EmergencyPurchasePriceMultiplier = 2m,

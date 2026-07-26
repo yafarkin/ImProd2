@@ -27,6 +27,7 @@ builder.Services
     });
 
 builder.Services.AddSingleton<GameSessionHost>();
+builder.Services.AddHostedService<PhaseTimerBackgroundService>();
 
 var app = builder.Build();
 
