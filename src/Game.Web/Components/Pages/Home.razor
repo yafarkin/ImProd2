@@ -9,12 +9,12 @@
     <Authorized>
         <p>Вы вошли как @context.User.Identity!.Name.</p>
         <p>
-            <a href="@RoleRouting.HomeRoute(MyRole(context.User))">Перейти в свой раздел</a> ·
-            <a href="/screen" target="_blank">Большой экран</a>
+            <a href="@RoleRouting.HomeRoute(MyRole(context.User))" class="btn btn-primary">Перейти в свой раздел</a>
+            <a href="/screen" target="_blank" class="btn btn-secondary">Большой экран</a>
         </p>
     </Authorized>
     <NotAuthorized>
-        <p><a href="/login">Войти по коду</a></p>
+        <a href="/login" class="btn btn-primary">Войти по коду</a>
     </NotAuthorized>
 </AuthorizeView>
 

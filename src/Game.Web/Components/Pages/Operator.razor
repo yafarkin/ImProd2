@@ -22,7 +22,7 @@
 }
 
 <h2>Очередь сделок</h2>
-<input type="text" placeholder="Код подтверждения" style="width:10em" @bind="_codeFilter" @bind:event="oninput" />
+<input type="text" placeholder="Код подтверждения" class="form-control d-inline-block mb-3" style="width:10em" @bind="_codeFilter" @bind:event="oninput" />
 
 @if (VisibleQueue().Count == 0)
 {
@@ -30,47 +30,51 @@
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Покупатель</th>
-                <th>Продавец</th>
-                <th>Материал</th>
-                <th>Тип</th>
-                <th>Объём</th>
-                <th>Цена</th>
-                <th>Срок</th>
-                <th>Код</th>
-                <th>Действия</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var row in VisibleQueue())
-            {
+    <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle">
+            <thead>
                 <tr>
-                    <td>@row.BuyerName</td>
-                    <td>@row.SellerName</td>
-                    <td>@row.MaterialName</td>
-                    <td>@row.TypeLabel</td>
-                    <td>@row.Volume.ToString("0.##")</td>
-                    <td>@DashboardDisplay.FormatMoney(row.UnitPrice)</td>
-                    <td>@row.TurnRange</td>
-                    <td>@row.ConfirmationCode</td>
-                    <td>
-                        @if (_isDecisionPhase)
-                        {
-                            <button type="button" class="btn btn-secondary" @onclick="() => Confirm(row.ContractId)">Подтвердить</button>
-                            <input type="text" placeholder="Причина отклонения" style="width:10em" @bind="_rejectReasons[row.ContractId]" />
-                            <button type="button" class="btn btn-secondary" @onclick="() => Reject(row.ContractId)">Отклонить</button>
-                        }
-                    </td>
+                    <th>Покупатель</th>
+                    <th>Продавец</th>
+                    <th>Материал</th>
+                    <th>Тип</th>
+                    <th>Объём</th>
+                    <th>Цена</th>
+                    <th>Срок</th>
+                    <th>Код</th>
+                    <th>Действия</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var row in VisibleQueue())
+                {
+                    <tr>
+                        <td>@row.BuyerName</td>
+                        <td>@row.SellerName</td>
+                        <td>@row.MaterialName</td>
+                        <td>@row.TypeLabel</td>
+                        <td>@row.Volume.ToString("0.##")</td>
+                        <td>@DashboardDisplay.FormatMoney(row.UnitPrice)</td>
+                        <td>@row.TurnRange</td>
+                        <td>@row.ConfirmationCode</td>
+                        <td>
+                            @if (_isDecisionPhase)
+                            {
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Confirm(row.ContractId)">Подтвердить</button>
+                                    <input type="text" placeholder="Причина отклонения" class="form-control d-inline-block" style="width:10em" @bind="_rejectReasons[row.ContractId]" />
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Reject(row.ContractId)">Отклонить</button>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 
-<form method="post" action="/auth/logout">
+<form method="post" action="/auth/logout" class="mt-4">
     <button type="submit" class="btn btn-secondary">Выйти</button>
 </form>
 

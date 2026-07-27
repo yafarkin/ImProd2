@@ -15,7 +15,7 @@
     @_reputationPercentage.ToString("F0")% (@_reputationSampleCount @(_reputationSampleCount == 1 ? "факт" : "фактов"))
 </p>
 
-<h2>Что нужно</h2>
+<h2 class="mt-4">Что нужно</h2>
 @if (_needs.Count == 0)
 {
     <p><em>Дефицита входов под текущие рецепты фабрик нет.</em></p>
@@ -30,7 +30,7 @@ else
     </ul>
 }
 
-<h2>Что можем предложить</h2>
+<h2 class="mt-4">Что можем предложить</h2>
 @if (_offers.Count == 0)
 {
     <p><em>Склад пуст.</em></p>
@@ -45,23 +45,29 @@ else
     </ul>
 }
 
-<h2>Репутация контрагента</h2>
+<h2 class="mt-4">Репутация контрагента</h2>
 @if (_counterpartyOptions.Count == 0)
 {
     <p><em>Других команд в сессии нет.</em></p>
 }
 else
 {
-    <select @bind="_selectedCounterpartyId">
-        @foreach (var team in _counterpartyOptions)
-        {
-            <option value="@team.Id">@team.Name</option>
-        }
-    </select>
-    <p>@_counterpartyReputationPercentage.ToString("F0")% (@_counterpartyReputationSampleCount @(_counterpartyReputationSampleCount == 1 ? "факт" : "фактов"))</p>
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <select class="form-select w-auto" @bind="_selectedCounterpartyId">
+            @foreach (var team in _counterpartyOptions)
+            {
+                <option value="@team.Id">@team.Name</option>
+            }
+        </select>
+        <span>@_counterpartyReputationPercentage.ToString("F0")% (@_counterpartyReputationSampleCount @(_counterpartyReputationSampleCount == 1 ? "факт" : "фактов"))</span>
+    </div>
 }
 
-<ContractDraftForm TeamId="_teamId" OnChanged="RefreshPanel" />
+<div class="card mt-4">
+    <div class="card-body">
+        <ContractDraftForm TeamId="_teamId" OnChanged="RefreshPanel" />
+    </div>
+</div>
 
 @code {
     [CascadingParameter]

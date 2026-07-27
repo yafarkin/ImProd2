@@ -4,18 +4,20 @@
 
 <h1>Вход по коду</h1>
 
-@if (Error)
-{
-    <p class="text-danger">Код не найден. Проверьте и попробуйте снова.</p>
-}
+<div class="mx-auto" style="max-width: 24rem;">
+    @if (Error)
+    {
+        <div class="alert alert-danger">Код не найден. Проверьте и попробуйте снова.</div>
+    }
 
-<form method="post" action="/auth/login">
-    <div class="mb-3">
-        <label for="code" class="form-label">Код</label>
-        <input type="text" class="form-control" id="code" name="code" autofocus />
-    </div>
-    <button type="submit" class="btn btn-primary">Войти</button>
-</form>
+    <form method="post" action="/auth/login">
+        <div class="mb-3">
+            <label for="code" class="form-label">Код</label>
+            <input type="text" class="form-control form-control-lg" id="code" name="code" autofocus />
+        </div>
+        <button type="submit" class="btn btn-primary">Войти</button>
+    </form>
+</div>
 
 @code {
     [SupplyParameterFromQuery(Name = "error")]

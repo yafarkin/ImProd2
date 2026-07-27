@@ -26,114 +26,125 @@
 }
 
 <h2>Управление фазой</h2>
-<button type="button" class="btn btn-secondary" @onclick="AdvancePhaseNow">Ускорить фазу</button>
-<button type="button" class="btn btn-secondary" @onclick="TogglePause">@(_isPaused ? "Снять с паузы" : "Пауза")</button>
-<input type="number" min="1" style="width:5em" @bind="_extendSeconds" /> сек.
-<button type="button" class="btn btn-secondary" @onclick="ExtendPhase">Продлить</button>
+<div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+    <button type="button" class="btn btn-secondary" @onclick="AdvancePhaseNow">Ускорить фазу</button>
+    <button type="button" class="btn btn-secondary" @onclick="TogglePause">@(_isPaused ? "Снять с паузы" : "Пауза")</button>
+    <input type="number" min="1" class="form-control d-inline-block" style="width:5em" @bind="_extendSeconds" />
+    <span>сек.</span>
+    <button type="button" class="btn btn-secondary" @onclick="ExtendPhase">Продлить</button>
+</div>
 
 <h2>Обзор команд</h2>
-<table class="table">
-    <thead>
-        <tr>
-            <th>Команда</th>
-            <th>Сектор</th>
-            <th>Баланс</th>
-            <th>Долг</th>
-            <th>Репутация</th>
-            <th>Фабрик</th>
-            <th>Рабочих</th>
-            <th>Алерты</th>
-        </tr>
-    </thead>
-    <tbody>
+<div class="table-responsive">
+    <table class="table table-striped table-sm align-middle">
+        <thead>
+            <tr>
+                <th>Команда</th>
+                <th>Сектор</th>
+                <th>Баланс</th>
+                <th>Долг</th>
+                <th>Репутация</th>
+                <th>Фабрик</th>
+                <th>Рабочих</th>
+                <th>Алерты</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var team in _teams)
+            {
+                <tr>
+                    <td>@team.Name</td>
+                    <td>@team.SectorName</td>
+                    <td class="@(team.NegativeBalance ? "text-danger" : null)">@DashboardDisplay.FormatMoney(team.Balance)</td>
+                    <td>@DashboardDisplay.FormatMoney(team.Debt)</td>
+                    <td>@team.ReputationPercentage.ToString("F0")%</td>
+                    <td>@team.FactoryCount</td>
+                    <td>@team.WorkerCount</td>
+                    <td>
+                        @if (team.NegativeBalance)
+                        {
+                            <span class="badge text-bg-danger">Баланс отрицательный</span>
+                        }
+                        @if (team.HadForcedLoan)
+                        {
+                            <span class="badge text-bg-warning">Был принудительный заём</span>
+                        }
+                        @if (team.Inactive)
+                        {
+                            <span class="badge text-bg-secondary">Неактивна</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<h2 class="mt-4">Грант команде</h2>
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <select class="form-select w-auto" @bind="_grantTeamId">
         @foreach (var team in _teams)
         {
-            <tr>
-                <td>@team.Name</td>
-                <td>@team.SectorName</td>
-                <td style="@(team.NegativeBalance ? "color:red" : null)">@DashboardDisplay.FormatMoney(team.Balance)</td>
-                <td>@DashboardDisplay.FormatMoney(team.Debt)</td>
-                <td>@team.ReputationPercentage.ToString("F0")%</td>
-                <td>@team.FactoryCount</td>
-                <td>@team.WorkerCount</td>
-                <td>
-                    @if (team.NegativeBalance)
-                    {
-                        <span>Баланс отрицательный</span>
-                    }
-                    @if (team.HadForcedLoan)
-                    {
-                        <span>Был принудительный заём</span>
-                    }
-                    @if (team.Inactive)
-                    {
-                        <span>Неактивна</span>
-                    }
-                </td>
-            </tr>
+            <option value="@team.TeamId">@team.Name</option>
         }
-    </tbody>
-</table>
+    </select>
+    <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_grantAmount" />
+    <button type="button" class="btn btn-secondary" @onclick="Grant">Выдать грант</button>
+</div>
 
-<h2>Грант команде</h2>
-<select @bind="_grantTeamId">
-    @foreach (var team in _teams)
-    {
-        <option value="@team.TeamId">@team.Name</option>
-    }
-</select>
-<input type="number" min="0.01" step="0.01" style="width:8em" @bind="_grantAmount" />
-<button type="button" class="btn btn-secondary" @onclick="Grant">Выдать грант</button>
-
-<h2>Аварийная закупка</h2>
-<p>
-    Сейчас: <strong>@(_emergencyPurchaseEnabled ? "включена" : "выключена")</strong>
+<h2 class="mt-4">Аварийная закупка</h2>
+<div class="d-flex align-items-center gap-2 mb-3">
+    <span>Сейчас: <strong>@(_emergencyPurchaseEnabled ? "включена" : "выключена")</strong></span>
     <button type="button" class="btn btn-secondary" @onclick="ToggleEmergencyPurchase">
         @(_emergencyPurchaseEnabled ? "Выключить" : "Включить")
     </button>
-</p>
+</div>
 
-<h2>Ручная новость</h2>
+<h2 class="mt-4">Ручная новость</h2>
 @if (_availableNews.Count == 0)
 {
     <p><em>Все заголовки уже опубликованы.</em></p>
 }
 else
 {
-    <select @bind="_newsItemId">
-        @foreach (var item in _availableNews)
-        {
-            <option value="@item.Id">@item.Label</option>
-        }
-    </select>
-    <button type="button" class="btn btn-secondary" @onclick="PublishNews">Опубликовать</button>
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <select class="form-select w-auto" @bind="_newsItemId">
+            @foreach (var item in _availableNews)
+            {
+                <option value="@item.Id">@item.Label</option>
+            }
+        </select>
+        <button type="button" class="btn btn-secondary" @onclick="PublishNews">Опубликовать</button>
+    </div>
 }
 
-<h2>Корректировка цены</h2>
+<h2 class="mt-4">Корректировка цены</h2>
 @if (_materials.Count == 0)
 {
     <p><em>Рынок ещё не публиковал котировок.</em></p>
 }
 else
 {
-    <select @bind="_priceMaterialId">
-        @foreach (var material in _materials)
-        {
-            <option value="@material.Id">@material.Name (сейчас @DashboardDisplay.FormatMoney(material.CurrentPrice))</option>
-        }
-    </select>
-    <input type="number" min="0" step="0.01" style="width:8em" @bind="_newPrice" />
-    <button type="button" class="btn btn-secondary" @onclick="AdjustPrice">Установить цену</button>
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <select class="form-select w-auto" @bind="_priceMaterialId">
+            @foreach (var material in _materials)
+            {
+                <option value="@material.Id">@material.Name (сейчас @DashboardDisplay.FormatMoney(material.CurrentPrice))</option>
+            }
+        </select>
+        <input type="number" min="0" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_newPrice" />
+        <button type="button" class="btn btn-secondary" @onclick="AdjustPrice">Установить цену</button>
+    </div>
 }
 
-<h2>Экспорт истории</h2>
+<h2 class="mt-4">Экспорт истории</h2>
 <p>
     <a href="/export/journal.json">Журнал событий (JSON)</a> ·
     <a href="/export/turns.csv">Сводка по ходам (CSV)</a> ·
     <a href="/export/scores.csv">Итоговые счета команд (CSV)</a>
 </p>
 
-<form method="post" action="/auth/logout">
+<form method="post" action="/auth/logout" class="mt-4">
     <button type="submit" class="btn btn-secondary">Выйти</button>
 </form>
 

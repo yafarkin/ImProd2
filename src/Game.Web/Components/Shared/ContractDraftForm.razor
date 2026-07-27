@@ -17,53 +17,79 @@
 }
 else
 {
-    <div>
-        Контрагент:
-        <select @bind="_counterpartyTeamId">
-            @foreach (var team in _counterparties)
-            {
-                <option value="@team.Id">@team.Name</option>
-            }
-        </select>
+    <div class="row row-cols-auto g-3 align-items-end mb-2">
+        <div>
+            <label class="form-label mb-0">Контрагент</label>
+            <select class="form-select" @bind="_counterpartyTeamId">
+                @foreach (var team in _counterparties)
+                {
+                    <option value="@team.Id">@team.Name</option>
+                }
+            </select>
+        </div>
 
-        Наша роль:
-        <select @bind="_role">
-            <option value="buyer">Покупатель</option>
-            <option value="seller">Продавец</option>
-        </select>
+        <div>
+            <label class="form-label mb-0">Наша роль</label>
+            <select class="form-select" @bind="_role">
+                <option value="buyer">Покупатель</option>
+                <option value="seller">Продавец</option>
+            </select>
+        </div>
     </div>
 
-    <div>
-        Материал:
-        <select @bind="_materialId">
-            @foreach (var material in _materials)
-            {
-                <option value="@material.Id">@material.Name</option>
-            }
-        </select>
+    <div class="row row-cols-auto g-3 align-items-end mb-2">
+        <div>
+            <label class="form-label mb-0">Материал</label>
+            <select class="form-select" @bind="_materialId">
+                @foreach (var material in _materials)
+                {
+                    <option value="@material.Id">@material.Name</option>
+                }
+            </select>
+        </div>
 
-        Тип:
-        <select @bind="_type">
-            <option value="@ContractType.Spot">Разовый</option>
-            <option value="@ContractType.Recurring">Регулярный</option>
-        </select>
+        <div>
+            <label class="form-label mb-0">Тип</label>
+            <select class="form-select" @bind="_type">
+                <option value="@ContractType.Spot">Разовый</option>
+                <option value="@ContractType.Recurring">Регулярный</option>
+            </select>
+        </div>
     </div>
 
-    <div>
-        Объём: <input type="number" min="0.01" step="0.01" style="width:6em" @bind="_volume" />
-        Цена за единицу: <input type="number" min="0.01" step="0.01" style="width:6em" @bind="_unitPrice" />
-        Ставка штрафа за срыв: <input type="number" min="0" max="1" step="0.01" style="width:5em" @bind="_penaltyRate" />
+    <div class="row row-cols-auto g-3 align-items-end mb-2">
+        <div>
+            <label class="form-label mb-0">Объём</label>
+            <input type="number" min="0.01" step="0.01" class="form-control" style="width:7em" @bind="_volume" />
+        </div>
+        <div>
+            <label class="form-label mb-0">Цена за единицу</label>
+            <input type="number" min="0.01" step="0.01" class="form-control" style="width:7em" @bind="_unitPrice" />
+        </div>
+        <div>
+            <label class="form-label mb-0">Ставка штрафа за срыв</label>
+            <input type="number" min="0" max="1" step="0.01" class="form-control" style="width:6em" @bind="_penaltyRate" />
+        </div>
     </div>
 
-    <div>
-        Ход вступления в силу: <input type="number" min="1" style="width:5em" @bind="_effectiveTurn" />
+    <div class="row row-cols-auto g-3 align-items-end mb-3">
+        <div>
+            <label class="form-label mb-0">Ход вступления в силу</label>
+            <input type="number" min="1" class="form-control" style="width:6em" @bind="_effectiveTurn" />
+        </div>
         @if (_type == ContractType.Spot)
         {
-            <text>Ход поставки: <input type="number" min="1" style="width:5em" @bind="_spotDeliveryTurn" /></text>
+            <div>
+                <label class="form-label mb-0">Ход поставки</label>
+                <input type="number" min="1" class="form-control" style="width:6em" @bind="_spotDeliveryTurn" />
+            </div>
         }
         else
         {
-            <text>Последний ход действия: <input type="number" min="1" style="width:5em" @bind="_recurringEndTurn" /></text>
+            <div>
+                <label class="form-label mb-0">Последний ход действия</label>
+                <input type="number" min="1" class="form-control" style="width:6em" @bind="_recurringEndTurn" />
+            </div>
         }
     </div>
 

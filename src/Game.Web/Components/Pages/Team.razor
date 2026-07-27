@@ -25,8 +25,8 @@
 }
 
 <h2>Что у меня плохо</h2>
-<ul>
-    <li>Баланс: <strong style="@(_balance < 0 ? "color:red" : null)">@DashboardDisplay.FormatMoney(_balance)</strong></li>
+<ul class="list-unstyled">
+    <li>Баланс: <strong class="@(_balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_balance)</strong></li>
     <li>Долг: @DashboardDisplay.FormatMoney(_debt)</li>
     @if (_penaltyRateSurcharge > 0)
     {
@@ -37,12 +37,12 @@
         (@_reputationSampleCount @(_reputationSampleCount == 1 ? "факт" : "фактов"))
         @if (_reputationSampleCount < 3)
         {
-            <em>— пока мало данных для оценки</em>
+            <em class="text-muted">— пока мало данных для оценки</em>
         }
     </li>
 </ul>
 
-<h2>Что решить сейчас</h2>
+<h2 class="mt-4">Что решить сейчас</h2>
 @if (!_isDecisionPhase)
 {
     <p><em>Решения недоступны — сейчас фаза «@_phaseLabel». Дождитесь фазы «Решения».</em></p>
@@ -56,13 +56,15 @@ else
     }
     else
     {
-        <select @bind="_selectedFactoryDefinitionId">
-            @foreach (var definition in _buildableDefinitions)
-            {
-                <option value="@definition.Id">@definition.Name (@DashboardDisplay.FormatMoney(definition.BuildCost))</option>
-            }
-        </select>
-        <button type="button" class="btn btn-primary" @onclick="BuildFactory">Построить</button>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <select class="form-select w-auto" @bind="_selectedFactoryDefinitionId">
+                @foreach (var definition in _buildableDefinitions)
+                {
+                    <option value="@definition.Id">@definition.Name (@DashboardDisplay.FormatMoney(definition.BuildCost))</option>
+                }
+            </select>
+            <button type="button" class="btn btn-primary" @onclick="BuildFactory">Построить</button>
+        </div>
     }
 }
 
@@ -82,12 +84,12 @@ else
 {
     @foreach (var row in _stock)
     {
-        <div>
-            @row.MaterialName: @row.Quantity.ToString("0.##")
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span>@row.MaterialName: @row.Quantity.ToString("0.##")</span>
             @if (_isDecisionPhase)
             {
-                <input type="number" min="0.01" step="0.01" style="width:6em" @bind="_sellVolumes[row.MaterialId]" />
-                <button type="button" class="btn btn-secondary" @onclick="() => SellToSystem(row.MaterialId)">Продать системе</button>
+                <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_sellVolumes[row.MaterialId]" />
+                <button type="button" class="btn btn-secondary btn-sm" @onclick="() => SellToSystem(row.MaterialId)">Продать системе</button>
             }
         </div>
     }
@@ -95,17 +97,19 @@ else
 @if (_isDecisionPhase && _emergencyPurchaseEnabled && _emergencyPurchaseMaterials.Count > 0)
 {
     <h4>Аварийная закупка</h4>
-    <select @bind="_emergencyPurchaseMaterialId">
-        @foreach (var material in _emergencyPurchaseMaterials)
-        {
-            <option value="@material.Id">@material.Name</option>
-        }
-    </select>
-    <input type="number" min="0.01" step="0.01" style="width:6em" @bind="_emergencyPurchaseVolume" />
-    <button type="button" class="btn btn-secondary" @onclick="EmergencyPurchase">Купить</button>
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <select class="form-select w-auto" @bind="_emergencyPurchaseMaterialId">
+            @foreach (var material in _emergencyPurchaseMaterials)
+            {
+                <option value="@material.Id">@material.Name</option>
+            }
+        </select>
+        <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_emergencyPurchaseVolume" />
+        <button type="button" class="btn btn-secondary" @onclick="EmergencyPurchase">Купить</button>
+    </div>
 }
 
-<h3>Фабрики</h3>
+<h3 class="mt-4">Фабрики</h3>
 @if (_factories.Count == 0)
 {
     <p><em>Фабрик пока нет.</em></p>
@@ -114,81 +118,85 @@ else
 {
     @foreach (var factory in _factories)
     {
-        <div class="card" style="margin-bottom:1em;padding:0.5em">
-            <p>
-                <strong>@factory.DefinitionName</strong> — уровень @factory.Level, рабочих: @factory.Workers,
-                продукт: @factory.SelectedRecipeName
-            </p>
-            <p>
-                R&amp;D: вложено @factory.RndInvestment.ToString("0.##")
-                @if (factory.NextLevelThreshold is { } threshold)
+        <div class="card mb-3">
+            <div class="card-body">
+                <p>
+                    <strong>@factory.DefinitionName</strong> — уровень @factory.Level, рабочих: @factory.Workers,
+                    продукт: @factory.SelectedRecipeName
+                </p>
+                <p>
+                    R&amp;D: вложено @factory.RndInvestment.ToString("0.##")
+                    @if (factory.NextLevelThreshold is { } threshold)
+                    {
+                        <text>(до следующего уровня: @threshold.ToString("0.##"))</text>
+                    }
+                    else
+                    {
+                        <text>(максимальный уровень)</text>
+                    }
+                </p>
+
+                @if (factory.HasUnitCost)
                 {
-                    <text>(до следующего уровня: @threshold.ToString("0.##"))</text>
+                    <p>Себестоимость единицы: @DashboardDisplay.FormatMoney(factory.UnitCost)</p>
+                    <details class="mb-2">
+                        <summary>Пирамида входов</summary>
+                        <ul>
+                            @foreach (var row in factory.Pyramid)
+                            {
+                                <li style="margin-left:@(row.Depth * 1.5)em">@row.Material.Name: @row.Quantity.ToString("0.##")</li>
+                            }
+                        </ul>
+                    </details>
                 }
                 else
                 {
-                    <text>(максимальный уровень)</text>
+                    <p><em>Себестоимость пока не посчитать — нет рыночных котировок сырья.</em></p>
                 }
-            </p>
 
-            @if (factory.HasUnitCost)
-            {
-                <p>Себестоимость единицы: @DashboardDisplay.FormatMoney(factory.UnitCost)</p>
-                <details>
-                    <summary>Пирамида входов</summary>
-                    <ul>
-                        @foreach (var row in factory.Pyramid)
-                        {
-                            <li style="margin-left:@(row.Depth * 1.5)em">@row.Material.Name: @row.Quantity.ToString("0.##")</li>
-                        }
-                    </ul>
-                </details>
-            }
-            else
-            {
-                <p><em>Себестоимость пока не посчитать — нет рыночных котировок сырья.</em></p>
-            }
-
-            @if (_isDecisionPhase)
-            {
-                <div>
-                    <input type="number" min="1" style="width:5em" @bind="_hireCounts[factory.FactoryId]" />
-                    <button type="button" class="btn btn-secondary" @onclick="() => HireWorkers(factory.FactoryId)">Нанять</button>
-
-                    <input type="number" min="1" style="width:5em" @bind="_fireCounts[factory.FactoryId]" />
-                    <button type="button" class="btn btn-secondary" @onclick="() => FireWorkers(factory.FactoryId)">Уволить</button>
-                </div>
-
-                @if (factory.RecipeOptions.Count > 1)
+                @if (_isDecisionPhase)
                 {
-                    <div>
-                        <select @bind="_selectedRecipeIds[factory.FactoryId]">
-                            @foreach (var recipe in factory.RecipeOptions)
-                            {
-                                <option value="@recipe.Id">@recipe.Name</option>
-                            }
-                        </select>
-                        <button type="button" class="btn btn-secondary" @onclick="() => SelectRecipe(factory.FactoryId)">Сменить продукт</button>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <input type="number" min="1" class="form-control d-inline-block" style="width:5em" @bind="_hireCounts[factory.FactoryId]" />
+                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => HireWorkers(factory.FactoryId)">Нанять</button>
+
+                        <input type="number" min="1" class="form-control d-inline-block" style="width:5em" @bind="_fireCounts[factory.FactoryId]" />
+                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => FireWorkers(factory.FactoryId)">Уволить</button>
+                    </div>
+
+                    @if (factory.RecipeOptions.Count > 1)
+                    {
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            <select class="form-select w-auto" @bind="_selectedRecipeIds[factory.FactoryId]">
+                                @foreach (var recipe in factory.RecipeOptions)
+                                {
+                                    <option value="@recipe.Id">@recipe.Name</option>
+                                }
+                            </select>
+                            <button type="button" class="btn btn-secondary btn-sm" @onclick="() => SelectRecipe(factory.FactoryId)">Сменить продукт</button>
+                        </div>
+                    }
+
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_rndInvestAmounts[factory.FactoryId]" />
+                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => InvestInRnd(factory.FactoryId)">Вложить в R&amp;D</button>
                     </div>
                 }
-
-                <div>
-                    <input type="number" min="0.01" step="0.01" style="width:6em" @bind="_rndInvestAmounts[factory.FactoryId]" />
-                    <button type="button" class="btn btn-secondary" @onclick="() => InvestInRnd(factory.FactoryId)">Вложить в R&amp;D</button>
-                </div>
-            }
+            </div>
         </div>
     }
 }
 
-<h3>Кредиты</h3>
+<h3 class="mt-4">Кредиты</h3>
 <p>
     Долг: @DashboardDisplay.FormatMoney(_debt), текущая ставка: @DashboardDisplay.FormatRate(_currentLoanRate)
 </p>
 @if (_isDecisionPhase)
 {
-    <input type="number" min="0.01" step="0.01" style="width:8em" @bind="_loanAmount" @bind:event="oninput" />
-    <button type="button" class="btn btn-secondary" @onclick="TakeLoan">Взять кредит</button>
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_loanAmount" @bind:event="oninput" />
+        <button type="button" class="btn btn-secondary" @onclick="TakeLoan">Взять кредит</button>
+    </div>
     <p>
         <em>
             Предпросмотр: ставка @DashboardDisplay.FormatRate(LoanPreview().Rate),
@@ -197,7 +205,7 @@ else
     </p>
 }
 
-<h2>Контракты</h2>
+<h2 class="mt-4">Контракты</h2>
 <p><a href="/team/negotiate">Переговорная панель</a> · <a href="/team/needs">Доска потребностей</a></p>
 
 @if (_isDecisionPhase)
@@ -211,94 +219,96 @@ else
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Роль</th>
-                <th>Контрагент</th>
-                <th>Материал</th>
-                <th>Тип</th>
-                <th>Объём</th>
-                <th>Цена</th>
-                <th>Штраф</th>
-                <th>Срок</th>
-                <th>Код</th>
-                <th>Статус</th>
-                <th>Действия</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var contract in _contracts)
-            {
+    <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle">
+            <thead>
                 <tr>
-                    <td>@contract.Role</td>
-                    <td>@contract.CounterpartyName</td>
-                    <td>@contract.MaterialName</td>
-                    <td>@DashboardDisplay.ContractTypeLabel(contract.Type)</td>
-                    <td>@contract.Volume.ToString("0.##")</td>
-                    <td>@DashboardDisplay.FormatMoney(contract.UnitPrice)</td>
-                    <td>@DashboardDisplay.FormatRate(contract.PenaltyRate)</td>
-                    <td>@DashboardDisplay.FormatTurnRange(contract.Type, contract.EffectiveTurn, contract.SpotDeliveryTurn, contract.RecurringEndTurn)</td>
-                    <td>@contract.ConfirmationCode</td>
-                    <td>@contract.StatusLabel</td>
-                    <td>
-                        @if (_isDecisionPhase)
-                        {
-                            @if (contract.Status == ContractStatus.PendingConfirmation && Role == "Manager")
+                    <th>Роль</th>
+                    <th>Контрагент</th>
+                    <th>Материал</th>
+                    <th>Тип</th>
+                    <th>Объём</th>
+                    <th>Цена</th>
+                    <th>Штраф</th>
+                    <th>Срок</th>
+                    <th>Код</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var contract in _contracts)
+                {
+                    <tr>
+                        <td>@contract.Role</td>
+                        <td>@contract.CounterpartyName</td>
+                        <td>@contract.MaterialName</td>
+                        <td>@DashboardDisplay.ContractTypeLabel(contract.Type)</td>
+                        <td>@contract.Volume.ToString("0.##")</td>
+                        <td>@DashboardDisplay.FormatMoney(contract.UnitPrice)</td>
+                        <td>@DashboardDisplay.FormatRate(contract.PenaltyRate)</td>
+                        <td>@DashboardDisplay.FormatTurnRange(contract.Type, contract.EffectiveTurn, contract.SpotDeliveryTurn, contract.RecurringEndTurn)</td>
+                        <td>@contract.ConfirmationCode</td>
+                        <td>@contract.StatusLabel</td>
+                        <td>
+                            @if (_isDecisionPhase)
                             {
-                                <button type="button" class="btn btn-secondary" @onclick="() => ConfirmContract(contract.ContractId)">Подтвердить</button>
-                            }
-                            @if (contract.Status == ContractStatus.Active)
-                            {
-                                <div>
-                                    <button type="button" class="btn btn-secondary" @onclick="() => TerminateMutual(contract.ContractId)">Расторгнуть по согласию</button>
-                                    <button type="button" class="btn btn-secondary" @onclick="() => TerminateVoluntary(contract.ContractId)">Расторгнуть в одностороннем порядке</button>
-                                </div>
-
-                                @if (contract.Type == ContractType.Recurring)
+                                @if (contract.Status == ContractStatus.PendingConfirmation && Role == "Manager")
                                 {
-                                    @if (contract.HasPendingRevision)
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => ConfirmContract(contract.ContractId)">Подтвердить</button>
+                                }
+                                @if (contract.Status == ContractStatus.Active)
+                                {
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => TerminateMutual(contract.ContractId)">Расторгнуть по согласию</button>
+                                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => TerminateVoluntary(contract.ContractId)">Расторгнуть в одностороннем порядке</button>
+                                    </div>
+
+                                    @if (contract.Type == ContractType.Recurring)
                                     {
-                                        @if (contract.PendingRevisionIsMine)
+                                        @if (contract.HasPendingRevision)
                                         {
-                                            <p><em>Предложен пересмотр — ждём ответа второй стороны.</em></p>
+                                            @if (contract.PendingRevisionIsMine)
+                                            {
+                                                <p><em>Предложен пересмотр — ждём ответа второй стороны.</em></p>
+                                            }
+                                            else
+                                            {
+                                                <p>
+                                                    Предложен пересмотр: объём @contract.PendingVolume?.ToString("0.##"),
+                                                    цена @DashboardDisplay.FormatMoney(contract.PendingUnitPrice ?? 0m),
+                                                    штраф @DashboardDisplay.FormatRate(contract.PendingPenaltyRate ?? 0m),
+                                                    до хода @contract.PendingRecurringEndTurn.
+                                                </p>
+                                                @if (Role == "Manager")
+                                                {
+                                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => AcceptRevision(contract.ContractId)">Принять</button>
+                                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => RejectRevision(contract.ContractId)">Отклонить</button>
+                                                }
+                                            }
                                         }
                                         else
                                         {
-                                            <p>
-                                                Предложен пересмотр: объём @contract.PendingVolume?.ToString("0.##"),
-                                                цена @DashboardDisplay.FormatMoney(contract.PendingUnitPrice ?? 0m),
-                                                штраф @DashboardDisplay.FormatRate(contract.PendingPenaltyRate ?? 0m),
-                                                до хода @contract.PendingRecurringEndTurn.
-                                            </p>
-                                            @if (Role == "Manager")
-                                            {
-                                                <button type="button" class="btn btn-secondary" @onclick="() => AcceptRevision(contract.ContractId)">Принять</button>
-                                                <button type="button" class="btn btn-secondary" @onclick="() => RejectRevision(contract.ContractId)">Отклонить</button>
-                                            }
+                                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                                <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:5em" @bind="_revisionVolumes[contract.ContractId]" />
+                                                <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:5em" @bind="_revisionUnitPrices[contract.ContractId]" />
+                                                <input type="number" min="0" max="1" step="0.01" class="form-control d-inline-block" style="width:4em" @bind="_revisionPenaltyRates[contract.ContractId]" />
+                                                <input type="number" min="1" class="form-control d-inline-block" style="width:4em" @bind="_revisionEndTurns[contract.ContractId]" />
+                                                <button type="button" class="btn btn-secondary btn-sm" @onclick="() => ProposeRevision(contract.ContractId)">Предложить пересмотр</button>
+                                            </div>
                                         }
-                                    }
-                                    else
-                                    {
-                                        <div>
-                                            <input type="number" min="0.01" step="0.01" style="width:5em" @bind="_revisionVolumes[contract.ContractId]" />
-                                            <input type="number" min="0.01" step="0.01" style="width:5em" @bind="_revisionUnitPrices[contract.ContractId]" />
-                                            <input type="number" min="0" max="1" step="0.01" style="width:4em" @bind="_revisionPenaltyRates[contract.ContractId]" />
-                                            <input type="number" min="1" style="width:4em" @bind="_revisionEndTurns[contract.ContractId]" />
-                                            <button type="button" class="btn btn-secondary" @onclick="() => ProposeRevision(contract.ContractId)">Предложить пересмотр</button>
-                                        </div>
                                     }
                                 }
                             }
-                        }
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 
-<form method="post" action="/auth/logout">
+<form method="post" action="/auth/logout" class="mt-4">
     <button type="submit" class="btn btn-secondary">Выйти</button>
 </form>
 

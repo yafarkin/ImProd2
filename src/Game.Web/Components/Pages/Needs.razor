@@ -16,23 +16,25 @@
 }
 
 <h2>Опубликовать запись</h2>
-<select @bind="_materialId">
-    @foreach (var material in _materials)
-    {
-        <option value="@material.Id">@material.Name</option>
-    }
-</select>
-<select @bind="_direction">
-    <option value="@NeedDirection.Deficit">Дефицит</option>
-    <option value="@NeedDirection.Surplus">Излишек</option>
-</select>
-<select @bind="_volumeOrder">
-    <option value="@NeedVolumeOrder.Small">Небольшой</option>
-    <option value="@NeedVolumeOrder.Medium">Средний</option>
-    <option value="@NeedVolumeOrder.Large">Крупный</option>
-</select>
-<input type="text" placeholder="Комментарий (необязательно)" style="width:16em" @bind="_comment" />
-<button type="button" class="btn btn-primary" @onclick="Post">Опубликовать</button>
+<div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+    <select class="form-select w-auto" @bind="_materialId">
+        @foreach (var material in _materials)
+        {
+            <option value="@material.Id">@material.Name</option>
+        }
+    </select>
+    <select class="form-select w-auto" @bind="_direction">
+        <option value="@NeedDirection.Deficit">Дефицит</option>
+        <option value="@NeedDirection.Surplus">Излишек</option>
+    </select>
+    <select class="form-select w-auto" @bind="_volumeOrder">
+        <option value="@NeedVolumeOrder.Small">Небольшой</option>
+        <option value="@NeedVolumeOrder.Medium">Средний</option>
+        <option value="@NeedVolumeOrder.Large">Крупный</option>
+    </select>
+    <input type="text" placeholder="Комментарий (необязательно)" class="form-control d-inline-block" style="width:16em" @bind="_comment" />
+    <button type="button" class="btn btn-primary" @onclick="Post">Опубликовать</button>
+</div>
 
 <h2>Доска</h2>
 @if (_board.Count == 0)
@@ -41,36 +43,38 @@
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Команда</th>
-                <th>Материал</th>
-                <th>Направление</th>
-                <th>Порядок объёма</th>
-                <th>Комментарий</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var row in _board)
-            {
+    <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle">
+            <thead>
                 <tr>
-                    <td>@row.TeamName</td>
-                    <td>@row.MaterialName</td>
-                    <td>@row.DirectionLabel</td>
-                    <td>@row.VolumeOrderLabel</td>
-                    <td>@row.Comment</td>
-                    <td>
-                        @if (row.IsOwn)
-                        {
-                            <button type="button" class="btn btn-secondary" @onclick="() => Withdraw(row.NeedId)">Отозвать</button>
-                        }
-                    </td>
+                    <th>Команда</th>
+                    <th>Материал</th>
+                    <th>Направление</th>
+                    <th>Порядок объёма</th>
+                    <th>Комментарий</th>
+                    <th></th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var row in _board)
+                {
+                    <tr>
+                        <td>@row.TeamName</td>
+                        <td>@row.MaterialName</td>
+                        <td>@row.DirectionLabel</td>
+                        <td>@row.VolumeOrderLabel</td>
+                        <td>@row.Comment</td>
+                        <td>
+                            @if (row.IsOwn)
+                            {
+                                <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Withdraw(row.NeedId)">Отозвать</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 
 @code {
