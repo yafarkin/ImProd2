@@ -1,0 +1,14 @@
+.join-addresses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+}
+
+.join-address {
+    text-align: center;
+}
+
+.join-address img {
+    width: 320px;
+    height: 320px;
+}

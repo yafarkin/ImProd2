@@ -1,0 +1,49 @@
+@page "/join"
+@layout Game.Web.Components.Layout.NoNavLayout
+@using Microsoft.AspNetCore.Hosting.Server
+@using Microsoft.AspNetCore.Hosting.Server.Features
+@using QRCoder
+@inject IServer Server
+
+<PageTitle>Подключение</PageTitle>
+
+<h1>Отсканируйте QR-код своим телефоном</h1>
+<p><em>Показывать на этапе подготовки, до регистрации участников — ведёт на страницу входа по коду.</em></p>
+
+@if (_addresses.Count == 0)
+{
+    <p>Не удалось определить адрес сервера в локальной сети. Подключите машину к Wi-Fi/сети и обновите страницу.</p>
+}
+else
+{
+    <div class="join-addresses">
+        @foreach (var address in _addresses)
+        {
+            <div class="join-address">
+                <h2>@address.InterfaceName</h2>
+                <img src="@QrImageDataUrl(address.Url)" alt="QR-код на @address.Url" />
+                <p>@address.Url</p>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<(string InterfaceName, string Url)> _addresses = Array.Empty<(string, string)>();
+
+    protected override void OnInitialized()
+    {
+        var boundAddress = Server.Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault();
+        var port = boundAddress is not null ? new Uri(boundAddress).Port : 5180;
+
+        _addresses = LocalNetworkAddresses.DiscoverJoinUrls(port);
+    }
+
+    private static string QrImageDataUrl(string url)
+    {
+        using var generator = new QRCodeGenerator();
+        using var data = generator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
+        var png = new PngByteQRCode(data).GetGraphic(10);
+        return $"data:image/png;base64,{Convert.ToBase64String(png)}";
+    }
+}

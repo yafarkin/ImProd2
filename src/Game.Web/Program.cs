@@ -10,6 +10,10 @@ using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Мероприятие проходит на локальном Wi-Fi (SPEC §1) — клиенты подключаются с телефонов по LAN, не с
+// той же машины, поэтому сервер обязан слушать все интерфейсы, а не только localhost.
+builder.WebHost.UseUrls("http://0.0.0.0:5180");
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
