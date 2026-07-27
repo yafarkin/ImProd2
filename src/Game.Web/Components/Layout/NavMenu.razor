@@ -29,5 +29,27 @@
                 </NavLink>
             </div>
         </AuthorizeView>
+
+        <AuthorizeView Roles="Facilitator">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="facilitator">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Ведущий
+                </NavLink>
+            </div>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Administrator">
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Администратор
+                </NavLink>
+            </div>
+        </AuthorizeView>
+
+        <div class="nav-item px-3">
+            <a class="nav-link" href="screen" target="_blank">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Большой экран
+            </a>
+        </div>
     </nav>
 </div>

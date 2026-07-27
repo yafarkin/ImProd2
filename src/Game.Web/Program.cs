@@ -95,15 +95,7 @@ app.MapPost("/auth/login", async (HttpContext http, GameSessionHost host) =>
     var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
     await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
-    var redirectTo = registration.Role switch
-    {
-        ParticipantRole.Manager or ParticipantRole.Negotiator => "/team",
-        ParticipantRole.Operator => "/operator",
-        ParticipantRole.Facilitator => "/facilitator",
-        ParticipantRole.Administrator => "/admin",
-        _ => "/",
-    };
-    return Results.Redirect(redirectTo);
+    return Results.Redirect(RoleRouting.HomeRoute(registration.Role));
 });
 
 app.MapPost("/auth/logout", async (HttpContext http) =>

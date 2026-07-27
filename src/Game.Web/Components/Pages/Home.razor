@@ -1,4 +1,5 @@
 @page "/"
+@using System.Security.Claims
 
 <PageTitle>Производственные цепочки</PageTitle>
 
@@ -7,9 +8,17 @@
 <AuthorizeView>
     <Authorized>
         <p>Вы вошли как @context.User.Identity!.Name.</p>
-        <p><a href="/team">Перейти в кабинет команды</a> · <a href="/operator">Перейти на экран оператора</a></p>
+        <p>
+            <a href="@RoleRouting.HomeRoute(MyRole(context.User))">Перейти в свой раздел</a> ·
+            <a href="/screen" target="_blank">Большой экран</a>
+        </p>
     </Authorized>
     <NotAuthorized>
         <p><a href="/login">Войти по коду</a></p>
     </NotAuthorized>
 </AuthorizeView>
+
+@code {
+    private static ParticipantRole MyRole(ClaimsPrincipal user) =>
+        Enum.Parse<ParticipantRole>(user.FindFirst(ClaimTypes.Role)!.Value);
+}
