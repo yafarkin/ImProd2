@@ -73,6 +73,17 @@ public sealed class GameSessionState
         _contracts.Add(contract.Id, contract);
     }
 
+    private readonly Dictionary<Ulid, NeedPosting> _needs = new();
+
+    /// <summary>Записи доски потребностей по идентификатору (Блок 9.4, SPEC §9.2) — наполняется событием <see cref="NeedPosted"/>.</summary>
+    public IReadOnlyDictionary<Ulid, NeedPosting> Needs => _needs;
+
+    /// <summary>Регистрирует запись доски потребностей; вызывается только из <see cref="NeedPosted.Apply"/>.</summary>
+    internal void AddNeed(NeedPosting need)
+    {
+        _needs.Add(need.Id, need);
+    }
+
     /// <summary>
     /// Контент-хеш конфига, с которым начата сессия (продублирован из <see cref="Config"/> для
     /// самодостаточного экспорта/дебрифа §12) — заполняется событием <see cref="SessionStarted"/>.

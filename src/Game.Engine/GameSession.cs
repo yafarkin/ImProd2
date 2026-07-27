@@ -353,6 +353,45 @@ public sealed class GameSession
         ContractRevisionCalculator.FindPending(Entries, contractId);
 
     /// <summary>
+    /// Публикует запись на доске потребностей (Блок 9.4, SPEC §9.2): избыток или дефицит материала,
+    /// грубый порядок объёма, необязательный комментарий. Осознанно без <see cref="EnsureDecisionsAllowed"/> —
+    /// это не экономическое решение хода, а канал общения, который SPEC описывает как «живёт в
+    /// телефонах... доступна всем» без привязки к фазе, в отличие от команд §5.x.
+    /// </summary>
+    public EventLogEntry<GameSessionState> PostNeed(
+        Ulid teamId, string materialId, NeedDirection direction, NeedVolumeOrder volumeOrder, string? comment)
+    {
+        GetTeam(teamId);
+        if (!State.Config.Materials.ContainsKey(materialId))
+        {
+            throw new ArgumentException($"Unknown material '{materialId}'.", nameof(materialId));
+        }
+
+        return _log.Append(new NeedPosted
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            NeedId = Ulid.NewUlid(),
+            MaterialId = materialId,
+            Direction = direction,
+            VolumeOrder = volumeOrder,
+            Comment = comment,
+        });
+    }
+
+    /// <summary>Отзывает собственную запись команды с доски потребностей (Блок 9.4, SPEC §9.2). Без фазового гейта, как и <see cref="PostNeed"/>.</summary>
+    public EventLogEntry<GameSessionState> WithdrawNeed(Ulid teamId, Ulid needId)
+    {
+        var need = GetNeed(needId);
+        if (need.TeamId != teamId)
+        {
+            throw new ArgumentException("Only the posting team can withdraw its own posting.", nameof(teamId));
+        }
+
+        return _log.Append(new NeedWithdrawn { Id = Ulid.NewUlid(), NeedId = needId });
+    }
+
+    /// <summary>
     /// Аварийная закупка материала у системы (SPEC §5.3): цена — текущая рыночная котировка
     /// материала (Блок 6.1) × множитель, служит потолком монопольных цен. Требует включённого
     /// флага и фазы решений.
@@ -697,6 +736,16 @@ public sealed class GameSession
         }
 
         return contract;
+    }
+
+    private NeedPosting GetNeed(Ulid needId)
+    {
+        if (!State.Needs.TryGetValue(needId, out var need))
+        {
+            throw new ArgumentException($"Unknown need posting '{needId}'.", nameof(needId));
+        }
+
+        return need;
     }
 
     private Team GetTeam(Ulid teamId)

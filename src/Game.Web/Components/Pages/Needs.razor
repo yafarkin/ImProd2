@@ -1,0 +1,191 @@
+@page "/team/needs"
+@attribute [Authorize(Roles = "Manager,Negotiator")]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject GameSessionHost Host
+
+<PageTitle>Доска потребностей</PageTitle>
+
+<p><a href="/team">← Назад к дашборду команды</a> · <a href="/team/negotiate">Переговорная панель</a></p>
+
+<h1>Доска потребностей — @TeamName</h1>
+
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger">@_errorMessage</div>
+}
+
+<h2>Опубликовать запись</h2>
+<select @bind="_materialId">
+    @foreach (var material in _materials)
+    {
+        <option value="@material.Id">@material.Name</option>
+    }
+</select>
+<select @bind="_direction">
+    <option value="@NeedDirection.Deficit">Дефицит</option>
+    <option value="@NeedDirection.Surplus">Излишек</option>
+</select>
+<select @bind="_volumeOrder">
+    <option value="@NeedVolumeOrder.Small">Небольшой</option>
+    <option value="@NeedVolumeOrder.Medium">Средний</option>
+    <option value="@NeedVolumeOrder.Large">Крупный</option>
+</select>
+<input type="text" placeholder="Комментарий (необязательно)" style="width:16em" @bind="_comment" />
+<button type="button" class="btn btn-primary" @onclick="Post">Опубликовать</button>
+
+<h2>Доска</h2>
+@if (_board.Count == 0)
+{
+    <p><em>Записей пока нет.</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Команда</th>
+                <th>Материал</th>
+                <th>Направление</th>
+                <th>Порядок объёма</th>
+                <th>Комментарий</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in _board)
+            {
+                <tr>
+                    <td>@row.TeamName</td>
+                    <td>@row.MaterialName</td>
+                    <td>@row.DirectionLabel</td>
+                    <td>@row.VolumeOrderLabel</td>
+                    <td>@row.Comment</td>
+                    <td>
+                        @if (row.IsOwn)
+                        {
+                            <button type="button" class="btn btn-secondary" @onclick="() => Withdraw(row.NeedId)">Отозвать</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private string? TeamName;
+    private Ulid _teamId;
+    private Timer? _tickTimer;
+    private string? _errorMessage;
+
+    private sealed record BoardRow(
+        Ulid NeedId, string TeamName, string MaterialName, string DirectionLabel, string VolumeOrderLabel, string? Comment, bool IsOwn);
+    private sealed record MaterialOption(string Id, string Name);
+
+    private IReadOnlyList<BoardRow> _board = Array.Empty<BoardRow>();
+    private IReadOnlyList<MaterialOption> _materials = Array.Empty<MaterialOption>();
+
+    private string? _materialId;
+    private NeedDirection _direction = NeedDirection.Deficit;
+    private NeedVolumeOrder _volumeOrder = NeedVolumeOrder.Medium;
+    private string? _comment;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        var teamIdClaim = authState.User.FindFirst("teamId")?.Value;
+        if (teamIdClaim is not null && Ulid.TryParse(teamIdClaim, out var teamId))
+        {
+            _teamId = teamId;
+        }
+
+        RefreshBoard();
+
+        _tickTimer = new Timer(_ =>
+        {
+            RefreshBoard();
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    }
+
+    private void RefreshBoard()
+    {
+        lock (Host.SyncRoot)
+        {
+            var state = Host.Session.State;
+            if (!state.Teams.TryGetValue(_teamId, out var team))
+            {
+                return;
+            }
+
+            TeamName = team.Name;
+
+            _materials = state.Config.Materials.Values
+                .Select(m => new MaterialOption(m.Id, m.Name))
+                .OrderBy(m => m.Name, StringComparer.Ordinal)
+                .ToList();
+            if (_materialId is null || _materials.All(m => m.Id != _materialId))
+            {
+                _materialId = _materials.Count > 0 ? _materials[0].Id : null;
+            }
+
+            _board = state.Needs.Values
+                .Where(n => n.Status == NeedStatus.Active)
+                .Select(n => new BoardRow(
+                    n.Id,
+                    state.Teams.TryGetValue(n.TeamId, out var postingTeam) ? postingTeam.Name : "?",
+                    n.Material.Name,
+                    DashboardDisplay.NeedDirectionLabel(n.Direction),
+                    DashboardDisplay.NeedVolumeOrderLabel(n.VolumeOrder),
+                    n.Comment,
+                    n.TeamId == _teamId))
+                .ToList();
+        }
+    }
+
+    private void Post()
+    {
+        if (_materialId is null)
+        {
+            return;
+        }
+
+        _errorMessage = null;
+        try
+        {
+            lock (Host.SyncRoot)
+            {
+                Host.Session.PostNeed(_teamId, _materialId, _direction, _volumeOrder, _comment);
+            }
+            _comment = null;
+            RefreshBoard();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private void Withdraw(Ulid needId)
+    {
+        _errorMessage = null;
+        try
+        {
+            lock (Host.SyncRoot)
+            {
+                Host.Session.WithdrawNeed(_teamId, needId);
+            }
+            RefreshBoard();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    public void Dispose() => _tickTimer?.Dispose();
+}

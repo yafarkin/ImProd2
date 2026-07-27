@@ -40,6 +40,23 @@ public static class DashboardDisplay
         _ => status.ToString()
     };
 
+    /// <summary>Русская подпись направления записи доски потребностей (Блок 9.4).</summary>
+    public static string NeedDirectionLabel(NeedDirection direction) => direction switch
+    {
+        NeedDirection.Surplus => "Излишек",
+        NeedDirection.Deficit => "Дефицит",
+        _ => direction.ToString()
+    };
+
+    /// <summary>Русская подпись грубого порядка объёма записи доски потребностей (Блок 9.4).</summary>
+    public static string NeedVolumeOrderLabel(NeedVolumeOrder order) => order switch
+    {
+        NeedVolumeOrder.Small => "Небольшой",
+        NeedVolumeOrder.Medium => "Средний",
+        NeedVolumeOrder.Large => "Крупный",
+        _ => order.ToString()
+    };
+
     /// <summary>Русская подпись типа контракта (Блок 9.3).</summary>
     public static string ContractTypeLabel(ContractType type) => type switch
     {
