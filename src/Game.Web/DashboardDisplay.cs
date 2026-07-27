@@ -37,6 +37,7 @@ public static class DashboardDisplay
         ContractStatus.Active => "Действует",
         ContractStatus.Completed => "Исполнен",
         ContractStatus.Terminated => "Расторгнут",
+        ContractStatus.Rejected => "Отклонён",
         _ => status.ToString()
     };
 

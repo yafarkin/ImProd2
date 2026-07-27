@@ -34,6 +34,9 @@ public sealed class Contract
     /// <summary>Причина прекращения — заполняется только когда <see cref="Status"/> становится <see cref="ContractStatus.Terminated"/>.</summary>
     public ContractTerminationReason? TerminationReason { get; private set; }
 
+    /// <summary>Причина отклонения оператором — заполняется только когда <see cref="Status"/> становится <see cref="ContractStatus.Rejected"/>.</summary>
+    public string? RejectionReason { get; private set; }
+
     /// <summary>
     /// Контракт, взамен которого заведён этот (Блок 9.3, SPEC §6: пересмотр условий — новый
     /// контракт вместо расторгнутого) — <c>null</c> для контрактов, заключённых обычным путём.
@@ -91,6 +94,42 @@ public sealed class Contract
         }
 
         Status = ContractStatus.Active;
+    }
+
+    /// <summary>
+    /// Подтверждение оператором по коду (Блок 9.5, SPEC §6, §9.4) — второй, равноправный путь к
+    /// тому же результату, что и <see cref="Confirm"/>: без роли, потому что это не командное
+    /// действие, а действие оператора (сама возможность вызвать метод — и есть авторизация, как у
+    /// действий ведущего).
+    /// </summary>
+    public void ConfirmByOperator()
+    {
+        if (Status != ContractStatus.PendingConfirmation)
+        {
+            throw new InvalidOperationException($"Cannot confirm a contract in status '{Status}'.");
+        }
+
+        Status = ContractStatus.Active;
+    }
+
+    /// <summary>
+    /// Оператор отклоняет контракт на этапе подтверждения (Блок 9.5, SPEC §9.4: «отклонение с
+    /// причиной») — контракт никогда не становится действующим, поэтому не несёт ни штрафа, ни
+    /// удара по репутации.
+    /// </summary>
+    public void Reject(string reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ArgumentException("Rejection reason must not be empty.", nameof(reason));
+        }
+        if (Status != ContractStatus.PendingConfirmation)
+        {
+            throw new InvalidOperationException($"Cannot reject a contract in status '{Status}'.");
+        }
+
+        Status = ContractStatus.Rejected;
+        RejectionReason = reason;
     }
 
     /// <summary>

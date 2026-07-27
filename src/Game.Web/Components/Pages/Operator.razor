@@ -8,14 +8,66 @@
 
 <h1>Вы вошли как @DisplayName (Оператор)</h1>
 
-<p><em>Настоящий экран оператора (очередь сделок, подтверждение по коду) — Фаза 9. Пока это только подтверждение того, что вход по роли работает.</em></p>
-
 <p>
     Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы: <strong>@_countdown</strong>.
 </p>
 @if (_lastNewsHeadline is not null)
 {
     <p><em>Последняя новость: @_lastNewsHeadline</em></p>
+}
+
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger">@_errorMessage</div>
+}
+
+<h2>Очередь сделок</h2>
+<input type="text" placeholder="Код подтверждения" style="width:10em" @bind="_codeFilter" @bind:event="oninput" />
+
+@if (VisibleQueue().Count == 0)
+{
+    <p><em>Очередь пуста.</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Покупатель</th>
+                <th>Продавец</th>
+                <th>Материал</th>
+                <th>Тип</th>
+                <th>Объём</th>
+                <th>Цена</th>
+                <th>Срок</th>
+                <th>Код</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in VisibleQueue())
+            {
+                <tr>
+                    <td>@row.BuyerName</td>
+                    <td>@row.SellerName</td>
+                    <td>@row.MaterialName</td>
+                    <td>@row.TypeLabel</td>
+                    <td>@row.Volume.ToString("0.##")</td>
+                    <td>@DashboardDisplay.FormatMoney(row.UnitPrice)</td>
+                    <td>@row.TurnRange</td>
+                    <td>@row.ConfirmationCode</td>
+                    <td>
+                        @if (_isDecisionPhase)
+                        {
+                            <button type="button" class="btn btn-secondary" @onclick="() => Confirm(row.ContractId)">Подтвердить</button>
+                            <input type="text" placeholder="Причина отклонения" style="width:10em" @bind="_rejectReasons[row.ContractId]" />
+                            <button type="button" class="btn btn-secondary" @onclick="() => Reject(row.ContractId)">Отклонить</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
 }
 
 <form method="post" action="/auth/logout">
@@ -29,9 +81,19 @@
     private string? DisplayName;
     private int _currentTurn;
     private string _phaseLabel = string.Empty;
+    private bool _isDecisionPhase;
     private string _countdown = string.Empty;
     private string? _lastNewsHeadline;
     private Timer? _tickTimer;
+    private string? _errorMessage;
+    private string _codeFilter = string.Empty;
+
+    private sealed record QueueRow(
+        Ulid ContractId, string BuyerName, string SellerName, string MaterialName, string TypeLabel,
+        decimal Volume, decimal UnitPrice, string ConfirmationCode, string TurnRange);
+
+    private IReadOnlyList<QueueRow> _queue = Array.Empty<QueueRow>();
+    private readonly Dictionary<Ulid, string> _rejectReasons = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -51,10 +113,67 @@
     {
         lock (Host.SyncRoot)
         {
-            _currentTurn = Host.Session.State.CurrentTurn;
-            _phaseLabel = PhaseDisplay.PhaseLabel(Host.Session.State.CurrentPhase);
+            var state = Host.Session.State;
+
+            _currentTurn = state.CurrentTurn;
+            _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
+            _isDecisionPhase = state.CurrentPhase == TurnPhase.Decision;
             _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session, DateTimeOffset.UtcNow));
             _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session);
+
+            _queue = state.Contracts.Values
+                .Where(c => c.Status == ContractStatus.PendingConfirmation)
+                .Select(c =>
+                {
+                    _rejectReasons.TryAdd(c.Id, string.Empty);
+                    return new QueueRow(
+                        c.Id,
+                        state.Teams.TryGetValue(c.BuyerTeamId, out var buyer) ? buyer.Name : "?",
+                        state.Teams.TryGetValue(c.SellerTeamId, out var seller) ? seller.Name : "?",
+                        c.Terms.Material.Name,
+                        DashboardDisplay.ContractTypeLabel(c.Terms.Type),
+                        c.Terms.Volume, c.Terms.UnitPrice, c.ConfirmationCode,
+                        DashboardDisplay.FormatTurnRange(c.Terms.Type, c.Terms.EffectiveTurn, c.Terms.SpotDeliveryTurn, c.Terms.RecurringEndTurn));
+                })
+                .ToList();
+        }
+    }
+
+    private IReadOnlyList<QueueRow> VisibleQueue() =>
+        _queue.Where(r => string.IsNullOrWhiteSpace(_codeFilter) || r.ConfirmationCode.Contains(_codeFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+
+    private void Confirm(Ulid contractId)
+    {
+        _errorMessage = null;
+        try
+        {
+            lock (Host.SyncRoot)
+            {
+                Host.Session.ConfirmContractByOperator(contractId);
+            }
+            RefreshPhaseStatus();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private void Reject(Ulid contractId)
+    {
+        var reason = _rejectReasons.GetValueOrDefault(contractId, string.Empty);
+        _errorMessage = null;
+        try
+        {
+            lock (Host.SyncRoot)
+            {
+                Host.Session.RejectContract(contractId, reason);
+            }
+            RefreshPhaseStatus();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
         }
     }
 

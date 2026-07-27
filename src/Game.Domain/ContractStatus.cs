@@ -20,5 +20,12 @@ public enum ContractStatus
     Completed,
 
     /// <summary>Контракт прекращён целиком (SPEC §6: штраф считает Блок 5.2, репутационный удар — Блок 6.2).</summary>
-    Terminated
+    Terminated,
+
+    /// <summary>
+    /// Оператор отклонил контракт на этапе подтверждения (Блок 9.5, SPEC §9.4) — контракт никогда
+    /// не был действующим, поэтому не несёт ни штрафа, ни удара по репутации (в отличие от
+    /// <see cref="Terminated"/>, который сканирует <c>ReputationCalculator</c>).
+    /// </summary>
+    Rejected
 }

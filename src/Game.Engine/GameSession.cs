@@ -257,6 +257,46 @@ public sealed class GameSession
     }
 
     /// <summary>
+    /// Подтверждение сделки оператором по коду (Блок 9.5, SPEC §6, §9.4) — второй, равноправный
+    /// путь к тому же результату, что и <see cref="ConfirmContract"/>. Только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> ConfirmContractByOperator(Ulid contractId)
+    {
+        EnsureDecisionsAllowed();
+
+        var contract = GetContract(contractId);
+        if (contract.Status != ContractStatus.PendingConfirmation)
+        {
+            throw new InvalidOperationException($"Cannot confirm a contract in status '{contract.Status}'.");
+        }
+
+        return _log.Append(new ContractConfirmedByOperator { Id = Ulid.NewUlid(), ContractId = contractId });
+    }
+
+    /// <summary>Оператор отклоняет сделку на этапе подтверждения, с причиной (Блок 9.5, SPEC §9.4). Только в фазе решений.</summary>
+    public EventLogEntry<GameSessionState> RejectContract(Ulid contractId, string reason)
+    {
+        EnsureDecisionsAllowed();
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ArgumentException("A rejection reason is required.", nameof(reason));
+        }
+
+        var contract = GetContract(contractId);
+        if (contract.Status != ContractStatus.PendingConfirmation)
+        {
+            throw new InvalidOperationException($"Cannot reject a contract in status '{contract.Status}'.");
+        }
+
+        return _log.Append(new ContractRejected { Id = Ulid.NewUlid(), ContractId = contractId, Reason = reason.Trim() });
+    }
+
+    /// <summary>Ищет контракт по коду подтверждения (Блок 9.5, SPEC §9.4: «ввод/скан кода»); <c>null</c>, если код неизвестен.</summary>
+    public Contract? FindContractByConfirmationCode(string code) =>
+        State.Contracts.Values.FirstOrDefault(c => c.ConfirmationCode == code);
+
+    /// <summary>
     /// Предлагает пересмотр условий действующего recurring-контракта (Блок 9.3, SPEC §6): вторая
     /// сторона вправе принять или отклонить через <see cref="RespondToContractRevision"/>, при
     /// отказе контракт продолжает действовать без изменений и без штрафа за сам факт предложения.
