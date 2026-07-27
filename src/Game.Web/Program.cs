@@ -1,9 +1,12 @@
 using System.Security.Claims;
+using System.Text;
 using Game.Domain;
+using Game.Engine;
 using Game.Web;
 using Game.Web.Components;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -108,6 +111,56 @@ app.MapPost("/auth/logout", async (HttpContext http) =>
     await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/login");
 });
+
+// Экспорт дебрифа (Блок 10.1, SPEC §12) — обычные endpoint'ы, а не Blazor-обработчики: нужен
+// Content-Disposition, которого не сделать из интерактивного компонента (та же причина, что у /auth/login).
+var exportAuthorization = new AuthorizeAttribute { Roles = "Facilitator,Administrator" };
+
+app.MapGet("/export/journal.json", (GameSessionHost host) =>
+{
+    lock (host.SyncRoot)
+    {
+        if (host.Session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var json = JournalExport.ToJson(host.Session.Entries);
+        return Results.File(Encoding.UTF8.GetBytes(json), "application/json", "journal.json");
+    }
+}).RequireAuthorization(exportAuthorization);
+
+app.MapGet("/export/turns.csv", (GameSessionHost host) =>
+{
+    lock (host.SyncRoot)
+    {
+        if (host.Session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var csv = CsvExport.TurnsToCsv(TurnHistoryCalculator.Summarize(host.Session.Entries, host.Session.State.Config));
+        return Results.File(Encoding.UTF8.GetBytes(csv), "text/csv", "turns.csv");
+    }
+}).RequireAuthorization(exportAuthorization);
+
+app.MapGet("/export/scores.csv", (GameSessionHost host) =>
+{
+    lock (host.SyncRoot)
+    {
+        if (host.Session is null)
+        {
+            return Results.NotFound();
+        }
+
+        var state = host.Session.State;
+        var scores = state.Teams.Values
+            .Select(team => (team.Name, FinalScoreCalculator.Calculate(team, state.Market, state.Config.Raw.Economy, state.Config.Raw.FactoryDefinitions)))
+            .ToList();
+        var csv = CsvExport.ScoresToCsv(scores);
+        return Results.File(Encoding.UTF8.GetBytes(csv), "text/csv", "scores.csv");
+    }
+}).RequireAuthorization(exportAuthorization);
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

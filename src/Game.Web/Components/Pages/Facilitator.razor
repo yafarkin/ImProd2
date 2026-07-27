@@ -126,6 +126,13 @@ else
     <button type="button" class="btn btn-secondary" @onclick="AdjustPrice">Установить цену</button>
 }
 
+<h2>Экспорт истории</h2>
+<p>
+    <a href="/export/journal.json">Журнал событий (JSON)</a> ·
+    <a href="/export/turns.csv">Сводка по ходам (CSV)</a> ·
+    <a href="/export/scores.csv">Итоговые счета команд (CSV)</a>
+</p>
+
 <form method="post" action="/auth/logout">
     <button type="submit" class="btn btn-secondary">Выйти</button>
 </form>

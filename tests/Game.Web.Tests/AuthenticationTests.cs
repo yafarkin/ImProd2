@@ -204,4 +204,40 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.StartsWith("/access-denied", response.Headers.Location!.PathAndQuery);
     }
+
+    [Fact]
+    public async Task Export_Journal_Allows_A_Logged_In_Facilitator()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Facilitator));
+
+        var response = await client.GetAsync("/export/journal.json");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType!.MediaType);
+    }
+
+    [Fact]
+    public async Task Export_Turns_Csv_Allows_A_Logged_In_Administrator()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Administrator));
+
+        var response = await client.GetAsync("/export/turns.csv");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/csv", response.Content.Headers.ContentType!.MediaType);
+    }
+
+    [Fact]
+    public async Task Export_Scores_Csv_Denies_Access_To_A_Manager()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Manager));
+
+        var response = await client.GetAsync("/export/scores.csv");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/access-denied", response.Headers.Location!.PathAndQuery);
+    }
 }
