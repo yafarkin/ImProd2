@@ -206,6 +206,52 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
+    public async Task Admin_Teams_Page_Allows_A_Logged_In_Administrator()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Administrator));
+
+        var response = await client.GetAsync("/admin/teams");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_Teams_Page_Denies_Access_To_A_Manager()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Manager));
+
+        var response = await client.GetAsync("/admin/teams");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/access-denied", response.Headers.Location!.PathAndQuery);
+    }
+
+    [Fact]
+    public async Task Admin_Participants_Page_Allows_A_Logged_In_Administrator()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Administrator));
+
+        var response = await client.GetAsync("/admin/participants");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_Participants_Page_Denies_Access_To_A_Manager()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Manager));
+
+        var response = await client.GetAsync("/admin/participants");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/access-denied", response.Headers.Location!.PathAndQuery);
+    }
+
+    [Fact]
     public async Task Export_Journal_Allows_A_Logged_In_Facilitator()
     {
         var client = CreateClient();

@@ -1,0 +1,73 @@
+@page "/admin/teams"
+@attribute [Authorize(Roles = "Administrator")]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject GameSessionHost Host
+
+<PageTitle>Команды</PageTitle>
+
+<p><a href="/admin">← Назад к администратору</a></p>
+
+<h1>Команды</h1>
+
+@if (!_sessionStarted)
+{
+    <p><em>Сессия ещё не запущена — команды появятся здесь после старта на <a href="/admin">странице администратора</a>.</em></p>
+}
+else
+{
+    <div class="alert alert-info">Нельзя править состав участников — игровая сессия уже началась.</div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Команда</th>
+                    <th>Сектор</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var team in _teams)
+                {
+                    <tr>
+                        <td>@team.Name</td>
+                        <td>@team.Sector.Name</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private bool _sessionStarted;
+    private IReadOnlyList<Game.Domain.Team> _teams = Array.Empty<Game.Domain.Team>();
+    private Timer? _tickTimer;
+
+    protected override void OnInitialized()
+    {
+        Refresh();
+
+        _tickTimer = new Timer(_ =>
+        {
+            Refresh();
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    }
+
+    private void Refresh()
+    {
+        lock (Host.SyncRoot)
+        {
+            _sessionStarted = Host.Session is not null;
+            if (!_sessionStarted)
+            {
+                return;
+            }
+
+            _teams = Host.Session!.State.Teams.Values.OrderBy(t => t.Name, StringComparer.Ordinal).ToList();
+        }
+    }
+
+    public void Dispose() => _tickTimer?.Dispose();
+}

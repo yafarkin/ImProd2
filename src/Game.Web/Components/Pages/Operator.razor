@@ -74,10 +74,6 @@ else
     </div>
 }
 
-<form method="post" action="/auth/logout" class="mt-4">
-    <button type="submit" class="btn btn-secondary">Выйти</button>
-</form>
-
 @code {
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
