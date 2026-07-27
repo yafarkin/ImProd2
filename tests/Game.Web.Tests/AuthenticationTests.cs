@@ -339,6 +339,24 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.DoesNotContain(host.StagedTeams, t => t.Id == staged.Id);
     }
 
+    /// <summary>
+    /// Смена чернового конфига (загрузка своего файла / тренировочный) чистит уже заведённые
+    /// черновые команды — их сектора могли быть заданы под секторы старого конфига и потеряли бы
+    /// смысл. Тот же приём, что <see cref="ResetSession_Preserves_Teams_And_Codes_But_Starts_A_Fresh_Journal"/>:
+    /// не трогает <see cref="GameSessionHost.Session"/>, поэтому безопасен для общего `_factory`.
+    /// </summary>
+    [Fact]
+    public void SetDraftConfig_Replaces_Config_And_Clears_Staged_Teams()
+    {
+        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+        host.AddStagedTeam("Черновая", "A", 100m);
+
+        host.SetDraftConfig(host.TrainingConfig);
+
+        Assert.Same(host.TrainingConfig, host.DraftConfig);
+        Assert.Empty(host.StagedTeams);
+    }
+
     [Fact]
     public async Task Print_ContractForm_Allows_A_Logged_In_Administrator()
     {

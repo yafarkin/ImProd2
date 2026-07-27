@@ -40,8 +40,8 @@
 
     <h2 class="mt-4">Конфигурация</h2>
     <p>
-        Загружен: @_config.Raw.Sectors.Count секторов, @_config.Raw.Materials.Count материалов
-        (хеш @(_config.ContentHash[..8])).
+        Загружен: @Host.DraftConfig.Raw.Sectors.Count секторов, @Host.DraftConfig.Raw.Materials.Count материалов
+        (хеш @(Host.DraftConfig.ContentHash[..8])).
     </p>
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <InputFile OnChange="OnConfigFileSelected" class="form-control d-inline-block w-auto" />
@@ -50,44 +50,17 @@
 
     <h2 class="mt-4">Пресет длительности</h2>
     <select class="form-select w-auto mb-3" @bind="_selectedPresetId">
-        @foreach (var preset in _config.Raw.SessionPresets)
+        @foreach (var preset in Host.DraftConfig.Raw.SessionPresets)
         {
             <option value="@preset.Id">@preset.Name (@(preset.MinTurns)-@(preset.MaxTurns) ходов)</option>
         }
     </select>
 
     <h2 class="mt-4">Команды</h2>
-    <p>Следующая команда будет автоматически назначена в сектор: <strong>@NextSector().Name</strong></p>
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <input class="form-control d-inline-block w-auto" @bind="_newTeamName" placeholder="Название команды" />
-        <input type="number" min="0" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_newTeamStartingLoan" />
-        <span>стартовый заём</span>
-        <button type="button" class="btn btn-secondary" @onclick="AddTeam">Добавить команду</button>
-    </div>
-
-    <div class="table-responsive">
-        <table class="table table-striped table-sm align-middle">
-            <thead>
-                <tr>
-                    <th>Команда</th>
-                    <th>Сектор</th>
-                    <th>Стартовый заём</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var team in Host.StagedTeams)
-                {
-                    <tr>
-                        <td>@team.Name</td>
-                        <td>@SectorName(team.SectorId)</td>
-                        <td>@DashboardDisplay.FormatMoney(team.StartingLoanAmount)</td>
-                        <td><button type="button" class="btn btn-secondary btn-sm" @onclick="() => RemoveTeam(team.Id)">Убрать</button></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+    <p>
+        Команды заводятся на странице <a href="/admin/teams">«Команды»</a> — сейчас в черновике:
+        <strong>@Host.StagedTeams.Count</strong>.
+    </p>
 
     <h2 class="mt-4">Чек-лист готовности</h2>
     <ul class="list-unstyled">
@@ -157,10 +130,7 @@ else
 @code {
     private sealed record TeamChecklistRow(string Name, bool HasManager, bool HasNegotiator);
 
-    private ResolvedGameConfig _config = null!;
     private string? _selectedPresetId;
-    private string _newTeamName = string.Empty;
-    private decimal _newTeamStartingLoan;
     private string? _errorMessage;
     private string? _adminCode;
 
@@ -178,8 +148,7 @@ else
 
     protected override void OnInitialized()
     {
-        _config = Host.DefaultConfig;
-        _selectedPresetId = _config.Raw.SessionPresets.Count > 0 ? _config.Raw.SessionPresets[0].Id : null;
+        _selectedPresetId = Host.DraftConfig.Raw.SessionPresets.Count > 0 ? Host.DraftConfig.Raw.SessionPresets[0].Id : null;
         _resetPresetId = Host.DefaultConfig.Raw.SessionPresets.Count > 0 ? Host.DefaultConfig.Raw.SessionPresets[0].Id : null;
 
         Refresh();
@@ -217,34 +186,13 @@ else
         }
     }
 
-    private Sector NextSector() => SectorAssignmentCalculator.LeastFilled(
-        _config.Sectors,
-        Host.StagedTeams
-            .Select(t => new TeamSpec { Id = t.Id, Name = t.Name, SectorId = t.SectorId, StartingLoanAmount = t.StartingLoanAmount })
-            .ToList());
-
-    private string SectorName(string sectorId) => _config.Sectors.First(s => s.Id == sectorId).Name;
-
-    private void AddTeam()
-    {
-        if (string.IsNullOrWhiteSpace(_newTeamName))
-        {
-            return;
-        }
-
-        Host.AddStagedTeam(_newTeamName.Trim(), NextSector().Id, _newTeamStartingLoan);
-        _newTeamName = string.Empty;
-        _newTeamStartingLoan = 0m;
-    }
-
-    private void RemoveTeam(Ulid id) => Host.RemoveStagedTeam(id);
+    private string SectorName(string sectorId) => Host.DraftConfig.Sectors.First(s => s.Id == sectorId).Name;
 
     private void UseTrainingConfig()
     {
         _errorMessage = null;
-        _config = Host.TrainingConfig;
-        Host.ClearStagedTeams();
-        _selectedPresetId = _config.Raw.SessionPresets.Count > 0 ? _config.Raw.SessionPresets[0].Id : null;
+        Host.SetDraftConfig(Host.TrainingConfig);
+        _selectedPresetId = Host.TrainingConfig.Raw.SessionPresets.Count > 0 ? Host.TrainingConfig.Raw.SessionPresets[0].Id : null;
     }
 
     private async Task OnConfigFileSelected(InputFileChangeEventArgs e)
@@ -254,9 +202,9 @@ else
         {
             using var reader = new StreamReader(e.File.OpenReadStream());
             var json = await reader.ReadToEndAsync();
-            _config = GameConfigLoader.Load(json);
-            Host.ClearStagedTeams();
-            _selectedPresetId = _config.Raw.SessionPresets.Count > 0 ? _config.Raw.SessionPresets[0].Id : null;
+            var config = GameConfigLoader.Load(json);
+            Host.SetDraftConfig(config);
+            _selectedPresetId = config.Raw.SessionPresets.Count > 0 ? config.Raw.SessionPresets[0].Id : null;
         }
         catch (GameConfigValidationException ex)
         {
@@ -266,7 +214,8 @@ else
 
     private void StartSession()
     {
-        var preset = _config.Raw.SessionPresets.FirstOrDefault(p => p.Id == _selectedPresetId);
+        var config = Host.DraftConfig;
+        var preset = config.Raw.SessionPresets.FirstOrDefault(p => p.Id == _selectedPresetId);
         if (preset is null)
         {
             _errorMessage = "Выберите пресет длительности.";
@@ -279,7 +228,7 @@ else
 
         RunAction(() =>
         {
-            Host.StartNewSession(_config, preset, teamSpecs);
+            Host.StartNewSession(config, preset, teamSpecs);
             var entry = Host.RegisterParticipant(ParticipantRole.Administrator, null, "Администратор");
             _adminCode = ((ParticipantRegistered)entry.Change).Code;
             Host.ClearStagedTeams();

@@ -26,9 +26,42 @@ public sealed class GameSessionHost
     private readonly string _sessionDirectory;
     private readonly object _stagedTeamsLock = new();
     private readonly List<StagedTeamSpec> _stagedTeams = new();
+    private ResolvedGameConfig _draftConfig = null!;
 
     /// <summary>Живая сессия процесса; <see langword="null"/>, пока администратор её не начал.</summary>
     public GameSession? Session { get; private set; }
+
+    /// <summary>
+    /// Конфиг, выбранный (загрузка своего файла или тренировочный) для следующего старта сессии, но
+    /// ещё не подтверждённый — как и <see cref="StagedTeams"/>, хранится на уровне хоста, а не как
+    /// локальное состояние Blazor-компонента, чтобы `/admin` и `/admin/teams` видели один и тот же
+    /// черновик. По умолчанию — <see cref="DefaultConfig"/>.
+    /// </summary>
+    public ResolvedGameConfig DraftConfig
+    {
+        get
+        {
+            lock (_stagedTeamsLock)
+            {
+                return _draftConfig;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Меняет черновой конфиг перед стартом сессии. Заодно чистит <see cref="StagedTeams"/> — секторы
+    /// нового конфига могут не совпадать со старыми, ранее назначенные сектора команд потеряли бы смысл.
+    /// </summary>
+    public void SetDraftConfig(ResolvedGameConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        lock (_stagedTeamsLock)
+        {
+            _draftConfig = config;
+            _stagedTeams.Clear();
+        }
+    }
 
     /// <summary>
     /// Черновик состава команд до старта сессии (Блок 9.8, экран настройки) — хранится на уровне
@@ -109,6 +142,8 @@ public sealed class GameSessionHost
 
         var trainingConfigPath = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.training.json");
         TrainingConfig = GameConfigLoader.LoadFromFile(trainingConfigPath);
+
+        _draftConfig = DefaultConfig;
 
         _sessionDirectory = Path.Combine(AppContext.BaseDirectory, "App_Data", "session");
         Directory.CreateDirectory(_sessionDirectory);
@@ -251,9 +286,10 @@ public sealed class GameSessionHost
     /// <see cref="ResetSession"/>), а вообще без активной сессии: доступен как во время игры, так и
     /// на экране настройки. Файлы архивируются, а не удаляются — та же страховка, что и у
     /// <see cref="ResetSession"/>, на случай если историю забыли выгрузить. Черновик команд
-    /// (<see cref="StagedTeams"/>) очищается всегда, независимо от того, была ли сессия начата.
-    /// <see cref="AdminBootstrapCode"/> не перегенерируется — старый по-прежнему действителен, пока
-    /// <see cref="Session"/> снова не станет не-<see langword="null"/>.
+    /// (<see cref="StagedTeams"/>) и черновой конфиг (<see cref="DraftConfig"/>) очищаются всегда,
+    /// независимо от того, была ли сессия начата. <see cref="AdminBootstrapCode"/>
+    /// перегенерируется — иначе тот же старый код оставался бы рабочим бессрочно (см. его
+    /// doc-comment).
     /// </summary>
     public void HardReset()
     {
@@ -271,6 +307,7 @@ public sealed class GameSessionHost
 
         lock (_stagedTeamsLock)
         {
+            _draftConfig = DefaultConfig;
             _stagedTeams.Clear();
         }
     }
