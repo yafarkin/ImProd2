@@ -42,4 +42,19 @@ public static class PhaseDisplay
 
         return null;
     }
+
+    /// <summary>Тексты последних опубликованных заголовков новостей, самый новый первым — для бегущей строки большого экрана (Блок 9.7).</summary>
+    public static IReadOnlyList<string> RecentNewsHeadlines(GameSession session, int count)
+    {
+        var result = new List<string>();
+        for (var i = session.Entries.Count - 1; i >= 0 && result.Count < count; i--)
+        {
+            if (session.Entries[i].Change is NewsPublished newsPublished)
+            {
+                result.Add(newsPublished.Headline);
+            }
+        }
+
+        return result;
+    }
 }

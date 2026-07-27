@@ -1,0 +1,104 @@
+@page "/screen"
+@rendermode InteractiveServer
+@implements IDisposable
+@inject GameSessionHost Host
+
+<PageTitle>Большой экран</PageTitle>
+
+<h1>
+    Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы: <strong>@_countdown</strong>.
+    @if (_isPaused)
+    {
+        <strong> (пауза)</strong>
+    }
+</h1>
+
+<div class="ticker">
+    @if (_recentNews.Count == 0)
+    {
+        <div class="ticker-static">Новостей пока не было.</div>
+    }
+    else
+    {
+        <div class="ticker-track">@string.Join(" • ", _recentNews)</div>
+    }
+</div>
+
+<h2>Рейтинг команд</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Команда</th>
+            <th>Сектор</th>
+            <th>Финансовый рейтинг</th>
+            <th>Репутация</th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (var i = 0; i < _ranking.Count; i++)
+        {
+            var row = _ranking[i];
+            <tr>
+                <td>@(i + 1)</td>
+                <td>@row.Name</td>
+                <td>@row.SectorName</td>
+                <td>@DashboardDisplay.FormatMoney(row.NetWorth)</td>
+                <td>@row.ReputationPercentage.ToString("F0")% (@row.ReputationSampleCount)</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Доска потребностей</h2>
+<p>
+    Активных объявлений: <strong>@_needsSummary.ActiveCount</strong>
+    @if (_needsSummary.MostSoughtMaterialNames.Count > 0)
+    {
+        <text> · чаще всего ищут: <strong>@string.Join(", ", _needsSummary.MostSoughtMaterialNames)</strong></text>
+    }
+    else
+    {
+        <text> · нет активных дефицитов</text>
+    }
+</p>
+
+@code {
+    private int _currentTurn;
+    private string _phaseLabel = string.Empty;
+    private bool _isPaused;
+    private string _countdown = string.Empty;
+    private IReadOnlyList<string> _recentNews = Array.Empty<string>();
+    private IReadOnlyList<BigScreenDisplay.TeamRatingRow> _ranking = Array.Empty<BigScreenDisplay.TeamRatingRow>();
+    private BigScreenDisplay.NeedsSummary _needsSummary = new(0, Array.Empty<string>());
+    private Timer? _tickTimer;
+
+    protected override void OnInitialized()
+    {
+        Refresh();
+
+        _tickTimer = new Timer(_ =>
+        {
+            Refresh();
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    }
+
+    private void Refresh()
+    {
+        lock (Host.SyncRoot)
+        {
+            var state = Host.Session.State;
+
+            _currentTurn = state.CurrentTurn;
+            _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
+            _isPaused = state.IsPaused;
+            _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session, DateTimeOffset.UtcNow));
+            _recentNews = PhaseDisplay.RecentNewsHeadlines(Host.Session, 5);
+            _ranking = BigScreenDisplay.RankTeams(Host.Session);
+            _needsSummary = BigScreenDisplay.SummarizeNeeds(state);
+        }
+    }
+
+    public void Dispose() => _tickTimer?.Dispose();
+}

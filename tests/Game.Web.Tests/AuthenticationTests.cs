@@ -124,4 +124,14 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
+
+    [Fact]
+    public async Task BigScreen_Page_Allows_Anonymous_Access()
+    {
+        var client = CreateClient();
+
+        var response = await client.GetAsync("/screen");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
 }
