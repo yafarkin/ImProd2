@@ -393,7 +393,7 @@ else
             _teamId = teamId;
             lock (Host.SyncRoot)
             {
-                if (Host.Session!.State.Teams.TryGetValue(teamId, out var team))
+                if (Host.Session is not null && Host.Session.State.Teams.TryGetValue(teamId, out var team))
                 {
                     TeamName = team.Name;
                 }
@@ -413,7 +413,12 @@ else
     {
         lock (Host.SyncRoot)
         {
-            var state = Host.Session!.State;
+            if (Host.Session is null)
+            {
+                return;
+            }
+
+            var state = Host.Session.State;
 
             _currentTurn = state.CurrentTurn;
             _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
@@ -613,6 +618,12 @@ else
         {
             lock (Host.SyncRoot)
             {
+                if (Host.Session is null)
+                {
+                    _errorMessage = "Сессия сейчас не активна.";
+                    return;
+                }
+
                 action();
             }
             RefreshDashboard();

@@ -127,7 +127,12 @@ else
         int currentTurn;
         lock (Host.SyncRoot)
         {
-            var state = Host.Session!.State;
+            if (Host.Session is null)
+            {
+                return;
+            }
+
+            var state = Host.Session.State;
             currentTurn = state.CurrentTurn;
             _counterparties = state.Teams.Values
                 .Where(t => t.Id != TeamId)
@@ -168,30 +173,40 @@ else
 
         try
         {
-            ContractFormationResult result;
+            ContractFormationResult? result = null;
             lock (Host.SyncRoot)
             {
-                var state = Host.Session!.State;
-                var material = state.Config.Materials[_materialId];
-                var iAmBuyer = _role == "buyer";
-                var buyerId = iAmBuyer ? TeamId : counterpartyId;
-                var sellerId = iAmBuyer ? counterpartyId : TeamId;
-                var terms = new ContractTerms(
-                    _type, material, _volume, _unitPrice, _penaltyRate, _effectiveTurn,
-                    _type == ContractType.Spot ? _spotDeliveryTurn : null,
-                    _type == ContractType.Recurring ? _recurringEndTurn : null);
+                if (Host.Session is null)
+                {
+                    _errorMessage = "Сессия сейчас не активна.";
+                }
+                else
+                {
+                    var state = Host.Session.State;
+                    var material = state.Config.Materials[_materialId];
+                    var iAmBuyer = _role == "buyer";
+                    var buyerId = iAmBuyer ? TeamId : counterpartyId;
+                    var sellerId = iAmBuyer ? counterpartyId : TeamId;
+                    var terms = new ContractTerms(
+                        _type, material, _volume, _unitPrice, _penaltyRate, _effectiveTurn,
+                        _type == ContractType.Spot ? _spotDeliveryTurn : null,
+                        _type == ContractType.Recurring ? _recurringEndTurn : null);
 
-                var ourProposal = new ContractProposal(buyerId, sellerId, TeamId, terms);
-                var theirProposal = new ContractProposal(buyerId, sellerId, counterpartyId, terms);
-                result = Host.Session!.SubmitContractProposals(ourProposal, theirProposal, Random.Shared);
+                    var ourProposal = new ContractProposal(buyerId, sellerId, TeamId, terms);
+                    var theirProposal = new ContractProposal(buyerId, sellerId, counterpartyId, terms);
+                    result = Host.Session.SubmitContractProposals(ourProposal, theirProposal, Random.Shared);
+                }
             }
 
-            _successMessage = result.IsMatched
-                ? "Сделка заключена, ждёт подтверждения управляющего."
-                : null;
-            if (!result.IsMatched)
+            if (result is not null)
             {
-                _errorMessage = string.Join("; ", result.Mismatches.Select(DashboardDisplay.ContractMismatchLabel));
+                _successMessage = result.IsMatched
+                    ? "Сделка заключена, ждёт подтверждения управляющего."
+                    : null;
+                if (!result.IsMatched)
+                {
+                    _errorMessage = string.Join("; ", result.Mismatches.Select(DashboardDisplay.ContractMismatchLabel));
+                }
             }
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)

@@ -8,8 +8,10 @@
 
 @if (_sessionNotStarted)
 {
-    <h1>Сессия скоро начнётся — отсканируйте QR-код своим телефоном</h1>
-    <JoinQrCodes />
+    <div class="text-center">
+        <h1>Сессия скоро начнётся</h1>
+        <JoinQrCodes SizePx="480" />
+    </div>
 }
 else
 {

@@ -117,7 +117,12 @@ else
     {
         lock (Host.SyncRoot)
         {
-            var state = Host.Session!.State;
+            if (Host.Session is null)
+            {
+                return;
+            }
+
+            var state = Host.Session.State;
             if (!state.Teams.TryGetValue(_teamId, out var team))
             {
                 return;

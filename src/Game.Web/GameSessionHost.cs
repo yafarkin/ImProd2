@@ -24,9 +24,54 @@ public sealed class GameSessionHost
 {
     private readonly ILogger<GameSessionHost> _logger;
     private readonly string _sessionDirectory;
+    private readonly object _stagedTeamsLock = new();
+    private readonly List<StagedTeamSpec> _stagedTeams = new();
 
     /// <summary>Живая сессия процесса; <see langword="null"/>, пока администратор её не начал.</summary>
     public GameSession? Session { get; private set; }
+
+    /// <summary>
+    /// Черновик состава команд до старта сессии (Блок 9.8, экран настройки) — хранится на уровне
+    /// хоста, а не как локальное состояние Blazor-компонента: компонент пересоздаётся при обновлении
+    /// страницы (F5) или переходе между `/admin` и `/admin/teams`, а хост — синглтон на весь процесс.
+    /// </summary>
+    public IReadOnlyList<StagedTeamSpec> StagedTeams
+    {
+        get
+        {
+            lock (_stagedTeamsLock)
+            {
+                return _stagedTeams.ToList();
+            }
+        }
+    }
+
+    /// <summary>Добавляет команду в черновик до старта сессии.</summary>
+    public void AddStagedTeam(string name, string sectorId, decimal startingLoanAmount)
+    {
+        lock (_stagedTeamsLock)
+        {
+            _stagedTeams.Add(new StagedTeamSpec(Ulid.NewUlid(), name, sectorId, startingLoanAmount));
+        }
+    }
+
+    /// <summary>Убирает команду из черновика до старта сессии.</summary>
+    public void RemoveStagedTeam(Ulid id)
+    {
+        lock (_stagedTeamsLock)
+        {
+            _stagedTeams.RemoveAll(t => t.Id == id);
+        }
+    }
+
+    /// <summary>Очищает черновик — при смене конфига (секторы могли поменяться) или после успешного старта сессии.</summary>
+    public void ClearStagedTeams()
+    {
+        lock (_stagedTeamsLock)
+        {
+            _stagedTeams.Clear();
+        }
+    }
 
     /// <summary>
     /// Лок на запись/чтение <see cref="Session"/> (Блок 8.2) — <see cref="EventLog{TState}"/> и
@@ -198,6 +243,32 @@ public sealed class GameSessionHost
         }
     }
 
+    /// <summary>
+    /// Полный сброс в начальное состояние процесса — не «та же сессия заново» (см.
+    /// <see cref="ResetSession"/>), а вообще без активной сессии: доступен как во время игры, так и
+    /// на экране настройки. Файлы архивируются, а не удаляются — та же страховка, что и у
+    /// <see cref="ResetSession"/>, на случай если историю забыли выгрузить. Черновик команд
+    /// (<see cref="StagedTeams"/>) очищается всегда, независимо от того, была ли сессия начата.
+    /// <see cref="AdminBootstrapCode"/> не перегенерируется — старый по-прежнему действителен, пока
+    /// <see cref="Session"/> снова не станет не-<see langword="null"/>.
+    /// </summary>
+    public void HardReset()
+    {
+        lock (SyncRoot)
+        {
+            if (Session is not null)
+            {
+                ArchiveSessionFiles();
+                Session = null;
+            }
+        }
+
+        lock (_stagedTeamsLock)
+        {
+            _stagedTeams.Clear();
+        }
+    }
+
     /// <summary>Переименовывает файлы предыдущей сессии с меткой времени вместо удаления — на случай, если историю (Блок 10.1) забыли выгрузить до сброса.</summary>
     private void ArchiveSessionFiles()
     {
@@ -212,3 +283,6 @@ public sealed class GameSessionHost
         }
     }
 }
+
+/// <summary>Одна команда в черновике до старта сессии — см. <see cref="GameSessionHost.StagedTeams"/>.</summary>
+public sealed record StagedTeamSpec(Ulid Id, string Name, string SectorId, decimal StartingLoanAmount);

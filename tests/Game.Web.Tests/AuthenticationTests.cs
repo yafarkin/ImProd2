@@ -317,6 +317,28 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(ParticipantRole.Facilitator, found!.Role);
     }
 
+    /// <summary>
+    /// Черновик команд до старта сессии живёт на <see cref="GameSessionHost"/>, а не как локальное
+    /// состояние Blazor-компонента — переживает пересоздание компонента (обновление страницы,
+    /// переход между `/admin` и `/admin/teams`). Независим от <see cref="GameSessionHost.Session"/>,
+    /// поэтому безопасен для общего на класс `_factory`, в отличие от <c>HardReset</c>.
+    /// </summary>
+    [Fact]
+    public void StagedTeams_Are_Held_By_The_Host_Independently_Of_Any_Component()
+    {
+        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+
+        host.AddStagedTeam("Тестовая", "A", 500m);
+        var staged = host.StagedTeams.Single(t => t.Name == "Тестовая");
+
+        Assert.Equal("A", staged.SectorId);
+        Assert.Equal(500m, staged.StartingLoanAmount);
+
+        host.RemoveStagedTeam(staged.Id);
+
+        Assert.DoesNotContain(host.StagedTeams, t => t.Id == staged.Id);
+    }
+
     [Fact]
     public async Task Print_ContractForm_Allows_A_Logged_In_Administrator()
     {

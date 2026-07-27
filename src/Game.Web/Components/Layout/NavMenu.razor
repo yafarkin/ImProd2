@@ -1,3 +1,5 @@
+@inject GameSessionHost Host
+
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">Производственные цепочки</a>
@@ -45,7 +47,7 @@
                 </NavLink>
             </div>
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="admin/teams">
+                <NavLink class="nav-link" href="@TeamsLinkHref">
                     <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Команды
                 </NavLink>
             </div>
@@ -71,3 +73,19 @@
         </AuthorizeView>
     </nav>
 </div>
+
+@code {
+    // До старта сессии черновик команд заводится прямо на /admin (Блок 9.8) — своей страницы
+    // управления составом у него нет, поэтому пункт меню «Команды» ведёт туда же, а не в
+    // /admin/teams (тот — только про уже идущую сессию, до старта там нечего показывать).
+    private string TeamsLinkHref
+    {
+        get
+        {
+            lock (Host.SyncRoot)
+            {
+                return Host.Session is null ? "admin" : "admin/teams";
+            }
+        }
+    }
+}

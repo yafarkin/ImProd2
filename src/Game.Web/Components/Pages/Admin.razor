@@ -15,6 +15,18 @@
     <div class="alert alert-danger">@_errorMessage</div>
 }
 
+<details class="mb-4">
+    <summary class="text-danger">Полный сброс в начальное состояние</summary>
+    <p class="text-muted mt-2">
+        <em>
+            Стирает вообще всё: активную сессию (если есть) и черновик команд — возврат к самому
+            первому экрану настройки. Журнал архивируется на диске (не удаляется), но из интерфейса
+            не читается — выгрузите историю заранее, если она нужна.
+        </em>
+    </p>
+    <button type="button" class="btn btn-danger" @onclick="HardReset">Сбросить всё в ноль</button>
+</details>
+
 @if (!_sessionStarted)
 {
     <h2>Подключение участников</h2>
@@ -61,7 +73,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var team in _stagedTeams)
+                @foreach (var team in Host.StagedTeams)
                 {
                     <tr>
                         <td>@team.Name</td>
@@ -78,8 +90,8 @@
     <ul class="list-unstyled">
         <li>Конфиг загружен: ✓</li>
         <li>Пресет выбран: @(_selectedPresetId is not null ? "✓" : "✗")</li>
-        <li>Команд в черновике: @_stagedTeams.Count</li>
-        <li>Секторы охвачены: @(_stagedTeams.Count == 0 ? "—" : string.Join(", ", _stagedTeams.Select(t => SectorName(t.SectorId)).Distinct()))</li>
+        <li>Команд в черновике: @Host.StagedTeams.Count</li>
+        <li>Секторы охвачены: @(Host.StagedTeams.Count == 0 ? "—" : string.Join(", ", Host.StagedTeams.Select(t => SectorName(t.SectorId)).Distinct()))</li>
     </ul>
 
     <button type="button" class="btn btn-primary" @onclick="StartSession">Начать сессию</button>
@@ -140,12 +152,10 @@ else
 }
 
 @code {
-    private sealed record StagedTeam(Ulid Id, string Name, string SectorId, decimal StartingLoanAmount);
     private sealed record TeamChecklistRow(string Name, bool HasManager, bool HasNegotiator);
 
     private ResolvedGameConfig _config = null!;
     private string? _selectedPresetId;
-    private readonly List<StagedTeam> _stagedTeams = new();
     private string _newTeamName = string.Empty;
     private decimal _newTeamStartingLoan;
     private string? _errorMessage;
@@ -206,8 +216,8 @@ else
 
     private Sector NextSector() => SectorAssignmentCalculator.LeastFilled(
         _config.Sectors,
-        _stagedTeams
-            .Select(t => new TeamSpec { Id = Ulid.NewUlid(), Name = t.Name, SectorId = t.SectorId, StartingLoanAmount = t.StartingLoanAmount })
+        Host.StagedTeams
+            .Select(t => new TeamSpec { Id = t.Id, Name = t.Name, SectorId = t.SectorId, StartingLoanAmount = t.StartingLoanAmount })
             .ToList());
 
     private string SectorName(string sectorId) => _config.Sectors.First(s => s.Id == sectorId).Name;
@@ -219,18 +229,18 @@ else
             return;
         }
 
-        _stagedTeams.Add(new StagedTeam(Ulid.NewUlid(), _newTeamName.Trim(), NextSector().Id, _newTeamStartingLoan));
+        Host.AddStagedTeam(_newTeamName.Trim(), NextSector().Id, _newTeamStartingLoan);
         _newTeamName = string.Empty;
         _newTeamStartingLoan = 0m;
     }
 
-    private void RemoveTeam(Ulid id) => _stagedTeams.RemoveAll(t => t.Id == id);
+    private void RemoveTeam(Ulid id) => Host.RemoveStagedTeam(id);
 
     private void UseTrainingConfig()
     {
         _errorMessage = null;
         _config = Host.TrainingConfig;
-        _stagedTeams.Clear();
+        Host.ClearStagedTeams();
         _selectedPresetId = _config.Raw.SessionPresets.Count > 0 ? _config.Raw.SessionPresets[0].Id : null;
     }
 
@@ -242,7 +252,7 @@ else
             using var reader = new StreamReader(e.File.OpenReadStream());
             var json = await reader.ReadToEndAsync();
             _config = GameConfigLoader.Load(json);
-            _stagedTeams.Clear();
+            Host.ClearStagedTeams();
             _selectedPresetId = _config.Raw.SessionPresets.Count > 0 ? _config.Raw.SessionPresets[0].Id : null;
         }
         catch (GameConfigValidationException ex)
@@ -260,8 +270,8 @@ else
             return;
         }
 
-        var teamSpecs = _stagedTeams
-            .Select(t => new TeamSpec { Id = Ulid.NewUlid(), Name = t.Name, SectorId = t.SectorId, StartingLoanAmount = t.StartingLoanAmount })
+        var teamSpecs = Host.StagedTeams
+            .Select(t => new TeamSpec { Id = t.Id, Name = t.Name, SectorId = t.SectorId, StartingLoanAmount = t.StartingLoanAmount })
             .ToList();
 
         RunAction(() =>
@@ -269,6 +279,7 @@ else
             Host.StartNewSession(_config, preset, teamSpecs);
             var entry = Host.RegisterParticipant(ParticipantRole.Administrator, null, "Администратор");
             _adminCode = ((ParticipantRegistered)entry.Change).Code;
+            Host.ClearStagedTeams();
         });
     }
 
@@ -294,6 +305,17 @@ else
         }
 
         RunAction(() => Host.ResetSession(preset));
+    }
+
+    private void HardReset()
+    {
+        RunAction(() =>
+        {
+            Host.HardReset();
+            _config = Host.DefaultConfig;
+            _selectedPresetId = _config.Raw.SessionPresets.Count > 0 ? _config.Raw.SessionPresets[0].Id : null;
+            _adminCode = null;
+        });
     }
 
     private void RunAction(Action action)
