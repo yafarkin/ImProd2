@@ -257,6 +257,102 @@ public sealed class GameSession
     }
 
     /// <summary>
+    /// Предлагает пересмотр условий действующего recurring-контракта (Блок 9.3, SPEC §6): вторая
+    /// сторона вправе принять или отклонить через <see cref="RespondToContractRevision"/>, при
+    /// отказе контракт продолжает действовать без изменений и без штрафа за сам факт предложения.
+    /// Только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> ProposeContractRevision(
+        Ulid contractId, Ulid proposingTeamId, decimal volume, decimal unitPrice, decimal penaltyRate, int recurringEndTurn)
+    {
+        EnsureDecisionsAllowed();
+
+        var contract = GetContract(contractId);
+        if (contract.Status != ContractStatus.Active)
+        {
+            throw new InvalidOperationException($"Cannot propose a revision for a contract in status '{contract.Status}'.");
+        }
+        if (contract.Terms.Type != ContractType.Recurring)
+        {
+            throw new InvalidOperationException("Only recurring contracts can be revised.");
+        }
+        if (proposingTeamId != contract.BuyerTeamId && proposingTeamId != contract.SellerTeamId)
+        {
+            throw new ArgumentException(
+                "The proposing team must be a party to the contract.", nameof(proposingTeamId));
+        }
+        if (ContractRevisionCalculator.FindPending(Entries, contractId) is not null)
+        {
+            throw new InvalidOperationException($"Contract '{contractId}' already has a pending revision proposal.");
+        }
+
+        // Конструктор ContractTerms уже валидирует диапазоны и recurringEndTurn >= effectiveTurn —
+        // не дублируем эти проверки здесь (по прецеденту InvestInRnd, Блок 9.2).
+        _ = new ContractTerms(
+            ContractType.Recurring, contract.Terms.Material, volume, unitPrice, penaltyRate,
+            contract.Terms.EffectiveTurn, spotDeliveryTurn: null, recurringEndTurn);
+
+        return _log.Append(new ContractRevisionProposed
+        {
+            Id = Ulid.NewUlid(),
+            ContractId = contractId,
+            ProposingTeamId = proposingTeamId,
+            Volume = volume,
+            UnitPrice = unitPrice,
+            PenaltyRate = penaltyRate,
+            RecurringEndTurn = recurringEndTurn,
+        });
+    }
+
+    /// <summary>
+    /// Отвечает на висящее предложение пересмотра условий контракта (Блок 9.3, SPEC §6): та же роль,
+    /// что и у финального подтверждения сделки (<see cref="ConfirmContract"/>) — принятие/отклонение
+    /// пересмотра такое же по весу решение. При принятии старый контракт расторгается без штрафа
+    /// (обе стороны уже согласились) и заводится новый, сразу действующий. Только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> RespondToContractRevision(
+        Ulid contractId, TeamRole respondingRole, bool accept, Random confirmationCodeRandom)
+    {
+        EnsureDecisionsAllowed();
+
+        if (respondingRole != TeamRole.Manager)
+        {
+            throw new InvalidOperationException("Only a team manager can respond to a contract revision proposal.");
+        }
+
+        var contract = GetContract(contractId);
+        var pending = ContractRevisionCalculator.FindPending(Entries, contractId)
+            ?? throw new InvalidOperationException($"Contract '{contractId}' has no pending revision proposal.");
+
+        ContractSpec? replacement = null;
+        if (accept)
+        {
+            var newTerms = new ContractTerms(
+                ContractType.Recurring, contract.Terms.Material, pending.Volume, pending.UnitPrice, pending.PenaltyRate,
+                contract.Terms.EffectiveTurn, spotDeliveryTurn: null, pending.RecurringEndTurn);
+            var code = ContractConfirmationCode.Generate(confirmationCodeRandom);
+            var newContract = new Contract(
+                Ulid.NewUlid(), contract.BuyerTeamId, contract.SellerTeamId, newTerms, code, supersedesContractId: contractId);
+            replacement = ContractSpec.From(newContract); // Status подтверждается в Apply при восстановлении, см. ContractRevisionResolved
+        }
+
+        return _log.Append(new ContractRevisionResolved
+        {
+            Id = Ulid.NewUlid(),
+            ContractId = contractId,
+            Accepted = accept,
+            ReplacementContract = replacement,
+        });
+    }
+
+    /// <summary>
+    /// Висящее предложение пересмотра условий контракта, если оно есть (Блок 9.3) — пересчитывается
+    /// по журналу заново при каждом обращении, не хранится как отдельное состояние (см. <see cref="GetReputation"/>).
+    /// </summary>
+    public ContractRevisionProposed? GetPendingContractRevision(Ulid contractId) =>
+        ContractRevisionCalculator.FindPending(Entries, contractId);
+
+    /// <summary>
     /// Аварийная закупка материала у системы (SPEC §5.3): цена — текущая рыночная котировка
     /// материала (Блок 6.1) × множитель, служит потолком монопольных цен. Требует включённого
     /// флага и фазы решений.

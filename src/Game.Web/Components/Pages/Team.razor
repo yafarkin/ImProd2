@@ -197,10 +197,17 @@ else
     </p>
 }
 
-<h2>Что я обещал другим</h2>
+<h2>Контракты</h2>
+<p><a href="/team/negotiate">Переговорная панель</a></p>
+
+@if (_isDecisionPhase)
+{
+    <ContractDraftForm TeamId="_teamId" OnChanged="RefreshDashboard" />
+}
+
 @if (_contracts.Count == 0)
 {
-    <p><em>Активных контрактов нет.</em></p>
+    <p><em>Контрактов нет.</em></p>
 }
 else
 {
@@ -208,10 +215,16 @@ else
         <thead>
             <tr>
                 <th>Роль</th>
+                <th>Контрагент</th>
                 <th>Материал</th>
+                <th>Тип</th>
                 <th>Объём</th>
-                <th>Цена за единицу</th>
+                <th>Цена</th>
+                <th>Штраф</th>
+                <th>Срок</th>
+                <th>Код</th>
                 <th>Статус</th>
+                <th>Действия</th>
             </tr>
         </thead>
         <tbody>
@@ -219,10 +232,66 @@ else
             {
                 <tr>
                     <td>@contract.Role</td>
+                    <td>@contract.CounterpartyName</td>
                     <td>@contract.MaterialName</td>
+                    <td>@DashboardDisplay.ContractTypeLabel(contract.Type)</td>
                     <td>@contract.Volume.ToString("0.##")</td>
                     <td>@DashboardDisplay.FormatMoney(contract.UnitPrice)</td>
+                    <td>@DashboardDisplay.FormatRate(contract.PenaltyRate)</td>
+                    <td>@DashboardDisplay.FormatTurnRange(contract.Type, contract.EffectiveTurn, contract.SpotDeliveryTurn, contract.RecurringEndTurn)</td>
+                    <td>@contract.ConfirmationCode</td>
                     <td>@contract.StatusLabel</td>
+                    <td>
+                        @if (_isDecisionPhase)
+                        {
+                            @if (contract.Status == ContractStatus.PendingConfirmation && Role == "Manager")
+                            {
+                                <button type="button" class="btn btn-secondary" @onclick="() => ConfirmContract(contract.ContractId)">Подтвердить</button>
+                            }
+                            @if (contract.Status == ContractStatus.Active)
+                            {
+                                <div>
+                                    <button type="button" class="btn btn-secondary" @onclick="() => TerminateMutual(contract.ContractId)">Расторгнуть по согласию</button>
+                                    <button type="button" class="btn btn-secondary" @onclick="() => TerminateVoluntary(contract.ContractId)">Расторгнуть в одностороннем порядке</button>
+                                </div>
+
+                                @if (contract.Type == ContractType.Recurring)
+                                {
+                                    @if (contract.HasPendingRevision)
+                                    {
+                                        @if (contract.PendingRevisionIsMine)
+                                        {
+                                            <p><em>Предложен пересмотр — ждём ответа второй стороны.</em></p>
+                                        }
+                                        else
+                                        {
+                                            <p>
+                                                Предложен пересмотр: объём @contract.PendingVolume?.ToString("0.##"),
+                                                цена @DashboardDisplay.FormatMoney(contract.PendingUnitPrice ?? 0m),
+                                                штраф @DashboardDisplay.FormatRate(contract.PendingPenaltyRate ?? 0m),
+                                                до хода @contract.PendingRecurringEndTurn.
+                                            </p>
+                                            @if (Role == "Manager")
+                                            {
+                                                <button type="button" class="btn btn-secondary" @onclick="() => AcceptRevision(contract.ContractId)">Принять</button>
+                                                <button type="button" class="btn btn-secondary" @onclick="() => RejectRevision(contract.ContractId)">Отклонить</button>
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div>
+                                            <input type="number" min="0.01" step="0.01" style="width:5em" @bind="_revisionVolumes[contract.ContractId]" />
+                                            <input type="number" min="0.01" step="0.01" style="width:5em" @bind="_revisionUnitPrices[contract.ContractId]" />
+                                            <input type="number" min="0" max="1" step="0.01" style="width:4em" @bind="_revisionPenaltyRates[contract.ContractId]" />
+                                            <input type="number" min="1" style="width:4em" @bind="_revisionEndTurns[contract.ContractId]" />
+                                            <button type="button" class="btn btn-secondary" @onclick="() => ProposeRevision(contract.ContractId)">Предложить пересмотр</button>
+                                        </div>
+                                    }
+                                }
+                            }
+                        }
+                    </td>
                 </tr>
             }
         </tbody>
@@ -242,7 +311,13 @@ else
 
     private sealed record BuildableDefinition(string Id, string Name, decimal BuildCost);
 
-    private sealed record ContractRow(string Role, string MaterialName, decimal Volume, decimal UnitPrice, string StatusLabel);
+    private sealed record ContractRow(
+        Ulid ContractId, string Role, string CounterpartyName, string MaterialName,
+        ContractType Type, decimal Volume, decimal UnitPrice, decimal PenaltyRate,
+        ContractStatus Status, string StatusLabel, string ConfirmationCode,
+        int EffectiveTurn, int? SpotDeliveryTurn, int? RecurringEndTurn,
+        bool HasPendingRevision, bool PendingRevisionIsMine,
+        decimal? PendingVolume, decimal? PendingUnitPrice, decimal? PendingPenaltyRate, int? PendingRecurringEndTurn);
 
     private sealed record StockRow(string MaterialId, string MaterialName, decimal Quantity);
 
@@ -280,6 +355,10 @@ else
     private readonly Dictionary<Ulid, string> _selectedRecipeIds = new();
     private readonly Dictionary<Ulid, decimal> _rndInvestAmounts = new();
     private readonly Dictionary<string, decimal> _sellVolumes = new();
+    private readonly Dictionary<Ulid, decimal> _revisionVolumes = new();
+    private readonly Dictionary<Ulid, decimal> _revisionUnitPrices = new();
+    private readonly Dictionary<Ulid, decimal> _revisionPenaltyRates = new();
+    private readonly Dictionary<Ulid, int> _revisionEndTurns = new();
     private string? _selectedFactoryDefinitionId;
     private string? _errorMessage;
 
@@ -405,10 +484,25 @@ else
 
             _contracts = state.Contracts.Values
                 .Where(c => c.BuyerTeamId == _teamId || c.SellerTeamId == _teamId)
-                .Select(c => new ContractRow(
-                    c.BuyerTeamId == _teamId ? "Покупатель" : "Продавец",
-                    c.Terms.Material.Name, c.Terms.Volume, c.Terms.UnitPrice,
-                    DashboardDisplay.ContractStatusLabel(c.Status)))
+                .Select(c =>
+                {
+                    var counterpartyId = c.BuyerTeamId == _teamId ? c.SellerTeamId : c.BuyerTeamId;
+                    var counterpartyName = state.Teams.TryGetValue(counterpartyId, out var counterparty) ? counterparty.Name : "?";
+                    var pending = Host.Session.GetPendingContractRevision(c.Id);
+
+                    _revisionVolumes.TryAdd(c.Id, c.Terms.Volume);
+                    _revisionUnitPrices.TryAdd(c.Id, c.Terms.UnitPrice);
+                    _revisionPenaltyRates.TryAdd(c.Id, c.Terms.PenaltyRate);
+                    _revisionEndTurns.TryAdd(c.Id, c.Terms.RecurringEndTurn ?? _currentTurn);
+
+                    return new ContractRow(
+                        c.Id, c.BuyerTeamId == _teamId ? "Покупатель" : "Продавец", counterpartyName, c.Terms.Material.Name,
+                        c.Terms.Type, c.Terms.Volume, c.Terms.UnitPrice, c.Terms.PenaltyRate,
+                        c.Status, DashboardDisplay.ContractStatusLabel(c.Status), c.ConfirmationCode,
+                        c.Terms.EffectiveTurn, c.Terms.SpotDeliveryTurn, c.Terms.RecurringEndTurn,
+                        pending is not null, pending?.ProposingTeamId == _teamId,
+                        pending?.Volume, pending?.UnitPrice, pending?.PenaltyRate, pending?.RecurringEndTurn);
+                })
                 .ToList();
         }
     }
@@ -450,6 +544,30 @@ else
         var volume = _sellVolumes.GetValueOrDefault(materialId, 1m);
         RunAction(() => Host.Session.SellToSystem(_teamId, materialId, volume));
     }
+
+    private void ConfirmContract(Ulid contractId) =>
+        RunAction(() => Host.Session.ConfirmContract(contractId, TeamRole.Manager));
+
+    private void TerminateMutual(Ulid contractId) =>
+        RunAction(() => Host.Session.TerminateContract(contractId, ContractTerminationReason.Mutual, terminatingTeamId: null));
+
+    private void TerminateVoluntary(Ulid contractId) =>
+        RunAction(() => Host.Session.TerminateContract(contractId, ContractTerminationReason.Voluntary, _teamId));
+
+    private void ProposeRevision(Ulid contractId)
+    {
+        var volume = _revisionVolumes.GetValueOrDefault(contractId, 1m);
+        var unitPrice = _revisionUnitPrices.GetValueOrDefault(contractId, 1m);
+        var penaltyRate = _revisionPenaltyRates.GetValueOrDefault(contractId, 0.1m);
+        var endTurn = _revisionEndTurns.GetValueOrDefault(contractId, _currentTurn);
+        RunAction(() => Host.Session.ProposeContractRevision(contractId, _teamId, volume, unitPrice, penaltyRate, endTurn));
+    }
+
+    private void AcceptRevision(Ulid contractId) =>
+        RunAction(() => Host.Session.RespondToContractRevision(contractId, TeamRole.Manager, accept: true, Random.Shared));
+
+    private void RejectRevision(Ulid contractId) =>
+        RunAction(() => Host.Session.RespondToContractRevision(contractId, TeamRole.Manager, accept: false, Random.Shared));
 
     private void EmergencyPurchase()
     {

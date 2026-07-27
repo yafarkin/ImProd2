@@ -40,6 +40,29 @@ public static class DashboardDisplay
         _ => status.ToString()
     };
 
+    /// <summary>Русская подпись типа контракта (Блок 9.3).</summary>
+    public static string ContractTypeLabel(ContractType type) => type switch
+    {
+        ContractType.Spot => "Разовый",
+        ContractType.Recurring => "Регулярный",
+        _ => type.ToString()
+    };
+
+    /// <summary>Русская подпись причины несовпадения черновиков сделки (Блок 9.3, SPEC §6).</summary>
+    public static string ContractMismatchLabel(ContractMismatchReason reason) => reason switch
+    {
+        ContractMismatchReason.CounterpartiesDiffer => "Не совпадают покупатель/продавец",
+        ContractMismatchReason.SubmittedByTheSameTeam => "Обе стороны сделки поданы одной командой",
+        ContractMismatchReason.TermsDiffer => "Не совпадают условия сделки",
+        _ => reason.ToString()
+    };
+
+    /// <summary>Срок действия контракта для отображения — ход поставки (spot) или диапазон (recurring) (Блок 9.3).</summary>
+    public static string FormatTurnRange(ContractType type, int effectiveTurn, int? spotDeliveryTurn, int? recurringEndTurn) =>
+        type == ContractType.Spot
+            ? $"поставка на ходу {spotDeliveryTurn}"
+            : $"с хода {effectiveTurn} по {recurringEndTurn}";
+
     /// <summary>
     /// Пытается посчитать себестоимость единицы материала (<see cref="CostCalculator.CalculateUnitCost"/>),
     /// используя текущие рыночные котировки сырья как базовую цену. Возвращает <c>false</c>, если

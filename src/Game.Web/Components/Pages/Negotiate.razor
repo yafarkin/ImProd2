@@ -1,0 +1,165 @@
+@page "/team/negotiate"
+@attribute [Authorize(Roles = "Manager,Negotiator")]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject GameSessionHost Host
+
+<PageTitle>Переговоры</PageTitle>
+
+<p><a href="/team">← Назад к дашборду команды</a></p>
+
+<h1>Переговорная панель — @TeamName</h1>
+
+<h2>Наша репутация</h2>
+<p>
+    @_reputationPercentage.ToString("F0")% (@_reputationSampleCount @(_reputationSampleCount == 1 ? "факт" : "фактов"))
+</p>
+
+<h2>Что нужно</h2>
+@if (_needs.Count == 0)
+{
+    <p><em>Дефицита входов под текущие рецепты фабрик нет.</em></p>
+}
+else
+{
+    <ul>
+        @foreach (var need in _needs)
+        {
+            <li>@need.MaterialName: не хватает @need.Shortfall.ToString("0.##")</li>
+        }
+    </ul>
+}
+
+<h2>Что можем предложить</h2>
+@if (_offers.Count == 0)
+{
+    <p><em>Склад пуст.</em></p>
+}
+else
+{
+    <ul>
+        @foreach (var offer in _offers)
+        {
+            <li>@offer.MaterialName: @offer.Quantity.ToString("0.##")</li>
+        }
+    </ul>
+}
+
+<h2>Репутация контрагента</h2>
+@if (_counterpartyOptions.Count == 0)
+{
+    <p><em>Других команд в сессии нет.</em></p>
+}
+else
+{
+    <select @bind="_selectedCounterpartyId">
+        @foreach (var team in _counterpartyOptions)
+        {
+            <option value="@team.Id">@team.Name</option>
+        }
+    </select>
+    <p>@_counterpartyReputationPercentage.ToString("F0")% (@_counterpartyReputationSampleCount @(_counterpartyReputationSampleCount == 1 ? "факт" : "фактов"))</p>
+}
+
+<ContractDraftForm TeamId="_teamId" OnChanged="RefreshPanel" />
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private string? DisplayName;
+    private string? TeamName;
+    private Ulid _teamId;
+    private Timer? _tickTimer;
+
+    private decimal _reputationPercentage;
+    private int _reputationSampleCount;
+
+    private sealed record NeedRow(string MaterialName, decimal Shortfall);
+    private sealed record OfferRow(string MaterialName, decimal Quantity);
+    private sealed record TeamOption(Ulid Id, string Name);
+
+    private IReadOnlyList<NeedRow> _needs = Array.Empty<NeedRow>();
+    private IReadOnlyList<OfferRow> _offers = Array.Empty<OfferRow>();
+    private IReadOnlyList<TeamOption> _counterpartyOptions = Array.Empty<TeamOption>();
+    private Ulid? _selectedCounterpartyId;
+    private decimal _counterpartyReputationPercentage;
+    private int _counterpartyReputationSampleCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        var user = authState.User;
+        DisplayName = user.Identity?.Name;
+
+        var teamIdClaim = user.FindFirst("teamId")?.Value;
+        if (teamIdClaim is not null && Ulid.TryParse(teamIdClaim, out var teamId))
+        {
+            _teamId = teamId;
+        }
+
+        RefreshPanel();
+
+        _tickTimer = new Timer(_ =>
+        {
+            RefreshPanel();
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    }
+
+    private void RefreshPanel()
+    {
+        lock (Host.SyncRoot)
+        {
+            var state = Host.Session.State;
+            if (!state.Teams.TryGetValue(_teamId, out var team))
+            {
+                return;
+            }
+
+            TeamName = team.Name;
+
+            var reputation = Host.Session.GetReputation(_teamId);
+            _reputationPercentage = reputation.Percentage;
+            _reputationSampleCount = reputation.SampleCount;
+
+            var shortfalls = new Dictionary<Material, decimal>();
+            foreach (var factory in team.Factories)
+            {
+                foreach (var input in factory.SelectedRecipe.Inputs)
+                {
+                    var have = team.Warehouse.QuantityOf(input.Material);
+                    var shortfall = Math.Max(0m, input.Quantity - have);
+                    if (shortfall > 0)
+                    {
+                        shortfalls[input.Material] = shortfalls.GetValueOrDefault(input.Material) + shortfall;
+                    }
+                }
+            }
+            _needs = shortfalls.Select(kv => new NeedRow(kv.Key.Name, kv.Value)).ToList();
+
+            _offers = team.Warehouse.Stock
+                .Where(s => s.Quantity > 0)
+                .Select(s => new OfferRow(s.Material.Name, s.Quantity))
+                .ToList();
+
+            _counterpartyOptions = state.Teams.Values
+                .Where(t => t.Id != _teamId)
+                .Select(t => new TeamOption(t.Id, t.Name))
+                .OrderBy(t => t.Name, StringComparer.Ordinal)
+                .ToList();
+            if (_selectedCounterpartyId is null || _counterpartyOptions.All(t => t.Id != _selectedCounterpartyId))
+            {
+                _selectedCounterpartyId = _counterpartyOptions.Count > 0 ? _counterpartyOptions[0].Id : null;
+            }
+            if (_selectedCounterpartyId is { } counterpartyId)
+            {
+                var counterpartyReputation = Host.Session.GetReputation(counterpartyId);
+                _counterpartyReputationPercentage = counterpartyReputation.Percentage;
+                _counterpartyReputationSampleCount = counterpartyReputation.SampleCount;
+            }
+        }
+    }
+
+    public void Dispose() => _tickTimer?.Dispose();
+}

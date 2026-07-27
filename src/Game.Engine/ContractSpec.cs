@@ -45,6 +45,9 @@ public sealed record ContractSpec
     /// <summary>Последний ход действия — только для recurring.</summary>
     public required int? RecurringEndTurn { get; init; }
 
+    /// <summary>Контракт, взамен которого заведён этот (Блок 9.3) — <c>null</c> для обычного заключения.</summary>
+    public Ulid? SupersedesContractId { get; init; }
+
     /// <summary>Снимок условий уже созданного контракта — для записи в журнал.</summary>
     public static ContractSpec From(Contract contract)
     {
@@ -65,6 +68,7 @@ public sealed record ContractSpec
             EffectiveTurn = terms.EffectiveTurn,
             SpotDeliveryTurn = terms.SpotDeliveryTurn,
             RecurringEndTurn = terms.RecurringEndTurn,
+            SupersedesContractId = contract.SupersedesContractId,
         };
     }
 
@@ -76,6 +80,6 @@ public sealed record ContractSpec
         var terms = new ContractTerms(
             Type, material, Volume, UnitPrice, PenaltyRate, EffectiveTurn, SpotDeliveryTurn, RecurringEndTurn);
 
-        return new Contract(ContractId, BuyerTeamId, SellerTeamId, terms, ConfirmationCode);
+        return new Contract(ContractId, BuyerTeamId, SellerTeamId, terms, ConfirmationCode, SupersedesContractId);
     }
 }

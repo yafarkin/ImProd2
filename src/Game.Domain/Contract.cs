@@ -34,7 +34,15 @@ public sealed class Contract
     /// <summary>Причина прекращения — заполняется только когда <see cref="Status"/> становится <see cref="ContractStatus.Terminated"/>.</summary>
     public ContractTerminationReason? TerminationReason { get; private set; }
 
-    public Contract(Ulid id, Ulid buyerTeamId, Ulid sellerTeamId, ContractTerms terms, string confirmationCode)
+    /// <summary>
+    /// Контракт, взамен которого заведён этот (Блок 9.3, SPEC §6: пересмотр условий — новый
+    /// контракт вместо расторгнутого) — <c>null</c> для контрактов, заключённых обычным путём.
+    /// </summary>
+    public Ulid? SupersedesContractId { get; }
+
+    public Contract(
+        Ulid id, Ulid buyerTeamId, Ulid sellerTeamId, ContractTerms terms, string confirmationCode,
+        Ulid? supersedesContractId = null)
     {
         if (id == Ulid.Empty)
         {
@@ -64,6 +72,7 @@ public sealed class Contract
         Terms = terms;
         ConfirmationCode = confirmationCode;
         Status = ContractStatus.PendingConfirmation;
+        SupersedesContractId = supersedesContractId;
     }
 
     /// <summary>
