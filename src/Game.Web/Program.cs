@@ -108,6 +108,17 @@ app.MapPost("/auth/logout", async (HttpContext http) =>
     return Results.Redirect("/login");
 });
 
+// Полный сброс (Блок «Сбросить всё в ноль») — обычный endpoint, а не Blazor-обработчик: та же
+// причина, что у /auth/login и /auth/logout, плюс сам сброс должен ещё и разлогинить того, кто его
+// нажал, — без этого его собственная кука авторизации осталась бы рабочей после того, как данные
+// за ней исчезли, и «сброс в ноль» не ощущался бы как настоящий запуск с нуля.
+app.MapPost("/admin/hard-reset", async (HttpContext http, GameSessionHost host) =>
+{
+    host.HardReset();
+    await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    return Results.Redirect("/login");
+}).RequireAuthorization(new AuthorizeAttribute { Roles = "Administrator" });
+
 // Экспорт дебрифа (Блок 10.1, SPEC §12) — обычные endpoint'ы, а не Blazor-обработчики: нужен
 // Content-Disposition, которого не сделать из интерактивного компонента (та же причина, что у /auth/login).
 var exportAuthorization = new AuthorizeAttribute { Roles = "Facilitator,Administrator" };

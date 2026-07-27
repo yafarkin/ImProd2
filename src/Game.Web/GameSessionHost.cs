@@ -92,9 +92,12 @@ public sealed class GameSessionHost
     /// Одноразовый код для входа на <c>/admin</c> до старта сессии (см. doc-comment класса) — не
     /// связан с <see cref="GameSessionState.Participants"/>, действителен только пока
     /// <see cref="Session"/> равен <see langword="null"/>. После старта сессии администратор
-    /// получает обычный, постоянный код через <see cref="RegisterParticipant"/>.
+    /// получает обычный, постоянный код через <see cref="RegisterParticipant"/>. Перегенерируется в
+    /// <see cref="HardReset"/> — иначе старый код, напечатанный при первом запуске процесса,
+    /// оставался бы рабочим бессрочно (валидность зависит только от <see cref="Session"/> будучи
+    /// <see langword="null"/>, а не от того, использовали код уже или нет).
     /// </summary>
-    public string? AdminBootstrapCode { get; }
+    public string? AdminBootstrapCode { get; private set; }
 
     public GameSessionHost(ILogger<GameSessionHost> logger)
     {
@@ -261,6 +264,9 @@ public sealed class GameSessionHost
                 ArchiveSessionFiles();
                 Session = null;
             }
+
+            AdminBootstrapCode = ShortCode.Generate(Random.Shared);
+            _logger.LogInformation("Код администратора (настройка сессии, только до старта): {Code}", AdminBootstrapCode);
         }
 
         lock (_stagedTeamsLock)

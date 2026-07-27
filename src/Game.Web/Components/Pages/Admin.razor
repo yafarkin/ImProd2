@@ -21,10 +21,13 @@
         <em>
             Стирает вообще всё: активную сессию (если есть) и черновик команд — возврат к самому
             первому экрану настройки. Журнал архивируется на диске (не удаляется), но из интерфейса
-            не читается — выгрузите историю заранее, если она нужна.
+            не читается — выгрузите историю заранее, если она нужна. Разлогинивает вас: следующий
+            вход — снова по одноразовому коду администратора из консоли сервера.
         </em>
     </p>
-    <button type="button" class="btn btn-danger" @onclick="HardReset">Сбросить всё в ноль</button>
+    <form method="post" action="/admin/hard-reset">
+        <button type="submit" class="btn btn-danger">Сбросить всё в ноль</button>
+    </form>
 </details>
 
 @if (!_sessionStarted)
@@ -305,17 +308,6 @@ else
         }
 
         RunAction(() => Host.ResetSession(preset));
-    }
-
-    private void HardReset()
-    {
-        RunAction(() =>
-        {
-            Host.HardReset();
-            _config = Host.DefaultConfig;
-            _selectedPresetId = _config.Raw.SessionPresets.Count > 0 ? _config.Raw.SessionPresets[0].Id : null;
-            _adminCode = null;
-        });
     }
 
     private void RunAction(Action action)
