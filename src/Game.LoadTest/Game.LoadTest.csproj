@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Game.Domain\Game.Domain.csproj" />
+    <ProjectReference Include="..\Game.Config\Game.Config.csproj" />
+    <ProjectReference Include="..\Game.Engine\Game.Engine.csproj" />
+    <ProjectReference Include="..\Game.Bots\Game.Bots.csproj" />
+    <ProjectReference Include="..\Game.Web\Game.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\Game.Config\Samples\gameconfig.pilot.json" Link="Samples\gameconfig.pilot.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\Game.Config\Samples\gameconfig.training.json" Link="Samples\gameconfig.training.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
