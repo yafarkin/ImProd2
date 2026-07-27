@@ -1,0 +1,97 @@
+@page "/print/team-memo"
+@attribute [Authorize(Roles = "Administrator,Facilitator")]
+@layout PrintLayout
+@using Game.Config.Session
+@using Game.Web.Components.Layout
+@inject GameSessionHost Host
+@inject IJSRuntime JS
+
+<PageTitle>Памятка команды</PageTitle>
+
+<div class="no-print">
+    <button type="button" class="btn btn-primary" @onclick="Print">Печать</button>
+    <a href="/admin">Назад в админку</a>
+</div>
+
+@if (_teams.Count == 0)
+{
+    <h1>Сессия ещё не запущена.</h1>
+}
+else
+{
+    @foreach (var team in _teams)
+    {
+        <div class="team-page">
+            <h1>Памятка команды «@team.Name» (@team.SectorName)</h1>
+
+            <h2>Роли и коды входа</h2>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Роль</th>
+                        <th>Имя</th>
+                        <th>Код</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var participant in team.Participants)
+                    {
+                        <tr>
+                            <td>@participant.Role</td>
+                            <td>@participant.DisplayName</td>
+                            <td><code>@participant.Code</code></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <h2>Фазы хода</h2>
+            <p>
+                Расчёт (@(_phaseTiming.CalculationPhaseSeconds) с) → Решения (@(_phaseTiming.DecisionPhaseSeconds) с) →
+                Завершение (@(_phaseTiming.CompletionPhaseSeconds) с)
+            </p>
+
+            <h2>Что можно делать</h2>
+            <ul>
+                <li>Построить фабрику (выбор рецепта, стоимость постройки спишется с баланса)</li>
+                <li>Нанять/уволить рабочих на фабрике</li>
+                <li>Продать материал системе — по рыночной цене в пределах ёмкости хода</li>
+                <li>Аварийная закупка (если включена ведущим) — дороже рынка, доступна всегда</li>
+                <li>Взять кредит — ставка растёт с долгом, падает с репутацией</li>
+                <li>Контракты: черновик на переговорной панели → подтверждение управляющим → бланк сделки и код у оператора</li>
+                <li>Доска потребностей: сообщить об избытке/дефиците материала другим командам</li>
+            </ul>
+            <p><em>Подтверждать сделки и брать кредиты может только Управляющий. Переговорщик готовит черновики сделок, подтверждать не может.</em></p>
+        </div>
+    }
+}
+
+@code {
+    private sealed record TeamMemoRow(string Name, string SectorName, IReadOnlyList<ParticipantRegistration> Participants);
+
+    private IReadOnlyList<TeamMemoRow> _teams = Array.Empty<TeamMemoRow>();
+    private PhaseTimingConfig _phaseTiming = null!;
+
+    protected override void OnInitialized()
+    {
+        lock (Host.SyncRoot)
+        {
+            if (Host.Session is null)
+            {
+                return;
+            }
+
+            var state = Host.Session.State;
+            _phaseTiming = state.Config.Raw.PhaseTiming;
+            _teams = state.Teams.Values
+                .OrderBy(t => t.Name, StringComparer.Ordinal)
+                .Select(t => new TeamMemoRow(
+                    t.Name,
+                    t.Sector.Name,
+                    state.Participants.Values.Where(p => p.TeamId == t.Id).OrderBy(p => p.Role.ToString(), StringComparer.Ordinal).ToList()))
+                .ToList();
+        }
+    }
+
+    private async Task Print() => await JS.InvokeVoidAsync("print");
+}

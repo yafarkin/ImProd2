@@ -1,0 +1,66 @@
+@page "/print/contract-form"
+@attribute [Authorize(Roles = "Administrator,Facilitator")]
+@layout PrintLayout
+@using Game.Config.Loading
+@using Game.Web.Components.Layout
+@inject GameSessionHost Host
+@inject IJSRuntime JS
+
+<PageTitle>Бланк сделки</PageTitle>
+
+<div class="no-print">
+    <button type="button" class="btn btn-primary" @onclick="Print">Печать</button>
+    <a href="/admin">Назад в админку</a>
+</div>
+
+<h1>Бланк сделки</h1>
+<p><em>Заполняется от руки на месте (SPEC §6) — код подтверждения вписывается после подтверждения условий в приложении.</em></p>
+
+<table class="form-table">
+    <tbody>
+        <tr><td>Ход:</td><td class="blank"></td><td>Дата/время:</td><td class="blank"></td></tr>
+        <tr><td>Команда-покупатель:</td><td class="blank" colspan="3"></td></tr>
+        <tr><td>Команда-продавец:</td><td class="blank" colspan="3"></td></tr>
+        <tr><td>Материал:</td><td class="blank" colspan="3"></td></tr>
+        <tr><td>Тип:</td><td colspan="3">☐ Разовый&nbsp;&nbsp;&nbsp;&nbsp;☐ Регулярный</td></tr>
+        <tr><td>Объём:</td><td class="blank"></td><td>Цена за единицу:</td><td class="blank"></td></tr>
+        <tr><td>Штраф за срыв (%):</td><td class="blank"></td><td>Ход вступления в силу:</td><td class="blank"></td></tr>
+        <tr><td>Ход поставки (разовый) / окончания (регулярный):</td><td class="blank" colspan="3"></td></tr>
+        <tr><td><strong>Код подтверждения:</strong></td><td class="blank" colspan="3"></td></tr>
+    </tbody>
+</table>
+
+<p>
+    Подпись представителя покупателя: <span class="blank-line"></span>
+    &nbsp;&nbsp;&nbsp;&nbsp;
+    Подпись представителя продавца: <span class="blank-line"></span>
+</p>
+
+<h2>Справочно</h2>
+<p>
+    <strong>Материалы:</strong>
+    @string.Join(" · ", _config.Materials.Values.OrderBy(m => m.Name, StringComparer.Ordinal).Select(m => $"{m.Name} ({m.Id})"))
+</p>
+@if (_teamNames.Count > 0)
+{
+    <p><strong>Команды:</strong> @string.Join(" · ", _teamNames)</p>
+}
+
+@code {
+    private ResolvedGameConfig _config = null!;
+    private IReadOnlyList<string> _teamNames = Array.Empty<string>();
+
+    protected override void OnInitialized()
+    {
+        lock (Host.SyncRoot)
+        {
+            _config = Host.Session?.State.Config ?? Host.DefaultConfig;
+            _teamNames = Host.Session?.State.Teams.Values
+                .Select(t => t.Name)
+                .OrderBy(n => n, StringComparer.Ordinal)
+                .ToArray() ?? Array.Empty<string>();
+        }
+    }
+
+    private async Task Print() => await JS.InvokeVoidAsync("print");
+}

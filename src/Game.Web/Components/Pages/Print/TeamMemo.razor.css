@@ -1,0 +1,20 @@
+.team-page {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px dashed #ccc;
+}
+
+@media print {
+    .no-print {
+        display: none;
+    }
+
+    .team-page {
+        page-break-after: always;
+        border-bottom: none;
+    }
+
+    .team-page:last-child {
+        page-break-after: auto;
+    }
+}

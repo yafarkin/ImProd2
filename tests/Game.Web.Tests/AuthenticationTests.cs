@@ -270,4 +270,38 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.NotNull(found);
         Assert.Equal(ParticipantRole.Facilitator, found!.Role);
     }
+
+    [Fact]
+    public async Task Print_ContractForm_Allows_A_Logged_In_Administrator()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Administrator));
+
+        var response = await client.GetAsync("/print/contract-form");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Print_TeamMemo_Allows_A_Logged_In_Facilitator()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Facilitator));
+
+        var response = await client.GetAsync("/print/team-memo");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Print_ContractForm_Denies_Access_To_A_Manager()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Manager));
+
+        var response = await client.GetAsync("/print/contract-form");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/access-denied", response.Headers.Location!.PathAndQuery);
+    }
 }
