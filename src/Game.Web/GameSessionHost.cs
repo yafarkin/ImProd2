@@ -8,15 +8,17 @@ using Game.Persistence;
 namespace Game.Web;
 
 /// <summary>
-/// Владеет одной живой <see cref="GameSession"/> на процесс (Блок 8.1) — заготовка на будущее
-/// полноценное управление несколькими сессиями (SPEC §10, Блок 10.2), которого пока нет. При
-/// старте приложения проверяет, сохранён ли в <c>App_Data/session/config.json</c> конфиг ранее
-/// стартовавшей сессии: если да — открывает durable-журнал и восстанавливает состояние; если нет —
-/// <see cref="Session"/> остаётся <see langword="null"/> до тех пор, пока администратор не пройдёт
-/// экран настройки (Блок 9.8, <c>/admin</c>, SPEC §9.6) и не вызовет <see cref="StartNewSession"/>.
-/// До этого момента вход по коду администратора невозможен обычным путём (сверяться не с чем — в
-/// сессии ещё нет участников), поэтому на время ожидания настройки генерируется одноразовый
-/// <see cref="AdminBootstrapCode"/>, живущий вне журнала.
+/// Владеет одной живой <see cref="GameSession"/> на процесс (Блок 8.1). При старте приложения
+/// проверяет, сохранён ли в <c>App_Data/session/config.json</c> конфиг ранее стартовавшей сессии:
+/// если да — открывает durable-журнал и восстанавливает состояние; если нет — <see cref="Session"/>
+/// остаётся <see langword="null"/> до тех пор, пока администратор не пройдёт экран настройки (Блок
+/// 9.8, <c>/admin</c>, SPEC §9.6) и не вызовет <see cref="StartNewSession"/>. До этого момента вход
+/// по коду администратора невозможен обычным путём (сверяться не с чем — в сессии ещё нет
+/// участников), поэтому на время ожидания настройки генерируется одноразовый
+/// <see cref="AdminBootstrapCode"/>, живущий вне журнала. <see cref="ResetSession"/> (Блок 10.2,
+/// SPEC §10) позволяет один раз начать сессию заново поверх того же состава команд и участников —
+/// для перехода от тренировочной игры к основной; полноценного менеджера произвольного числа
+/// сессий с историей это по-прежнему не даёт, только то, что просит SPEC §10.
 /// </summary>
 public sealed class GameSessionHost
 {
@@ -38,6 +40,9 @@ public sealed class GameSessionHost
     /// <summary>Конфиг по умолчанию (SPEC-заглушка пилота) — предложен на экране администратора, может быть заменён загрузкой своего файла.</summary>
     public ResolvedGameConfig DefaultConfig { get; }
 
+    /// <summary>Тренировочный конфиг (Блок 10.2, SPEC §10) — те же секторы/материалы, что и <see cref="DefaultConfig"/>, но короткий пресет и тайминги фаз «по минуте».</summary>
+    public ResolvedGameConfig TrainingConfig { get; }
+
     /// <summary>
     /// Одноразовый код для входа на <c>/admin</c> до старта сессии (см. doc-comment класса) — не
     /// связан с <see cref="GameSessionState.Participants"/>, действителен только пока
@@ -53,6 +58,9 @@ public sealed class GameSessionHost
 
         var defaultConfigPath = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
         DefaultConfig = GameConfigLoader.LoadFromFile(defaultConfigPath);
+
+        var trainingConfigPath = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.training.json");
+        TrainingConfig = GameConfigLoader.LoadFromFile(trainingConfigPath);
 
         _sessionDirectory = Path.Combine(AppContext.BaseDirectory, "App_Data", "session");
         Directory.CreateDirectory(_sessionDirectory);
@@ -136,6 +144,71 @@ public sealed class GameSessionHost
             _logger.LogInformation(
                 "Код входа {Code}: {Role} {DisplayName}", registered.Code, registered.Role, registered.DisplayName);
             return entry;
+        }
+    }
+
+    /// <summary>
+    /// Начинает сессию заново поверх <see cref="DefaultConfig"/>, сохраняя тот же состав команд и
+    /// те же коды входа участников (Блок 10.2, SPEC §10: «те же команды и логины, но полностью
+    /// независимое состояние и репутация») — переход от тренировочной игры к основной. Стартовый
+    /// заём каждой команды обнуляется: <see cref="Domain.Team"/> не хранит исходную сумму займа
+    /// отдельно от уже эволюционировавших <c>Balance</c>/<c>Debt</c>, а «полностью независимое
+    /// состояние» и так буквально означает старт с нуля. Как и <see cref="StartNewSession"/>, сразу
+    /// ставит новую сессию на паузу.
+    /// </summary>
+    public GameSession ResetSession(SessionPresetConfig preset)
+    {
+        ArgumentNullException.ThrowIfNull(preset);
+
+        lock (SyncRoot)
+        {
+            if (Session is null)
+            {
+                throw new InvalidOperationException("Cannot reset before a session has been started.");
+            }
+
+            var teams = Session.State.Teams.Values
+                .Select(team => new TeamSpec { Id = team.Id, Name = team.Name, SectorId = team.Sector.Id, StartingLoanAmount = 0m })
+                .ToList();
+            var participants = Session.State.Participants.Values.ToList();
+
+            ArchiveSessionFiles();
+
+            File.WriteAllText(Path.Combine(_sessionDirectory, "config.json"), JsonSerializer.Serialize(DefaultConfig.Raw));
+
+            var durableLog = DurableEventLog<GameSessionState>.Open(
+                Path.Combine(_sessionDirectory, "journal.jsonl"),
+                Path.Combine(_sessionDirectory, "snapshot.json"),
+                () => new GameSessionState(DefaultConfig));
+
+            var endTurn = SessionEndTurnDraw.Draw(preset, Random.Shared);
+            var session = GameSession.StartWithEndTurn(durableLog, preset.Id, endTurn, teams);
+            session.Pause();
+
+            foreach (var participant in participants)
+            {
+                session.ReregisterParticipant(participant.Code, participant.Role, participant.TeamId, participant.DisplayName);
+                _logger.LogInformation(
+                    "Код входа {Code}: {Role} {DisplayName} (сохранён после сброса)",
+                    participant.Code, participant.Role, participant.DisplayName);
+            }
+
+            Session = session;
+            return session;
+        }
+    }
+
+    /// <summary>Переименовывает файлы предыдущей сессии с меткой времени вместо удаления — на случай, если историю (Блок 10.1) забыли выгрузить до сброса.</summary>
+    private void ArchiveSessionFiles()
+    {
+        var suffix = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff");
+        foreach (var name in new[] { "config.json", "journal.jsonl", "snapshot.json" })
+        {
+            var path = Path.Combine(_sessionDirectory, name);
+            if (File.Exists(path))
+            {
+                File.Move(path, Path.Combine(_sessionDirectory, $"{name}.{suffix}.bak"));
+            }
         }
     }
 }

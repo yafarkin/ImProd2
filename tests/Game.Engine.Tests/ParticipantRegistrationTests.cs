@@ -93,4 +93,64 @@ public class ParticipantRegistrationTests
 
         Assert.Null(session.TryAuthenticate("NOSUCH"));
     }
+
+    [Fact]
+    public void ReregisterParticipant_Registers_With_The_Exact_Code_Given()
+    {
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
+
+        var entry = session.ReregisterParticipant("ABC123", ParticipantRole.Manager, teamId, "Управляющий А1");
+
+        var registered = Assert.IsType<ParticipantRegistered>(entry.Change);
+        Assert.Equal("ABC123", registered.Code);
+        Assert.True(session.State.Participants.ContainsKey("ABC123"));
+    }
+
+    [Fact]
+    public void ReregisterParticipant_Throws_When_The_Code_Is_Already_Registered()
+    {
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
+        session.ReregisterParticipant("ABC123", ParticipantRole.Manager, teamId, "Управляющий А1");
+
+        Assert.Throws<ArgumentException>(() => session.ReregisterParticipant("ABC123", ParticipantRole.Operator, null, "Оператор"));
+    }
+
+    [Fact]
+    public void ReregisterParticipant_Throws_For_An_Empty_Code()
+    {
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
+
+        Assert.Throws<ArgumentException>(() => session.ReregisterParticipant(string.Empty, ParticipantRole.Manager, teamId, "Управляющий"));
+    }
+
+    [Theory]
+    [InlineData(ParticipantRole.Manager)]
+    [InlineData(ParticipantRole.Negotiator)]
+    public void ReregisterParticipant_Throws_When_A_Team_Scoped_Role_Has_No_Team(ParticipantRole role)
+    {
+        var (session, _) = TestGameConfig.StartGameSessionWithOneTeam();
+
+        Assert.Throws<ArgumentException>(() => session.ReregisterParticipant("ABC123", role, teamId: null, "Участник"));
+    }
+
+    [Fact]
+    public void ReregisterParticipant_Throws_When_A_Non_Team_Role_Has_A_Team()
+    {
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
+
+        Assert.Throws<ArgumentException>(() => session.ReregisterParticipant("ABC123", ParticipantRole.Operator, teamId, "Оператор"));
+    }
+
+    [Fact]
+    public void TryAuthenticate_Finds_A_Reregistered_Participant_By_Its_Original_Code()
+    {
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
+        session.ReregisterParticipant("ABC123", ParticipantRole.Manager, teamId, "Управляющий А1");
+
+        var found = session.TryAuthenticate("ABC123");
+
+        Assert.NotNull(found);
+        Assert.Equal(ParticipantRole.Manager, found!.Role);
+        Assert.Equal(teamId, found.TeamId);
+    }
 }

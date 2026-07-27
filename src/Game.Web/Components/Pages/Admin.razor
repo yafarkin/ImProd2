@@ -23,6 +23,7 @@
         (хеш @(_config.ContentHash[..8])).
     </p>
     <InputFile OnChange="OnConfigFileSelected" />
+    <button type="button" class="btn btn-secondary" @onclick="UseTrainingConfig">Тренировочный конфиг (короткие ходы, ~8-10)</button>
 
     <h2>Пресет длительности</h2>
     <select @bind="_selectedPresetId">
@@ -154,6 +155,23 @@ else
         <li>Ведущий: @(_hasFacilitator ? "✓" : "✗")</li>
     </ul>
 
+    <h2>Сброс сессии</h2>
+    <p>
+        <em>
+            Начинает новую сессию с тем же составом команд и теми же кодами входа — для перехода от
+            тренировочной игры к основной (SPEC §10). Текущий журнал архивируется на диске, но
+            обратно из интерфейса не читается — выгрузите историю (см. «Экспорт истории» на экране
+            ведущего) заранее, если она нужна.
+        </em>
+    </p>
+    <select @bind="_resetPresetId">
+        @foreach (var preset in Host.DefaultConfig.Raw.SessionPresets)
+        {
+            <option value="@preset.Id">@preset.Name (@(preset.MinTurns)-@(preset.MaxTurns) ходов)</option>
+        }
+    </select>
+    <button type="button" class="btn btn-danger" @onclick="ResetSession">Сбросить и начать заново</button>
+
     <form method="post" action="/auth/logout">
         <button type="submit" class="btn btn-secondary">Выйти</button>
     </form>
@@ -183,12 +201,15 @@ else
     private Ulid? _registerTeamId;
     private string _registerName = string.Empty;
 
+    private string? _resetPresetId;
+
     private Timer? _tickTimer;
 
     protected override void OnInitialized()
     {
         _config = Host.DefaultConfig;
         _selectedPresetId = _config.Raw.SessionPresets.Count > 0 ? _config.Raw.SessionPresets[0].Id : null;
+        _resetPresetId = Host.DefaultConfig.Raw.SessionPresets.Count > 0 ? Host.DefaultConfig.Raw.SessionPresets[0].Id : null;
 
         Refresh();
 
@@ -255,6 +276,14 @@ else
 
     private void RemoveTeam(Ulid id) => _stagedTeams.RemoveAll(t => t.Id == id);
 
+    private void UseTrainingConfig()
+    {
+        _errorMessage = null;
+        _config = Host.TrainingConfig;
+        _stagedTeams.Clear();
+        _selectedPresetId = _config.Raw.SessionPresets.Count > 0 ? _config.Raw.SessionPresets[0].Id : null;
+    }
+
     private async Task OnConfigFileSelected(InputFileChangeEventArgs e)
     {
         _errorMessage = null;
@@ -319,6 +348,18 @@ else
         {
             _registerName = string.Empty;
         }
+    }
+
+    private void ResetSession()
+    {
+        var preset = Host.DefaultConfig.Raw.SessionPresets.FirstOrDefault(p => p.Id == _resetPresetId);
+        if (preset is null)
+        {
+            _errorMessage = "Выберите пресет для новой сессии.";
+            return;
+        }
+
+        RunAction(() => Host.ResetSession(preset));
     }
 
     private void RunAction(Action action)

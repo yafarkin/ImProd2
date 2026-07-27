@@ -240,4 +240,34 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.StartsWith("/access-denied", response.Headers.Location!.PathAndQuery);
     }
+
+    /// <summary>
+    /// Сброс нельзя прогнать через HTTP (это клик по Blazor-кнопке — интерактивность так не
+    /// тестируется), поэтому дёргаем <see cref="GameSessionHost.ResetSession"/> напрямую, как
+    /// <see cref="SeedTestSession"/> дёргает <see cref="GameSessionHost.StartNewSession"/>, — тот
+    /// же общий fixture. Безопасно для остальных тестов файла: сохраняет те же имена команд и коды
+    /// участников, которые единственно и использует остальной файл.
+    /// </summary>
+    [Fact]
+    public void ResetSession_Preserves_Teams_And_Codes_But_Starts_A_Fresh_Journal()
+    {
+        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+        if (host.Session is null)
+        {
+            SeedTestSession(host);
+        }
+
+        var teamNamesBefore = host.Session!.State.Teams.Values.Select(t => t.Name).OrderBy(n => n, StringComparer.Ordinal).ToList();
+        var facilitatorCode = SeedCodeFor(ParticipantRole.Facilitator);
+        var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
+
+        host.ResetSession(preset);
+
+        var teamNamesAfter = host.Session!.State.Teams.Values.Select(t => t.Name).OrderBy(n => n, StringComparer.Ordinal).ToList();
+        Assert.Equal(teamNamesBefore, teamNamesAfter);
+        Assert.Equal(1, host.Session!.State.CurrentTurn);
+        var found = host.Session!.TryAuthenticate(facilitatorCode);
+        Assert.NotNull(found);
+        Assert.Equal(ParticipantRole.Facilitator, found!.Role);
+    }
 }

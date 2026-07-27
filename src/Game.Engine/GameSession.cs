@@ -750,6 +750,46 @@ public sealed class GameSession
         ParticipantRole role, Ulid? teamId, string displayName, Random codeRandom)
     {
         ArgumentNullException.ThrowIfNull(codeRandom);
+        ValidateParticipant(role, teamId, displayName);
+
+        string code;
+        do
+        {
+            code = ShortCode.Generate(codeRandom);
+        }
+        while (State.Participants.ContainsKey(code));
+
+        return AppendParticipantRegistered(code, role, teamId, displayName);
+    }
+
+    /// <summary>
+    /// Восстанавливает участника с уже выданным ему ранее кодом (Блок 10.2, SPEC §10: «те же...
+    /// логины») — вместо генерации нового, как в <see cref="RegisterParticipant"/>. Нужно для
+    /// сброса сессии (тренировка → основная игра): физически розданные бумажки/QR с кодами
+    /// остаются рабочими и после сброса.
+    /// </summary>
+    public EventLogEntry<GameSessionState> ReregisterParticipant(
+        string code, ParticipantRole role, Ulid? teamId, string displayName)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new ArgumentException("Code must not be empty.", nameof(code));
+        }
+        ValidateParticipant(role, teamId, displayName);
+        if (State.Participants.ContainsKey(code))
+        {
+            throw new ArgumentException($"Code '{code}' is already registered.", nameof(code));
+        }
+
+        return AppendParticipantRegistered(code, role, teamId, displayName);
+    }
+
+    /// <summary>Ищет зарегистрированного участника по коду входа; null, если код не зарегистрирован.</summary>
+    public ParticipantRegistration? TryAuthenticate(string code) =>
+        State.Participants.GetValueOrDefault(code);
+
+    private void ValidateParticipant(ParticipantRole role, Ulid? teamId, string displayName)
+    {
         if (string.IsNullOrWhiteSpace(displayName))
         {
             throw new ArgumentException("Display name must not be empty.", nameof(displayName));
@@ -768,15 +808,11 @@ public sealed class GameSession
         {
             throw new ArgumentException($"Role '{role}' must not be bound to a team.", nameof(teamId));
         }
+    }
 
-        string code;
-        do
-        {
-            code = ShortCode.Generate(codeRandom);
-        }
-        while (State.Participants.ContainsKey(code));
-
-        return _log.Append(new ParticipantRegistered
+    private EventLogEntry<GameSessionState> AppendParticipantRegistered(
+        string code, ParticipantRole role, Ulid? teamId, string displayName) =>
+        _log.Append(new ParticipantRegistered
         {
             Id = Ulid.NewUlid(),
             Code = code,
@@ -784,11 +820,6 @@ public sealed class GameSession
             TeamId = teamId,
             DisplayName = displayName,
         });
-    }
-
-    /// <summary>Ищет зарегистрированного участника по коду входа; null, если код не зарегистрирован.</summary>
-    public ParticipantRegistration? TryAuthenticate(string code) =>
-        State.Participants.GetValueOrDefault(code);
 
     /// <summary>Текущая рыночная котировка материала или внятная ошибка, если рынок ещё не публиковал её.</summary>
     private MaterialQuote GetQuoteOrThrow(string materialId)
