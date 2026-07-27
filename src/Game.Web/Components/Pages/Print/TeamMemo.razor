@@ -1,6 +1,6 @@
 @page "/print/team-memo"
 @attribute [Authorize(Roles = "Administrator,Facilitator")]
-@layout PrintLayout
+@layout NoNavLayout
 @using Game.Config.Session
 @using Game.Web.Components.Layout
 @inject GameSessionHost Host
