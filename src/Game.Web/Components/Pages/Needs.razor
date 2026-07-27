@@ -116,7 +116,7 @@ else
     {
         lock (Host.SyncRoot)
         {
-            var state = Host.Session.State;
+            var state = Host.Session!.State;
             if (!state.Teams.TryGetValue(_teamId, out var team))
             {
                 return;
@@ -159,7 +159,7 @@ else
         {
             lock (Host.SyncRoot)
             {
-                Host.Session.PostNeed(_teamId, _materialId, _direction, _volumeOrder, _comment);
+                Host.Session!.PostNeed(_teamId, _materialId, _direction, _volumeOrder, _comment);
             }
             _comment = null;
             RefreshBoard();
@@ -177,7 +177,7 @@ else
         {
             lock (Host.SyncRoot)
             {
-                Host.Session.WithdrawNeed(_teamId, needId);
+                Host.Session!.WithdrawNeed(_teamId, needId);
             }
             RefreshBoard();
         }

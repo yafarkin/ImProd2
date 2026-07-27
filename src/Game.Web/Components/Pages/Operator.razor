@@ -113,13 +113,13 @@ else
     {
         lock (Host.SyncRoot)
         {
-            var state = Host.Session.State;
+            var state = Host.Session!.State;
 
             _currentTurn = state.CurrentTurn;
             _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
             _isDecisionPhase = state.CurrentPhase == TurnPhase.Decision;
-            _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session, DateTimeOffset.UtcNow));
-            _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session);
+            _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session!, DateTimeOffset.UtcNow));
+            _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session!);
 
             _queue = state.Contracts.Values
                 .Where(c => c.Status == ContractStatus.PendingConfirmation)
@@ -149,7 +149,7 @@ else
         {
             lock (Host.SyncRoot)
             {
-                Host.Session.ConfirmContractByOperator(contractId);
+                Host.Session!.ConfirmContractByOperator(contractId);
             }
             RefreshPhaseStatus();
         }
@@ -167,7 +167,7 @@ else
         {
             lock (Host.SyncRoot)
             {
-                Host.Session.RejectContract(contractId, reason);
+                Host.Session!.RejectContract(contractId, reason);
             }
             RefreshPhaseStatus();
         }

@@ -111,7 +111,7 @@ else
     {
         lock (Host.SyncRoot)
         {
-            var state = Host.Session.State;
+            var state = Host.Session!.State;
             if (!state.Teams.TryGetValue(_teamId, out var team))
             {
                 return;
@@ -119,7 +119,7 @@ else
 
             TeamName = team.Name;
 
-            var reputation = Host.Session.GetReputation(_teamId);
+            var reputation = Host.Session!.GetReputation(_teamId);
             _reputationPercentage = reputation.Percentage;
             _reputationSampleCount = reputation.SampleCount;
 
@@ -154,7 +154,7 @@ else
             }
             if (_selectedCounterpartyId is { } counterpartyId)
             {
-                var counterpartyReputation = Host.Session.GetReputation(counterpartyId);
+                var counterpartyReputation = Host.Session!.GetReputation(counterpartyId);
                 _counterpartyReputationPercentage = counterpartyReputation.Percentage;
                 _counterpartyReputationSampleCount = counterpartyReputation.SampleCount;
             }

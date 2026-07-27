@@ -31,7 +31,8 @@ builder.Services.AddHostedService<PhaseTimerBackgroundService>();
 
 var app = builder.Build();
 
-// Форсируем создание сразу при старте — коды входа должны быть в логах/на /dev/codes до первого запроса.
+// Форсируем создание сразу при старте — код администратора (до старта сессии) или коды резюмированной
+// сессии (после перезапуска процесса) должны быть в логах до первого запроса.
 app.Services.GetRequiredService<GameSessionHost>();
 
 // Configure the HTTP request pipeline.
@@ -60,7 +61,18 @@ app.MapPost("/auth/login", async (HttpContext http, GameSessionHost host) =>
     var form = await http.Request.ReadFormAsync();
     var code = form["code"].ToString().Trim().ToUpperInvariant();
 
-    var registration = host.Session.TryAuthenticate(code);
+    // До старта сессии участников ещё нет — сверяться не с чем; единственный ход входа тогда —
+    // одноразовый код-бутстрап администратора, живущий вне журнала (Блок 9.8, GameSessionHost).
+    ParticipantRegistration? registration;
+    lock (host.SyncRoot)
+    {
+        registration = host.Session is null
+            ? (host.AdminBootstrapCode is not null && code == host.AdminBootstrapCode
+                ? new ParticipantRegistration(code, ParticipantRole.Administrator, null, "Администратор")
+                : null)
+            : host.Session.TryAuthenticate(code);
+    }
+
     if (registration is null)
     {
         return Results.Redirect("/login?error=1");
@@ -85,6 +97,7 @@ app.MapPost("/auth/login", async (HttpContext http, GameSessionHost host) =>
         ParticipantRole.Manager or ParticipantRole.Negotiator => "/team",
         ParticipantRole.Operator => "/operator",
         ParticipantRole.Facilitator => "/facilitator",
+        ParticipantRole.Administrator => "/admin",
         _ => "/",
     };
     return Results.Redirect(redirectTo);

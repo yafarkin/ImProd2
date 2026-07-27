@@ -37,6 +37,11 @@ public sealed class PhaseTimerBackgroundService : BackgroundService
 
             lock (_host.SyncRoot)
             {
+                if (_host.Session is null)
+                {
+                    continue;
+                }
+
                 acted = PhaseAutoAdvancer.TryAdvance(_host.Session, DateTimeOffset.UtcNow, Random.Shared);
                 phaseAfter = _host.Session.State.CurrentPhase;
                 turnAfter = _host.Session.State.CurrentTurn;

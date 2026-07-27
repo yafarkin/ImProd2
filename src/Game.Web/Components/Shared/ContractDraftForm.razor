@@ -101,7 +101,7 @@ else
         int currentTurn;
         lock (Host.SyncRoot)
         {
-            var state = Host.Session.State;
+            var state = Host.Session!.State;
             currentTurn = state.CurrentTurn;
             _counterparties = state.Teams.Values
                 .Where(t => t.Id != TeamId)
@@ -145,7 +145,7 @@ else
             ContractFormationResult result;
             lock (Host.SyncRoot)
             {
-                var state = Host.Session.State;
+                var state = Host.Session!.State;
                 var material = state.Config.Materials[_materialId];
                 var iAmBuyer = _role == "buyer";
                 var buyerId = iAmBuyer ? TeamId : counterpartyId;
@@ -157,7 +157,7 @@ else
 
                 var ourProposal = new ContractProposal(buyerId, sellerId, TeamId, terms);
                 var theirProposal = new ContractProposal(buyerId, sellerId, counterpartyId, terms);
-                result = Host.Session.SubmitContractProposals(ourProposal, theirProposal, Random.Shared);
+                result = Host.Session!.SubmitContractProposals(ourProposal, theirProposal, Random.Shared);
             }
 
             _successMessage = result.IsMatched

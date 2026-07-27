@@ -5,7 +5,13 @@
 
 <PageTitle>Большой экран</PageTitle>
 
-<h1>
+@if (_sessionNotStarted)
+{
+    <h1>Сессия ещё не запущена.</h1>
+}
+else
+{
+    <h1>
     Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы: <strong>@_countdown</strong>.
     @if (_isPaused)
     {
@@ -62,6 +68,7 @@
         <text> · нет активных дефицитов</text>
     }
 </p>
+}
 
 @code {
     private int _currentTurn;
@@ -71,6 +78,7 @@
     private IReadOnlyList<string> _recentNews = Array.Empty<string>();
     private IReadOnlyList<BigScreenDisplay.TeamRatingRow> _ranking = Array.Empty<BigScreenDisplay.TeamRatingRow>();
     private BigScreenDisplay.NeedsSummary _needsSummary = new(0, Array.Empty<string>());
+    private bool _sessionNotStarted;
     private Timer? _tickTimer;
 
     protected override void OnInitialized()
@@ -88,6 +96,13 @@
     {
         lock (Host.SyncRoot)
         {
+            if (Host.Session is null)
+            {
+                _sessionNotStarted = true;
+                return;
+            }
+
+            _sessionNotStarted = false;
             var state = Host.Session.State;
 
             _currentTurn = state.CurrentTurn;

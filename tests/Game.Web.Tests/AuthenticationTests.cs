@@ -1,25 +1,72 @@
 using System.Net;
 using Game.Domain;
+using Game.Engine;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Game.Web.Tests;
 
-/// <summary>Вход по коду и разграничение доступа по роли (Блок 8.1, SPEC §3).</summary>
+/// <summary>Вход по коду и разграничение доступа по роли (Блок 8.1, SPEC §3; сев сессии — Блок 9.8).</summary>
 public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
 {
+    private static readonly Dictionary<ParticipantRole, string> SeedCodes = new();
+
     private readonly WebApplicationFactory<Program> _factory;
 
     public AuthenticationTests(WebApplicationFactory<Program> factory)
     {
         _factory = factory;
+
+        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+        if (host.Session is null)
+        {
+            SeedTestSession(host);
+        }
+    }
+
+    /// <summary>
+    /// Зеркалит прежний хардкодный сев <c>GameSessionHost</c> (Блок 8.1), но идёт через настоящий
+    /// админский API (Блок 9.8) — конструктор вызывается заново на каждый тест-метод, а сессию
+    /// заводит только первый вызов (общий на класс <see cref="GameSessionHost"/> из
+    /// <see cref="WebApplicationFactory{TEntryPoint}"/> уже стартовал бы к этому моменту).
+    /// </summary>
+    private static void SeedTestSession(GameSessionHost host)
+    {
+        var config = host.DefaultConfig;
+        var sectorA = config.Sectors.Single(s => s.Id == "A");
+        var sectorB = config.Sectors.Single(s => s.Id == "B");
+        var alphaId = Ulid.NewUlid();
+        var betaId = Ulid.NewUlid();
+
+        var teams = new[]
+        {
+            new TeamSpec { Id = alphaId, Name = "Альфа", SectorId = sectorA.Id, StartingLoanAmount = 10_000m },
+            new TeamSpec { Id = betaId, Name = "Бета", SectorId = sectorB.Id, StartingLoanAmount = 10_000m },
+        };
+        var preset = config.Raw.SessionPresets.Single(p => p.Id == "short");
+
+        host.StartNewSession(config, preset, teams);
+
+        Register(host, ParticipantRole.Manager, alphaId, "Управляющий Альфа");
+        Register(host, ParticipantRole.Negotiator, alphaId, "Переговорщик Альфа");
+        Register(host, ParticipantRole.Manager, betaId, "Управляющий Бета");
+        Register(host, ParticipantRole.Negotiator, betaId, "Переговорщик Бета");
+        Register(host, ParticipantRole.Operator, null, "Оператор");
+        Register(host, ParticipantRole.Facilitator, null, "Ведущий");
+        Register(host, ParticipantRole.Administrator, null, "Администратор");
+    }
+
+    private static void Register(GameSessionHost host, ParticipantRole role, Ulid? teamId, string displayName)
+    {
+        var entry = host.RegisterParticipant(role, teamId, displayName);
+        var registered = (ParticipantRegistered)entry.Change;
+        SeedCodes.TryAdd(role, registered.Code);
     }
 
     private HttpClient CreateClient() =>
         _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-    private string SeedCodeFor(ParticipantRole role) =>
-        _factory.Services.GetRequiredService<GameSessionHost>().SeedCodes.First(c => c.Role == role).Code;
+    private static string SeedCodeFor(ParticipantRole role) => SeedCodes[role];
 
     private static Task<HttpResponseMessage> PostLogin(HttpClient client, string code) =>
         client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = code }));
@@ -133,5 +180,28 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await client.GetAsync("/screen");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_Page_Allows_A_Logged_In_Administrator()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Administrator));
+
+        var response = await client.GetAsync("/admin");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_Page_Denies_Access_To_A_Manager()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Manager));
+
+        var response = await client.GetAsync("/admin");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/access-denied", response.Headers.Location!.PathAndQuery);
     }
 }

@@ -1,0 +1,342 @@
+@page "/admin"
+@attribute [Authorize(Roles = "Administrator")]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject GameSessionHost Host
+@using Game.Config.Loading
+@using Game.Config.Session
+
+<PageTitle>Администратор</PageTitle>
+
+<h1>Администратор</h1>
+
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger">@_errorMessage</div>
+}
+
+@if (!_sessionStarted)
+{
+    <h2>Конфигурация</h2>
+    <p>
+        Загружен: @_config.Raw.Sectors.Count секторов, @_config.Raw.Materials.Count материалов
+        (хеш @(_config.ContentHash[..8])).
+    </p>
+    <InputFile OnChange="OnConfigFileSelected" />
+
+    <h2>Пресет длительности</h2>
+    <select @bind="_selectedPresetId">
+        @foreach (var preset in _config.Raw.SessionPresets)
+        {
+            <option value="@preset.Id">@preset.Name (@(preset.MinTurns)-@(preset.MaxTurns) ходов)</option>
+        }
+    </select>
+
+    <h2>Команды</h2>
+    <p>Следующая команда будет автоматически назначена в сектор: <strong>@NextSector().Name</strong></p>
+    <input @bind="_newTeamName" placeholder="Название команды" />
+    <input type="number" min="0" step="0.01" style="width:8em" @bind="_newTeamStartingLoan" />
+    <span>стартовый заём</span>
+    <button type="button" class="btn btn-secondary" @onclick="AddTeam">Добавить команду</button>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Команда</th>
+                <th>Сектор</th>
+                <th>Стартовый заём</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var team in _stagedTeams)
+            {
+                <tr>
+                    <td>@team.Name</td>
+                    <td>@SectorName(team.SectorId)</td>
+                    <td>@DashboardDisplay.FormatMoney(team.StartingLoanAmount)</td>
+                    <td><button type="button" class="btn btn-secondary" @onclick="() => RemoveTeam(team.Id)">Убрать</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h2>Чек-лист готовности</h2>
+    <ul>
+        <li>Конфиг загружен: ✓</li>
+        <li>Пресет выбран: @(_selectedPresetId is not null ? "✓" : "✗")</li>
+        <li>Команд в черновике: @_stagedTeams.Count</li>
+        <li>Секторы охвачены: @(_stagedTeams.Count == 0 ? "—" : string.Join(", ", _stagedTeams.Select(t => SectorName(t.SectorId)).Distinct()))</li>
+    </ul>
+
+    <button type="button" class="btn btn-primary" @onclick="StartSession">Начать сессию</button>
+}
+else
+{
+    <p>
+        Сессия запущена. Статус: <strong>@(_isPaused ? "пауза" : "идёт")</strong>
+        <button type="button" class="btn btn-secondary" @onclick="TogglePause">@(_isPaused ? "Возобновить" : "Пауза")</button>
+    </p>
+    @if (_adminCode is not null)
+    {
+        <div class="alert alert-warning">Код администратора: <strong>@_adminCode</strong> — сохраните, иначе доступ к этой странице будет утрачен.</div>
+    }
+
+    <h2>Команды</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Команда</th>
+                <th>Сектор</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var team in _teams)
+            {
+                <tr>
+                    <td>@team.Name</td>
+                    <td>@team.Sector.Name</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h2>Регистрация участника</h2>
+    <select @bind="_registerRole">
+        @foreach (var role in Enum.GetValues<ParticipantRole>())
+        {
+            <option value="@role">@role</option>
+        }
+    </select>
+    @if (_registerRole is ParticipantRole.Manager or ParticipantRole.Negotiator)
+    {
+        <select @bind="_registerTeamId">
+            @foreach (var team in _teams)
+            {
+                <option value="@team.Id">@team.Name</option>
+            }
+        </select>
+    }
+    <input @bind="_registerName" placeholder="Имя участника" />
+    <button type="button" class="btn btn-secondary" @onclick="RegisterParticipant">Зарегистрировать</button>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Код</th>
+                <th>Роль</th>
+                <th>Команда</th>
+                <th>Имя</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var participant in _participants)
+            {
+                <tr>
+                    <td><code>@participant.Code</code></td>
+                    <td>@participant.Role</td>
+                    <td>@TeamName(participant.TeamId)</td>
+                    <td>@participant.DisplayName</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h2>Чек-лист готовности</h2>
+    <ul>
+        @foreach (var row in _teamChecklist)
+        {
+            <li>
+                @row.Name — Управляющий: @(row.HasManager ? "✓" : "✗"), Переговорщик: @(row.HasNegotiator ? "✓" : "✗")
+            </li>
+        }
+        <li>Оператор: @(_hasOperator ? "✓" : "✗")</li>
+        <li>Ведущий: @(_hasFacilitator ? "✓" : "✗")</li>
+    </ul>
+
+    <form method="post" action="/auth/logout">
+        <button type="submit" class="btn btn-secondary">Выйти</button>
+    </form>
+}
+
+@code {
+    private sealed record StagedTeam(Ulid Id, string Name, string SectorId, decimal StartingLoanAmount);
+    private sealed record TeamChecklistRow(string Name, bool HasManager, bool HasNegotiator);
+
+    private ResolvedGameConfig _config = null!;
+    private string? _selectedPresetId;
+    private readonly List<StagedTeam> _stagedTeams = new();
+    private string _newTeamName = string.Empty;
+    private decimal _newTeamStartingLoan;
+    private string? _errorMessage;
+    private string? _adminCode;
+
+    private bool _sessionStarted;
+    private bool _isPaused;
+    private IReadOnlyList<Game.Domain.Team> _teams = Array.Empty<Game.Domain.Team>();
+    private IReadOnlyList<ParticipantRegistration> _participants = Array.Empty<ParticipantRegistration>();
+    private IReadOnlyList<TeamChecklistRow> _teamChecklist = Array.Empty<TeamChecklistRow>();
+    private bool _hasOperator;
+    private bool _hasFacilitator;
+
+    private ParticipantRole _registerRole;
+    private Ulid? _registerTeamId;
+    private string _registerName = string.Empty;
+
+    private Timer? _tickTimer;
+
+    protected override void OnInitialized()
+    {
+        _config = Host.DefaultConfig;
+        _selectedPresetId = _config.Raw.SessionPresets.Count > 0 ? _config.Raw.SessionPresets[0].Id : null;
+
+        Refresh();
+
+        _tickTimer = new Timer(_ =>
+        {
+            Refresh();
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    }
+
+    private void Refresh()
+    {
+        lock (Host.SyncRoot)
+        {
+            _sessionStarted = Host.Session is not null;
+            if (!_sessionStarted)
+            {
+                return;
+            }
+
+            var state = Host.Session!.State;
+            _isPaused = state.IsPaused;
+            _teams = state.Teams.Values.OrderBy(t => t.Name, StringComparer.Ordinal).ToList();
+            _participants = state.Participants.Values.ToList();
+
+            if (_registerTeamId is null || _teams.All(t => t.Id != _registerTeamId))
+            {
+                _registerTeamId = _teams.Count > 0 ? _teams[0].Id : null;
+            }
+
+            _teamChecklist = _teams
+                .Select(team => new TeamChecklistRow(
+                    team.Name,
+                    _participants.Any(p => p.Role == ParticipantRole.Manager && p.TeamId == team.Id),
+                    _participants.Any(p => p.Role == ParticipantRole.Negotiator && p.TeamId == team.Id)))
+                .ToList();
+            _hasOperator = _participants.Any(p => p.Role == ParticipantRole.Operator);
+            _hasFacilitator = _participants.Any(p => p.Role == ParticipantRole.Facilitator);
+        }
+    }
+
+    private Sector NextSector() => SectorAssignmentCalculator.LeastFilled(
+        _config.Sectors,
+        _stagedTeams
+            .Select(t => new TeamSpec { Id = Ulid.NewUlid(), Name = t.Name, SectorId = t.SectorId, StartingLoanAmount = t.StartingLoanAmount })
+            .ToList());
+
+    private string SectorName(string sectorId) => _config.Sectors.First(s => s.Id == sectorId).Name;
+
+    private string TeamName(Ulid? teamId) =>
+        teamId is { } id && _teams.FirstOrDefault(t => t.Id == id) is { } team ? team.Name : "—";
+
+    private void AddTeam()
+    {
+        if (string.IsNullOrWhiteSpace(_newTeamName))
+        {
+            return;
+        }
+
+        _stagedTeams.Add(new StagedTeam(Ulid.NewUlid(), _newTeamName.Trim(), NextSector().Id, _newTeamStartingLoan));
+        _newTeamName = string.Empty;
+        _newTeamStartingLoan = 0m;
+    }
+
+    private void RemoveTeam(Ulid id) => _stagedTeams.RemoveAll(t => t.Id == id);
+
+    private async Task OnConfigFileSelected(InputFileChangeEventArgs e)
+    {
+        _errorMessage = null;
+        try
+        {
+            using var reader = new StreamReader(e.File.OpenReadStream());
+            var json = await reader.ReadToEndAsync();
+            _config = GameConfigLoader.Load(json);
+            _stagedTeams.Clear();
+            _selectedPresetId = _config.Raw.SessionPresets.Count > 0 ? _config.Raw.SessionPresets[0].Id : null;
+        }
+        catch (GameConfigValidationException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private void StartSession()
+    {
+        var preset = _config.Raw.SessionPresets.FirstOrDefault(p => p.Id == _selectedPresetId);
+        if (preset is null)
+        {
+            _errorMessage = "Выберите пресет длительности.";
+            return;
+        }
+
+        var teamSpecs = _stagedTeams
+            .Select(t => new TeamSpec { Id = Ulid.NewUlid(), Name = t.Name, SectorId = t.SectorId, StartingLoanAmount = t.StartingLoanAmount })
+            .ToList();
+
+        RunAction(() =>
+        {
+            Host.StartNewSession(_config, preset, teamSpecs);
+            var entry = Host.RegisterParticipant(ParticipantRole.Administrator, null, "Администратор");
+            _adminCode = ((ParticipantRegistered)entry.Change).Code;
+        });
+    }
+
+    private void TogglePause() => RunAction(() =>
+    {
+        if (_isPaused)
+        {
+            Host.Session!.Resume();
+        }
+        else
+        {
+            Host.Session!.Pause();
+        }
+    });
+
+    private void RegisterParticipant()
+    {
+        if (string.IsNullOrWhiteSpace(_registerName))
+        {
+            return;
+        }
+
+        var teamId = _registerRole is ParticipantRole.Manager or ParticipantRole.Negotiator ? _registerTeamId : null;
+        var name = _registerName.Trim();
+        RunAction(() => Host.RegisterParticipant(_registerRole, teamId, name));
+        if (_errorMessage is null)
+        {
+            _registerName = string.Empty;
+        }
+    }
+
+    private void RunAction(Action action)
+    {
+        _errorMessage = null;
+        try
+        {
+            lock (Host.SyncRoot)
+            {
+                action();
+            }
+            Refresh();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    public void Dispose() => _tickTimer?.Dispose();
+}

@@ -387,7 +387,7 @@ else
             _teamId = teamId;
             lock (Host.SyncRoot)
             {
-                if (Host.Session.State.Teams.TryGetValue(teamId, out var team))
+                if (Host.Session!.State.Teams.TryGetValue(teamId, out var team))
                 {
                     TeamName = team.Name;
                 }
@@ -407,13 +407,13 @@ else
     {
         lock (Host.SyncRoot)
         {
-            var state = Host.Session.State;
+            var state = Host.Session!.State;
 
             _currentTurn = state.CurrentTurn;
             _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
             _isDecisionPhase = state.CurrentPhase == TurnPhase.Decision;
-            _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session, DateTimeOffset.UtcNow));
-            _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session);
+            _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session!, DateTimeOffset.UtcNow));
+            _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session!);
             var loanConfig = state.Config.Raw.StartingConditions;
             _loanConfig = loanConfig;
             _freeCapacity = state.Config.Raw.Warehouse.FreeCapacity;
@@ -437,7 +437,7 @@ else
             _debt = team.Debt;
             _penaltyRateSurcharge = team.PenaltyRateSurcharge;
 
-            var reputation = Host.Session.GetReputation(_teamId);
+            var reputation = Host.Session!.GetReputation(_teamId);
             _reputationPercentage = reputation.Percentage;
             _reputationSampleCount = reputation.SampleCount;
             _currentLoanRate = FinanceCalculator.CalculateEffectiveLoanRate(team, loanConfig, _reputationPercentage);
@@ -488,7 +488,7 @@ else
                 {
                     var counterpartyId = c.BuyerTeamId == _teamId ? c.SellerTeamId : c.BuyerTeamId;
                     var counterpartyName = state.Teams.TryGetValue(counterpartyId, out var counterparty) ? counterparty.Name : "?";
-                    var pending = Host.Session.GetPendingContractRevision(c.Id);
+                    var pending = Host.Session!.GetPendingContractRevision(c.Id);
 
                     _revisionVolumes.TryAdd(c.Id, c.Terms.Volume);
                     _revisionUnitPrices.TryAdd(c.Id, c.Terms.UnitPrice);
@@ -514,19 +514,19 @@ else
             return;
         }
 
-        RunAction(() => Host.Session.BuildFactory(_teamId, _selectedFactoryDefinitionId));
+        RunAction(() => Host.Session!.BuildFactory(_teamId, _selectedFactoryDefinitionId));
     }
 
     private void HireWorkers(Ulid factoryId)
     {
         var count = _hireCounts.GetValueOrDefault(factoryId, 1);
-        RunAction(() => Host.Session.HireWorkers(_teamId, factoryId, count));
+        RunAction(() => Host.Session!.HireWorkers(_teamId, factoryId, count));
     }
 
     private void FireWorkers(Ulid factoryId)
     {
         var count = _fireCounts.GetValueOrDefault(factoryId, 1);
-        RunAction(() => Host.Session.FireWorkers(_teamId, factoryId, count));
+        RunAction(() => Host.Session!.FireWorkers(_teamId, factoryId, count));
     }
 
     private void SelectRecipe(Ulid factoryId)
@@ -536,23 +536,23 @@ else
             return;
         }
 
-        RunAction(() => Host.Session.SelectRecipe(_teamId, factoryId, recipeId));
+        RunAction(() => Host.Session!.SelectRecipe(_teamId, factoryId, recipeId));
     }
 
     private void SellToSystem(string materialId)
     {
         var volume = _sellVolumes.GetValueOrDefault(materialId, 1m);
-        RunAction(() => Host.Session.SellToSystem(_teamId, materialId, volume));
+        RunAction(() => Host.Session!.SellToSystem(_teamId, materialId, volume));
     }
 
     private void ConfirmContract(Ulid contractId) =>
-        RunAction(() => Host.Session.ConfirmContract(contractId, TeamRole.Manager));
+        RunAction(() => Host.Session!.ConfirmContract(contractId, TeamRole.Manager));
 
     private void TerminateMutual(Ulid contractId) =>
-        RunAction(() => Host.Session.TerminateContract(contractId, ContractTerminationReason.Mutual, terminatingTeamId: null));
+        RunAction(() => Host.Session!.TerminateContract(contractId, ContractTerminationReason.Mutual, terminatingTeamId: null));
 
     private void TerminateVoluntary(Ulid contractId) =>
-        RunAction(() => Host.Session.TerminateContract(contractId, ContractTerminationReason.Voluntary, _teamId));
+        RunAction(() => Host.Session!.TerminateContract(contractId, ContractTerminationReason.Voluntary, _teamId));
 
     private void ProposeRevision(Ulid contractId)
     {
@@ -560,14 +560,14 @@ else
         var unitPrice = _revisionUnitPrices.GetValueOrDefault(contractId, 1m);
         var penaltyRate = _revisionPenaltyRates.GetValueOrDefault(contractId, 0.1m);
         var endTurn = _revisionEndTurns.GetValueOrDefault(contractId, _currentTurn);
-        RunAction(() => Host.Session.ProposeContractRevision(contractId, _teamId, volume, unitPrice, penaltyRate, endTurn));
+        RunAction(() => Host.Session!.ProposeContractRevision(contractId, _teamId, volume, unitPrice, penaltyRate, endTurn));
     }
 
     private void AcceptRevision(Ulid contractId) =>
-        RunAction(() => Host.Session.RespondToContractRevision(contractId, TeamRole.Manager, accept: true, Random.Shared));
+        RunAction(() => Host.Session!.RespondToContractRevision(contractId, TeamRole.Manager, accept: true, Random.Shared));
 
     private void RejectRevision(Ulid contractId) =>
-        RunAction(() => Host.Session.RespondToContractRevision(contractId, TeamRole.Manager, accept: false, Random.Shared));
+        RunAction(() => Host.Session!.RespondToContractRevision(contractId, TeamRole.Manager, accept: false, Random.Shared));
 
     private void EmergencyPurchase()
     {
@@ -576,18 +576,18 @@ else
             return;
         }
 
-        RunAction(() => Host.Session.EmergencyPurchase(_teamId, _emergencyPurchaseMaterialId, _emergencyPurchaseVolume));
+        RunAction(() => Host.Session!.EmergencyPurchase(_teamId, _emergencyPurchaseMaterialId, _emergencyPurchaseVolume));
     }
 
     private void InvestInRnd(Ulid factoryId)
     {
         var amount = _rndInvestAmounts.GetValueOrDefault(factoryId, 50m);
-        RunAction(() => Host.Session.InvestInRnd(_teamId, factoryId, amount));
+        RunAction(() => Host.Session!.InvestInRnd(_teamId, factoryId, amount));
     }
 
     private void TakeLoan()
     {
-        RunAction(() => Host.Session.TakeLoan(_teamId, _loanAmount));
+        RunAction(() => Host.Session!.TakeLoan(_teamId, _loanAmount));
     }
 
     private (decimal Rate, decimal Payment) LoanPreview()

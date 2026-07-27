@@ -181,19 +181,19 @@ else
     {
         lock (Host.SyncRoot)
         {
-            var state = Host.Session.State;
+            var state = Host.Session!.State;
 
             _currentTurn = state.CurrentTurn;
             _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
             _isPaused = state.IsPaused;
-            _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session, DateTimeOffset.UtcNow));
-            _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session);
+            _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session!, DateTimeOffset.UtcNow));
+            _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session!);
             _emergencyPurchaseEnabled = state.EmergencyPurchaseEnabled;
 
             _teams = state.Teams.Values
                 .Select(team => new TeamRow(
                     team.Id, team.Name, team.Sector.Name, team.Balance, team.Debt,
-                    Host.Session.GetReputation(team.Id).Percentage,
+                    Host.Session!.GetReputation(team.Id).Percentage,
                     team.Factories.Count, team.Factories.Sum(f => f.Workers),
                     team.Balance < 0, team.PenaltyRateSurcharge > 0,
                     team.Factories.Count == 0 && state.CurrentTurn > 1))
@@ -225,21 +225,21 @@ else
         }
     }
 
-    private void AdvancePhaseNow() => RunAction(() => Host.Session.AdvancePhase(PhaseTransitionTrigger.Facilitator));
+    private void AdvancePhaseNow() => RunAction(() => Host.Session!.AdvancePhase(PhaseTransitionTrigger.Facilitator));
 
     private void TogglePause() => RunAction(() =>
     {
         if (_isPaused)
         {
-            Host.Session.Resume();
+            Host.Session!.Resume();
         }
         else
         {
-            Host.Session.Pause();
+            Host.Session!.Pause();
         }
     });
 
-    private void ExtendPhase() => RunAction(() => Host.Session.ExtendCurrentPhase(TimeSpan.FromSeconds(_extendSeconds)));
+    private void ExtendPhase() => RunAction(() => Host.Session!.ExtendCurrentPhase(TimeSpan.FromSeconds(_extendSeconds)));
 
     private void Grant()
     {
@@ -248,10 +248,10 @@ else
             return;
         }
 
-        RunAction(() => Host.Session.GrantToTeam(teamId, _grantAmount));
+        RunAction(() => Host.Session!.GrantToTeam(teamId, _grantAmount));
     }
 
-    private void ToggleEmergencyPurchase() => RunAction(() => Host.Session.SetEmergencyPurchaseEnabled(!_emergencyPurchaseEnabled));
+    private void ToggleEmergencyPurchase() => RunAction(() => Host.Session!.SetEmergencyPurchaseEnabled(!_emergencyPurchaseEnabled));
 
     private void PublishNews()
     {
@@ -260,7 +260,7 @@ else
             return;
         }
 
-        RunAction(() => Host.Session.PublishManualNews(_newsItemId));
+        RunAction(() => Host.Session!.PublishManualNews(_newsItemId));
     }
 
     private void AdjustPrice()
@@ -270,7 +270,7 @@ else
             return;
         }
 
-        RunAction(() => Host.Session.AdjustMarketPrice(_priceMaterialId, _newPrice));
+        RunAction(() => Host.Session!.AdjustMarketPrice(_priceMaterialId, _newPrice));
     }
 
     private void RunAction(Action action)
