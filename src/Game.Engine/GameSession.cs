@@ -435,6 +435,29 @@ public sealed class GameSession
         });
     }
 
+    /// <summary>Переключает фабрику на другой продукт (рецепт) из числа доступных её типу (Блок 9.1, SPEC §9.3). Требует фазы решений.</summary>
+    public EventLogEntry<GameSessionState> SelectRecipe(Ulid teamId, Ulid factoryId, string recipeId)
+    {
+        EnsureDecisionsAllowed();
+
+        var team = GetTeam(teamId);
+        var factory = GetFactory(team, factoryId);
+        var recipe = factory.Definition.Recipes.FirstOrDefault(r => r.Id == recipeId);
+        if (recipe is null)
+        {
+            throw new ArgumentException(
+                $"Recipe '{recipeId}' is not produced by factory definition '{factory.Definition.Id}'.", nameof(recipeId));
+        }
+
+        return _log.Append(new RecipeSelected
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            FactoryId = factoryId,
+            RecipeId = recipe.Id,
+        });
+    }
+
     /// <summary>
     /// Ручное событие ведущего (SPEC §9.5): публикует конкретный заголовок из библиотеки, минуя
     /// автоматический подбор по тренду (Блок 6.3) — тем же событием <see cref="NewsPublished"/> и с

@@ -9,8 +9,6 @@
 <h1>Вы вошли как @DisplayName (@Role)</h1>
 <p>Команда: @TeamName</p>
 
-<p><em>Настоящий дашборд команды — Фаза 9. Пока это только подтверждение того, что вход по роли работает.</em></p>
-
 <p>
     Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы:
     <strong>@_countdown</strong> (переход по таймеру — сервер, Блок 8.2, SPEC §4, §11; устойчив к
@@ -21,22 +19,189 @@
     <p><em>Последняя новость: @_lastNewsHeadline</em></p>
 }
 
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger">@_errorMessage</div>
+}
+
+<h2>Что у меня плохо</h2>
+<ul>
+    <li>Баланс: <strong style="@(_balance < 0 ? "color:red" : null)">@DashboardDisplay.FormatMoney(_balance)</strong></li>
+    <li>Долг: @DashboardDisplay.FormatMoney(_debt)</li>
+    @if (_penaltyRateSurcharge > 0)
+    {
+        <li>Штрафная надбавка к ставке (от принудительных займов): @_penaltyRateSurcharge.ToString("P1")</li>
+    }
+    <li>
+        Репутация: @_reputationPercentage.ToString("F0")%
+        (@_reputationSampleCount @(_reputationSampleCount == 1 ? "факт" : "фактов"))
+        @if (_reputationSampleCount < 3)
+        {
+            <em>— пока мало данных для оценки</em>
+        }
+    </li>
+</ul>
+
+<h2>Что решить сейчас</h2>
+@if (!_isDecisionPhase)
+{
+    <p><em>Решения недоступны — сейчас фаза «@_phaseLabel». Дождитесь фазы «Решения».</em></p>
+}
+else
+{
+    <h3>Построить фабрику</h3>
+    @if (_buildableDefinitions.Count == 0)
+    {
+        <p><em>Все доступные типы фабрик сектора уже построены.</em></p>
+    }
+    else
+    {
+        <select @bind="_selectedFactoryDefinitionId">
+            @foreach (var definition in _buildableDefinitions)
+            {
+                <option value="@definition.Id">@definition.Name (@DashboardDisplay.FormatMoney(definition.BuildCost))</option>
+            }
+        </select>
+        <button type="button" class="btn btn-primary" @onclick="BuildFactory">Построить</button>
+    }
+}
+
+<h3>Фабрики</h3>
+@if (_factories.Count == 0)
+{
+    <p><em>Фабрик пока нет.</em></p>
+}
+else
+{
+    @foreach (var factory in _factories)
+    {
+        <div class="card" style="margin-bottom:1em;padding:0.5em">
+            <p>
+                <strong>@factory.DefinitionName</strong> — уровень @factory.Level, рабочих: @factory.Workers,
+                продукт: @factory.SelectedRecipeName
+            </p>
+
+            @if (factory.HasUnitCost)
+            {
+                <p>Себестоимость единицы: @DashboardDisplay.FormatMoney(factory.UnitCost)</p>
+                <details>
+                    <summary>Пирамида входов</summary>
+                    <ul>
+                        @foreach (var row in factory.Pyramid)
+                        {
+                            <li style="margin-left:@(row.Depth * 1.5)em">@row.Material.Name: @row.Quantity.ToString("0.##")</li>
+                        }
+                    </ul>
+                </details>
+            }
+            else
+            {
+                <p><em>Себестоимость пока не посчитать — нет рыночных котировок сырья.</em></p>
+            }
+
+            @if (_isDecisionPhase)
+            {
+                <div>
+                    <input type="number" min="1" style="width:5em" @bind="_hireCounts[factory.FactoryId]" />
+                    <button type="button" class="btn btn-secondary" @onclick="() => HireWorkers(factory.FactoryId)">Нанять</button>
+
+                    <input type="number" min="1" style="width:5em" @bind="_fireCounts[factory.FactoryId]" />
+                    <button type="button" class="btn btn-secondary" @onclick="() => FireWorkers(factory.FactoryId)">Уволить</button>
+                </div>
+
+                @if (factory.RecipeOptions.Count > 1)
+                {
+                    <div>
+                        <select @bind="_selectedRecipeIds[factory.FactoryId]">
+                            @foreach (var recipe in factory.RecipeOptions)
+                            {
+                                <option value="@recipe.Id">@recipe.Name</option>
+                            }
+                        </select>
+                        <button type="button" class="btn btn-secondary" @onclick="() => SelectRecipe(factory.FactoryId)">Сменить продукт</button>
+                    </div>
+                }
+            }
+        </div>
+    }
+}
+
+<h2>Что я обещал другим</h2>
+@if (_contracts.Count == 0)
+{
+    <p><em>Активных контрактов нет.</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Роль</th>
+                <th>Материал</th>
+                <th>Объём</th>
+                <th>Цена за единицу</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var contract in _contracts)
+            {
+                <tr>
+                    <td>@contract.Role</td>
+                    <td>@contract.MaterialName</td>
+                    <td>@contract.Volume.ToString("0.##")</td>
+                    <td>@DashboardDisplay.FormatMoney(contract.UnitPrice)</td>
+                    <td>@contract.StatusLabel</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
 <form method="post" action="/auth/logout">
     <button type="submit" class="btn btn-secondary">Выйти</button>
 </form>
 
 @code {
+    private sealed record FactoryRow(
+        Ulid FactoryId, string DefinitionName, int Level, int Workers,
+        string SelectedRecipeName, IReadOnlyList<(string Id, string Name)> RecipeOptions,
+        bool HasUnitCost, decimal UnitCost, IReadOnlyList<DashboardDisplay.PyramidRow> Pyramid);
+
+    private sealed record BuildableDefinition(string Id, string Name, decimal BuildCost);
+
+    private sealed record ContractRow(string Role, string MaterialName, decimal Volume, decimal UnitPrice, string StatusLabel);
+
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
     private string? DisplayName;
     private string? Role;
     private string? TeamName;
+    private Ulid _teamId;
+
     private int _currentTurn;
     private string _phaseLabel = string.Empty;
+    private bool _isDecisionPhase;
     private string _countdown = string.Empty;
     private string? _lastNewsHeadline;
     private Timer? _tickTimer;
+
+    private decimal _balance;
+    private decimal _debt;
+    private decimal _penaltyRateSurcharge;
+    private decimal _reputationPercentage;
+    private int _reputationSampleCount;
+
+    private IReadOnlyList<FactoryRow> _factories = Array.Empty<FactoryRow>();
+    private IReadOnlyList<BuildableDefinition> _buildableDefinitions = Array.Empty<BuildableDefinition>();
+    private IReadOnlyList<ContractRow> _contracts = Array.Empty<ContractRow>();
+
+    private readonly Dictionary<Ulid, int> _hireCounts = new();
+    private readonly Dictionary<Ulid, int> _fireCounts = new();
+    private readonly Dictionary<Ulid, string> _selectedRecipeIds = new();
+    private string? _selectedFactoryDefinitionId;
+    private string? _errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -47,29 +212,137 @@
         Role = user.FindFirst(ClaimTypes.Role)?.Value;
 
         var teamIdClaim = user.FindFirst("teamId")?.Value;
-        if (teamIdClaim is not null && Ulid.TryParse(teamIdClaim, out var teamId)
-            && Host.Session.State.Teams.TryGetValue(teamId, out var team))
+        if (teamIdClaim is not null && Ulid.TryParse(teamIdClaim, out var teamId))
         {
-            TeamName = team.Name;
+            _teamId = teamId;
+            lock (Host.SyncRoot)
+            {
+                if (Host.Session.State.Teams.TryGetValue(teamId, out var team))
+                {
+                    TeamName = team.Name;
+                }
+            }
         }
 
-        RefreshPhaseStatus();
+        RefreshDashboard();
 
         _tickTimer = new Timer(_ =>
         {
-            RefreshPhaseStatus();
+            RefreshDashboard();
             InvokeAsync(StateHasChanged);
         }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
-    private void RefreshPhaseStatus()
+    private void RefreshDashboard()
     {
         lock (Host.SyncRoot)
         {
-            _currentTurn = Host.Session.State.CurrentTurn;
-            _phaseLabel = PhaseDisplay.PhaseLabel(Host.Session.State.CurrentPhase);
+            var state = Host.Session.State;
+
+            _currentTurn = state.CurrentTurn;
+            _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
+            _isDecisionPhase = state.CurrentPhase == TurnPhase.Decision;
             _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session, DateTimeOffset.UtcNow));
             _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session);
+
+            if (!state.Teams.TryGetValue(_teamId, out var team))
+            {
+                return;
+            }
+
+            _balance = team.Balance;
+            _debt = team.Debt;
+            _penaltyRateSurcharge = team.PenaltyRateSurcharge;
+
+            var reputation = Host.Session.GetReputation(_teamId);
+            _reputationPercentage = reputation.Percentage;
+            _reputationSampleCount = reputation.SampleCount;
+
+            _factories = team.Factories.Select(factory =>
+            {
+                _hireCounts.TryAdd(factory.Id, 1);
+                _fireCounts.TryAdd(factory.Id, 1);
+                _selectedRecipeIds.TryAdd(factory.Id, factory.SelectedRecipe.Id);
+
+                var hasUnitCost = DashboardDisplay.TryCalculateUnitCost(factory.SelectedRecipe.Output, state, out var unitCost);
+                var pyramid = hasUnitCost
+                    ? DashboardDisplay.FlattenPyramid(CostCalculator.BuildInputPyramid(factory.SelectedRecipe.Output, 1m, state.Config.RecipeBook))
+                    : Array.Empty<DashboardDisplay.PyramidRow>();
+
+                return new FactoryRow(
+                    factory.Id, factory.Definition.Name, factory.Level, factory.Workers,
+                    factory.SelectedRecipe.Output.Name,
+                    factory.Definition.Recipes.Select(r => (r.Id, r.Output.Name)).ToList(),
+                    hasUnitCost, unitCost, pyramid);
+            }).ToList();
+
+            var builtDefinitionIds = team.Factories.Select(f => f.Definition.Id).ToHashSet();
+            _buildableDefinitions = state.Config.FactoryDefinitions
+                .Where(d => d.Sector == team.Sector && !builtDefinitionIds.Contains(d.Id))
+                .Select(d => new BuildableDefinition(
+                    d.Id, d.Name, state.Config.Raw.FactoryDefinitions.First(f => f.Id == d.Id).BuildCost))
+                .ToList();
+            if (_selectedFactoryDefinitionId is null || _buildableDefinitions.All(d => d.Id != _selectedFactoryDefinitionId))
+            {
+                _selectedFactoryDefinitionId = _buildableDefinitions.FirstOrDefault()?.Id;
+            }
+
+            _contracts = state.Contracts.Values
+                .Where(c => c.BuyerTeamId == _teamId || c.SellerTeamId == _teamId)
+                .Select(c => new ContractRow(
+                    c.BuyerTeamId == _teamId ? "Покупатель" : "Продавец",
+                    c.Terms.Material.Name, c.Terms.Volume, c.Terms.UnitPrice,
+                    DashboardDisplay.ContractStatusLabel(c.Status)))
+                .ToList();
+        }
+    }
+
+    private void BuildFactory()
+    {
+        if (_selectedFactoryDefinitionId is null)
+        {
+            return;
+        }
+
+        RunAction(() => Host.Session.BuildFactory(_teamId, _selectedFactoryDefinitionId));
+    }
+
+    private void HireWorkers(Ulid factoryId)
+    {
+        var count = _hireCounts.GetValueOrDefault(factoryId, 1);
+        RunAction(() => Host.Session.HireWorkers(_teamId, factoryId, count));
+    }
+
+    private void FireWorkers(Ulid factoryId)
+    {
+        var count = _fireCounts.GetValueOrDefault(factoryId, 1);
+        RunAction(() => Host.Session.FireWorkers(_teamId, factoryId, count));
+    }
+
+    private void SelectRecipe(Ulid factoryId)
+    {
+        if (!_selectedRecipeIds.TryGetValue(factoryId, out var recipeId))
+        {
+            return;
+        }
+
+        RunAction(() => Host.Session.SelectRecipe(_teamId, factoryId, recipeId));
+    }
+
+    private void RunAction(Action action)
+    {
+        _errorMessage = null;
+        try
+        {
+            lock (Host.SyncRoot)
+            {
+                action();
+            }
+            RefreshDashboard();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
         }
     }
 

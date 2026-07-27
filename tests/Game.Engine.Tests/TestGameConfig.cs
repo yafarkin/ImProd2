@@ -139,36 +139,75 @@ internal static class TestGameConfig
     public static ResolvedGameConfig BuildWithPhaseTiming(PhaseTimingConfig phaseTiming) =>
         Build(phaseTiming: phaseTiming);
 
+    /// <summary>
+    /// Собирает вариант базового конфига, где у сталелитейного завода два рецепта («лист» и
+    /// «проволока», оба из руды) вместо одного (Блок 9.1) — для тестов переключения продукта
+    /// фабрики, которым нужен реальный выбор, а не единственно возможный рецепт по умолчанию.
+    /// </summary>
+    public static ResolvedGameConfig BuildWithSecondMillRecipe() => Build(addSecondMillRecipe: true);
+
     private static ResolvedGameConfig Build(
         IReadOnlyList<NewsItemConfig>? news = null,
         IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null,
-        PhaseTimingConfig? phaseTiming = null)
+        PhaseTimingConfig? phaseTiming = null,
+        bool addSecondMillRecipe = false)
     {
         var config = new GameConfig
         {
             Sectors = new[] { new SectorConfig { Id = "A", Name = "Металлургия" } },
-            Materials = new[]
-            {
-                new MaterialConfig { Id = "ore", Name = "Железная руда", SectorId = "A", Level = 0 },
-                new MaterialConfig { Id = "sheet", Name = "Стальные листы", SectorId = "A", Level = 1 },
-            },
-            Recipes = new[]
-            {
-                new RecipeConfig
+            Materials = addSecondMillRecipe
+                ? new[]
                 {
-                    Id = "ore-mining", OutputMaterialId = "ore", OutputQuantity = 1m,
-                    Inputs = Array.Empty<RecipeInputConfig>(), ProductionRate = 1m,
-                },
-                new RecipeConfig
+                    new MaterialConfig { Id = "ore", Name = "Железная руда", SectorId = "A", Level = 0 },
+                    new MaterialConfig { Id = "sheet", Name = "Стальные листы", SectorId = "A", Level = 1 },
+                    new MaterialConfig { Id = "wire", Name = "Проволока", SectorId = "A", Level = 1 },
+                }
+                : new[]
                 {
-                    Id = "sheet-from-ore", OutputMaterialId = "sheet", OutputQuantity = 1m,
-                    Inputs = new[] { new RecipeInputConfig { MaterialId = "ore", Quantity = 2m } }, ProductionRate = 1m,
+                    new MaterialConfig { Id = "ore", Name = "Железная руда", SectorId = "A", Level = 0 },
+                    new MaterialConfig { Id = "sheet", Name = "Стальные листы", SectorId = "A", Level = 1 },
                 },
-            },
+            Recipes = addSecondMillRecipe
+                ? new[]
+                {
+                    new RecipeConfig
+                    {
+                        Id = "ore-mining", OutputMaterialId = "ore", OutputQuantity = 1m,
+                        Inputs = Array.Empty<RecipeInputConfig>(), ProductionRate = 1m,
+                    },
+                    new RecipeConfig
+                    {
+                        Id = "sheet-from-ore", OutputMaterialId = "sheet", OutputQuantity = 1m,
+                        Inputs = new[] { new RecipeInputConfig { MaterialId = "ore", Quantity = 2m } }, ProductionRate = 1m,
+                    },
+                    new RecipeConfig
+                    {
+                        Id = "wire-from-ore", OutputMaterialId = "wire", OutputQuantity = 1m,
+                        Inputs = new[] { new RecipeInputConfig { MaterialId = "ore", Quantity = 1m } }, ProductionRate = 1m,
+                    },
+                }
+                : new[]
+                {
+                    new RecipeConfig
+                    {
+                        Id = "ore-mining", OutputMaterialId = "ore", OutputQuantity = 1m,
+                        Inputs = Array.Empty<RecipeInputConfig>(), ProductionRate = 1m,
+                    },
+                    new RecipeConfig
+                    {
+                        Id = "sheet-from-ore", OutputMaterialId = "sheet", OutputQuantity = 1m,
+                        Inputs = new[] { new RecipeInputConfig { MaterialId = "ore", Quantity = 2m } }, ProductionRate = 1m,
+                    },
+                },
             FactoryDefinitions = new[]
             {
                 new FactoryDefinitionConfig { Id = "iron-mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m },
-                new FactoryDefinitionConfig { Id = "steel-mill", Name = "Сталелитейный завод", SectorId = "A", RecipeIds = new[] { "sheet-from-ore" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m },
+                new FactoryDefinitionConfig
+                {
+                    Id = "steel-mill", Name = "Сталелитейный завод", SectorId = "A",
+                    RecipeIds = addSecondMillRecipe ? new[] { "sheet-from-ore", "wire-from-ore" } : new[] { "sheet-from-ore" },
+                    BuildCost = 100m, LiquidationValueCoefficient = 0.5m,
+                },
             },
             StartingConditions = new StartingConditionsConfig
             {
