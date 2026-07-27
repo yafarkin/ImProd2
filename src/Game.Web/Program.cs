@@ -84,6 +84,7 @@ app.MapPost("/auth/login", async (HttpContext http, GameSessionHost host) =>
     {
         ParticipantRole.Manager or ParticipantRole.Negotiator => "/team",
         ParticipantRole.Operator => "/operator",
+        ParticipantRole.Facilitator => "/facilitator",
         _ => "/",
     };
     return Results.Redirect(redirectTo);

@@ -1,3 +1,4 @@
+using Game.Config.Economy;
 using Game.Config.Session;
 using Game.Domain;
 using Game.Engine;
@@ -56,6 +57,15 @@ public static class DashboardDisplay
         NeedVolumeOrder.Medium => "Средний",
         NeedVolumeOrder.Large => "Крупный",
         _ => order.ToString()
+    };
+
+    /// <summary>Русская подпись тренда экономики (Блок 9.6).</summary>
+    public static string EconomyTrendLabel(EconomyTrend trend) => trend switch
+    {
+        EconomyTrend.Up => "Подъём",
+        EconomyTrend.Stable => "Стабильность",
+        EconomyTrend.Down => "Спад",
+        _ => trend.ToString()
     };
 
     /// <summary>Русская подпись типа контракта (Блок 9.3).</summary>

@@ -119,4 +119,12 @@ public sealed class GameSessionState
     /// финальная фаза хода <see cref="EndTurn"/> остаётся текущей (она и так read-only).
     /// </summary>
     public bool IsFinished { get; internal set; }
+
+    /// <summary>
+    /// Доступна ли аварийная закупка сейчас (Блок 9.6, SPEC §9.5: «вкл/выкл»). Начальное значение —
+    /// из <see cref="Config"/> (заполняется событием <see cref="SessionStarted"/>), дальше
+    /// переключается ведущим поверх него, событием <see cref="EmergencyPurchaseToggled"/> — в
+    /// отличие от каталога, это уже эволюционирующее состояние сессии, не статичный конфиг.
+    /// </summary>
+    public bool EmergencyPurchaseEnabled { get; internal set; }
 }

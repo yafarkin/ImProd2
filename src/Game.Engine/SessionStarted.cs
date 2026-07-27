@@ -48,6 +48,7 @@ public sealed record SessionStarted : Change<GameSessionState>
         state.PhaseExtensionSeconds = TimeSpan.Zero;
         state.IsPaused = false;
         state.IsFinished = false;
+        state.EmergencyPurchaseEnabled = state.Config.Raw.FeatureFlags.EmergencyPurchaseEnabled;
 
         foreach (var spec in Teams)
         {

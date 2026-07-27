@@ -1,0 +1,294 @@
+@page "/facilitator"
+@attribute [Authorize(Roles = "Facilitator")]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject GameSessionHost Host
+
+<PageTitle>Ведущий</PageTitle>
+
+<h1>Вы вошли как @DisplayName (Ведущий)</h1>
+
+<p>
+    Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы: <strong>@_countdown</strong>.
+    @if (_isPaused)
+    {
+        <strong> (пауза)</strong>
+    }
+</p>
+@if (_lastNewsHeadline is not null)
+{
+    <p><em>Последняя новость: @_lastNewsHeadline</em></p>
+}
+
+@if (_errorMessage is not null)
+{
+    <div class="alert alert-danger">@_errorMessage</div>
+}
+
+<h2>Управление фазой</h2>
+<button type="button" class="btn btn-secondary" @onclick="AdvancePhaseNow">Ускорить фазу</button>
+<button type="button" class="btn btn-secondary" @onclick="TogglePause">@(_isPaused ? "Снять с паузы" : "Пауза")</button>
+<input type="number" min="1" style="width:5em" @bind="_extendSeconds" /> сек.
+<button type="button" class="btn btn-secondary" @onclick="ExtendPhase">Продлить</button>
+
+<h2>Обзор команд</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Команда</th>
+            <th>Сектор</th>
+            <th>Баланс</th>
+            <th>Долг</th>
+            <th>Репутация</th>
+            <th>Фабрик</th>
+            <th>Рабочих</th>
+            <th>Алерты</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var team in _teams)
+        {
+            <tr>
+                <td>@team.Name</td>
+                <td>@team.SectorName</td>
+                <td style="@(team.NegativeBalance ? "color:red" : null)">@DashboardDisplay.FormatMoney(team.Balance)</td>
+                <td>@DashboardDisplay.FormatMoney(team.Debt)</td>
+                <td>@team.ReputationPercentage.ToString("F0")%</td>
+                <td>@team.FactoryCount</td>
+                <td>@team.WorkerCount</td>
+                <td>
+                    @if (team.NegativeBalance)
+                    {
+                        <span>Баланс отрицательный</span>
+                    }
+                    @if (team.HadForcedLoan)
+                    {
+                        <span>Был принудительный заём</span>
+                    }
+                    @if (team.Inactive)
+                    {
+                        <span>Неактивна</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2>Грант команде</h2>
+<select @bind="_grantTeamId">
+    @foreach (var team in _teams)
+    {
+        <option value="@team.TeamId">@team.Name</option>
+    }
+</select>
+<input type="number" min="0.01" step="0.01" style="width:8em" @bind="_grantAmount" />
+<button type="button" class="btn btn-secondary" @onclick="Grant">Выдать грант</button>
+
+<h2>Аварийная закупка</h2>
+<p>
+    Сейчас: <strong>@(_emergencyPurchaseEnabled ? "включена" : "выключена")</strong>
+    <button type="button" class="btn btn-secondary" @onclick="ToggleEmergencyPurchase">
+        @(_emergencyPurchaseEnabled ? "Выключить" : "Включить")
+    </button>
+</p>
+
+<h2>Ручная новость</h2>
+@if (_availableNews.Count == 0)
+{
+    <p><em>Все заголовки уже опубликованы.</em></p>
+}
+else
+{
+    <select @bind="_newsItemId">
+        @foreach (var item in _availableNews)
+        {
+            <option value="@item.Id">@item.Label</option>
+        }
+    </select>
+    <button type="button" class="btn btn-secondary" @onclick="PublishNews">Опубликовать</button>
+}
+
+<h2>Корректировка цены</h2>
+@if (_materials.Count == 0)
+{
+    <p><em>Рынок ещё не публиковал котировок.</em></p>
+}
+else
+{
+    <select @bind="_priceMaterialId">
+        @foreach (var material in _materials)
+        {
+            <option value="@material.Id">@material.Name (сейчас @DashboardDisplay.FormatMoney(material.CurrentPrice))</option>
+        }
+    </select>
+    <input type="number" min="0" step="0.01" style="width:8em" @bind="_newPrice" />
+    <button type="button" class="btn btn-secondary" @onclick="AdjustPrice">Установить цену</button>
+}
+
+<form method="post" action="/auth/logout">
+    <button type="submit" class="btn btn-secondary">Выйти</button>
+</form>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private string? DisplayName;
+    private int _currentTurn;
+    private string _phaseLabel = string.Empty;
+    private bool _isPaused;
+    private string _countdown = string.Empty;
+    private string? _lastNewsHeadline;
+    private Timer? _tickTimer;
+    private string? _errorMessage;
+    private int _extendSeconds = 30;
+
+    private sealed record TeamRow(
+        Ulid TeamId, string Name, string SectorName, decimal Balance, decimal Debt,
+        decimal ReputationPercentage, int FactoryCount, int WorkerCount,
+        bool NegativeBalance, bool HadForcedLoan, bool Inactive);
+
+    private sealed record NewsOption(string Id, string Label);
+    private sealed record MaterialOption(string Id, string Name, decimal CurrentPrice);
+
+    private IReadOnlyList<TeamRow> _teams = Array.Empty<TeamRow>();
+    private IReadOnlyList<NewsOption> _availableNews = Array.Empty<NewsOption>();
+    private IReadOnlyList<MaterialOption> _materials = Array.Empty<MaterialOption>();
+
+    private Ulid? _grantTeamId;
+    private decimal _grantAmount = 100m;
+    private bool _emergencyPurchaseEnabled;
+    private string? _newsItemId;
+    private string? _priceMaterialId;
+    private decimal _newPrice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        DisplayName = authState.User.Identity?.Name;
+
+        RefreshStatus();
+
+        _tickTimer = new Timer(_ =>
+        {
+            RefreshStatus();
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+    }
+
+    private void RefreshStatus()
+    {
+        lock (Host.SyncRoot)
+        {
+            var state = Host.Session.State;
+
+            _currentTurn = state.CurrentTurn;
+            _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
+            _isPaused = state.IsPaused;
+            _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session, DateTimeOffset.UtcNow));
+            _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session);
+            _emergencyPurchaseEnabled = state.EmergencyPurchaseEnabled;
+
+            _teams = state.Teams.Values
+                .Select(team => new TeamRow(
+                    team.Id, team.Name, team.Sector.Name, team.Balance, team.Debt,
+                    Host.Session.GetReputation(team.Id).Percentage,
+                    team.Factories.Count, team.Factories.Sum(f => f.Workers),
+                    team.Balance < 0, team.PenaltyRateSurcharge > 0,
+                    team.Factories.Count == 0 && state.CurrentTurn > 1))
+                .OrderBy(t => t.Name, StringComparer.Ordinal)
+                .ToList();
+            if (_grantTeamId is null || _teams.All(t => t.TeamId != _grantTeamId))
+            {
+                _grantTeamId = _teams.Count > 0 ? _teams[0].TeamId : null;
+            }
+
+            _availableNews = state.Config.Raw.News
+                .Where(item => !state.NewsFeed.IsPublished(item.Id))
+                .Select(item => new NewsOption(item.Id, $"[{DashboardDisplay.EconomyTrendLabel(item.Trend)}] {item.Headline}"))
+                .ToList();
+            if (_newsItemId is null || _availableNews.All(n => n.Id != _newsItemId))
+            {
+                _newsItemId = _availableNews.Count > 0 ? _availableNews[0].Id : null;
+            }
+
+            _materials = state.Config.Materials.Values
+                .Where(m => state.Market.HasQuote(m.Id))
+                .Select(m => new MaterialOption(m.Id, m.Name, state.Market.QuoteOf(m.Id).Price))
+                .OrderBy(m => m.Name, StringComparer.Ordinal)
+                .ToList();
+            if (_priceMaterialId is null || _materials.All(m => m.Id != _priceMaterialId))
+            {
+                _priceMaterialId = _materials.Count > 0 ? _materials[0].Id : null;
+            }
+        }
+    }
+
+    private void AdvancePhaseNow() => RunAction(() => Host.Session.AdvancePhase(PhaseTransitionTrigger.Facilitator));
+
+    private void TogglePause() => RunAction(() =>
+    {
+        if (_isPaused)
+        {
+            Host.Session.Resume();
+        }
+        else
+        {
+            Host.Session.Pause();
+        }
+    });
+
+    private void ExtendPhase() => RunAction(() => Host.Session.ExtendCurrentPhase(TimeSpan.FromSeconds(_extendSeconds)));
+
+    private void Grant()
+    {
+        if (_grantTeamId is not { } teamId)
+        {
+            return;
+        }
+
+        RunAction(() => Host.Session.GrantToTeam(teamId, _grantAmount));
+    }
+
+    private void ToggleEmergencyPurchase() => RunAction(() => Host.Session.SetEmergencyPurchaseEnabled(!_emergencyPurchaseEnabled));
+
+    private void PublishNews()
+    {
+        if (_newsItemId is null)
+        {
+            return;
+        }
+
+        RunAction(() => Host.Session.PublishManualNews(_newsItemId));
+    }
+
+    private void AdjustPrice()
+    {
+        if (_priceMaterialId is null)
+        {
+            return;
+        }
+
+        RunAction(() => Host.Session.AdjustMarketPrice(_priceMaterialId, _newPrice));
+    }
+
+    private void RunAction(Action action)
+    {
+        _errorMessage = null;
+        try
+        {
+            lock (Host.SyncRoot)
+            {
+                action();
+            }
+            RefreshStatus();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    public void Dispose() => _tickTimer?.Dispose();
+}

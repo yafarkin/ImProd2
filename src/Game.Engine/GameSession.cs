@@ -440,7 +440,7 @@ public sealed class GameSession
     {
         EnsureDecisionsAllowed();
 
-        if (!State.Config.Raw.FeatureFlags.EmergencyPurchaseEnabled)
+        if (!State.EmergencyPurchaseEnabled)
         {
             throw new InvalidOperationException("Emergency purchase is disabled in this session.");
         }
@@ -702,6 +702,43 @@ public sealed class GameSession
             Trend = item.Trend,
             Headline = item.Headline,
         });
+    }
+
+    /// <summary>
+    /// Ведущий выдаёт безвозмездный грант отстающей команде (Блок 9.6, SPEC §9.5). Не привязано к
+    /// фазе решений — это действие ведущего, а не команды.
+    /// </summary>
+    public EventLogEntry<GameSessionState> GrantToTeam(Ulid teamId, decimal amount)
+    {
+        if (amount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Grant amount must be positive.");
+        }
+        GetTeam(teamId);
+
+        return _log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
+    }
+
+    /// <summary>
+    /// Ведущий включает/выключает аварийную закупку на время сессии (Блок 9.6, SPEC §9.5) — поверх
+    /// стартового значения из конфига. Не привязано к фазе решений — это действие ведущего, а не команды.
+    /// </summary>
+    public EventLogEntry<GameSessionState> SetEmergencyPurchaseEnabled(bool enabled) =>
+        _log.Append(new EmergencyPurchaseToggled { Id = Ulid.NewUlid(), Enabled = enabled });
+
+    /// <summary>
+    /// Ведущий вручную корректирует цену материала (Блок 9.6, SPEC §9.5), минуя обычный пересчёт
+    /// рынка. Не привязано к фазе решений — это действие ведущего, а не команды.
+    /// </summary>
+    public EventLogEntry<GameSessionState> AdjustMarketPrice(string materialId, decimal newPrice)
+    {
+        if (newPrice < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(newPrice), newPrice, "Price must not be negative.");
+        }
+        GetQuoteOrThrow(materialId);
+
+        return _log.Append(new MarketPriceAdjusted { Id = Ulid.NewUlid(), MaterialId = materialId, NewPrice = newPrice });
     }
 
     /// <summary>

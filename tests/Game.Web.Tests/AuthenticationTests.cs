@@ -113,4 +113,15 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Facilitator_Page_Allows_A_Logged_In_Facilitator()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Facilitator));
+
+        var response = await client.GetAsync("/facilitator");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
 }

@@ -53,6 +53,17 @@ public sealed class Market
         ElectricityPrice = electricityPrice;
     }
 
+    /// <summary>
+    /// Вручную корректирует цену материала (Блок 9.6, SPEC §9.5) — минуя обычный пересчёт
+    /// <see cref="Game.Engine.MarketCalculator"/>, ёмкость и счётчик проданного объёма не трогает.
+    /// Бросает, если котировки материала ещё нет (см. <see cref="QuoteOf"/>).
+    /// </summary>
+    public void AdjustPrice(string materialId, decimal newPrice)
+    {
+        var existing = QuoteOf(materialId);
+        _quotes[materialId] = new MaterialQuote(newPrice, existing.Capacity);
+    }
+
     /// <summary>Учитывает продажу материала системе в счётчике объёма этого хода; вызывается только из события продажи движка.</summary>
     public void RecordSale(string materialId, decimal volume)
     {
