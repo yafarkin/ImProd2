@@ -146,11 +146,19 @@ internal static class TestGameConfig
     /// </summary>
     public static ResolvedGameConfig BuildWithSecondMillRecipe() => Build(addSecondMillRecipe: true);
 
+    /// <summary>
+    /// Собирает вариант базового конфига с другими параметрами склада (Блок 9.2) — для сквозного
+    /// теста платы за превышение через <see cref="GameSession.RunTick"/>, которому нужен лимит ниже
+    /// заглушки по умолчанию (1000 единиц), недостижимой за один ход в тесте.
+    /// </summary>
+    public static ResolvedGameConfig BuildWithWarehouse(WarehouseConfig warehouse) => Build(warehouse: warehouse);
+
     private static ResolvedGameConfig Build(
         IReadOnlyList<NewsItemConfig>? news = null,
         IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null,
         PhaseTimingConfig? phaseTiming = null,
-        bool addSecondMillRecipe = false)
+        bool addSecondMillRecipe = false,
+        WarehouseConfig? warehouse = null)
     {
         var config = new GameConfig
         {
@@ -252,7 +260,7 @@ internal static class TestGameConfig
                 CumulativeInvestmentThresholdsByLevel = new[] { 100m, 300m },
                 ProductionRateBonusPerLevel = 0.1m,
             },
-            Warehouse = new WarehouseConfig { FreeCapacity = 1000m, OverageFeePerUnit = 0.1m },
+            Warehouse = warehouse ?? new WarehouseConfig { FreeCapacity = 1000m, OverageFeePerUnit = 0.1m },
             Reputation = new ReputationConfig { HalfLifeTurns = 10, WarmupTurns = 3, TerminationSeverityMultiplier = 3m },
             Contracts = new ContractsConfig
             {

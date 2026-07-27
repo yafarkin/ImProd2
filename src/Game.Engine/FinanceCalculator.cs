@@ -19,13 +19,25 @@ public static class FinanceCalculator
     public static decimal CalculateEffectiveLoanRate(Team team, StartingConditionsConfig loanConfig, decimal reputationPercentage)
     {
         ArgumentNullException.ThrowIfNull(team);
+
+        return CalculateEffectiveLoanRate(team.Debt, team.PenaltyRateSurcharge, reputationPercentage, loanConfig);
+    }
+
+    /// <summary>
+    /// То же самое на сырых числах, а не на живой команде (Блок 9.2) — нужно для предпросмотра
+    /// ставки/платежа гипотетического займа до подтверждения (SPEC §5.9: «в UI до подтверждения —
+    /// расчёт платежа за ход»), где долг после займа ещё не применён ни к какой реальной команде.
+    /// </summary>
+    public static decimal CalculateEffectiveLoanRate(
+        decimal debt, decimal penaltyRateSurcharge, decimal reputationPercentage, StartingConditionsConfig loanConfig)
+    {
         ArgumentNullException.ThrowIfNull(loanConfig);
 
         var reputationPenalty = loanConfig.MaxReputationRatePenalty * (100m - reputationPercentage) / 100m;
 
         return loanConfig.BaseLoanInterestRate
-               + loanConfig.LoanInterestRateGrowthPerUnitBorrowed * team.Debt
-               + team.PenaltyRateSurcharge
+               + loanConfig.LoanInterestRateGrowthPerUnitBorrowed * debt
+               + penaltyRateSurcharge
                + reputationPenalty;
     }
 

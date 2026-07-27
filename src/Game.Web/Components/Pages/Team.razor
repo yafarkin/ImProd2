@@ -66,6 +66,45 @@ else
     }
 }
 
+<h3>Склад</h3>
+<p>
+    Занято: @_usedCapacity.ToString("0.##") / @_freeCapacity.ToString("0.##") (бесплатный лимит)
+    @if (_projectedWarehouseFee > 0)
+    {
+        <text> — превышение лимита; на следующем ходу спишется @DashboardDisplay.FormatMoney(_projectedWarehouseFee)</text>
+    }
+</p>
+@if (_stock.Count == 0)
+{
+    <p><em>Склад пуст.</em></p>
+}
+else
+{
+    @foreach (var row in _stock)
+    {
+        <div>
+            @row.MaterialName: @row.Quantity.ToString("0.##")
+            @if (_isDecisionPhase)
+            {
+                <input type="number" min="0.01" step="0.01" style="width:6em" @bind="_sellVolumes[row.MaterialId]" />
+                <button type="button" class="btn btn-secondary" @onclick="() => SellToSystem(row.MaterialId)">Продать системе</button>
+            }
+        </div>
+    }
+}
+@if (_isDecisionPhase && _emergencyPurchaseEnabled && _emergencyPurchaseMaterials.Count > 0)
+{
+    <h4>Аварийная закупка</h4>
+    <select @bind="_emergencyPurchaseMaterialId">
+        @foreach (var material in _emergencyPurchaseMaterials)
+        {
+            <option value="@material.Id">@material.Name</option>
+        }
+    </select>
+    <input type="number" min="0.01" step="0.01" style="width:6em" @bind="_emergencyPurchaseVolume" />
+    <button type="button" class="btn btn-secondary" @onclick="EmergencyPurchase">Купить</button>
+}
+
 <h3>Фабрики</h3>
 @if (_factories.Count == 0)
 {
@@ -79,6 +118,17 @@ else
             <p>
                 <strong>@factory.DefinitionName</strong> — уровень @factory.Level, рабочих: @factory.Workers,
                 продукт: @factory.SelectedRecipeName
+            </p>
+            <p>
+                R&amp;D: вложено @factory.RndInvestment.ToString("0.##")
+                @if (factory.NextLevelThreshold is { } threshold)
+                {
+                    <text>(до следующего уровня: @threshold.ToString("0.##"))</text>
+                }
+                else
+                {
+                    <text>(максимальный уровень)</text>
+                }
             </p>
 
             @if (factory.HasUnitCost)
@@ -121,9 +171,30 @@ else
                         <button type="button" class="btn btn-secondary" @onclick="() => SelectRecipe(factory.FactoryId)">Сменить продукт</button>
                     </div>
                 }
+
+                <div>
+                    <input type="number" min="0.01" step="0.01" style="width:6em" @bind="_rndInvestAmounts[factory.FactoryId]" />
+                    <button type="button" class="btn btn-secondary" @onclick="() => InvestInRnd(factory.FactoryId)">Вложить в R&amp;D</button>
+                </div>
             }
         </div>
     }
+}
+
+<h3>Кредиты</h3>
+<p>
+    Долг: @DashboardDisplay.FormatMoney(_debt), текущая ставка: @DashboardDisplay.FormatRate(_currentLoanRate)
+</p>
+@if (_isDecisionPhase)
+{
+    <input type="number" min="0.01" step="0.01" style="width:8em" @bind="_loanAmount" @bind:event="oninput" />
+    <button type="button" class="btn btn-secondary" @onclick="TakeLoan">Взять кредит</button>
+    <p>
+        <em>
+            Предпросмотр: ставка @DashboardDisplay.FormatRate(LoanPreview().Rate),
+            платёж за следующий ход @DashboardDisplay.FormatMoney(LoanPreview().Payment)
+        </em>
+    </p>
 }
 
 <h2>Что я обещал другим</h2>
@@ -166,11 +237,16 @@ else
     private sealed record FactoryRow(
         Ulid FactoryId, string DefinitionName, int Level, int Workers,
         string SelectedRecipeName, IReadOnlyList<(string Id, string Name)> RecipeOptions,
-        bool HasUnitCost, decimal UnitCost, IReadOnlyList<DashboardDisplay.PyramidRow> Pyramid);
+        bool HasUnitCost, decimal UnitCost, IReadOnlyList<DashboardDisplay.PyramidRow> Pyramid,
+        decimal RndInvestment, decimal? NextLevelThreshold);
 
     private sealed record BuildableDefinition(string Id, string Name, decimal BuildCost);
 
     private sealed record ContractRow(string Role, string MaterialName, decimal Volume, decimal UnitPrice, string StatusLabel);
+
+    private sealed record StockRow(string MaterialId, string MaterialName, decimal Quantity);
+
+    private sealed record MaterialOption(string Id, string Name);
 
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
@@ -196,12 +272,27 @@ else
     private IReadOnlyList<FactoryRow> _factories = Array.Empty<FactoryRow>();
     private IReadOnlyList<BuildableDefinition> _buildableDefinitions = Array.Empty<BuildableDefinition>();
     private IReadOnlyList<ContractRow> _contracts = Array.Empty<ContractRow>();
+    private IReadOnlyList<StockRow> _stock = Array.Empty<StockRow>();
+    private IReadOnlyList<MaterialOption> _emergencyPurchaseMaterials = Array.Empty<MaterialOption>();
 
     private readonly Dictionary<Ulid, int> _hireCounts = new();
     private readonly Dictionary<Ulid, int> _fireCounts = new();
     private readonly Dictionary<Ulid, string> _selectedRecipeIds = new();
+    private readonly Dictionary<Ulid, decimal> _rndInvestAmounts = new();
+    private readonly Dictionary<string, decimal> _sellVolumes = new();
     private string? _selectedFactoryDefinitionId;
     private string? _errorMessage;
+
+    private decimal _usedCapacity;
+    private decimal _freeCapacity;
+    private decimal _projectedWarehouseFee;
+    private bool _emergencyPurchaseEnabled;
+    private string? _emergencyPurchaseMaterialId;
+    private decimal _emergencyPurchaseVolume = 1m;
+
+    private Game.Config.Session.StartingConditionsConfig? _loanConfig;
+    private decimal _currentLoanRate;
+    private decimal _loanAmount = 100m;
 
     protected override async Task OnInitializedAsync()
     {
@@ -244,6 +335,19 @@ else
             _isDecisionPhase = state.CurrentPhase == TurnPhase.Decision;
             _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session, DateTimeOffset.UtcNow));
             _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session);
+            var loanConfig = state.Config.Raw.StartingConditions;
+            _loanConfig = loanConfig;
+            _freeCapacity = state.Config.Raw.Warehouse.FreeCapacity;
+            _emergencyPurchaseEnabled = state.Config.Raw.FeatureFlags.EmergencyPurchaseEnabled;
+            _emergencyPurchaseMaterials = state.Config.Materials.Values
+                .Where(m => state.Market.HasQuote(m.Id))
+                .OrderBy(m => m.Id, StringComparer.Ordinal)
+                .Select(m => new MaterialOption(m.Id, m.Name))
+                .ToList();
+            if (_emergencyPurchaseMaterialId is null || _emergencyPurchaseMaterials.All(m => m.Id != _emergencyPurchaseMaterialId))
+            {
+                _emergencyPurchaseMaterialId = _emergencyPurchaseMaterials.FirstOrDefault()?.Id;
+            }
 
             if (!state.Teams.TryGetValue(_teamId, out var team))
             {
@@ -257,23 +361,35 @@ else
             var reputation = Host.Session.GetReputation(_teamId);
             _reputationPercentage = reputation.Percentage;
             _reputationSampleCount = reputation.SampleCount;
+            _currentLoanRate = FinanceCalculator.CalculateEffectiveLoanRate(team, loanConfig, _reputationPercentage);
 
+            _stock = team.Warehouse.Stock.Select(s =>
+            {
+                _sellVolumes.TryAdd(s.Material.Id, 1m);
+                return new StockRow(s.Material.Id, s.Material.Name, s.Quantity);
+            }).ToList();
+            _usedCapacity = _stock.Sum(s => s.Quantity);
+            _projectedWarehouseFee = WarehouseFeeCalculator.Calculate(_usedCapacity, state.Config.Raw.Warehouse).Fee;
+
+            var rndThresholds = state.Config.Raw.Rnd.CumulativeInvestmentThresholdsByLevel;
             _factories = team.Factories.Select(factory =>
             {
                 _hireCounts.TryAdd(factory.Id, 1);
                 _fireCounts.TryAdd(factory.Id, 1);
                 _selectedRecipeIds.TryAdd(factory.Id, factory.SelectedRecipe.Id);
+                _rndInvestAmounts.TryAdd(factory.Id, 50m);
 
                 var hasUnitCost = DashboardDisplay.TryCalculateUnitCost(factory.SelectedRecipe.Output, state, out var unitCost);
                 var pyramid = hasUnitCost
                     ? DashboardDisplay.FlattenPyramid(CostCalculator.BuildInputPyramid(factory.SelectedRecipe.Output, 1m, state.Config.RecipeBook))
                     : Array.Empty<DashboardDisplay.PyramidRow>();
+                var nextLevelThreshold = factory.Level - 1 < rndThresholds.Count ? rndThresholds[factory.Level - 1] : (decimal?)null;
 
                 return new FactoryRow(
                     factory.Id, factory.Definition.Name, factory.Level, factory.Workers,
                     factory.SelectedRecipe.Output.Name,
                     factory.Definition.Recipes.Select(r => (r.Id, r.Output.Name)).ToList(),
-                    hasUnitCost, unitCost, pyramid);
+                    hasUnitCost, unitCost, pyramid, factory.RndInvestment, nextLevelThreshold);
             }).ToList();
 
             var builtDefinitionIds = team.Factories.Select(f => f.Definition.Id).ToHashSet();
@@ -327,6 +443,43 @@ else
         }
 
         RunAction(() => Host.Session.SelectRecipe(_teamId, factoryId, recipeId));
+    }
+
+    private void SellToSystem(string materialId)
+    {
+        var volume = _sellVolumes.GetValueOrDefault(materialId, 1m);
+        RunAction(() => Host.Session.SellToSystem(_teamId, materialId, volume));
+    }
+
+    private void EmergencyPurchase()
+    {
+        if (_emergencyPurchaseMaterialId is null)
+        {
+            return;
+        }
+
+        RunAction(() => Host.Session.EmergencyPurchase(_teamId, _emergencyPurchaseMaterialId, _emergencyPurchaseVolume));
+    }
+
+    private void InvestInRnd(Ulid factoryId)
+    {
+        var amount = _rndInvestAmounts.GetValueOrDefault(factoryId, 50m);
+        RunAction(() => Host.Session.InvestInRnd(_teamId, factoryId, amount));
+    }
+
+    private void TakeLoan()
+    {
+        RunAction(() => Host.Session.TakeLoan(_teamId, _loanAmount));
+    }
+
+    private (decimal Rate, decimal Payment) LoanPreview()
+    {
+        if (_loanConfig is null)
+        {
+            return (0m, 0m);
+        }
+
+        return DashboardDisplay.PreviewLoan(_debt, _penaltyRateSurcharge, _reputationPercentage, _loanAmount, _loanConfig);
     }
 
     private void RunAction(Action action)

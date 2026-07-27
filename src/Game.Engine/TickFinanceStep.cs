@@ -15,16 +15,20 @@ public static class TickFinanceStep
 {
     /// <summary>
     /// (Опц.) налоги и депозиты (SPEC §5.9-§5.10) в этот шаг не входят — сознательно отложены, см.
-    /// AGENTS-память. <paramref name="reputationPercentage"/> — репутация команды на момент начала
+    /// AGENTS-память. Плата за превышение склада (Блок 9.2, SPEC §5.7) уже входит — считается по
+    /// остатку склада на начало хода, тем же порядком, что проценты (по долгу) и зарплата (по числу
+    /// рабочих). <paramref name="reputationPercentage"/> — репутация команды на момент начала
     /// этого хода (Блок 6.2), посчитанная вызывающим кодом по истории журнала <em>до</em> событий
     /// этого же тика: собственные поставки/срывы текущего хода ещё не должны влиять на его же ставку.
     /// </summary>
     public static IReadOnlyList<Change<GameSessionState>> Run(
-        Team team, StartingConditionsConfig loanConfig, WorkerProductivityConfig workerConfig, decimal reputationPercentage)
+        Team team, StartingConditionsConfig loanConfig, WorkerProductivityConfig workerConfig,
+        WarehouseConfig warehouseConfig, decimal reputationPercentage)
     {
         ArgumentNullException.ThrowIfNull(team);
         ArgumentNullException.ThrowIfNull(loanConfig);
         ArgumentNullException.ThrowIfNull(workerConfig);
+        ArgumentNullException.ThrowIfNull(warehouseConfig);
 
         var changes = new List<Change<GameSessionState>>();
         var projectedBalance = team.Balance;
@@ -48,6 +52,20 @@ public static class TickFinanceStep
         {
             changes.Add(new SalariesPaid { Id = Ulid.NewUlid(), TeamId = team.Id, TotalWorkers = totalWorkers, Amount = salaries });
             projectedBalance -= salaries;
+        }
+
+        var totalStock = team.Warehouse.Stock.Sum(stock => stock.Quantity);
+        var warehouseFee = WarehouseFeeCalculator.Calculate(totalStock, warehouseConfig);
+        if (warehouseFee.Fee > 0)
+        {
+            changes.Add(new WarehouseFeeCharged
+            {
+                Id = Ulid.NewUlid(),
+                TeamId = team.Id,
+                OverageQuantity = warehouseFee.OverageQuantity,
+                Amount = warehouseFee.Fee,
+            });
+            projectedBalance -= warehouseFee.Fee;
         }
 
         if (projectedBalance < 0)

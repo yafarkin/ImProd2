@@ -67,6 +67,30 @@ public class FinanceCalculatorTests
     }
 
     [Fact]
+    public void CalculateEffectiveLoanRate_Raw_Values_Overload_Matches_The_Team_Based_Overload()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+        team.TakeLoan(1000m);
+        team.IncreasePenaltyRateSurcharge(0.2m);
+
+        var fromTeam = FinanceCalculator.CalculateEffectiveLoanRate(team, LoanConfig, reputationPercentage: 50m);
+        var fromRawValues = FinanceCalculator.CalculateEffectiveLoanRate(
+            team.Debt, team.PenaltyRateSurcharge, reputationPercentage: 50m, LoanConfig);
+
+        Assert.Equal(fromTeam, fromRawValues);
+    }
+
+    [Fact]
+    public void CalculateEffectiveLoanRate_Preview_With_An_Additional_Amount_Is_Higher_Than_The_Current_Rate()
+    {
+        // предпросмотр займа (Блок 9.2, SPEC §5.9): ставка на итоговый долг после гипотетического займа.
+        var currentRate = FinanceCalculator.CalculateEffectiveLoanRate(1000m, 0m, reputationPercentage: 100m, LoanConfig);
+        var previewRate = FinanceCalculator.CalculateEffectiveLoanRate(1000m + 500m, 0m, reputationPercentage: 100m, LoanConfig);
+
+        Assert.True(previewRate > currentRate);
+    }
+
+    [Fact]
     public void CalculateSalaries_Multiplies_Worker_Count_By_The_Configured_Rate()
     {
         Assert.Equal(35m, FinanceCalculator.CalculateSalaries(totalWorkers: 7, WorkerConfig));

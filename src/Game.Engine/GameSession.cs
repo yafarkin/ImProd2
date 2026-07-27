@@ -337,6 +337,26 @@ public sealed class GameSession
     }
 
     /// <summary>
+    /// Берёт дополнительный заём по решению команды (SPEC §5.9: «в любой момент», ставка — та же
+    /// кривая, что у стартового кредита и процентов, см. <see cref="FinanceCalculator"/>). В отличие
+    /// от <see cref="Game.Config.Session.StartingConditionsConfig.MaxStartingLoanAmount"/> (проверяется
+    /// только при старте сессии), дополнительный заём не ограничен суммой — риск команды
+    /// самонаказывающийся через растущую ставку, а не через жёсткий потолок. Требует фазы решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> TakeLoan(Ulid teamId, decimal amount)
+    {
+        EnsureDecisionsAllowed();
+
+        if (amount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Loan amount must be positive.");
+        }
+        GetTeam(teamId);
+
+        return _log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
+    }
+
+    /// <summary>
     /// Строит фабрику заданного типа для команды (SPEC §5.6, Блок 7.1): постройка мгновенная —
     /// фабрика естественным образом начинает работать со следующего хода, отдельного «отложенного»
     /// состояния не требуется, так как ближайший расчёт тика уже увидит её в составе команды.
@@ -456,6 +476,28 @@ public sealed class GameSession
             FactoryId = factoryId,
             RecipeId = recipe.Id,
         });
+    }
+
+    /// <summary>
+    /// Вкладывает деньги команды в R&amp;D конкретной фабрики (SPEC §5.8): накопленные вложения
+    /// двигают фабрику по уровням, темп выбирает команда. Может вернуть несколько событий — само
+    /// вложение и, если накопленное вложение перешагивает один или несколько порогов, столько же
+    /// событий перехода уровня подряд (<see cref="RndInvestmentStep"/>). Требует фазы решений.
+    /// </summary>
+    public IReadOnlyList<EventLogEntry<GameSessionState>> InvestInRnd(Ulid teamId, Ulid factoryId, decimal amount)
+    {
+        EnsureDecisionsAllowed();
+
+        var team = GetTeam(teamId);
+        var factory = GetFactory(team, factoryId);
+
+        var appended = new List<EventLogEntry<GameSessionState>>();
+        foreach (var change in RndInvestmentStep.Run(teamId, factory, amount, State.Config.Raw.Rnd))
+        {
+            appended.Add(_log.Append(change));
+        }
+
+        return appended;
     }
 
     /// <summary>
@@ -611,7 +653,8 @@ public sealed class GameSession
         foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
         {
             var reputation = GetReputation(team.Id);
-            foreach (var change in TickFinanceStep.Run(team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, reputation.Percentage))
+            foreach (var change in TickFinanceStep.Run(
+                team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse, reputation.Percentage))
             {
                 appended.Add(_log.Append(change));
             }

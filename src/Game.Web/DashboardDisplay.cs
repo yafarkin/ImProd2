@@ -1,3 +1,4 @@
+using Game.Config.Session;
 using Game.Domain;
 using Game.Engine;
 
@@ -12,6 +13,22 @@ public static class DashboardDisplay
 {
     /// <summary>Денежная сумма для отображения на экране.</summary>
     public static string FormatMoney(decimal amount) => $"{amount:N0} ₽";
+
+    /// <summary>Процентная ставка для отображения на экране (Блок 9.2).</summary>
+    public static string FormatRate(decimal rate) => rate.ToString("P1");
+
+    /// <summary>Предпросмотр ставки и платежа за ход для гипотетического займа (Блок 9.2, SPEC §5.9:
+    /// «в UI до подтверждения — расчёт платежа за ход») — до того, как команда его подтвердила.</summary>
+    public static (decimal Rate, decimal Payment) PreviewLoan(
+        decimal currentDebt, decimal penaltyRateSurcharge, decimal reputationPercentage,
+        decimal additionalAmount, StartingConditionsConfig loanConfig)
+    {
+        var projectedDebt = currentDebt + additionalAmount;
+        var rate = FinanceCalculator.CalculateEffectiveLoanRate(
+            projectedDebt, penaltyRateSurcharge, reputationPercentage, loanConfig);
+
+        return (rate, rate * projectedDebt);
+    }
 
     /// <summary>Русская подпись статуса контракта для дашборда («что я обещал другим»).</summary>
     public static string ContractStatusLabel(ContractStatus status) => status switch
