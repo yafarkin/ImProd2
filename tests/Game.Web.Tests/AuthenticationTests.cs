@@ -40,8 +40,8 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var teams = new[]
         {
-            new TeamSpec { Id = alphaId, Name = "Альфа", SectorId = sectorA.Id, StartingLoanAmount = 10_000m },
-            new TeamSpec { Id = betaId, Name = "Бета", SectorId = sectorB.Id, StartingLoanAmount = 10_000m },
+            new TeamSpec { Id = alphaId, Name = "Альфа", SectorId = sectorA.Id },
+            new TeamSpec { Id = betaId, Name = "Бета", SectorId = sectorB.Id },
         };
         var preset = config.Raw.SessionPresets.Single(p => p.Id == "short");
 
@@ -124,6 +124,61 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("/operator?welcome=1", response.Headers.Location!.OriginalString);
+        Assert.True(response.Headers.Contains("Set-Cookie"));
+    }
+
+    /// <summary>
+    /// Регрессия: код застейдженного (ещё не в живой сессии) участника раньше давал «код не
+    /// найден» до тех пор, пока администратор не нажимал «Начать сессию» — хотя код уже был
+    /// показан по QR/на бумаге во время подготовки и должен пускать сразу. Изолированная фабрика +
+    /// <see cref="GameSessionHost.HardReset"/>, как и у других тестов черновика, требующих
+    /// <c>Session is null</c>.
+    /// </summary>
+    [Fact]
+    public async Task Staged_Participant_Code_Logs_In_Before_The_Session_Has_Started()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
+        host.AddStagedTeam("Омега", host.DefaultConfig.Sectors.First().Id);
+        var team = host.StagedTeams.Single();
+        var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Омега");
+
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var response = await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/team?welcome=1", response.Headers.Location!.OriginalString);
+        Assert.True(response.Headers.Contains("Set-Cookie"));
+    }
+
+    /// <summary>
+    /// Регрессия: управляющий, зашедший до старта сессии по застейдженному коду (см. предыдущий
+    /// тест), нажимал «Добавить переговорщика» на /team и получал «Сессия сейчас не активна» —
+    /// самообслуживание было заведено только на <see cref="GameSessionHost.RegisterParticipant"/>,
+    /// который требует живую сессию. Team.razor теперь в этом случае зовёт
+    /// <see cref="GameSessionHost.AddStagedParticipant"/> (тот же черновик, что и у управляющего
+    /// команды) — здесь проверяется именно эта комбинация целиком: застейдженный так переговорщик
+    /// должен так же спокойно логиниться, как и сам управляющий.
+    /// </summary>
+    [Fact]
+    public async Task Negotiator_Staged_By_A_Manager_Before_The_Session_Has_Started_Can_Log_In()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
+        host.AddStagedTeam("Сигма", host.DefaultConfig.Sectors.First().Id);
+        var team = host.StagedTeams.Single();
+        host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Сигма");
+        var negotiator = host.AddStagedParticipant(ParticipantRole.Negotiator, team.Id, "Переговорщик Сигма");
+
+        var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var response = await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = negotiator.Code }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/team?welcome=1", response.Headers.Location!.OriginalString);
         Assert.True(response.Headers.Contains("Set-Cookie"));
     }
 
@@ -236,6 +291,36 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await client.GetAsync("/screen");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    /// <summary>
+    /// «Мой код» читает код прямо из клеймов куки входа, а не из GameSessionHost — работает для
+    /// любой роли и переживает даже перезапуск/сброс игровой сессии на сервере (см. запрос
+    /// пользователя: «представь, что сессия вылетит»).
+    /// </summary>
+    [Fact]
+    public async Task MyCode_Page_Shows_The_Logged_In_Managers_Own_Code()
+    {
+        var client = CreateClient();
+        var code = SeedCodeFor(ParticipantRole.Manager);
+        await PostLogin(client, code);
+
+        var response = await client.GetAsync("/my-code");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains(code, body);
+    }
+
+    [Fact]
+    public async Task MyCode_Page_Redirects_To_Login_When_Unauthenticated()
+    {
+        var client = CreateClient();
+
+        var response = await client.GetAsync("/my-code");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/login", response.Headers.Location!.PathAndQuery);
     }
 
     [Fact]
@@ -384,11 +469,10 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var host = _factory.Services.GetRequiredService<GameSessionHost>();
 
-        host.AddStagedTeam("Тестовая", "A", 500m);
+        host.AddStagedTeam("Тестовая", "A");
         var staged = host.StagedTeams.Single(t => t.Name == "Тестовая");
 
         Assert.Equal("A", staged.SectorId);
-        Assert.Equal(500m, staged.StartingLoanAmount);
 
         host.RemoveStagedTeam(staged.Id);
 
@@ -405,7 +489,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
     public void SetDraftConfig_Replaces_Config_And_Clears_Staged_Teams()
     {
         var host = _factory.Services.GetRequiredService<GameSessionHost>();
-        host.AddStagedTeam("Черновая", "A", 100m);
+        host.AddStagedTeam("Черновая", "A");
 
         host.SetDraftConfig(host.TrainingConfig);
 
@@ -423,7 +507,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var host = _factory.Services.GetRequiredService<GameSessionHost>();
 
-        host.AddStagedTeam("Дельта", "A", 200m);
+        host.AddStagedTeam("Дельта", "A");
         var team = host.StagedTeams.Single(t => t.Name == "Дельта");
         var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Дельта");
         var operatorSpec = host.AddStagedParticipant(ParticipantRole.Operator, null, "Оператор Дельта");
@@ -446,7 +530,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
     public void SetDraftConfig_Clears_TeamScoped_Staged_Participants_But_Preserves_RoleLess_Ones()
     {
         var host = _factory.Services.GetRequiredService<GameSessionHost>();
-        host.AddStagedTeam("Эпсилон", "A", 100m);
+        host.AddStagedTeam("Эпсилон", "A");
         var team = host.StagedTeams.Single(t => t.Name == "Эпсилон");
         var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Эпсилон");
         var facilitatorSpec = host.AddStagedParticipant(ParticipantRole.Facilitator, null, "Черновой ведущий");
@@ -472,7 +556,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         host.HardReset();
 
         var sectorId = host.DefaultConfig.Sectors.First().Id;
-        host.AddStagedTeam("Гамма", sectorId, 500m);
+        host.AddStagedTeam("Гамма", sectorId);
         var team = host.StagedTeams.Single();
         var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Гамма");
         var operatorSpec = host.AddStagedParticipant(ParticipantRole.Operator, null, "Оператор Черновик");
@@ -492,6 +576,71 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
 
         Assert.Empty(host.StagedTeams);
         Assert.Empty(host.StagedParticipants);
+    }
+
+    /// <summary>
+    /// Правило «нельзя начать сессию без единой команды» — прикладного слоя
+    /// (<see cref="GameSessionHost.StartNewSession"/>), не движка (см. его doc-comment): движок
+    /// (<see cref="GameSession.StartWithEndTurn"/>) намеренно позволяет пустой список команд — этим
+    /// пользуются юнит-тесты Game.Engine.Tests, которым команды не нужны для проверяемой механики.
+    /// Регрессия на реальный баг: раньше страница администратора реально позволяла нажать «Начать
+    /// сессию» без единой заведённой команды и без единого участника.
+    /// </summary>
+    [Fact]
+    public void StartNewSession_Throws_When_Teams_Is_Empty()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
+        var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
+
+        Assert.Throws<ArgumentException>(() => host.StartNewSession(host.DefaultConfig, preset, Array.Empty<TeamSpec>()));
+        Assert.Null(host.Session);
+    }
+
+    /// <summary>То же правило, но через реальный путь администратора — старт из черновика без единой заведённой команды.</summary>
+    [Fact]
+    public void StartSessionFromDraft_Throws_When_No_Teams_Are_Staged()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
+        var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
+
+        Assert.Throws<ArgumentException>(() => host.StartSessionFromDraft(preset));
+        Assert.Null(host.Session);
+    }
+
+    /// <summary>
+    /// Регрессия на реальный баг: команду можно было завести и стартовать сессию, не назначив ей
+    /// управляющего — без него команда неиграбельна (только он может заводить остальной состав
+    /// самообслуживанием и подтверждать сделки). Черновик после ошибки не трогается — можно
+    /// доназначить управляющего и повторить попытку без потери уже введённых данных.
+    /// </summary>
+    [Fact]
+    public void StartSessionFromDraft_Throws_When_A_Team_Has_No_Manager()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
+        var sectorId = host.DefaultConfig.Sectors.First().Id;
+        host.AddStagedTeam("Дзета", sectorId);
+        var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
+
+        var ex = Assert.Throws<InvalidOperationException>(() => host.StartSessionFromDraft(preset));
+        Assert.Contains("Дзета", ex.Message);
+        Assert.Null(host.Session);
+        Assert.Single(host.StagedTeams);
+
+        var team = host.StagedTeams.Single();
+        host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Дзета");
+
+        host.StartSessionFromDraft(preset);
+
+        Assert.NotNull(host.Session);
     }
 
     [Fact]

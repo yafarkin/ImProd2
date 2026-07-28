@@ -21,7 +21,7 @@ var report = BalancingHarness.RunMany(sessionCount, i =>
     {
         var sector = t % 2 == 0 ? sectorA : sectorB;
         var teamId = Ulid.NewUlid();
-        teams.Add(new TeamSpec { Id = teamId, Name = $"Бот {t}", SectorId = sector.Id, StartingLoanAmount = 10_000m });
+        teams.Add(new TeamSpec { Id = teamId, Name = $"Бот {t}", SectorId = sector.Id });
         bots.Add(new SimpleBot(teamId, sector, config));
     }
 

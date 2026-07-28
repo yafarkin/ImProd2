@@ -15,7 +15,7 @@ public class GameSessionRecipeSelectionTests
             endTurn: 999,
             new[]
             {
-                new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id, StartingLoanAmount = 100_000m },
+                new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id },
             });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation -> Decision
 
@@ -64,7 +64,7 @@ public class GameSessionRecipeSelectionTests
             endTurn: 999,
             new[]
             {
-                new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id, StartingLoanAmount = 100_000m },
+                new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id },
             });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation -> Decision
         var built = (FactoryBuilt)session.BuildFactory(teamId, "steel-mill").Change;

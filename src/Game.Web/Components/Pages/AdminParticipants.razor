@@ -4,11 +4,12 @@
 @implements IDisposable
 @inject GameSessionHost Host
 
-<PageTitle>Участники</PageTitle>
+<PageTitle>Персонал</PageTitle>
 
 <p><a href="/admin">← Назад к администратору</a></p>
 
-<h1>Участники</h1>
+<h1>Персонал</h1>
+<p class="text-muted">Не игроки, а аккаунты тех, кто обслуживает игру: администраторы, операторы, ведущий.</p>
 
 @if (_errorMessage is not null)
 {
@@ -18,6 +19,9 @@
 @if (!_sessionStarted)
 {
     <p><em>Здесь заводятся роли без команды — администраторы, операторы, ведущий. Управляющих команд заводят на странице <a href="/admin/teams">«Команды»</a>, переговорщиков — сами управляющие после старта сессии.</em></p>
+    <p><em>Код, который вы получите ниже, уже рабочий — можно раздавать сразу, не дожидаясь «Начать сессию».</em></p>
+
+    <RoleHints Roles="RoleLessRoles" />
 
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <select class="form-select w-auto" @bind="_stageRole">
@@ -56,6 +60,8 @@
 }
 else
 {
+    <RoleHints Roles="AllRoles" />
+
     <h2>Регистрация участника</h2>
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <select class="form-select w-auto" @bind="_registerRole">
@@ -107,6 +113,8 @@ else
     [
         ParticipantRole.Administrator, ParticipantRole.Operator, ParticipantRole.Facilitator,
     ];
+
+    private static readonly ParticipantRole[] AllRoles = Enum.GetValues<ParticipantRole>();
 
     private bool _sessionStarted;
     private string? _errorMessage;

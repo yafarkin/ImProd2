@@ -1,0 +1,14 @@
+@* Подсказка «что значит каждая роль» — короткий справочник рядом с формой добавления участника, чтобы не приходилось вспоминать/спрашивать. *@
+
+<dl class="row mb-3">
+    @foreach (var role in Roles)
+    {
+        <dt class="col-sm-2">@RoleDisplay.Name(role)</dt>
+        <dd class="col-sm-10">@RoleDisplay.Description(role)</dd>
+    }
+</dl>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ParticipantRole> Roles { get; set; } = Array.Empty<ParticipantRole>();
+}

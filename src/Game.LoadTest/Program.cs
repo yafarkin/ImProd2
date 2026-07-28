@@ -52,7 +52,7 @@ internal static class LoadTestRunner
             {
                 var sector = t % 2 == 0 ? sectorA : sectorB;
                 var teamId = Ulid.NewUlid();
-                teams.Add(new TeamSpec { Id = teamId, Name = $"Бот {t}", SectorId = sector.Id, StartingLoanAmount = 10_000m });
+                teams.Add(new TeamSpec { Id = teamId, Name = $"Бот {t}", SectorId = sector.Id });
                 bots.Add(new SimpleBot(teamId, sector, config));
             }
 
@@ -152,7 +152,7 @@ internal static class LoadTestRunner
         for (var t = 0; t < 8; t++)
         {
             var sector = t % 2 == 0 ? sectorA : sectorB;
-            teams.Add(new TeamSpec { Id = Ulid.NewUlid(), Name = $"Команда {t + 1}", SectorId = sector.Id, StartingLoanAmount = 10_000m });
+            teams.Add(new TeamSpec { Id = Ulid.NewUlid(), Name = $"Команда {t + 1}", SectorId = sector.Id });
         }
 
         host.StartNewSession(config, preset, teams);

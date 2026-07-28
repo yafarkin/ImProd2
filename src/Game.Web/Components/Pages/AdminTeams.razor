@@ -12,11 +12,14 @@
 
 @if (!_sessionStarted)
 {
+    <p class="text-muted">
+        <strong>@RoleDisplay.Name(ParticipantRole.Manager)</strong> — @RoleDisplay.Description(ParticipantRole.Manager)
+        Код, который вы получите ниже, уже рабочий — управляющий может входить сразу, не дожидаясь
+        «Начать сессию» (просто увидит, что сессия ещё готовится).
+    </p>
     <p>Следующая команда будет автоматически назначена в сектор: <strong>@NextSector().Name</strong></p>
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <input class="form-control d-inline-block w-auto" @bind="_newTeamName" placeholder="Название команды" />
-        <input type="number" min="0" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_newTeamStartingLoan" />
-        <span>стартовый заём</span>
         <button type="button" class="btn btn-secondary" @onclick="AddTeam">Добавить команду</button>
     </div>
 
@@ -26,7 +29,6 @@
                 <tr>
                     <th>Команда</th>
                     <th>Сектор</th>
-                    <th>Стартовый заём</th>
                     <th>Управляющий</th>
                     <th></th>
                 </tr>
@@ -38,7 +40,6 @@
                     <tr>
                         <td>@team.Name</td>
                         <td>@SectorName(team.SectorId)</td>
-                        <td>@DashboardDisplay.FormatMoney(team.StartingLoanAmount)</td>
                         <td>
                             @if (manager is null)
                             {
@@ -92,7 +93,6 @@ else
     private bool _sessionStarted;
     private IReadOnlyList<Game.Domain.Team> _teams = Array.Empty<Game.Domain.Team>();
     private string _newTeamName = string.Empty;
-    private decimal _newTeamStartingLoan;
     private readonly Dictionary<Ulid, string> _newManagerNames = new();
     private Timer? _tickTimer;
 
@@ -124,7 +124,7 @@ else
     private Sector NextSector() => SectorAssignmentCalculator.LeastFilled(
         Host.DraftConfig.Sectors,
         Host.StagedTeams
-            .Select(t => new TeamSpec { Id = t.Id, Name = t.Name, SectorId = t.SectorId, StartingLoanAmount = t.StartingLoanAmount })
+            .Select(t => new TeamSpec { Id = t.Id, Name = t.Name, SectorId = t.SectorId })
             .ToList());
 
     private string SectorName(string sectorId) => Host.DraftConfig.Sectors.First(s => s.Id == sectorId).Name;
@@ -136,9 +136,8 @@ else
             return;
         }
 
-        Host.AddStagedTeam(_newTeamName.Trim(), NextSector().Id, _newTeamStartingLoan);
+        Host.AddStagedTeam(_newTeamName.Trim(), NextSector().Id);
         _newTeamName = string.Empty;
-        _newTeamStartingLoan = 0m;
     }
 
     private void RemoveTeam(Ulid id) => Host.RemoveStagedTeam(id);

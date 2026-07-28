@@ -10,7 +10,7 @@ public class SectorAssignmentCalculatorTests
     private static readonly Sector SectorC = new("C", "Лес/агротекстиль");
 
     private static TeamSpec TeamIn(string sectorId) =>
-        new() { Id = Ulid.NewUlid(), Name = "Команда", SectorId = sectorId, StartingLoanAmount = 0m };
+        new() { Id = Ulid.NewUlid(), Name = "Команда", SectorId = sectorId };
 
     [Fact]
     public void LeastFilled_Returns_The_First_Sector_When_No_Teams_Exist_Yet()

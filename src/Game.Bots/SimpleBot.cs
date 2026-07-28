@@ -47,10 +47,18 @@ public sealed class SimpleBot
     /// <summary>Финальный продукт сектора этого бота — вершина его цепочки, ничем внутри неё дальше не потребляется.</summary>
     public Material FinalMaterial => _sectorFactories[^1].Recipes[0].Output;
 
-    /// <summary>Строит все фабрики сектора и нанимает на каждую базовую численность рабочих. Вызывать один раз, на первом ходу.</summary>
+    /// <summary>
+    /// Берёт первый кредит (команды больше не получают стартовый капитал автоматически — это их
+    /// первое собственное финансовое решение, SPEC §5.1; боту нужен детерминированный эквивалент
+    /// для калибровки, поэтому сумма — <see cref="Game.Config.Session.StartingConditionsConfig.MaxStartingLoanAmount"/>),
+    /// затем строит все фабрики сектора и нанимает на каждую базовую численность рабочих.
+    /// Вызывать один раз, на первом ходу.
+    /// </summary>
     public void BuildOutSectorChain(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
+
+        session.TakeLoan(TeamId, session.State.Config.Raw.StartingConditions.MaxStartingLoanAmount);
 
         var baseWorkerCount = session.State.Config.Raw.WorkerProductivity.BaseWorkerCount;
         foreach (var definition in _sectorFactories)

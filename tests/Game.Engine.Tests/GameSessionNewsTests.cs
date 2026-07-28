@@ -16,7 +16,7 @@ public class GameSessionNewsTests
             config, "test", endTurn: 999,
             new[]
             {
-                new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id, StartingLoanAmount = 0m },
+                new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id },
             });
     }
 

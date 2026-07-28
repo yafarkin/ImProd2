@@ -1,0 +1,61 @@
+@page "/my-code"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Hosting.Server
+@using Microsoft.AspNetCore.Hosting.Server.Features
+@inject IServer Server
+
+<PageTitle>Мой код</PageTitle>
+
+<h1>Мой код</h1>
+<p class="text-muted">
+    Код читается прямо из вашей куки входа — работает, даже если игровая сессия на сервере
+    перезапустится или собьётся. Если понадобится зайти на другом устройстве или войти заново —
+    этот код (или QR) снова пустит в систему под той же ролью.
+</p>
+
+@if (Code is null)
+{
+    <p>Код не найден — возможно, кука входа устарела. Попробуйте перезайти по коду.</p>
+}
+else
+{
+    <div class="text-center">
+        <p class="lead">@DisplayName (@RoleDisplay.Name(_role))</p>
+        <p>Код: <code style="font-size:1.5em">@Code</code></p>
+        @if (_loginUrl is not null)
+        {
+            <img src="@QrCodeImage.ToDataUrl(_loginUrl)" alt="QR-код входа" style="width:320px;height:320px" />
+        }
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private string? DisplayName;
+    private string? Code;
+    private ParticipantRole _role;
+    private string? _loginUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask!;
+        var user = authState.User;
+
+        DisplayName = user.Identity?.Name;
+        Code = user.FindFirst("code")?.Value;
+        Enum.TryParse(user.FindFirst(ClaimTypes.Role)?.Value, out _role);
+
+        if (Code is null)
+        {
+            return;
+        }
+
+        var boundAddress = Server.Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault();
+        var port = boundAddress is not null ? new Uri(boundAddress).Port : 5180;
+
+        var baseUrl = LocalNetworkAddresses.DiscoverBaseUrls(port).Select(a => a.BaseUrl).FirstOrDefault();
+        _loginUrl = baseUrl is null ? null : $"{baseUrl}/auth/login?code={Code}";
+    }
+}

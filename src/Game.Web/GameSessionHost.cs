@@ -85,11 +85,11 @@ public sealed class GameSessionHost
     }
 
     /// <summary>Добавляет команду в черновик до старта сессии.</summary>
-    public void AddStagedTeam(string name, string sectorId, decimal startingLoanAmount)
+    public void AddStagedTeam(string name, string sectorId)
     {
         lock (_draftLock)
         {
-            _stagedTeams.Add(new StagedTeamSpec(Ulid.NewUlid(), name, sectorId, startingLoanAmount));
+            _stagedTeams.Add(new StagedTeamSpec(Ulid.NewUlid(), name, sectorId));
         }
     }
 
@@ -235,13 +235,21 @@ public sealed class GameSessionHost
     /// (Блок 9.8, SPEC §9.6) и сразу ставит её на паузу (<see cref="GameSession.Pause"/> уже не
     /// зависит от фазы) — это даёт администратору неограниченное время на регистрацию участников
     /// (см. <see cref="RegisterParticipant"/>), не расходуя игровое время; запускает игру
-    /// последующий явный <see cref="GameSession.Resume"/> со страницы администратора.
+    /// последующий явный <see cref="GameSession.Resume"/> со страницы администратора. Требует хотя
+    /// бы одну команду — это правило именно этого, прикладного слоя (сценарий «реально начать
+    /// игру»), а не движка: <see cref="GameSession.StartWithEndTurn"/> намеренно принимает и пустой
+    /// список команд — им пользуются юнит-тесты движка, которым команды для проверяемой механики
+    /// не нужны.
     /// </summary>
     public GameSession StartNewSession(ResolvedGameConfig config, SessionPresetConfig preset, IReadOnlyList<TeamSpec> teams)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(preset);
         ArgumentNullException.ThrowIfNull(teams);
+        if (teams.Count == 0)
+        {
+            throw new ArgumentException("Cannot start a session without at least one team.", nameof(teams));
+        }
 
         lock (SyncRoot)
         {
@@ -296,6 +304,10 @@ public sealed class GameSessionHost
     /// <see cref="GameSession.ReregisterParticipant"/> — тот же приём, что и <see cref="ResetSession"/>
     /// использует для сохранения кодов, — чтобы код, уже показанный по QR или на бумаге до старта,
     /// остался рабочим и после него. Черновик (команды, участники, конфиг) очищается по завершении.
+    /// Требует управляющего у каждой команды — без него команда не сможет ни во что играть: только у
+    /// него есть право заводить (самообслуживанием) остальной свой состав и подтверждать сделки. Это
+    /// проверка именно здесь, а не в <see cref="StartNewSession"/>: тот принимает только
+    /// <see cref="TeamSpec"/> без какой-либо информации об участниках.
     /// </summary>
     public GameSession StartSessionFromDraft(SessionPresetConfig preset)
     {
@@ -310,9 +322,19 @@ public sealed class GameSessionHost
             {
                 config = _draftConfig;
                 teamSpecs = _stagedTeams
-                    .Select(t => new TeamSpec { Id = t.Id, Name = t.Name, SectorId = t.SectorId, StartingLoanAmount = t.StartingLoanAmount })
+                    .Select(t => new TeamSpec { Id = t.Id, Name = t.Name, SectorId = t.SectorId })
                     .ToList();
                 participants = _stagedParticipants.ToList();
+            }
+
+            var teamsWithoutManager = teamSpecs
+                .Where(t => !participants.Any(p => p.Role == ParticipantRole.Manager && p.TeamId == t.Id))
+                .Select(t => t.Name)
+                .ToList();
+            if (teamsWithoutManager.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot start a session while these teams have no manager assigned: {string.Join(", ", teamsWithoutManager)}.");
             }
 
             var session = StartNewSession(config, preset, teamSpecs);
@@ -338,11 +360,11 @@ public sealed class GameSessionHost
     /// <summary>
     /// Начинает сессию заново поверх <see cref="DefaultConfig"/>, сохраняя тот же состав команд и
     /// те же коды входа участников (Блок 10.2, SPEC §10: «те же команды и логины, но полностью
-    /// независимое состояние и репутация») — переход от тренировочной игры к основной. Стартовый
-    /// заём каждой команды обнуляется: <see cref="Domain.Team"/> не хранит исходную сумму займа
-    /// отдельно от уже эволюционировавших <c>Balance</c>/<c>Debt</c>, а «полностью независимое
-    /// состояние» и так буквально означает старт с нуля. Как и <see cref="StartNewSession"/>, сразу
-    /// ставит новую сессию на паузу.
+    /// независимое состояние и репутация») — переход от тренировочной игры к основной. Баланс и
+    /// долг каждой команды обнуляются вместе со всем остальным состоянием — «полностью независимое
+    /// состояние» и так буквально означает старт с нуля; первый кредит команда, как и в самом
+    /// начале, берёт заново сама. Как и <see cref="StartNewSession"/>, сразу ставит новую сессию
+    /// на паузу.
     /// </summary>
     public GameSession ResetSession(SessionPresetConfig preset)
     {
@@ -356,7 +378,7 @@ public sealed class GameSessionHost
             }
 
             var teams = Session.State.Teams.Values
-                .Select(team => new TeamSpec { Id = team.Id, Name = team.Name, SectorId = team.Sector.Id, StartingLoanAmount = 0m })
+                .Select(team => new TeamSpec { Id = team.Id, Name = team.Name, SectorId = team.Sector.Id })
                 .ToList();
             var participants = Session.State.Participants.Values.ToList();
 
@@ -434,7 +456,7 @@ public sealed class GameSessionHost
 }
 
 /// <summary>Одна команда в черновике до старта сессии — см. <see cref="GameSessionHost.StagedTeams"/>.</summary>
-public sealed record StagedTeamSpec(Ulid Id, string Name, string SectorId, decimal StartingLoanAmount);
+public sealed record StagedTeamSpec(Ulid Id, string Name, string SectorId);
 
 /// <summary>Один участник в черновике до старта сессии — см. <see cref="GameSessionHost.StagedParticipants"/>.</summary>
 public sealed record StagedParticipantSpec(Ulid Id, string Code, ParticipantRole Role, Ulid? TeamId, string DisplayName);

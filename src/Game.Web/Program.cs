@@ -78,9 +78,27 @@ static async Task<IResult> PerformLogin(HttpContext http, GameSessionHost host, 
     ParticipantRegistration? registration;
     lock (host.SyncRoot)
     {
-        registration = host.AdminCode is not null && code == host.AdminCode
-            ? new ParticipantRegistration(code, ParticipantRole.Administrator, null, "Администратор")
-            : host.Session?.TryAuthenticate(code);
+        if (host.AdminCode is not null && code == host.AdminCode)
+        {
+            registration = new ParticipantRegistration(code, ParticipantRole.Administrator, null, "Администратор");
+        }
+        else if (host.Session is not null)
+        {
+            registration = host.Session.TryAuthenticate(code);
+        }
+        else
+        {
+            // Сессия ещё не стартовала, но код уже мог быть роздан по QR/на бумаге во время
+            // подготовки (застейдженный управляющий на /admin/teams, роль без команды на
+            // /admin/participants, см. GameSessionHost.AddStagedParticipant) — код обязан работать
+            // сразу, а не только после отдельного клика «Начать сессию» на /admin: иначе человек
+            // получает «код не найден», хотя на самом деле просто не время. Ролевая страница сама
+            // покажет «сессия готовится» — см. её собственную проверку Host.Session is null.
+            var staged = host.StagedParticipants.FirstOrDefault(p => p.Code == code);
+            registration = staged is null
+                ? null
+                : new ParticipantRegistration(staged.Code, staged.Role, staged.TeamId, staged.DisplayName);
+        }
     }
 
     if (registration is null)

@@ -23,12 +23,20 @@
     </div>
 }
 
-<p>
-    Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы: <strong>@_countdown</strong>.
-</p>
-@if (_lastNewsHeadline is not null)
+@if (!_sessionActive)
 {
-    <p><em>Последняя новость: @_lastNewsHeadline</em></p>
+    <div class="alert alert-warning">
+        Сессия ещё не началась — администратор всё настраивает. Как только он нажмёт «Начать
+        сессию», эта страница сама покажет очередь сделок (обновляется каждую секунду).
+    </div>
+}
+else
+{
+    <p>Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы: <strong>@_countdown</strong>.</p>
+    @if (_lastNewsHeadline is not null)
+    {
+        <p><em>Последняя новость: @_lastNewsHeadline</em></p>
+    }
 }
 
 @if (_errorMessage is not null)
@@ -98,6 +106,7 @@ else
 
     private string? DisplayName;
     private bool _showWelcome;
+    private bool _sessionActive;
     private int _currentTurn;
     private string _phaseLabel = string.Empty;
     private bool _isDecisionPhase;
@@ -135,8 +144,10 @@ else
         {
             if (Host.Session is null)
             {
+                _sessionActive = false;
                 return;
             }
+            _sessionActive = true;
 
             var state = Host.Session.State;
 

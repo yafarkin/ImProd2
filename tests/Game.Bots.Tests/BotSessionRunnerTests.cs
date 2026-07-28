@@ -41,7 +41,7 @@ public class BotSessionRunnerTests
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
             config, "short", endTurn: 15,
-            new[] { new TeamSpec { Id = teamId, Name = "Команда А", SectorId = sectorA.Id, StartingLoanAmount = 10_000m } });
+            new[] { new TeamSpec { Id = teamId, Name = "Команда А", SectorId = sectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation -> Decision
 
         Assert.Throws<ArgumentException>(() => session.BuildFactory(teamId, "oil-well"));

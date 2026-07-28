@@ -5,6 +5,9 @@ namespace Game.Engine.Tests;
 /// </summary>
 public class GameSessionRunTickTests
 {
+    // Команда сама решает, сколько занять (SPEC §5.1) — здесь заём применяется прямо к объекту
+    // Team (не через TeamSpec/GameSession.TakeLoan), потому что тесты этого файла строят фабрики
+    // прямым team.BuildFactory(...) ещё в фазе расчёта, до какого-либо AdvancePhase.
     private static GameSession StartSessionWithOneFundedTeam(out Ulid teamId)
     {
         teamId = Ulid.NewUlid();
@@ -19,10 +22,10 @@ public class GameSessionRunTickTests
                     Id = teamId,
                     Name = "Команда А1",
                     SectorId = TestGameConfig.SectorA.Id,
-                    StartingLoanAmount = 1000m,
                 },
             });
 
+        session.State.Teams[teamId].TakeLoan(1000m);
         return session;
     }
 

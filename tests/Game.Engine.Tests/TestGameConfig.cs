@@ -29,7 +29,12 @@ internal static class TestGameConfig
     /// <summary>
     /// Начинает сессию с одной зарегистрированной командой сектора А — то, что раньше в тестах
     /// делалось через `new Team(...)` напрямую, теперь обязано пройти через <see cref="SessionStarted"/>,
-    /// как и в реальной сессии (AGENTS §2, правило 5).
+    /// как и в реальной сессии (AGENTS §2, правило 5). <paramref name="startingLoan"/> — заём для
+    /// сценария теста (SPEC §5.1: в реальной игре команда берёт его сама, без предустановки) —
+    /// применяется настоящим журналируемым событием <see cref="LoanTaken"/> через сам <paramref name="log"/>-эквивалент
+    /// (не через <see cref="GameSession.TakeLoan"/> — тут вообще нет обёртки <see cref="GameSession"/>
+    /// с её проверкой фазы), чтобы реплей-калькуляторы видели его как обычную сделку, а не только
+    /// живое состояние команды.
     /// </summary>
     public static (EventLog<GameSessionState> Log, Team Team) StartSessionWithOneTeam(decimal startingLoan = 0m)
     {
@@ -45,14 +50,19 @@ internal static class TestGameConfig
             ConfigHash = Resolved.ContentHash,
             Teams = new[]
             {
-                new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
+                new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = SectorA.Id },
             },
         });
+
+        if (startingLoan > 0)
+        {
+            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = teamId, Amount = startingLoan });
+        }
 
         return (log, state.Teams[teamId]);
     }
 
-    /// <summary>Журнал сессии с двумя командами сектора А (для событий контрактов на уровне Apply).</summary>
+    /// <summary>Журнал сессии с двумя командами сектора А (для событий контрактов на уровне Apply); про <paramref name="startingLoan"/> — см. <see cref="StartSessionWithOneTeam"/>.</summary>
     public static (EventLog<GameSessionState> Log, Team Buyer, Team Seller) StartSessionWithTwoTeams(decimal startingLoan = 0m)
     {
         var state = new GameSessionState(Resolved);
@@ -68,44 +78,71 @@ internal static class TestGameConfig
             ConfigHash = Resolved.ContentHash,
             Teams = new[]
             {
-                new TeamSpec { Id = buyerId, Name = "Покупатель", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
-                new TeamSpec { Id = sellerId, Name = "Продавец", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
+                new TeamSpec { Id = buyerId, Name = "Покупатель", SectorId = SectorA.Id },
+                new TeamSpec { Id = sellerId, Name = "Продавец", SectorId = SectorA.Id },
             },
         });
+
+        if (startingLoan > 0)
+        {
+            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = buyerId, Amount = startingLoan });
+            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = sellerId, Amount = startingLoan });
+        }
 
         return (log, state.Teams[buyerId], state.Teams[sellerId]);
     }
 
-    /// <summary>Полноценная сессия с одной командой сектора А (для сквозных сценариев через GameSession).</summary>
+    /// <summary>
+    /// Полноценная сессия с одной командой сектора А (для сквозных сценариев через GameSession).
+    /// <paramref name="startingLoan"/> — заём для сценария теста (SPEC §5.1: в реальной игре
+    /// команда берёт его сама) — применяется как настоящее журналируемое событие
+    /// <see cref="LoanTaken"/> через сам <see cref="EventLog{TState}"/> (не через
+    /// <see cref="GameSession.TakeLoan"/> — та требует фазу решений, а сессия здесь возвращается
+    /// ровно в фазе расчёта первого хода, как и раньше), чтобы реплей-калькуляторы
+    /// (<see cref="TurnHistoryCalculator"/>, экспорт журнала) видели его как обычную сделку.
+    /// </summary>
     public static (GameSession Session, Ulid TeamId) StartGameSessionWithOneTeam(decimal startingLoan = 100_000m)
     {
         var teamId = Ulid.NewUlid();
+        var log = new EventLog<GameSessionState>(new GameSessionState(Resolved));
         var session = GameSession.StartWithEndTurn(
-            Resolved,
+            log,
             "test",
             endTurn: 999,
             new[]
             {
-                new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
+                new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = SectorA.Id },
             });
+
+        if (startingLoan > 0)
+        {
+            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = teamId, Amount = startingLoan });
+        }
 
         return (session, teamId);
     }
 
-    /// <summary>Полноценная сессия с двумя командами сектора А (для сквозных сценариев через GameSession).</summary>
+    /// <summary>Полноценная сессия с двумя командами сектора А (для сквозных сценариев через GameSession); про <paramref name="startingLoan"/> — см. <see cref="StartGameSessionWithOneTeam"/>.</summary>
     public static (GameSession Session, Ulid BuyerId, Ulid SellerId) StartGameSessionWithTwoTeams(decimal startingLoan = 100_000m)
     {
         var buyerId = Ulid.NewUlid();
         var sellerId = Ulid.NewUlid();
+        var log = new EventLog<GameSessionState>(new GameSessionState(Resolved));
         var session = GameSession.StartWithEndTurn(
-            Resolved,
+            log,
             "test",
             endTurn: 999,
             new[]
             {
-                new TeamSpec { Id = buyerId, Name = "Покупатель", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
-                new TeamSpec { Id = sellerId, Name = "Продавец", SectorId = SectorA.Id, StartingLoanAmount = startingLoan },
+                new TeamSpec { Id = buyerId, Name = "Покупатель", SectorId = SectorA.Id },
+                new TeamSpec { Id = sellerId, Name = "Продавец", SectorId = SectorA.Id },
             });
+
+        if (startingLoan > 0)
+        {
+            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = buyerId, Amount = startingLoan });
+            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = sellerId, Amount = startingLoan });
+        }
 
         return (session, buyerId, sellerId);
     }

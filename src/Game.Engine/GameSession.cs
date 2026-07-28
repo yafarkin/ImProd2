@@ -77,17 +77,6 @@ public sealed class GameSession
         ArgumentNullException.ThrowIfNull(teams);
 
         var config = log.State.Config;
-        foreach (var spec in teams)
-        {
-            if (spec.StartingLoanAmount > config.Raw.StartingConditions.MaxStartingLoanAmount)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(teams), spec.StartingLoanAmount,
-                    $"Team '{spec.Id}' requested a starting loan above the configured maximum " +
-                    $"of {config.Raw.StartingConditions.MaxStartingLoanAmount}.");
-            }
-        }
-
         log.Append(new SessionStarted
         {
             Id = Ulid.NewUlid(),
@@ -512,10 +501,11 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Берёт дополнительный заём по решению команды (SPEC §5.9: «в любой момент», ставка — та же
-    /// кривая, что у стартового кредита и процентов, см. <see cref="FinanceCalculator"/>). В отличие
-    /// от <see cref="Game.Config.Session.StartingConditionsConfig.MaxStartingLoanAmount"/> (проверяется
-    /// только при старте сессии), дополнительный заём не ограничен суммой — риск команды
+    /// Берёт заём по решению команды (SPEC §5.9: «в любой момент», ставка — кривая из
+    /// <see cref="FinanceCalculator"/>) — единственный способ получить деньги, первый он для
+    /// команды или очередной: никакого отдельного «стартового» кредита с иными правилами больше
+    /// нет (команда сама решает, сколько и когда занять — это её первое финансовое решение в игре,
+    /// а не предустановка администратора). Ничем не ограничен по сумме — риск команды
     /// самонаказывающийся через растущую ставку, а не через жёсткий потолок. Требует фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> TakeLoan(Ulid teamId, decimal amount)

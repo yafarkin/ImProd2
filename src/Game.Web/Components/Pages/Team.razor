@@ -24,14 +24,21 @@
     </div>
 }
 
-<p>
-    Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы:
-    <strong>@_countdown</strong> (переход по таймеру — сервер, Блок 8.2, SPEC §4, §11; устойчив к
-    обрыву/переподключению circuit при блокировке телефона, как и вход, — SPEC §11).
-</p>
-@if (_lastNewsHeadline is not null)
+@if (!_sessionActive)
 {
-    <p><em>Последняя новость: @_lastNewsHeadline</em></p>
+    <div class="alert alert-warning">
+        Сессия ещё не началась — администратор всё настраивает. Как только он нажмёт «Начать
+        сессию», эта страница сама покажет актуальные данные (обновляется каждую секунду, обновлять
+        вручную не нужно).
+    </div>
+}
+else
+{
+    <p>Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы: <strong>@_countdown</strong>.</p>
+    @if (_lastNewsHeadline is not null)
+    {
+        <p><em>Последняя новость: @_lastNewsHeadline</em></p>
+    }
 }
 
 @if (_errorMessage is not null)
@@ -41,30 +48,28 @@
 
 @if (_role == ParticipantRole.Manager)
 {
-    <details class="mb-3">
-        <summary>Состав команды</summary>
-        <div class="table-responsive">
-            <table class="table table-striped table-sm align-middle">
-                <thead>
-                    <tr><th>Роль</th><th>Имя</th><th>Код</th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var member in _teamMembers)
-                    {
-                        <tr>
-                            <td>@RoleDisplay.Name(member.Role)</td>
-                            <td>@member.DisplayName</td>
-                            <td><code>@member.Code</code> <a href="@QrLink(member)" target="_blank">QR</a></td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-        <div class="d-flex flex-wrap align-items-center gap-2">
-            <input class="form-control d-inline-block w-auto" @bind="_newMemberName" placeholder="Имя нового участника" />
-            <button type="button" class="btn btn-secondary" @onclick="AddTeamMember">Добавить переговорщика</button>
-        </div>
-    </details>
+    <h2>Состав команды</h2>
+    <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle">
+            <thead>
+                <tr><th>Роль</th><th>Имя</th><th>Код</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var member in _teamMembers)
+                {
+                    <tr>
+                        <td>@RoleDisplay.Name(member.Role)</td>
+                        <td>@member.DisplayName</td>
+                        <td><code>@member.Code</code> <a href="@QrLink(member)" target="_blank">QR</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+        <input class="form-control d-inline-block w-auto" @bind="_newMemberName" placeholder="Имя нового участника" />
+        <button type="button" class="btn btn-secondary" @onclick="AddTeamMember">Добавить переговорщика</button>
+    </div>
 }
 
 <h2>Что у меня плохо</h2>
@@ -372,6 +377,15 @@ else
 
     private sealed record MaterialOption(string Id, string Name);
 
+    /// <summary>
+    /// Строка «Состав команды» — общий вид для двух источников: до старта сессии это черновик
+    /// (<see cref="GameSessionHost.StagedParticipants"/>), после — уже настоящие участники живой
+    /// сессии (<see cref="ParticipantRegistration"/>). Управляющий может входить и добавлять
+    /// переговорщиков ещё до старта (см. AddTeamMember), поэтому таблица обязана уметь показывать
+    /// оба состояния одинаково.
+    /// </summary>
+    private sealed record TeamMemberRow(ParticipantRole Role, string DisplayName, string Code);
+
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
@@ -384,7 +398,8 @@ else
     private string? TeamName;
     private Ulid _teamId;
     private bool _showWelcome;
-    private IReadOnlyList<ParticipantRegistration> _teamMembers = Array.Empty<ParticipantRegistration>();
+    private bool _sessionActive;
+    private IReadOnlyList<TeamMemberRow> _teamMembers = Array.Empty<TeamMemberRow>();
     private string _newMemberName = string.Empty;
 
     private int _currentTurn;
@@ -467,8 +482,15 @@ else
         {
             if (Host.Session is null)
             {
+                _sessionActive = false;
+                _teamMembers = Host.StagedParticipants
+                    .Where(p => p.TeamId == _teamId)
+                    .OrderBy(p => p.Role.ToString(), StringComparer.Ordinal)
+                    .Select(p => new TeamMemberRow(p.Role, p.DisplayName, p.Code))
+                    .ToList();
                 return;
             }
+            _sessionActive = true;
 
             var state = Host.Session.State;
 
@@ -499,6 +521,7 @@ else
             _teamMembers = state.Participants.Values
                 .Where(p => p.TeamId == _teamId)
                 .OrderBy(p => p.Role.ToString(), StringComparer.Ordinal)
+                .Select(p => new TeamMemberRow(p.Role, p.DisplayName, p.Code))
                 .ToList();
 
             _balance = team.Balance;
@@ -668,6 +691,15 @@ else
         return DashboardDisplay.PreviewLoan(_debt, _penaltyRateSurcharge, _reputationPercentage, _loanAmount, _loanConfig);
     }
 
+    /// <summary>
+    /// Управляющий может входить и собирать команду ещё до старта сессии (см. RefreshDashboard) —
+    /// значит, добавление переговорщика обязано уметь работать в обоих состояниях: до старта это
+    /// черновик (<see cref="GameSessionHost.AddStagedParticipant"/>, тот же путь, что и у
+    /// управляющего на /admin/teams), после — обычная регистрация в живую сессию
+    /// (<see cref="GameSessionHost.RegisterParticipant"/>). Раньше здесь был общий <c>RunAction</c>,
+    /// который требует живую сессию для любого действия, — это как раз и была причина «Сессия
+    /// сейчас не активна» при попытке добавить кого-то до старта.
+    /// </summary>
     private void AddTeamMember()
     {
         if (string.IsNullOrWhiteSpace(_newMemberName))
@@ -676,15 +708,34 @@ else
         }
 
         var name = _newMemberName.Trim();
-        RunAction(() => Host.RegisterParticipant(ParticipantRole.Negotiator, _teamId, name));
-        if (_errorMessage is null)
+        _errorMessage = null;
+        try
         {
+            lock (Host.SyncRoot)
+            {
+                if (Host.Session is null)
+                {
+                    Host.AddStagedParticipant(ParticipantRole.Negotiator, _teamId, name);
+                }
+                else
+                {
+                    Host.RegisterParticipant(ParticipantRole.Negotiator, _teamId, name);
+                }
+            }
+            RefreshDashboard();
             _newMemberName = string.Empty;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
         }
     }
 
-    private string QrLink(ParticipantRegistration member) =>
-        $"/admin/qr/{member.Code}?name={Uri.EscapeDataString($"{member.DisplayName} — {RoleDisplay.Name(member.Role)} команды «{TeamName}»")}";
+    private string QrLink(TeamMemberRow member)
+    {
+        var teamName = TeamName ?? Host.StagedTeams.FirstOrDefault(t => t.Id == _teamId)?.Name ?? "?";
+        return $"/admin/qr/{member.Code}?name={Uri.EscapeDataString($"{member.DisplayName} — {RoleDisplay.Name(member.Role)} команды «{teamName}»")}";
+    }
 
     private void RunAction(Action action)
     {

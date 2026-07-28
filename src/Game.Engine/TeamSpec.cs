@@ -15,7 +15,4 @@ public sealed record TeamSpec
 
     /// <summary>Код сектора команды (<see cref="Game.Config.Catalog.SectorConfig.Id"/>).</summary>
     public required string SectorId { get; init; }
-
-    /// <summary>Сумма стартового кредита, выбранная командой при регистрации (SPEC §5.1); 0, если не бралась.</summary>
-    public required decimal StartingLoanAmount { get; init; }
 }

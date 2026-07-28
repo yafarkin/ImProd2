@@ -54,11 +54,6 @@ public sealed record SessionStarted : Change<GameSessionState>
         {
             var sector = state.Config.Sectors.First(s => s.Id == spec.SectorId);
             var team = new Team(spec.Id, spec.Name, sector);
-            if (spec.StartingLoanAmount > 0)
-            {
-                team.TakeLoan(spec.StartingLoanAmount);
-            }
-
             state.AddTeam(team);
         }
 
