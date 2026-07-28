@@ -6,8 +6,23 @@
 
 <PageTitle>Команда</PageTitle>
 
-<h1>Вы вошли как @DisplayName (@Role)</h1>
+<h1>Вы вошли как @DisplayName (@RoleDisplay.Name(_role))</h1>
 <p>Команда: @TeamName</p>
+
+@if (_showWelcome)
+{
+    <div class="alert alert-info">
+        <p>@RoleDisplay.Description(_role)</p>
+        <p>Что можно делать:</p>
+        <ul>
+            @foreach (var tip in RoleDisplay.Tips(_role))
+            {
+                <li>@tip</li>
+            }
+        </ul>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => _showWelcome = false">Понятно, дальше</button>
+    </div>
+}
 
 <p>
     Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы:
@@ -22,6 +37,34 @@
 @if (_errorMessage is not null)
 {
     <div class="alert alert-danger">@_errorMessage</div>
+}
+
+@if (_role == ParticipantRole.Manager)
+{
+    <details class="mb-3">
+        <summary>Состав команды</summary>
+        <div class="table-responsive">
+            <table class="table table-striped table-sm align-middle">
+                <thead>
+                    <tr><th>Роль</th><th>Имя</th><th>Код</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var member in _teamMembers)
+                    {
+                        <tr>
+                            <td>@RoleDisplay.Name(member.Role)</td>
+                            <td>@member.DisplayName</td>
+                            <td><code>@member.Code</code> <a href="@QrLink(member)" target="_blank">QR</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <input class="form-control d-inline-block w-auto" @bind="_newMemberName" placeholder="Имя нового участника" />
+            <button type="button" class="btn btn-secondary" @onclick="AddTeamMember">Добавить переговорщика</button>
+        </div>
+    </details>
 }
 
 <h2>Что у меня плохо</h2>
@@ -332,10 +375,17 @@ else
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
+    [SupplyParameterFromQuery(Name = "welcome")]
+    public string? WelcomeParam { get; set; }
+
     private string? DisplayName;
     private string? Role;
+    private ParticipantRole _role;
     private string? TeamName;
     private Ulid _teamId;
+    private bool _showWelcome;
+    private IReadOnlyList<ParticipantRegistration> _teamMembers = Array.Empty<ParticipantRegistration>();
+    private string _newMemberName = string.Empty;
 
     private int _currentTurn;
     private string _phaseLabel = string.Empty;
@@ -386,6 +436,8 @@ else
 
         DisplayName = user.Identity?.Name;
         Role = user.FindFirst(ClaimTypes.Role)?.Value;
+        Enum.TryParse(Role, out _role);
+        _showWelcome = WelcomeParam == "1";
 
         var teamIdClaim = user.FindFirst("teamId")?.Value;
         if (teamIdClaim is not null && Ulid.TryParse(teamIdClaim, out var teamId))
@@ -443,6 +495,11 @@ else
             {
                 return;
             }
+
+            _teamMembers = state.Participants.Values
+                .Where(p => p.TeamId == _teamId)
+                .OrderBy(p => p.Role.ToString(), StringComparer.Ordinal)
+                .ToList();
 
             _balance = team.Balance;
             _debt = team.Debt;
@@ -610,6 +667,24 @@ else
 
         return DashboardDisplay.PreviewLoan(_debt, _penaltyRateSurcharge, _reputationPercentage, _loanAmount, _loanConfig);
     }
+
+    private void AddTeamMember()
+    {
+        if (string.IsNullOrWhiteSpace(_newMemberName))
+        {
+            return;
+        }
+
+        var name = _newMemberName.Trim();
+        RunAction(() => Host.RegisterParticipant(ParticipantRole.Negotiator, _teamId, name));
+        if (_errorMessage is null)
+        {
+            _newMemberName = string.Empty;
+        }
+    }
+
+    private string QrLink(ParticipantRegistration member) =>
+        $"/admin/qr/{member.Code}?name={Uri.EscapeDataString($"{member.DisplayName} — {RoleDisplay.Name(member.Role)} команды «{TeamName}»")}";
 
     private void RunAction(Action action)
     {

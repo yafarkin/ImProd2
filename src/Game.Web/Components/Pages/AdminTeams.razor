@@ -27,17 +27,34 @@
                     <th>Команда</th>
                     <th>Сектор</th>
                     <th>Стартовый заём</th>
+                    <th>Управляющий</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (var team in Host.StagedTeams)
                 {
+                    var manager = StagedManagerOf(team.Id);
                     <tr>
                         <td>@team.Name</td>
                         <td>@SectorName(team.SectorId)</td>
                         <td>@DashboardDisplay.FormatMoney(team.StartingLoanAmount)</td>
-                        <td><button type="button" class="btn btn-secondary btn-sm" @onclick="() => RemoveTeam(team.Id)">Убрать</button></td>
+                        <td>
+                            @if (manager is null)
+                            {
+                                <div class="d-flex gap-1">
+                                    <input class="form-control form-control-sm" style="width:10em" @bind:get="GetNewManagerName(team.Id)" @bind:set="v => SetNewManagerName(team.Id, v)" placeholder="Имя управляющего" />
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => AddManager(team.Id)">Назначить</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <code>@manager.Code</code>
+                                <a href="@QrLink(manager, team.Name)" target="_blank">QR</a>
+                                <button type="button" class="btn btn-secondary btn-sm ms-1" @onclick="() => Host.RemoveStagedParticipant(manager.Id)">Убрать</button>
+                            }
+                        </td>
+                        <td><button type="button" class="btn btn-secondary btn-sm" @onclick="() => RemoveTeam(team.Id)">Убрать команду</button></td>
                     </tr>
                 }
             </tbody>
@@ -76,6 +93,7 @@ else
     private IReadOnlyList<Game.Domain.Team> _teams = Array.Empty<Game.Domain.Team>();
     private string _newTeamName = string.Empty;
     private decimal _newTeamStartingLoan;
+    private readonly Dictionary<Ulid, string> _newManagerNames = new();
     private Timer? _tickTimer;
 
     protected override void OnInitialized()
@@ -124,6 +142,28 @@ else
     }
 
     private void RemoveTeam(Ulid id) => Host.RemoveStagedTeam(id);
+
+    private StagedParticipantSpec? StagedManagerOf(Ulid teamId) =>
+        Host.StagedParticipants.FirstOrDefault(p => p.TeamId == teamId && p.Role == ParticipantRole.Manager);
+
+    private string GetNewManagerName(Ulid teamId) => _newManagerNames.GetValueOrDefault(teamId, string.Empty);
+
+    private void SetNewManagerName(Ulid teamId, string? value) => _newManagerNames[teamId] = value ?? string.Empty;
+
+    private void AddManager(Ulid teamId)
+    {
+        var name = GetNewManagerName(teamId).Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        Host.AddStagedParticipant(ParticipantRole.Manager, teamId, name);
+        _newManagerNames.Remove(teamId);
+    }
+
+    private static string QrLink(StagedParticipantSpec participant, string teamName) =>
+        $"/admin/qr/{participant.Code}?name={Uri.EscapeDataString($"{participant.DisplayName} — {RoleDisplay.Name(participant.Role)} команды «{teamName}»")}";
 
     public void Dispose() => _tickTimer?.Dispose();
 }

@@ -1,6 +1,5 @@
 @using Microsoft.AspNetCore.Hosting.Server
 @using Microsoft.AspNetCore.Hosting.Server.Features
-@using QRCoder
 @inject IServer Server
 
 @if (_addresses.Count == 0)
@@ -14,7 +13,7 @@ else
         {
             <div class="join-address">
                 <h2>@address.InterfaceName</h2>
-                <img src="@QrImageDataUrl(address.Url)" alt="QR-код на @address.Url" style="width:@(SizePx)px;height:@(SizePx)px" />
+                <img src="@QrCodeImage.ToDataUrl(address.Url)" alt="QR-код на @address.Url" style="width:@(SizePx)px;height:@(SizePx)px" />
                 <p>@address.Url</p>
             </div>
         }
@@ -34,13 +33,5 @@ else
         var port = boundAddress is not null ? new Uri(boundAddress).Port : 5180;
 
         _addresses = LocalNetworkAddresses.DiscoverJoinUrls(port);
-    }
-
-    private static string QrImageDataUrl(string url)
-    {
-        using var generator = new QRCodeGenerator();
-        using var data = generator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
-        var png = new PngByteQRCode(data).GetGraphic(14);
-        return $"data:image/png;base64,{Convert.ToBase64String(png)}";
     }
 }

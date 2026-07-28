@@ -10,6 +10,23 @@
 
 <h1>Администратор</h1>
 
+@if (_showWelcome)
+{
+    <div class="alert alert-info">
+        <p>@RoleDisplay.Description(ParticipantRole.Administrator)</p>
+        <p>Что можно делать:</p>
+        <ul>
+            @foreach (var tip in RoleDisplay.Tips(ParticipantRole.Administrator))
+            {
+                <li>@tip</li>
+            }
+        </ul>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => _showWelcome = false">Понятно, дальше</button>
+    </div>
+}
+
+<p class="text-muted">Ваш код администратора: <code>@Host.AdminCode</code> — постоянный, не меняется до полного сброса.</p>
+
 @if (_errorMessage is not null)
 {
     <div class="alert alert-danger">@_errorMessage</div>
@@ -19,10 +36,11 @@
     <summary class="text-danger">Полный сброс в начальное состояние</summary>
     <p class="text-muted mt-2">
         <em>
-            Стирает вообще всё: активную сессию (если есть) и черновик команд — возврат к самому
-            первому экрану настройки. Журнал архивируется на диске (не удаляется), но из интерфейса
-            не читается — выгрузите историю заранее, если она нужна. Разлогинивает вас: следующий
-            вход — снова по одноразовому коду администратора из консоли сервера.
+            Стирает вообще всё: активную сессию (если есть) и черновики команд/участников — возврат
+            к самому первому экрану настройки. Журнал архивируется на диске (не удаляется), но из
+            интерфейса не читается — выгрузите историю заранее, если она нужна. Разлогинивает вас:
+            следующий вход — по новому коду администратора из консоли сервера (старый после сброса
+            перестаёт работать).
         </em>
     </p>
     <form method="post" action="/admin/hard-reset">
@@ -56,10 +74,11 @@
         }
     </select>
 
-    <h2 class="mt-4">Команды</h2>
+    <h2 class="mt-4">Команды и участники</h2>
     <p>
-        Команды заводятся на странице <a href="/admin/teams">«Команды»</a> — сейчас в черновике:
-        <strong>@Host.StagedTeams.Count</strong>.
+        Команды и управляющие заводятся на странице <a href="/admin/teams">«Команды»</a> — сейчас в
+        черновике: <strong>@Host.StagedTeams.Count</strong> команд(ы). Администраторы, операторы и
+        ведущий заводятся на странице <a href="/admin/participants">«Участники»</a>.
     </p>
 
     <h2 class="mt-4">Чек-лист готовности</h2>
@@ -68,6 +87,9 @@
         <li>Пресет выбран: @(_selectedPresetId is not null ? "✓" : "✗")</li>
         <li>Команд в черновике: @Host.StagedTeams.Count</li>
         <li>Секторы охвачены: @(Host.StagedTeams.Count == 0 ? "—" : string.Join(", ", Host.StagedTeams.Select(t => SectorName(t.SectorId)).Distinct()))</li>
+        <li>Команд без управляющего: @_teamsWithoutManagerCount</li>
+        <li>Операторов в черновике: @_stagedOperatorCount</li>
+        <li>Ведущих в черновике: @_stagedFacilitatorCount</li>
     </ul>
 
     <button type="button" class="btn btn-primary" @onclick="StartSession">Начать сессию</button>
@@ -78,10 +100,6 @@ else
         Сессия запущена. Статус: <strong>@(_isPaused ? "пауза" : "идёт")</strong>
         <button type="button" class="btn btn-secondary btn-sm ms-2" @onclick="TogglePause">@(_isPaused ? "Возобновить" : "Пауза")</button>
     </p>
-    @if (_adminCode is not null)
-    {
-        <div class="alert alert-warning">Код администратора: <strong>@_adminCode</strong> — сохраните, иначе доступ к этой странице будет утрачен.</div>
-    }
 
     <h2>Управление</h2>
     <p>
@@ -130,9 +148,17 @@ else
 @code {
     private sealed record TeamChecklistRow(string Name, bool HasManager, bool HasNegotiator);
 
+    [SupplyParameterFromQuery(Name = "welcome")]
+    public string? WelcomeParam { get; set; }
+
+    private bool _showWelcome;
+
     private string? _selectedPresetId;
     private string? _errorMessage;
-    private string? _adminCode;
+
+    private int _teamsWithoutManagerCount;
+    private int _stagedOperatorCount;
+    private int _stagedFacilitatorCount;
 
     private bool _sessionStarted;
     private bool _isPaused;
@@ -148,6 +174,7 @@ else
 
     protected override void OnInitialized()
     {
+        _showWelcome = WelcomeParam == "1";
         _selectedPresetId = Host.DraftConfig.Raw.SessionPresets.Count > 0 ? Host.DraftConfig.Raw.SessionPresets[0].Id : null;
         _resetPresetId = Host.DefaultConfig.Raw.SessionPresets.Count > 0 ? Host.DefaultConfig.Raw.SessionPresets[0].Id : null;
 
@@ -167,6 +194,14 @@ else
             _sessionStarted = Host.Session is not null;
             if (!_sessionStarted)
             {
+                var stagedParticipants = Host.StagedParticipants;
+                var teamIdsWithManager = stagedParticipants
+                    .Where(p => p.Role == ParticipantRole.Manager)
+                    .Select(p => p.TeamId)
+                    .ToHashSet();
+                _teamsWithoutManagerCount = Host.StagedTeams.Count(t => !teamIdsWithManager.Contains(t.Id));
+                _stagedOperatorCount = stagedParticipants.Count(p => p.Role == ParticipantRole.Operator);
+                _stagedFacilitatorCount = stagedParticipants.Count(p => p.Role == ParticipantRole.Facilitator);
                 return;
             }
 
@@ -214,25 +249,14 @@ else
 
     private void StartSession()
     {
-        var config = Host.DraftConfig;
-        var preset = config.Raw.SessionPresets.FirstOrDefault(p => p.Id == _selectedPresetId);
+        var preset = Host.DraftConfig.Raw.SessionPresets.FirstOrDefault(p => p.Id == _selectedPresetId);
         if (preset is null)
         {
             _errorMessage = "Выберите пресет длительности.";
             return;
         }
 
-        var teamSpecs = Host.StagedTeams
-            .Select(t => new TeamSpec { Id = t.Id, Name = t.Name, SectorId = t.SectorId, StartingLoanAmount = t.StartingLoanAmount })
-            .ToList();
-
-        RunAction(() =>
-        {
-            Host.StartNewSession(config, preset, teamSpecs);
-            var entry = Host.RegisterParticipant(ParticipantRole.Administrator, null, "Администратор");
-            _adminCode = ((ParticipantRegistered)entry.Change).Code;
-            Host.ClearStagedTeams();
-        });
+        RunAction(() => Host.StartSessionFromDraft(preset));
     }
 
     private void TogglePause() => RunAction(() =>

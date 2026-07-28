@@ -37,7 +37,7 @@ else
                     @foreach (var participant in team.Participants)
                     {
                         <tr>
-                            <td>@participant.Role</td>
+                            <td>@RoleDisplay.Name(participant.Role)</td>
                             <td>@participant.DisplayName</td>
                             <td><code>@participant.Code</code></td>
                         </tr>

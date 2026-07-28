@@ -6,7 +6,22 @@
 
 <PageTitle>Оператор</PageTitle>
 
-<h1>Вы вошли как @DisplayName (Оператор)</h1>
+<h1>Вы вошли как @DisplayName (@RoleDisplay.Name(ParticipantRole.Operator))</h1>
+
+@if (_showWelcome)
+{
+    <div class="alert alert-info">
+        <p>@RoleDisplay.Description(ParticipantRole.Operator)</p>
+        <p>Что можно делать:</p>
+        <ul>
+            @foreach (var tip in RoleDisplay.Tips(ParticipantRole.Operator))
+            {
+                <li>@tip</li>
+            }
+        </ul>
+        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => _showWelcome = false">Понятно, дальше</button>
+    </div>
+}
 
 <p>
     Ход <strong>@_currentTurn</strong>, фаза <strong>@_phaseLabel</strong>. До конца фазы: <strong>@_countdown</strong>.
@@ -78,7 +93,11 @@ else
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
+    [SupplyParameterFromQuery(Name = "welcome")]
+    public string? WelcomeParam { get; set; }
+
     private string? DisplayName;
+    private bool _showWelcome;
     private int _currentTurn;
     private string _phaseLabel = string.Empty;
     private bool _isDecisionPhase;
@@ -99,6 +118,7 @@ else
     {
         var authState = await AuthenticationStateTask!;
         DisplayName = authState.User.Identity?.Name;
+        _showWelcome = WelcomeParam == "1";
 
         RefreshPhaseStatus();
 

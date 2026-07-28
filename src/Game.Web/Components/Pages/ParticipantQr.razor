@@ -1,0 +1,45 @@
+@page "/admin/qr/{Code}"
+@attribute [Authorize(Roles = "Administrator,Manager")]
+@layout Game.Web.Components.Layout.NoNavLayout
+@using Microsoft.AspNetCore.Hosting.Server
+@using Microsoft.AspNetCore.Hosting.Server.Features
+@inject IServer Server
+
+<PageTitle>QR-код входа</PageTitle>
+
+<p><a href="javascript:history.back()">← Назад</a></p>
+
+@if (_loginUrl is null)
+{
+    <p>Не удалось определить адрес сервера в локальной сети. Подключите машину к Wi-Fi/сети и обновите страницу.</p>
+}
+else
+{
+    <div class="text-center">
+        @if (Name is not null)
+        {
+            <h1>@Name</h1>
+        }
+        <img src="@QrCodeImage.ToDataUrl(_loginUrl)" alt="QR-код входа" style="width:320px;height:320px" />
+        <p>Код: <code>@Code</code></p>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Code { get; set; } = string.Empty;
+
+    [SupplyParameterFromQuery]
+    public string? Name { get; set; }
+
+    private string? _loginUrl;
+
+    protected override void OnInitialized()
+    {
+        var boundAddress = Server.Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault();
+        var port = boundAddress is not null ? new Uri(boundAddress).Port : 5180;
+
+        var baseUrl = LocalNetworkAddresses.DiscoverBaseUrls(port).Select(a => a.BaseUrl).FirstOrDefault();
+        _loginUrl = baseUrl is null ? null : $"{baseUrl}/auth/login?code={Code}";
+    }
+}

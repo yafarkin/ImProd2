@@ -17,7 +17,42 @@
 
 @if (!_sessionStarted)
 {
-    <p><em>Сессия ещё не запущена — регистрация участников доступна после старта на <a href="/admin">странице администратора</a>.</em></p>
+    <p><em>Здесь заводятся роли без команды — администраторы, операторы, ведущий. Управляющих команд заводят на странице <a href="/admin/teams">«Команды»</a>, переговорщиков — сами управляющие после старта сессии.</em></p>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <select class="form-select w-auto" @bind="_stageRole">
+            @foreach (var role in RoleLessRoles)
+            {
+                <option value="@role">@RoleDisplay.Name(role)</option>
+            }
+        </select>
+        <input class="form-control d-inline-block w-auto" @bind="_stageName" placeholder="Имя участника" />
+        <button type="button" class="btn btn-secondary" @onclick="StageParticipant">Добавить</button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Код</th>
+                    <th>Роль</th>
+                    <th>Имя</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var participant in Host.StagedParticipants.Where(p => p.TeamId is null))
+                {
+                    <tr>
+                        <td><code>@participant.Code</code> <a href="@QrLink(participant)" target="_blank">QR</a></td>
+                        <td>@RoleDisplay.Name(participant.Role)</td>
+                        <td>@participant.DisplayName</td>
+                        <td><button type="button" class="btn btn-secondary btn-sm" @onclick="() => Host.RemoveStagedParticipant(participant.Id)">Убрать</button></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }
 else
 {
@@ -26,7 +61,7 @@ else
         <select class="form-select w-auto" @bind="_registerRole">
             @foreach (var role in Enum.GetValues<ParticipantRole>())
             {
-                <option value="@role">@role</option>
+                <option value="@role">@RoleDisplay.Name(role)</option>
             }
         </select>
         @if (_registerRole is ParticipantRole.Manager or ParticipantRole.Negotiator)
@@ -57,7 +92,7 @@ else
                 {
                     <tr>
                         <td><code>@participant.Code</code></td>
-                        <td>@participant.Role</td>
+                        <td>@RoleDisplay.Name(participant.Role)</td>
                         <td>@TeamName(participant.TeamId)</td>
                         <td>@participant.DisplayName</td>
                     </tr>
@@ -68,6 +103,11 @@ else
 }
 
 @code {
+    private static readonly ParticipantRole[] RoleLessRoles =
+    [
+        ParticipantRole.Administrator, ParticipantRole.Operator, ParticipantRole.Facilitator,
+    ];
+
     private bool _sessionStarted;
     private string? _errorMessage;
     private IReadOnlyList<Game.Domain.Team> _teams = Array.Empty<Game.Domain.Team>();
@@ -76,6 +116,9 @@ else
     private ParticipantRole _registerRole;
     private Ulid? _registerTeamId;
     private string _registerName = string.Empty;
+
+    private ParticipantRole _stageRole = ParticipantRole.Operator;
+    private string _stageName = string.Empty;
 
     private Timer? _tickTimer;
 
@@ -113,6 +156,28 @@ else
 
     private string TeamName(Ulid? teamId) =>
         teamId is { } id && _teams.FirstOrDefault(t => t.Id == id) is { } team ? team.Name : "—";
+
+    private void StageParticipant()
+    {
+        _errorMessage = null;
+        if (string.IsNullOrWhiteSpace(_stageName))
+        {
+            return;
+        }
+
+        try
+        {
+            Host.AddStagedParticipant(_stageRole, null, _stageName.Trim());
+            _stageName = string.Empty;
+        }
+        catch (ArgumentException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private static string QrLink(StagedParticipantSpec participant) =>
+        $"/admin/qr/{participant.Code}?name={Uri.EscapeDataString($"{participant.DisplayName} — {RoleDisplay.Name(participant.Role)}")}";
 
     private void RegisterParticipant()
     {

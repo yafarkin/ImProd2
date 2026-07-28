@@ -11,7 +11,8 @@ namespace Game.Web;
 /// </summary>
 public static class LocalNetworkAddresses
 {
-    public static IReadOnlyList<(string InterfaceName, string Url)> DiscoverJoinUrls(int port)
+    /// <summary>Базовые адреса (без пути) — переиспользуется и страницей подключения (`/login`), и QR конкретного участника (`/auth/login?code=...`, см. `ParticipantQr.razor`).</summary>
+    public static IReadOnlyList<(string InterfaceName, string BaseUrl)> DiscoverBaseUrls(int port)
     {
         var result = new List<(string, string)>();
 
@@ -26,11 +27,14 @@ public static class LocalNetworkAddresses
             {
                 if (address.Address.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    result.Add((nic.Name, $"http://{address.Address}:{port}/login"));
+                    result.Add((nic.Name, $"http://{address.Address}:{port}"));
                 }
             }
         }
 
         return result;
     }
+
+    public static IReadOnlyList<(string InterfaceName, string Url)> DiscoverJoinUrls(int port) =>
+        DiscoverBaseUrls(port).Select(a => (a.InterfaceName, $"{a.BaseUrl}/login")).ToList();
 }

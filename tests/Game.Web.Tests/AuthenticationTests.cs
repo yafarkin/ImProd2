@@ -79,7 +79,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await PostLogin(client, SeedCodeFor(ParticipantRole.Manager));
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Equal("/team", response.Headers.Location!.OriginalString);
+        Assert.Equal("/team?welcome=1", response.Headers.Location!.OriginalString);
         Assert.True(response.Headers.Contains("Set-Cookie"));
     }
 
@@ -91,7 +91,63 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await PostLogin(client, SeedCodeFor(ParticipantRole.Operator));
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-        Assert.Equal("/operator", response.Headers.Location!.OriginalString);
+        Assert.Equal("/operator?welcome=1", response.Headers.Location!.OriginalString);
+    }
+
+    /// <summary>
+    /// Регрессия на исходную жалобу: раньше код администратора переставал приниматься, как только
+    /// сессия стартовала (валидность была завязана на <c>Session is null</c>) — фактически второй
+    /// код администратора на весь процесс. Теперь <see cref="GameSessionHost.AdminCode"/> не связан
+    /// с <see cref="GameSessionHost.Session"/> и работает одинаково всегда — здесь сессия уже
+    /// стартовала (сев fixture), это и есть проверяемый сценарий «после старта».
+    /// </summary>
+    [Fact]
+    public async Task AdminCode_Logs_In_As_Administrator_Even_Though_The_Session_Has_Already_Started()
+    {
+        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+        Assert.NotNull(host.Session);
+        var client = CreateClient();
+
+        var response = await PostLogin(client, host.AdminCode!);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/admin?welcome=1", response.Headers.Location!.OriginalString);
+        Assert.True(response.Headers.Contains("Set-Cookie"));
+    }
+
+    [Fact]
+    public async Task Get_Auth_Login_With_Code_In_Query_Logs_In_Like_The_Post_Form()
+    {
+        var client = CreateClient();
+
+        var response = await client.GetAsync($"/auth/login?code={SeedCodeFor(ParticipantRole.Operator)}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/operator?welcome=1", response.Headers.Location!.OriginalString);
+        Assert.True(response.Headers.Contains("Set-Cookie"));
+    }
+
+    /// <summary>
+    /// Управляющий сам заводит переговорщиков со своей страницы (самообслуживание) — тем же
+    /// <see cref="GameSessionHost.RegisterParticipant"/>, что и раньше использовала только
+    /// админка/оператор. UI-клик недоступен HTTP-тесту (интерактивный Blazor circuit, см.
+    /// doc-comment у <c>ResetSession_...</c> ниже), поэтому проверяется то, на чём в точности стоит
+    /// самообслуживание: выданный так код реально пускает в систему.
+    /// </summary>
+    [Fact]
+    public async Task A_Newly_SelfRegistered_Negotiator_Can_Log_In()
+    {
+        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+        var alphaTeamId = host.Session!.State.Teams.Values.Single(t => t.Name == "Альфа").Id;
+
+        var entry = host.RegisterParticipant(ParticipantRole.Negotiator, alphaTeamId, "Второй переговорщик Альфа");
+        var code = ((ParticipantRegistered)entry.Change).Code;
+
+        var client = CreateClient();
+        var response = await PostLogin(client, code);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/team?welcome=1", response.Headers.Location!.OriginalString);
     }
 
     [Fact]
@@ -355,6 +411,87 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
 
         Assert.Same(host.TrainingConfig, host.DraftConfig);
         Assert.Empty(host.StagedTeams);
+    }
+
+    /// <summary>
+    /// Черновик участников (Блок 9.8) — управляющие команд и роли без команды (админ/оператор/
+    /// ведущий), заведённые до старта сессии. Как и <see cref="StagedTeams_Are_Held_By_The_Host_Independently_Of_Any_Component"/>,
+    /// не трогает <see cref="GameSessionHost.Session"/> — безопасно для общего `_factory`.
+    /// </summary>
+    [Fact]
+    public void AddStagedParticipant_Assigns_A_Code_And_RemoveStagedTeam_Cascades_Its_Staged_Manager()
+    {
+        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+
+        host.AddStagedTeam("Дельта", "A", 200m);
+        var team = host.StagedTeams.Single(t => t.Name == "Дельта");
+        var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Дельта");
+        var operatorSpec = host.AddStagedParticipant(ParticipantRole.Operator, null, "Оператор Дельта");
+
+        Assert.False(string.IsNullOrWhiteSpace(manager.Code));
+        Assert.Contains(host.StagedParticipants, p => p.Id == manager.Id);
+        Assert.Contains(host.StagedParticipants, p => p.Id == operatorSpec.Id);
+
+        host.RemoveStagedTeam(team.Id);
+
+        Assert.DoesNotContain(host.StagedParticipants, p => p.Id == manager.Id);
+        Assert.Contains(host.StagedParticipants, p => p.Id == operatorSpec.Id);
+
+        host.RemoveStagedParticipant(operatorSpec.Id);
+        Assert.DoesNotContain(host.StagedParticipants, p => p.Id == operatorSpec.Id);
+    }
+
+    /// <summary>Секторы могли смениться вместе с конфигом — застейдженные управляющие теряют смысл, роли без команды нет.</summary>
+    [Fact]
+    public void SetDraftConfig_Clears_TeamScoped_Staged_Participants_But_Preserves_RoleLess_Ones()
+    {
+        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+        host.AddStagedTeam("Эпсилон", "A", 100m);
+        var team = host.StagedTeams.Single(t => t.Name == "Эпсилон");
+        var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Эпсилон");
+        var facilitatorSpec = host.AddStagedParticipant(ParticipantRole.Facilitator, null, "Черновой ведущий");
+
+        host.SetDraftConfig(host.TrainingConfig);
+
+        Assert.DoesNotContain(host.StagedParticipants, p => p.Id == manager.Id);
+        Assert.Contains(host.StagedParticipants, p => p.Id == facilitatorSpec.Id);
+    }
+
+    /// <summary>
+    /// Требует <c>Session is null</c> (иначе <see cref="GameSessionHost.StartNewSession"/> внутри
+    /// бросит) — у общего `_factory` сессия уже стартовала севом в конструкторе, поэтому здесь своя,
+    /// изолированная фабрика. <see cref="GameSessionHost.HardReset"/> в начале страхует от файлов
+    /// на диске, оставшихся от других тестов процесса (тот же `App_Data`, см. AGENTS.md), — гарантирует
+    /// чистый черновик независимо от порядка запуска тестов.
+    /// </summary>
+    [Fact]
+    public void StartSessionFromDraft_Commits_Staged_Teams_And_Participants_With_Their_Preassigned_Codes()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
+        var sectorId = host.DefaultConfig.Sectors.First().Id;
+        host.AddStagedTeam("Гамма", sectorId, 500m);
+        var team = host.StagedTeams.Single();
+        var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Гамма");
+        var operatorSpec = host.AddStagedParticipant(ParticipantRole.Operator, null, "Оператор Черновик");
+        var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
+
+        host.StartSessionFromDraft(preset);
+
+        Assert.NotNull(host.Session);
+        var managerRegistration = host.Session!.TryAuthenticate(manager.Code);
+        Assert.NotNull(managerRegistration);
+        Assert.Equal(ParticipantRole.Manager, managerRegistration!.Role);
+        Assert.Equal(team.Id, managerRegistration.TeamId);
+
+        var operatorRegistration = host.Session!.TryAuthenticate(operatorSpec.Code);
+        Assert.NotNull(operatorRegistration);
+        Assert.Equal(ParticipantRole.Operator, operatorRegistration!.Role);
+
+        Assert.Empty(host.StagedTeams);
+        Assert.Empty(host.StagedParticipants);
     }
 
     [Fact]

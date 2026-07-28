@@ -63,21 +63,24 @@ app.UseAuthorization();
 // форм), так что MapPost("/login", ...) сталкивается с ним же — AmbiguousMatchException. Заодно
 // HttpContext.SignInAsync нельзя вызвать из интерактивного Blazor Server компонента после того, как
 // ответ уже начат через SignalR circuit, — так что это в любом случае обязан быть отдельный endpoint.
-app.MapPost("/auth/login", async (HttpContext http, GameSessionHost host) =>
+// Общая логика для обоих способов входа по коду — обычной формы (POST, ручной ввод) и QR-ссылки
+// (GET, код уже зашит в URL, см. MapGet ниже и ParticipantQr.razor). Код администратора
+// (GameSessionHost.AdminCode) сверяется всегда первым и не зависит от того, стартовала ли сессия, —
+// это постоянная личность администратора на весь процесс, а не запись в журнале участников.
+static async Task<IResult> PerformLogin(HttpContext http, GameSessionHost host, string? rawCode)
 {
-    var form = await http.Request.ReadFormAsync();
-    var code = form["code"].ToString().Trim().ToUpperInvariant();
+    var code = (rawCode ?? string.Empty).Trim().ToUpperInvariant();
+    if (code.Length == 0)
+    {
+        return Results.Redirect("/login");
+    }
 
-    // До старта сессии участников ещё нет — сверяться не с чем; единственный ход входа тогда —
-    // одноразовый код-бутстрап администратора, живущий вне журнала (Блок 9.8, GameSessionHost).
     ParticipantRegistration? registration;
     lock (host.SyncRoot)
     {
-        registration = host.Session is null
-            ? (host.AdminBootstrapCode is not null && code == host.AdminBootstrapCode
-                ? new ParticipantRegistration(code, ParticipantRole.Administrator, null, "Администратор")
-                : null)
-            : host.Session.TryAuthenticate(code);
+        registration = host.AdminCode is not null && code == host.AdminCode
+            ? new ParticipantRegistration(code, ParticipantRole.Administrator, null, "Администратор")
+            : host.Session?.TryAuthenticate(code);
     }
 
     if (registration is null)
@@ -99,8 +102,22 @@ app.MapPost("/auth/login", async (HttpContext http, GameSessionHost host) =>
     var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
     await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
 
-    return Results.Redirect(RoleRouting.HomeRoute(registration.Role));
+    // ?welcome=1 — разовая памятка о роли (Блок 9.8, SPEC §3), показывается только сразу после
+    // входа, не при обычных заходах на страницу после обновления/переподключения.
+    return Results.Redirect($"{RoleRouting.HomeRoute(registration.Role)}?welcome=1");
+}
+
+app.MapPost("/auth/login", async (HttpContext http, GameSessionHost host) =>
+{
+    var form = await http.Request.ReadFormAsync();
+    return await PerformLogin(http, host, form["code"].ToString());
 });
+
+// QR-код, который сразу авторизует конкретного участника (SPEC §16 «точный формат
+// QR-аутентификации», SPEC §3 doc-comment «рендер в QR-картинку — отдельная надстройка»): код
+// зашит прямо в ссылку (см. ParticipantQr.razor), сканирование телефоном сразу логинит, без
+// ручного ввода. GET, а не POST, — сама ссылка и есть весь запрос, без формы на странице.
+app.MapGet("/auth/login", (HttpContext http, GameSessionHost host, string? code) => PerformLogin(http, host, code));
 
 app.MapPost("/auth/logout", async (HttpContext http) =>
 {
