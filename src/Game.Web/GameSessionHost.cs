@@ -12,9 +12,18 @@ namespace Game.Web;
 /// проверяет, сохранён ли в <c>App_Data/session/config.json</c> конфиг ранее стартовавшей сессии:
 /// если да — открывает durable-журнал и восстанавливает состояние; если нет — <see cref="Session"/>
 /// остаётся <see langword="null"/> до тех пор, пока администратор не пройдёт экран настройки (Блок
-/// 9.8, <c>/admin</c>, SPEC §9.6) и не вызовет <see cref="StartSessionFromDraft"/>. Вход по коду
-/// администратора (<see cref="AdminCode"/>) не зависит от того, стартовала ли сессия, — это
-/// постоянная личность администратора на весь процесс, а не запись в журнале участников.
+/// 9.8, <c>/admin</c>, SPEC §9.6) и не вызовет <see cref="StartSessionFromDraft"/>. Черновик до
+/// старта сессии — тоже durable-журнал (<c>App_Data/draft</c>, <see cref="DraftState"/>), открытый
+/// безусловно с самого начала процесса: конфигурирование команд и персонала до старта — такая же
+/// последовательность событий, как и сама игра, и переживает перезапуск процесса точно так же. Вход
+/// по коду администратора работает так же, как и у любой другой роли, — администратор ничем не
+/// отличается от оператора или ведущего: та же запись в черновике/журнале участников
+/// (<see cref="ParticipantRole.Administrator"/>), тот же путь входа. Единственная особенность —
+/// <see cref="EnsureFirstAdministrator"/>: если во всём процессе ещё нет ни одного администратора
+/// (самый первый запуск или сразу после <see cref="HardReset"/>), он заводится автоматически, чтобы
+/// на `/admin` вообще можно было зайти. <see cref="AdminCode"/> — просто код этого первого
+/// администратора; дополнительных можно завести вручную на «Персонал», как и любую другую роль без
+/// команды.
 /// <see cref="ResetSession"/> (Блок 10.2, SPEC §10) позволяет один раз начать сессию заново поверх
 /// того же состава команд и участников — для перехода от тренировочной игры к основной;
 /// полноценного менеджера произвольного числа сессий с историей это по-прежнему не даёт, только то,
@@ -24,9 +33,9 @@ public sealed class GameSessionHost
 {
     private readonly ILogger<GameSessionHost> _logger;
     private readonly string _sessionDirectory;
+    private readonly string _draftDirectory;
     private readonly object _draftLock = new();
-    private readonly List<StagedTeamSpec> _stagedTeams = new();
-    private readonly List<StagedParticipantSpec> _stagedParticipants = new();
+    private IEventLog<DraftState> _draftLog = null!;
     private ResolvedGameConfig _draftConfig = null!;
 
     /// <summary>Живая сессия процесса; <see langword="null"/>, пока администратор её не начал.</summary>
@@ -53,8 +62,12 @@ public sealed class GameSessionHost
     /// Меняет черновой конфиг перед стартом сессии. Заодно чистит <see cref="StagedTeams"/> и
     /// привязанных к командам застейдженных участников (<see cref="StagedParticipants"/> с непустым
     /// <c>TeamId</c>, то есть управляющих) — секторы нового конфига могут не совпадать со старыми,
-    /// ранее назначенные сектора команд потеряли бы смысл. Роли без команды (админ/оператор/ведущий)
-    /// от смены конфига не зависят и сохраняются.
+    /// ранее назначенные сектора команд потеряли бы смысл: каждая команда убирается тем же событием
+    /// <see cref="TeamUnstaged"/>, что и ручное удаление, только пачкой. Роли без команды
+    /// (админ/оператор/ведущий) от смены конфига не зависят и сохраняются. Сам конфиг — не событие
+    /// (см. doc-comment <see cref="DraftState"/>): персистируется отдельным файлом
+    /// <c>App_Data/draft/config.json</c>, той же парой <c>JsonSerializer.Serialize(config.Raw)</c> /
+    /// <see cref="GameConfigLoader.Load"/>, что уже использует сессия для своего <c>config.json</c>.
     /// </summary>
     public void SetDraftConfig(ResolvedGameConfig config)
     {
@@ -62,9 +75,13 @@ public sealed class GameSessionHost
 
         lock (_draftLock)
         {
+            foreach (var teamId in _draftLog.State.Teams.Keys.ToList())
+            {
+                _draftLog.Append(new TeamUnstaged { Id = Ulid.NewUlid(), TeamId = teamId });
+            }
+
+            File.WriteAllText(Path.Combine(_draftDirectory, "config.json"), JsonSerializer.Serialize(config.Raw));
             _draftConfig = config;
-            _stagedTeams.Clear();
-            _stagedParticipants.RemoveAll(p => p.TeamId is not null);
         }
     }
 
@@ -79,17 +96,17 @@ public sealed class GameSessionHost
         {
             lock (_draftLock)
             {
-                return _stagedTeams.ToList();
+                return _draftLog.State.Teams.Values.ToList();
             }
         }
     }
 
-    /// <summary>Добавляет команду в черновик до старта сессии.</summary>
+    /// <summary>Добавляет команду в черновик до старта сессии. См. <see cref="TeamStaged"/>.</summary>
     public void AddStagedTeam(string name, string sectorId)
     {
         lock (_draftLock)
         {
-            _stagedTeams.Add(new StagedTeamSpec(Ulid.NewUlid(), name, sectorId));
+            _draftLog.Append(new TeamStaged { Id = Ulid.NewUlid(), TeamId = Ulid.NewUlid(), Name = name, SectorId = sectorId });
         }
     }
 
@@ -97,23 +114,13 @@ public sealed class GameSessionHost
     /// Убирает команду из черновика до старта сессии — заодно убирает застейдженного управляющего
     /// этой команды (<see cref="StagedParticipants"/>), если он уже был назначен: без своей команды
     /// его регистрация не имеет смысла (<see cref="ParticipantRegistration"/> требует существующую
-    /// команду для ролей, привязанных к ней).
+    /// команду для ролей, привязанных к ней). См. <see cref="TeamUnstaged"/>.
     /// </summary>
     public void RemoveStagedTeam(Ulid id)
     {
         lock (_draftLock)
         {
-            _stagedTeams.RemoveAll(t => t.Id == id);
-            _stagedParticipants.RemoveAll(p => p.TeamId == id);
-        }
-    }
-
-    /// <summary>Очищает черновик команд — при смене конфига (секторы могли поменяться) или после успешного старта сессии.</summary>
-    public void ClearStagedTeams()
-    {
-        lock (_draftLock)
-        {
-            _stagedTeams.Clear();
+            _draftLog.Append(new TeamUnstaged { Id = Ulid.NewUlid(), TeamId = id });
         }
     }
 
@@ -129,7 +136,7 @@ public sealed class GameSessionHost
         {
             lock (_draftLock)
             {
-                return _stagedParticipants.ToList();
+                return _draftLog.State.Participants.Values.ToList();
             }
         }
     }
@@ -137,7 +144,8 @@ public sealed class GameSessionHost
     /// <summary>
     /// Добавляет участника в черновик до старта сессии и сразу выдаёт ему код входа — сочетание
     /// роли/команды/имени валидирует сам <see cref="ParticipantRegistration"/> (тот же конструктор,
-    /// что использует и живая сессия), лишний раз не дублируем проверку.
+    /// что использует и живая сессия), лишний раз не дублируем проверку. Валидация происходит до
+    /// <c>Append</c> — <see cref="ParticipantStaged"/> сам по себе не бросает. См. <see cref="ParticipantStaged"/>.
     /// </summary>
     public StagedParticipantSpec AddStagedParticipant(ParticipantRole role, Ulid? teamId, string displayName)
     {
@@ -148,22 +156,31 @@ public sealed class GameSessionHost
             {
                 code = ShortCode.Generate(Random.Shared);
             }
-            while (_stagedParticipants.Any(p => p.Code == code) || code == AdminCode);
+            while (_draftLog.State.Participants.Values.Any(p => p.Code == code));
 
             _ = new ParticipantRegistration(code, role, teamId, displayName);
 
-            var spec = new StagedParticipantSpec(Ulid.NewUlid(), code, role, teamId, displayName);
-            _stagedParticipants.Add(spec);
-            return spec;
+            var participantId = Ulid.NewUlid();
+            _draftLog.Append(new ParticipantStaged
+            {
+                Id = Ulid.NewUlid(),
+                ParticipantId = participantId,
+                Code = code,
+                Role = role,
+                TeamId = teamId,
+                DisplayName = displayName,
+            });
+
+            return _draftLog.State.Participants[participantId];
         }
     }
 
-    /// <summary>Убирает участника из черновика до старта сессии.</summary>
+    /// <summary>Убирает участника из черновика до старта сессии. См. <see cref="ParticipantUnstaged"/>.</summary>
     public void RemoveStagedParticipant(Ulid id)
     {
         lock (_draftLock)
         {
-            _stagedParticipants.RemoveAll(p => p.Id == id);
+            _draftLog.Append(new ParticipantUnstaged { Id = Ulid.NewUlid(), ParticipantId = id });
         }
     }
 
@@ -183,14 +200,17 @@ public sealed class GameSessionHost
     public ResolvedGameConfig TrainingConfig { get; }
 
     /// <summary>
-    /// Постоянный код входа администратора (см. doc-comment класса) — не запись в
-    /// <see cref="GameSessionState.Participants"/>, а отдельная, независимая от <see cref="Session"/>
-    /// личность: действителен одинаково и до, и после старта сессии, весь процесс. Генерируется на
-    /// каждом старте процесса заново (не персистится на диск — живёт только в памяти, как и раньше)
-    /// и перегенерируется в <see cref="HardReset"/> — единственное действие, которое действительно
-    /// должно сделать администратора «другим» (полный сброс в начальное состояние).
+    /// Код входа первого администратора — обычная запись с ролью
+    /// <see cref="ParticipantRole.Administrator"/>, как у любого другого участника: до старта сессии
+    /// ищется среди <see cref="StagedParticipants"/>, после — среди
+    /// <see cref="GameSessionState.Participants"/>. Заводится автоматически, если такой роли ещё нет
+    /// нигде, — см. <see cref="EnsureFirstAdministrator"/>. Если администраторов несколько (можно
+    /// завести ещё вручную на «Персонал»), возвращает того, кто был заведён первым.
     /// </summary>
-    public string? AdminCode { get; private set; }
+    public string? AdminCode =>
+        Session is not null
+            ? Session.State.Participants.Values.FirstOrDefault(p => p.Role == ParticipantRole.Administrator)?.Code
+            : StagedParticipants.FirstOrDefault(p => p.Role == ParticipantRole.Administrator)?.Code;
 
     public GameSessionHost(ILogger<GameSessionHost> logger)
     {
@@ -203,13 +223,15 @@ public sealed class GameSessionHost
         var trainingConfigPath = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.training.json");
         TrainingConfig = GameConfigLoader.LoadFromFile(trainingConfigPath);
 
-        _draftConfig = DefaultConfig;
-
         _sessionDirectory = Path.Combine(AppContext.BaseDirectory, "App_Data", "session");
         Directory.CreateDirectory(_sessionDirectory);
 
-        AdminCode = ShortCode.Generate(Random.Shared);
-        logger.LogInformation("Код администратора (постоянный, не меняется до полного сброса): {Code}", AdminCode);
+        _draftDirectory = Path.Combine(AppContext.BaseDirectory, "App_Data", "draft");
+        Directory.CreateDirectory(_draftDirectory);
+
+        var draftConfigPath = Path.Combine(_draftDirectory, "config.json");
+        _draftConfig = File.Exists(draftConfigPath) ? GameConfigLoader.Load(File.ReadAllText(draftConfigPath)) : DefaultConfig;
+        _draftLog = OpenDraftLog();
 
         var configJsonPath = Path.Combine(_sessionDirectory, "config.json");
         if (File.Exists(configJsonPath))
@@ -228,6 +250,9 @@ public sealed class GameSessionHost
                     "Код входа {Code}: {Role} {DisplayName}", registration.Code, registration.Role, registration.DisplayName);
             }
         }
+
+        EnsureFirstAdministrator();
+        logger.LogInformation("Код администратора: {Code}", AdminCode);
     }
 
     /// <summary>
@@ -321,10 +346,10 @@ public sealed class GameSessionHost
             lock (_draftLock)
             {
                 config = _draftConfig;
-                teamSpecs = _stagedTeams
+                teamSpecs = _draftLog.State.Teams.Values
                     .Select(t => new TeamSpec { Id = t.Id, Name = t.Name, SectorId = t.SectorId })
                     .ToList();
-                participants = _stagedParticipants.ToList();
+                participants = _draftLog.State.Participants.Values.ToList();
             }
 
             var teamsWithoutManager = teamSpecs
@@ -348,8 +373,8 @@ public sealed class GameSessionHost
 
             lock (_draftLock)
             {
-                _stagedTeams.Clear();
-                _stagedParticipants.Clear();
+                ArchiveDraftFiles();
+                _draftLog = OpenDraftLog();
                 _draftConfig = DefaultConfig;
             }
 
@@ -415,8 +440,10 @@ public sealed class GameSessionHost
     /// <see cref="ResetSession"/>, на случай если историю забыли выгрузить. Черновик команд и
     /// участников (<see cref="StagedTeams"/>, <see cref="StagedParticipants"/>) и черновой конфиг
     /// (<see cref="DraftConfig"/>) очищаются всегда, независимо от того, была ли сессия начата.
-    /// <see cref="AdminCode"/> перегенерируется — единственный способ действительно сменить личность
-    /// администратора (см. его doc-comment).
+    /// Администратор при этом временно пропадает — <see cref="EnsureFirstAdministrator"/> в конце
+    /// заводит нового, с новым кодом: это и есть единственный способ действительно сменить личность
+    /// администратора (старый код, будучи архивированной записью в архивированном журнале, больше
+    /// нигде не встречается и перестаёт работать).
     /// </summary>
     public void HardReset()
     {
@@ -427,17 +454,17 @@ public sealed class GameSessionHost
                 ArchiveSessionFiles();
                 Session = null;
             }
-
-            AdminCode = ShortCode.Generate(Random.Shared);
-            _logger.LogInformation("Код администратора (постоянный, не меняется до полного сброса): {Code}", AdminCode);
         }
 
         lock (_draftLock)
         {
+            ArchiveDraftFiles();
+            _draftLog = OpenDraftLog();
             _draftConfig = DefaultConfig;
-            _stagedTeams.Clear();
-            _stagedParticipants.Clear();
         }
+
+        EnsureFirstAdministrator();
+        _logger.LogInformation("Код администратора: {Code}", AdminCode);
     }
 
     /// <summary>Переименовывает файлы предыдущей сессии с меткой времени вместо удаления — на случай, если историю (Блок 10.1) забыли выгрузить до сброса.</summary>
@@ -453,10 +480,57 @@ public sealed class GameSessionHost
             }
         }
     }
+
+    /// <summary>Переименовывает файлы предыдущего черновика с меткой времени вместо удаления — та же страховка, что и <see cref="ArchiveSessionFiles"/>.</summary>
+    private void ArchiveDraftFiles()
+    {
+        var suffix = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff");
+        foreach (var name in new[] { "config.json", "journal.jsonl", "snapshot.json" })
+        {
+            var path = Path.Combine(_draftDirectory, name);
+            if (File.Exists(path))
+            {
+                File.Move(path, Path.Combine(_draftDirectory, $"{name}.{suffix}.bak"));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Заводит первого администратора, если во всём процессе ещё ни одного нет, — обычным путём,
+    /// как и любого другого участника: <see cref="RegisterParticipant"/>, если сессия уже идёт, иначе
+    /// <see cref="AddStagedParticipant"/>. Вызывается из конструктора (самый первый запуск процесса
+    /// или восстановление после рестарта) и из <see cref="HardReset"/> (после него администратор
+    /// пропадает вместе со всем остальным) — иначе `/admin` был бы недоступен вообще никому. Оба
+    /// вызывающих места сами логируют итоговый <see cref="AdminCode"/> после этого вызова — не только
+    /// когда он только что создан, но и на каждом обычном перезапуске поверх уже существующего, чтобы
+    /// код всегда можно было найти в логе процесса, а не только в момент первого создания.
+    /// </summary>
+    private void EnsureFirstAdministrator()
+    {
+        if (Session is not null)
+        {
+            if (!Session.State.Participants.Values.Any(p => p.Role == ParticipantRole.Administrator))
+            {
+                RegisterParticipant(ParticipantRole.Administrator, null, "Администратор");
+            }
+        }
+        else if (!StagedParticipants.Any(p => p.Role == ParticipantRole.Administrator))
+        {
+            AddStagedParticipant(ParticipantRole.Administrator, null, "Администратор");
+        }
+    }
+
+    /// <summary>
+    /// Открывает durable-журнал черновика (Блок 9.8) по путям в <see cref="_draftDirectory"/> — если
+    /// файлов ещё нет (первый запуск процесса или сразу после <see cref="ArchiveDraftFiles"/>),
+    /// начинает с чистого <see cref="DraftState"/>. Выбранный конфиг сюда не входит — см.
+    /// <see cref="_draftConfig"/> и doc-comment <see cref="DraftState"/>.
+    /// </summary>
+    private IEventLog<DraftState> OpenDraftLog()
+    {
+        return DurableEventLog<DraftState>.Open(
+            Path.Combine(_draftDirectory, "journal.jsonl"),
+            Path.Combine(_draftDirectory, "snapshot.json"),
+            () => new DraftState());
+    }
 }
-
-/// <summary>Одна команда в черновике до старта сессии — см. <see cref="GameSessionHost.StagedTeams"/>.</summary>
-public sealed record StagedTeamSpec(Ulid Id, string Name, string SectorId);
-
-/// <summary>Один участник в черновике до старта сессии — см. <see cref="GameSessionHost.StagedParticipants"/>.</summary>
-public sealed record StagedParticipantSpec(Ulid Id, string Code, ParticipantRole Role, Ulid? TeamId, string DisplayName);

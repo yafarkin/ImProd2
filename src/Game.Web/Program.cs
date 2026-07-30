@@ -64,9 +64,9 @@ app.UseAuthorization();
 // HttpContext.SignInAsync нельзя вызвать из интерактивного Blazor Server компонента после того, как
 // ответ уже начат через SignalR circuit, — так что это в любом случае обязан быть отдельный endpoint.
 // Общая логика для обоих способов входа по коду — обычной формы (POST, ручной ввод) и QR-ссылки
-// (GET, код уже зашит в URL, см. MapGet ниже и ParticipantQr.razor). Код администратора
-// (GameSessionHost.AdminCode) сверяется всегда первым и не зависит от того, стартовала ли сессия, —
-// это постоянная личность администратора на весь процесс, а не запись в журнале участников.
+// (GET, код уже зашит в URL, см. MapGet ниже и ParticipantQr.razor). Администратор входит тем же
+// путём, что и любая другая роль, — никакого отдельного обхода: см. doc-comment класса
+// GameSessionHost и GameSessionHost.EnsureFirstAdministrator.
 static async Task<IResult> PerformLogin(HttpContext http, GameSessionHost host, string? rawCode)
 {
     var code = (rawCode ?? string.Empty).Trim().ToUpperInvariant();
@@ -78,11 +78,7 @@ static async Task<IResult> PerformLogin(HttpContext http, GameSessionHost host, 
     ParticipantRegistration? registration;
     lock (host.SyncRoot)
     {
-        if (host.AdminCode is not null && code == host.AdminCode)
-        {
-            registration = new ParticipantRegistration(code, ParticipantRole.Administrator, null, "Администратор");
-        }
-        else if (host.Session is not null)
+        if (host.Session is not null)
         {
             registration = host.Session.TryAuthenticate(code);
         }

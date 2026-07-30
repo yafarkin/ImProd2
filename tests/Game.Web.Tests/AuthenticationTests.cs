@@ -183,6 +183,50 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     /// <summary>
+    /// Регрессия на баг из практики: черновик настройки (команды, персонал, коды входа) раньше жил
+    /// только в памяти процесса (обычные <c>List&lt;&gt;</c>) и терялся при перезапуске сервера —
+    /// пользователь завёл персонал на каждую роль, перезапустил (через Rider) и вкладка «Персонал»
+    /// опустела. Теперь черновик — свой durable-журнал (<c>App_Data/draft</c>, см. doc-comment
+    /// <see cref="GameSessionHost"/>), переживающий пересоздание процесса точно так же, как уже
+    /// переживает его живая сессия. Пересоздание отдельной <see cref="WebApplicationFactory{TEntryPoint}"/>
+    /// поверх того же <c>App_Data</c> — тот же приём, что и у соседних застейдженных тестов, только
+    /// здесь именно два независимых экземпляра хоста, а не один и тот же на протяжении теста.
+    /// </summary>
+    [Fact]
+    public void Staged_Draft_Survives_Recreating_The_Host_Like_A_Process_Restart()
+    {
+        Ulid teamId;
+        StagedParticipantSpec manager;
+        StagedParticipantSpec facilitator;
+
+        using (var factory = new WebApplicationFactory<Program>())
+        {
+            var host = factory.Services.GetRequiredService<GameSessionHost>();
+            host.HardReset();
+
+            host.AddStagedTeam("Дельта", host.DefaultConfig.Sectors.First().Id);
+            var team = host.StagedTeams.Single();
+            teamId = team.Id;
+            manager = host.AddStagedParticipant(ParticipantRole.Manager, teamId, "Управляющий Дельта");
+            facilitator = host.AddStagedParticipant(ParticipantRole.Facilitator, null, "Ведущий");
+        }
+
+        using var restarted = new WebApplicationFactory<Program>();
+        var restartedHost = restarted.Services.GetRequiredService<GameSessionHost>();
+
+        var restartedTeam = Assert.Single(restartedHost.StagedTeams);
+        Assert.Equal(teamId, restartedTeam.Id);
+        Assert.Equal("Дельта", restartedTeam.Name);
+
+        var restartedManager = restartedHost.StagedParticipants.Single(p => p.Role == ParticipantRole.Manager);
+        Assert.Equal(manager.Code, restartedManager.Code);
+        Assert.Equal(teamId, restartedManager.TeamId);
+
+        var restartedFacilitator = restartedHost.StagedParticipants.Single(p => p.Role == ParticipantRole.Facilitator);
+        Assert.Equal(facilitator.Code, restartedFacilitator.Code);
+    }
+
+    /// <summary>
     /// Управляющий сам заводит переговорщиков со своей страницы (самообслуживание) — тем же
     /// <see cref="GameSessionHost.RegisterParticipant"/>, что и раньше использовала только
     /// админка/оператор. UI-клик недоступен HTTP-тесту (интерактивный Blazor circuit, см.
@@ -461,13 +505,20 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
     /// <summary>
     /// Черновик команд до старта сессии живёт на <see cref="GameSessionHost"/>, а не как локальное
     /// состояние Blazor-компонента — переживает пересоздание компонента (обновление страницы,
-    /// переход между `/admin` и `/admin/teams`). Независим от <see cref="GameSessionHost.Session"/>,
-    /// поэтому безопасен для общего на класс `_factory`, в отличие от <c>HardReset</c>.
+    /// переход между `/admin` и `/admin/teams`), и (с тех пор как черновик стал durable-журналом,
+    /// <c>App_Data/draft</c>) — пересоздание самого процесса. Изолированная фабрика +
+    /// <see cref="GameSessionHost.HardReset"/>, как и у остальных тестов черновика: несколько
+    /// экземпляров <see cref="GameSessionHost"/> в одном тестовом процессе делят один и тот же файл
+    /// на диске, и без <c>HardReset</c> в начале один экземпляр может дописать поверх файла, который
+    /// другой уже переоткрыл — общий `_factory` для этого больше не годится (раньше, пока черновик
+    /// был чистым `List&lt;&gt;` в памяти, каждый экземпляр был независим сам по себе).
     /// </summary>
     [Fact]
     public void StagedTeams_Are_Held_By_The_Host_Independently_Of_Any_Component()
     {
-        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
 
         host.AddStagedTeam("Тестовая", "A");
         var staged = host.StagedTeams.Single(t => t.Name == "Тестовая");
@@ -482,13 +533,16 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
     /// <summary>
     /// Смена чернового конфига (загрузка своего файла / тренировочный) чистит уже заведённые
     /// черновые команды — их сектора могли быть заданы под секторы старого конфига и потеряли бы
-    /// смысл. Тот же приём, что <see cref="ResetSession_Preserves_Teams_And_Codes_But_Starts_A_Fresh_Journal"/>:
-    /// не трогает <see cref="GameSessionHost.Session"/>, поэтому безопасен для общего `_factory`.
+    /// смысл. Изолированная фабрика + <c>HardReset</c> — см. doc-comment
+    /// <see cref="StagedTeams_Are_Held_By_The_Host_Independently_Of_Any_Component"/>.
     /// </summary>
     [Fact]
     public void SetDraftConfig_Replaces_Config_And_Clears_Staged_Teams()
     {
-        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
         host.AddStagedTeam("Черновая", "A");
 
         host.SetDraftConfig(host.TrainingConfig);
@@ -499,13 +553,15 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
 
     /// <summary>
     /// Черновик участников (Блок 9.8) — управляющие команд и роли без команды (админ/оператор/
-    /// ведущий), заведённые до старта сессии. Как и <see cref="StagedTeams_Are_Held_By_The_Host_Independently_Of_Any_Component"/>,
-    /// не трогает <see cref="GameSessionHost.Session"/> — безопасно для общего `_factory`.
+    /// ведущий), заведённые до старта сессии. Изолированная фабрика + <c>HardReset</c> — см.
+    /// doc-comment <see cref="StagedTeams_Are_Held_By_The_Host_Independently_Of_Any_Component"/>.
     /// </summary>
     [Fact]
     public void AddStagedParticipant_Assigns_A_Code_And_RemoveStagedTeam_Cascades_Its_Staged_Manager()
     {
-        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
 
         host.AddStagedTeam("Дельта", "A");
         var team = host.StagedTeams.Single(t => t.Name == "Дельта");
@@ -525,11 +581,18 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.DoesNotContain(host.StagedParticipants, p => p.Id == operatorSpec.Id);
     }
 
-    /// <summary>Секторы могли смениться вместе с конфигом — застейдженные управляющие теряют смысл, роли без команды нет.</summary>
+    /// <summary>
+    /// Секторы могли смениться вместе с конфигом — застейдженные управляющие теряют смысл, роли без
+    /// команды нет. Изолированная фабрика + <c>HardReset</c> — см. doc-comment
+    /// <see cref="StagedTeams_Are_Held_By_The_Host_Independently_Of_Any_Component"/>.
+    /// </summary>
     [Fact]
     public void SetDraftConfig_Clears_TeamScoped_Staged_Participants_But_Preserves_RoleLess_Ones()
     {
-        var host = _factory.Services.GetRequiredService<GameSessionHost>();
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
         host.AddStagedTeam("Эпсилон", "A");
         var team = host.StagedTeams.Single(t => t.Name == "Эпсилон");
         var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Эпсилон");
