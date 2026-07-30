@@ -1,0 +1,107 @@
+@page "/materials"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject GameSessionHost Host
+@using Game.Config.Loading
+@using System.Globalization
+@using System.Net
+
+<PageTitle>Материалы</PageTitle>
+
+<h1>Цепочка материалов</h1>
+<p class="text-muted">
+    Вся цепочка производства — от сырья до готовой продукции. Цвет узла — сектор, подпись на стрелке
+    — сколько материала предыдущего уровня нужно на 1 единицу следующего. Кликните по материалу,
+    чтобы увидеть расчёт с самого начала.
+</p>
+
+<svg width="@N(_layout.Width)" height="@N(_layout.Height)" viewBox="@($"0 0 {N(_layout.Width)} {N(_layout.Height)}")" style="max-width: 100%; height: auto; border: 1px solid #e1e0d9;">
+    <defs>
+        <marker id="chain-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#898781" />
+        </marker>
+    </defs>
+
+    @foreach (var edge in _layout.Edges)
+    {
+        <path d="@EdgePath(edge)" fill="none" stroke="#898781" stroke-width="1.5" marker-end="url(#chain-arrow)" />
+        @SvgText((edge.X1 + edge.X2) / 2, (edge.Y1 + edge.Y2) / 2 - 4, "text-anchor:middle;font-size:11px;fill:#52514e", edge.Label)
+    }
+
+    @foreach (var node in _layout.Nodes)
+    {
+        <g style="cursor:pointer" @onclick="() => SelectMaterial(node.Material)">
+            <rect x="@N(node.X)" y="@N(node.Y)" width="@N(node.Width)" height="@N(node.Height)" rx="6"
+                  fill="@node.Color" fill-opacity="0.15"
+                  stroke="@node.Color" stroke-width="@(node.Material.Id == _selectedMaterial?.Id ? "3" : "1.5")" />
+            @SvgText(node.X + node.Width / 2, node.Y + node.Height / 2 - 4, "text-anchor:middle;font-size:13px;font-weight:600;fill:#0b0b0b", node.Material.Name)
+            @SvgText(node.X + node.Width / 2, node.Y + node.Height / 2 + 13, "text-anchor:middle;font-size:11px;fill:#52514e", node.Material.Sector.Name)
+        </g>
+    }
+</svg>
+
+@if (_selectedMaterial is not null)
+{
+    <h2 class="mt-4">Расчёт для «@_selectedMaterial.Name» (на 1 единицу)</h2>
+
+    <details open class="mb-2">
+        <summary>Пирамида входов</summary>
+        <ul>
+            @foreach (var row in _breakdown)
+            {
+                <li style="margin-left:@(row.Depth * 1.5)em">@row.Material.Name: @row.Quantity.ToString("0.##")</li>
+            }
+        </ul>
+    </details>
+
+    <h3 class="mt-3">Итого сырья на 1 единицу «@_selectedMaterial.Name»</h3>
+    <ul>
+        @foreach (var (material, quantity) in _rawTotals)
+        {
+            <li>@material.Name: @quantity.ToString("0.##")</li>
+        }
+    </ul>
+}
+
+@code {
+    private ResolvedGameConfig _config = null!;
+    private MaterialChainDiagram.Layout _layout = null!;
+    private Material? _selectedMaterial;
+    private IReadOnlyList<DashboardDisplay.PyramidRow> _breakdown = Array.Empty<DashboardDisplay.PyramidRow>();
+    private IReadOnlyList<(Material Material, decimal Quantity)> _rawTotals = Array.Empty<(Material, decimal)>();
+
+    protected override void OnInitialized()
+    {
+        lock (Host.SyncRoot)
+        {
+            _config = Host.Session?.State.Config ?? Host.DraftConfig;
+        }
+
+        _layout = MaterialChainDiagram.Build(_config);
+    }
+
+    private void SelectMaterial(Material material)
+    {
+        _selectedMaterial = material;
+        var pyramid = CostCalculator.BuildInputPyramid(material, 1m, _config.RecipeBook);
+        _breakdown = DashboardDisplay.FlattenPyramid(pyramid);
+        _rawTotals = MaterialChainDiagram.AggregateRawMaterials(pyramid);
+    }
+
+    // SVG-геометрия — атрибуты синтаксиса формата (не текст для чтения человеком), обязаны идти с
+    // точкой как разделителем дробной части независимо от текущей культуры сервера — иначе на
+    // ru-RU (запятая) координаты ломают разбор d/x/y/width/height.
+    private static string N(double value) => value.ToString(CultureInfo.InvariantCulture);
+
+    private static string EdgePath(MaterialChainDiagram.Edge edge)
+    {
+        var midX = (edge.X1 + edge.X2) / 2;
+        return $"M{N(edge.X1)},{N(edge.Y1)} C{N(midX)},{N(edge.Y1)} {N(midX)},{N(edge.Y2)} {N(edge.X2)},{N(edge.Y2)}";
+    }
+
+    // Razor резервирует голый тег <text> для собственной разметочной конструкции (переход
+    // код/разметка) и не даёт повесить на него атрибуты (RZ1023) — единственный надёжный обход это
+    // собрать SVG <text> как сырую разметку в коде, а не как литеральный тег в @-разметке.
+    private static MarkupString SvgText(double x, double y, string style, string content) =>
+        new($"<text x=\"{N(x)}\" y=\"{N(y)}\" style=\"{style}\">{WebUtility.HtmlEncode(content)}</text>");
+}
