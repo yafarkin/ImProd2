@@ -25,7 +25,7 @@ public class FactoryChainDiagramTests
         var layout = FactoryChainDiagram.Build(definitions, Array.Empty<Factory>(), "#2a78d6");
 
         Assert.Equal(definitions.Count, layout.Nodes.Count);
-        Assert.All(layout.Nodes, node => Assert.Null(node.Built));
+        Assert.All(layout.Nodes, node => Assert.Empty(node.BuiltInstances));
     }
 
     [Fact]
@@ -39,9 +39,28 @@ public class FactoryChainDiagramTests
         var layout = FactoryChainDiagram.Build(definitions, new[] { builtMine }, "#2a78d6");
 
         var mineNode = layout.Nodes.Single(n => n.Definition.Id == mineDefinition.Id);
-        Assert.Same(builtMine, mineNode.Built);
+        Assert.Equal(new[] { builtMine }, mineNode.BuiltInstances);
         var otherNodes = layout.Nodes.Where(n => n.Definition.Id != mineDefinition.Id);
-        Assert.All(otherNodes, node => Assert.Null(node.Built));
+        Assert.All(otherNodes, node => Assert.Empty(node.BuiltInstances));
+    }
+
+    [Fact]
+    public void Build_Lists_Every_Instance_When_A_Team_Built_Several_Of_The_Same_Type()
+    {
+        var (definitions, _) = SectorAFactoryDefinitions();
+        var mineDefinition = definitions.Single(d => d.Recipes.Single().Output.Level == 0);
+        var sector = mineDefinition.Sector;
+        var firstMine = new Factory(Ulid.NewUlid(), sector, mineDefinition);
+        var secondMine = new Factory(Ulid.NewUlid(), sector, mineDefinition);
+
+        var layout = FactoryChainDiagram.Build(definitions, new[] { firstMine, secondMine }, "#2a78d6");
+
+        var mineNode = layout.Nodes.Single(n => n.Definition.Id == mineDefinition.Id);
+        Assert.Equal(2, mineNode.BuiltInstances.Count);
+        Assert.Contains(firstMine, mineNode.BuiltInstances);
+        Assert.Contains(secondMine, mineNode.BuiltInstances);
+        // Один узел на тип, не два — количество экземпляров не размножает узлы на карте.
+        Assert.Single(layout.Nodes, n => n.Definition.Id == mineDefinition.Id);
     }
 
     [Fact]
@@ -57,19 +76,5 @@ public class FactoryChainDiagramTests
         var millNode = layout.Nodes.Single(n => n.Definition.Id == millDefinition.Id);
         Assert.Contains(layout.Edges, e => e.X1 == mineNode.X + mineNode.Width && e.X2 == millNode.X);
         Assert.True(millNode.X > mineNode.X);
-    }
-
-    [Fact]
-    public void Build_Uses_The_Built_Factorys_Selected_Recipe_For_Its_Position_And_Label()
-    {
-        var (definitions, _) = SectorAFactoryDefinitions();
-        var mineDefinition = definitions.Single(d => d.Recipes.Single().Output.Level == 0);
-        var sector = mineDefinition.Sector;
-        var builtMine = new Factory(Ulid.NewUlid(), sector, mineDefinition);
-
-        var layout = FactoryChainDiagram.Build(definitions, new[] { builtMine }, "#2a78d6");
-
-        var mineNode = layout.Nodes.Single(n => n.Definition.Id == mineDefinition.Id);
-        Assert.Equal(builtMine.SelectedRecipe, mineNode.Recipe);
     }
 }

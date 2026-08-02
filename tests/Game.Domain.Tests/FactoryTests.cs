@@ -139,4 +139,40 @@ public class FactoryTests
 
         Assert.Equal(2, factory.Level);
     }
+
+    [Fact]
+    public void Construction_Defaults_AllocationShare_To_One()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+
+        Assert.Equal(1m, factory.AllocationShare);
+    }
+
+    [Fact]
+    public void SetAllocationShare_Changes_The_Share()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+
+        factory.SetAllocationShare(60m);
+
+        Assert.Equal(60m, factory.AllocationShare);
+    }
+
+    [Fact]
+    public void SetAllocationShare_Accepts_Zero()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+
+        factory.SetAllocationShare(0m);
+
+        Assert.Equal(0m, factory.AllocationShare);
+    }
+
+    [Fact]
+    public void SetAllocationShare_Throws_When_Negative()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => factory.SetAllocationShare(-1m));
+    }
 }

@@ -62,4 +62,45 @@ public class TeamPageFactoryChainTests
             host.HardReset();
         }
     }
+
+    /// <summary>Запрос пользователя «я хочу построить столько фабрик, сколько хочу» — второй экземпляр одного типа больше не запрещён ни движком, ни формой на /team.</summary>
+    [Fact]
+    public async Task Team_Page_Lets_A_Manager_Build_A_Second_Factory_Of_The_Same_Type()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
+        try
+        {
+            var sectorId = host.DefaultConfig.Sectors.First().Id;
+            host.AddStagedTeam("Эпсилон", sectorId);
+            var team = host.StagedTeams.Single();
+            var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Эпсилон");
+            var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
+
+            host.StartSessionFromDraft(preset);
+            host.Session!.AdvancePhase(PhaseTransitionTrigger.Facilitator); // Settlement -> Decision
+
+            var mineDefinitionId = host.Session!.State.Config.FactoryDefinitions
+                .Single(d => d.Sector.Id == sectorId && d.Recipes.Single().Output.Level == 0).Id;
+            host.Session!.BuildFactory(team.Id, mineDefinitionId);
+            host.Session!.BuildFactory(team.Id, mineDefinitionId); // не должно бросить — второй экземпляр того же типа
+
+            Assert.Equal(2, host.Session!.State.Teams[team.Id].Factories.Count);
+
+            var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
+
+            var response = await client.GetAsync("/team");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var html = await response.Content.ReadAsStringAsync();
+
+            Assert.Contains("построено: 2", html);
+        }
+        finally
+        {
+            host.HardReset();
+        }
+    }
 }

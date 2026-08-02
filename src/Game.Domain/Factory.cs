@@ -24,6 +24,15 @@ public sealed class Factory
     /// <summary>Накопленные вложения в R&amp;D этой фабрики.</summary>
     public decimal RndInvestment { get; private set; }
 
+    /// <summary>
+    /// Относительная доля этой фабрики при разборе дефицитного сырья, общего с другими фабриками
+    /// той же команды (несколько экземпляров одного типа или просто конкурирующие рецепты) — не
+    /// процент, обязанный суммироваться до 100, а вес: 60 и 40 делят дефицит 60/40, как и 6 и 4.
+    /// Ни на что не влияет, пока материала хватает всем претендентам — только когда его на всех не
+    /// хватает.
+    /// </summary>
+    public decimal AllocationShare { get; private set; } = 1m;
+
     public Factory(Ulid id, Sector ownerSector, FactoryDefinition definition, Recipe? selectedRecipe = null)
     {
         if (id == Ulid.Empty)
@@ -92,6 +101,17 @@ public sealed class Factory
         }
 
         SelectedRecipe = recipe;
+    }
+
+    /// <summary>Меняет долю фабрики при разборе дефицитного сырья (см. <see cref="AllocationShare"/>). Ноль допустим — не участвует в разборе дефицита, отрицательное значение смысла не имеет.</summary>
+    public void SetAllocationShare(decimal share)
+    {
+        if (share < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(share), share, "Allocation share must not be negative.");
+        }
+
+        AllocationShare = share;
     }
 
     /// <summary>Добавляет вложение в R&amp;D этой фабрики.</summary>

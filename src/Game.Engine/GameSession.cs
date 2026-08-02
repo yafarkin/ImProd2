@@ -644,6 +644,27 @@ public sealed class GameSession
     }
 
     /// <summary>
+    /// Меняет долю фабрики при разборе дефицитного сырья, общего с другими фабриками той же команды
+    /// (см. doc-comment <see cref="Game.Domain.Factory.AllocationShare"/>). Требует фазы решений —
+    /// та же логика, что и у остальных решений команды.
+    /// </summary>
+    public EventLogEntry<GameSessionState> SetFactoryAllocationShare(Ulid teamId, Ulid factoryId, decimal share)
+    {
+        EnsureDecisionsAllowed();
+
+        var team = GetTeam(teamId);
+        GetFactory(team, factoryId);
+
+        return _log.Append(new FactoryAllocationShareSet
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            FactoryId = factoryId,
+            Share = share,
+        });
+    }
+
+    /// <summary>
     /// Вкладывает деньги команды в R&amp;D конкретной фабрики (SPEC §5.8): накопленные вложения
     /// двигают фабрику по уровням, темп выбирает команда. Может вернуть несколько событий — само
     /// вложение и, если накопленное вложение перешагивает один или несколько порогов, столько же
@@ -902,20 +923,29 @@ public sealed class GameSession
                 appended.Add(_log.Append(change));
             }
 
-            foreach (var factory in team.Factories.OrderBy(f => f.SelectedRecipe.Output.Level).ThenBy(f => f.Id))
+            // Уровни — строго по возрастанию, чтобы более высокий уровень видел в складе выход
+            // более низкого за этот же тик (см. doc-comment выше). Внутри одного уровня фабрики
+            // считаются одной группой (ProductionCalculator.CalculateGroup), а не по одной: если
+            // несколько из них претендуют на один и тот же дефицитный материал, делят его по своей
+            // AllocationShare, а не по тому, кого код обошёл первым.
+            foreach (var levelGroup in team.Factories.GroupBy(f => f.SelectedRecipe.Output.Level).OrderBy(g => g.Key))
             {
-                var result = ProductionCalculator.Calculate(
-                    factory, team.Warehouse, config.Raw.WorkerProductivity, config.Raw.Rnd);
+                var factoriesAtLevel = levelGroup.OrderBy(f => f.Id).ToList();
+                var results = ProductionCalculator.CalculateGroup(
+                    factoriesAtLevel, team.Warehouse, config.Raw.WorkerProductivity, config.Raw.Rnd);
 
-                appended.Add(_log.Append(new FactoryProduced
+                foreach (var result in results)
                 {
-                    Id = Ulid.NewUlid(),
-                    TeamId = team.Id,
-                    FactoryId = result.FactoryId,
-                    CapacityLimitedOutputQuantity = result.CapacityLimitedOutputQuantity,
-                    OutputQuantity = result.OutputQuantity,
-                    ConsumedInputs = result.ConsumedInputs,
-                }));
+                    appended.Add(_log.Append(new FactoryProduced
+                    {
+                        Id = Ulid.NewUlid(),
+                        TeamId = team.Id,
+                        FactoryId = result.FactoryId,
+                        CapacityLimitedOutputQuantity = result.CapacityLimitedOutputQuantity,
+                        OutputQuantity = result.OutputQuantity,
+                        ConsumedInputs = result.ConsumedInputs,
+                    }));
+                }
             }
         }
 

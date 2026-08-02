@@ -60,8 +60,8 @@ else
 {
     <h2 class="mt-3">Цепочка фабрик сектора</h2>
     <p class="text-muted">
-        Сплошные узлы — уже построены, пунктирные — ещё нет. Кликните по непостроенной, чтобы выбрать
-        её ниже в форме постройки; по построенной — чтобы перейти к её карточке.
+        Сплошные узлы — уже построены (можно строить ещё), пунктирные — ещё нет. Клик по любому узлу
+        выбирает его тип в форме постройки ниже.
     </p>
     <svg width="@N(factoryChain.Width)" height="@N(factoryChain.Height)" viewBox="@($"0 0 {N(factoryChain.Width)} {N(factoryChain.Height)}")" style="max-width: 100%; height: auto; border: 1px solid #e1e0d9;">
         <defs>
@@ -78,24 +78,15 @@ else
 
         @foreach (var node in factoryChain.Nodes)
         {
-            @if (node.Built is { } built)
-            {
-                <g style="cursor:pointer" @onclick="() => ScrollToFactory(built.Id)">
-                    <rect x="@N(node.X)" y="@N(node.Y)" width="@N(node.Width)" height="@N(node.Height)" rx="6"
-                          fill="@node.Color" fill-opacity="0.15" stroke="@node.Color" stroke-width="1.5" />
-                    @Text(node.X + node.Width / 2, node.Y + node.Height / 2 - 6, "text-anchor:middle;font-size:13px;font-weight:600;fill:#0b0b0b", node.Definition.Name)
-                    @Text(node.X + node.Width / 2, node.Y + node.Height / 2 + 11, "text-anchor:middle;font-size:11px;fill:#52514e", $"ур. {built.Level}, раб. {built.Workers} · {node.Recipe.Output.Name}")
-                </g>
-            }
-            else
-            {
-                <g style="cursor:pointer" @onclick="() => SelectBuildable(node.Definition.Id)">
-                    <rect x="@N(node.X)" y="@N(node.Y)" width="@N(node.Width)" height="@N(node.Height)" rx="6"
-                          fill="none" stroke="@node.Color" stroke-width="1.5" stroke-dasharray="5 3" />
-                    @Text(node.X + node.Width / 2, node.Y + node.Height / 2 - 6, "text-anchor:middle;font-size:13px;font-weight:600;fill:#52514e", node.Definition.Name)
-                    @Text(node.X + node.Width / 2, node.Y + node.Height / 2 + 11, "text-anchor:middle;font-size:11px;fill:#898781", $"не построена · от {DashboardDisplay.FormatMoney(_buildCosts.GetValueOrDefault(node.Definition.Id))}")
-                </g>
-            }
+            var isBuilt = node.BuiltInstances.Count > 0;
+            <g style="cursor:pointer" @onclick="() => SelectBuildable(node.Definition.Id)">
+                <rect x="@N(node.X)" y="@N(node.Y)" width="@N(node.Width)" height="@N(node.Height)" rx="6"
+                      fill="@(isBuilt ? node.Color : "none")" fill-opacity="0.15"
+                      stroke="@node.Color" stroke-width="1.5" stroke-dasharray="@(isBuilt ? null : "5 3")" />
+                @Text(node.X + node.Width / 2, node.Y + node.Height / 2 - 6, "text-anchor:middle;font-size:13px;font-weight:600;fill:#0b0b0b", node.Definition.Name)
+                @Text(node.X + node.Width / 2, node.Y + node.Height / 2 + 11, "text-anchor:middle;font-size:11px;fill:#52514e",
+                    isBuilt ? $"построено: {node.BuiltInstances.Count} · от {DashboardDisplay.FormatMoney(_buildCosts.GetValueOrDefault(node.Definition.Id))}" : $"не построена · от {DashboardDisplay.FormatMoney(_buildCosts.GetValueOrDefault(node.Definition.Id))}")
+            </g>
         }
     </svg>
 }
@@ -226,6 +217,10 @@ else
                     <strong>@factory.DefinitionName</strong> — уровень @factory.Level, рабочих: @factory.Workers,
                     продукт: @factory.SelectedRecipeName
                 </p>
+                <p class="text-muted">
+                    Доля при дефиците сырья, общего с другими фабриками: @factory.AllocationShare.ToString("0.##")
+                    <em>(играет роль, только если это сырьё нужно больше чем одной вашей фабрике и его не хватает на всех — например, две фабрики одного типа)</em>
+                </p>
                 <p>
                     R&amp;D: вложено @factory.RndInvestment.ToString("0.##")
                     @if (factory.NextLevelThreshold is { } threshold)
@@ -279,9 +274,14 @@ else
                         </div>
                     }
 
-                    <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                         <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_rndInvestAmounts[factory.FactoryId]" />
                         <button type="button" class="btn btn-secondary btn-sm" @onclick="() => InvestInRnd(factory.FactoryId)">Вложить в R&amp;D</button>
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <input type="number" min="0" step="1" class="form-control d-inline-block" style="width:6em" @bind="_allocationShares[factory.FactoryId]" />
+                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => SetAllocationShare(factory.FactoryId)">Задать долю</button>
                     </div>
                 }
             </div>
@@ -415,7 +415,7 @@ else
         Ulid FactoryId, string DefinitionName, int Level, int Workers,
         string SelectedRecipeName, IReadOnlyList<(string Id, string Name)> RecipeOptions,
         bool HasUnitCost, decimal UnitCost, IReadOnlyList<DashboardDisplay.PyramidRow> Pyramid,
-        decimal RndInvestment, decimal? NextLevelThreshold);
+        decimal RndInvestment, decimal? NextLevelThreshold, decimal AllocationShare);
 
     private sealed record BuildableDefinition(string Id, string Name, decimal BuildCost);
 
@@ -483,6 +483,7 @@ else
     private readonly Dictionary<Ulid, int> _fireCounts = new();
     private readonly Dictionary<Ulid, string> _selectedRecipeIds = new();
     private readonly Dictionary<Ulid, decimal> _rndInvestAmounts = new();
+    private readonly Dictionary<Ulid, decimal> _allocationShares = new();
     private readonly Dictionary<string, decimal> _sellVolumes = new();
     private readonly Dictionary<Ulid, decimal> _revisionVolumes = new();
     private readonly Dictionary<Ulid, decimal> _revisionUnitPrices = new();
@@ -608,6 +609,7 @@ else
                 _fireCounts.TryAdd(factory.Id, 1);
                 _selectedRecipeIds.TryAdd(factory.Id, factory.SelectedRecipe.Id);
                 _rndInvestAmounts.TryAdd(factory.Id, 50m);
+                _allocationShares.TryAdd(factory.Id, factory.AllocationShare);
 
                 var hasUnitCost = DashboardDisplay.TryCalculateUnitCost(factory.SelectedRecipe.Output, state, out var unitCost);
                 var pyramid = hasUnitCost
@@ -619,12 +621,15 @@ else
                     factory.Id, factory.Definition.Name, factory.Level, factory.Workers,
                     factory.SelectedRecipe.Output.Name,
                     factory.Definition.Recipes.Select(r => (r.Id, r.Output.Name)).ToList(),
-                    hasUnitCost, unitCost, pyramid, factory.RndInvestment, nextLevelThreshold);
+                    hasUnitCost, unitCost, pyramid, factory.RndInvestment, nextLevelThreshold, factory.AllocationShare);
             }).ToList();
 
-            var builtDefinitionIds = team.Factories.Select(f => f.Definition.Id).ToHashSet();
+            // Раньше тип фабрики, который команда уже построила, пропадал из списка — ограничение
+            // «один экземпляр на тип» было только здесь, в UI, а не в движке (GameSession.BuildFactory
+            // его не проверяет). Команда осознанно может строить сколько угодно фабрик одного типа —
+            // делить дефицитное сырьё между ними помогает AllocationShare (см. карточки фабрик ниже).
             _buildableDefinitions = state.Config.FactoryDefinitions
-                .Where(d => d.Sector == team.Sector && !builtDefinitionIds.Contains(d.Id))
+                .Where(d => d.Sector == team.Sector)
                 .Select(d => new BuildableDefinition(
                     d.Id, d.Name, state.Config.Raw.FactoryDefinitions.First(f => f.Id == d.Id).BuildCost))
                 .ToList();
@@ -677,7 +682,7 @@ else
         RunAction(() => Host.Session!.BuildFactory(_teamId, _selectedFactoryDefinitionId));
     }
 
-    /// <summary>Клик по непостроенному узлу на диаграмме цепочки фабрик — тот же выбор, что и в форме «Построить фабрику» ниже, с прокруткой к ней.</summary>
+    /// <summary>Клик по узлу на диаграмме цепочки фабрик (построен он уже или нет — строить можно ещё) — тот же выбор, что и в форме «Построить фабрику» ниже, с прокруткой к ней.</summary>
     private void SelectBuildable(string definitionId)
     {
         _selectedFactoryDefinitionId = definitionId;
@@ -692,8 +697,6 @@ else
     /// главную вместо прокрутки по странице.
     /// </summary>
     private void ScrollTo(string elementId) => Nav.NavigateTo($"/team#{elementId}");
-
-    private void ScrollToFactory(Ulid factoryId) => ScrollTo($"factory-card-{factoryId}");
 
     private void HireWorkers(Ulid factoryId)
     {
@@ -761,6 +764,12 @@ else
     {
         var amount = _rndInvestAmounts.GetValueOrDefault(factoryId, 50m);
         RunAction(() => Host.Session!.InvestInRnd(_teamId, factoryId, amount));
+    }
+
+    private void SetAllocationShare(Ulid factoryId)
+    {
+        var share = _allocationShares.GetValueOrDefault(factoryId, 1m);
+        RunAction(() => Host.Session!.SetFactoryAllocationShare(_teamId, factoryId, share));
     }
 
     private void TakeLoan()

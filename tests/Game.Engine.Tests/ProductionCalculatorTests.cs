@@ -201,4 +201,88 @@ public class ProductionCalculatorTests
         Assert.Equal(2m, result.ConsumedInputs[Ore.Id]);
         Assert.Equal(1m, result.ConsumedInputs[Coal.Id]);
     }
+
+    [Fact]
+    public void CalculateGroup_With_No_Shared_Inputs_Matches_Independent_Calculate_Calls()
+    {
+        var mill = NewFactory(workers: 5); // потребляет руду + уголь
+        var mine = new Factory(Ulid.NewUlid(), SectorA, Mine); // добывает руду, ничего не потребляет
+        mine.Hire(5);
+        var warehouse = new Warehouse();
+        warehouse.Add(Ore, 1000m);
+        warehouse.Add(Coal, 1000m);
+
+        var results = ProductionCalculator.CalculateGroup(new[] { mill, mine }, warehouse, Productivity, NoRndBonus);
+
+        var millResult = results.Single(r => r.FactoryId == mill.Id);
+        var mineResult = results.Single(r => r.FactoryId == mine.Id);
+        Assert.Equal(5m, millResult.OutputQuantity); // как в Calculate_With_Abundant_Inputs...
+        Assert.Equal(5m, mineResult.OutputQuantity); // 5 рабочих == BaseWorkerCount, без диминишинга
+    }
+
+    [Fact]
+    public void CalculateGroup_Splits_A_Scarce_Shared_Input_By_Equal_Default_Shares()
+    {
+        // Обе фабрики хотят руду: Mill — 2 руды на лист (5 листов = 10 руды), MillOreOnly — 3 руды
+        // на лист (5 листов = 15 руды). Суммарно хотят 25, на складе только 10 — дефицит, доли по
+        // умолчанию равны (1 и 1), значит делят поровну: по 5 руды каждой.
+        var mill = NewFactory(workers: 5);
+        var millOreOnly = new Factory(Ulid.NewUlid(), SectorA, MillOreOnly);
+        millOreOnly.Hire(5);
+        var warehouse = new Warehouse();
+        warehouse.Add(Ore, 10m);
+        warehouse.Add(Coal, 1000m); // уголь не в дефиците — конкуренция только за руду
+
+        var results = ProductionCalculator.CalculateGroup(new[] { mill, millOreOnly }, warehouse, Productivity, NoRndBonus);
+
+        var millResult = results.Single(r => r.FactoryId == mill.Id);
+        var oreOnlyResult = results.Single(r => r.FactoryId == millOreOnly.Id);
+        Assert.Equal(5m, millResult.ConsumedInputs[Ore.Id]);
+        Assert.Equal(5m, oreOnlyResult.ConsumedInputs[Ore.Id]);
+        Assert.Equal(10m, millResult.ConsumedInputs[Ore.Id] + oreOnlyResult.ConsumedInputs[Ore.Id]); // ровно весь склад, не больше
+    }
+
+    [Fact]
+    public void CalculateGroup_Splits_A_Scarce_Shared_Input_Proportionally_To_Custom_Shares()
+    {
+        // Доли 40/60 подобраны так, чтобы квоты (4 и 6) делились на норму входа каждой фабрики (2 и
+        // 3 руды/партию) без остатка — иначе неточность decimal-деления партий на входе и обратного
+        // умножения дала бы 3.9999...9 вместо 4 (см. соседний тест на этот эффект уже подтверждённым
+        // remainder-сценарием в Calculate_Never_Consumes_More_Input_Than_Is_Actually_In_Stock).
+        var mill = NewFactory(workers: 5);
+        mill.SetAllocationShare(40m);
+        var millOreOnly = new Factory(Ulid.NewUlid(), SectorA, MillOreOnly);
+        millOreOnly.Hire(5);
+        millOreOnly.SetAllocationShare(60m);
+        var warehouse = new Warehouse();
+        warehouse.Add(Ore, 10m);
+        warehouse.Add(Coal, 1000m);
+
+        var results = ProductionCalculator.CalculateGroup(new[] { mill, millOreOnly }, warehouse, Productivity, NoRndBonus);
+
+        var millResult = results.Single(r => r.FactoryId == mill.Id);
+        var oreOnlyResult = results.Single(r => r.FactoryId == millOreOnly.Id);
+        Assert.Equal(4m, millResult.ConsumedInputs[Ore.Id]); // 40% от 10
+        Assert.Equal(6m, oreOnlyResult.ConsumedInputs[Ore.Id]); // 60% от 10
+    }
+
+    [Fact]
+    public void CalculateGroup_Does_Not_Cap_A_Contender_Below_Its_Own_Need_Just_Because_Others_Have_Share()
+    {
+        // MillOreOnly хочет всего 3 руды (мощность искусственно урезана 1 рабочим), Mill хочет 10;
+        // хотя доли равны, MillOreOnly не может забрать больше, чем реально нужно — остаток идёт
+        // Mill'у не автоматически (это заявленное упрощение — квота не возвращается, но Mill и не
+        // должен получить МЕНЬШЕ своей доли (5) из-за того, что сосед не выбрал свою.
+        var mill = NewFactory(workers: 5); // хочет 10 руды
+        var millOreOnly = new Factory(Ulid.NewUlid(), SectorA, MillOreOnly);
+        millOreOnly.Hire(1); // мощность 1 -> 1 партия -> 3 руды желаемо
+        var warehouse = new Warehouse();
+        warehouse.Add(Ore, 10m);
+        warehouse.Add(Coal, 1000m);
+
+        var results = ProductionCalculator.CalculateGroup(new[] { mill, millOreOnly }, warehouse, Productivity, NoRndBonus);
+
+        var oreOnlyResult = results.Single(r => r.FactoryId == millOreOnly.Id);
+        Assert.Equal(3m, oreOnlyResult.ConsumedInputs[Ore.Id]); // взял ровно сколько хотел, не больше своей квоты (5)
+    }
 }
