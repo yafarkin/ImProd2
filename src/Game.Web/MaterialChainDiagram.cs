@@ -23,15 +23,6 @@ public static class MaterialChainDiagram
     /// <summary>Итоговая раскладка целиком — узлы, связи и размер холста.</summary>
     public sealed record Layout(IReadOnlyList<Node> Nodes, IReadOnlyList<Edge> Edges, double Width, double Height);
 
-    // Категориальная палитра (dataviz skill, references/palette.md) — фиксированный порядок,
-    // проверенный validate_palette.js на CVD-разделимость и контраст относительно белого холста;
-    // не переставлять и не генерировать динамически. Секторам присваивается по порядку их
-    // перечисления в конфиге.
-    private static readonly string[] SectorPalette =
-    [
-        "#2a78d6", "#008300", "#e87ba4", "#eda100", "#1baf7a", "#eb6834", "#4a3aa7", "#e34948",
-    ];
-
     private const double ColumnWidth = 220;
     private const double NodeWidth = 160;
     private const double NodeHeight = 44;
@@ -43,9 +34,7 @@ public static class MaterialChainDiagram
     {
         ArgumentNullException.ThrowIfNull(config);
 
-        var sectorColor = config.Sectors
-            .Select((sector, index) => (sector.Id, Color: SectorPalette[index % SectorPalette.Length]))
-            .ToDictionary(entry => entry.Id, entry => entry.Color);
+        var sectorColor = SectorColors.ForSectors(config.Sectors);
         var sectorOrder = config.Sectors
             .Select((sector, index) => (sector.Id, Order: index))
             .ToDictionary(entry => entry.Id, entry => entry.Order);

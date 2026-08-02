@@ -3,8 +3,7 @@
 @rendermode InteractiveServer
 @inject GameSessionHost Host
 @using Game.Config.Loading
-@using System.Globalization
-@using System.Net
+@using static Game.Web.SvgMarkup
 
 <PageTitle>Материалы</PageTitle>
 
@@ -24,8 +23,8 @@
 
     @foreach (var edge in _layout.Edges)
     {
-        <path d="@EdgePath(edge)" fill="none" stroke="#898781" stroke-width="1.5" marker-end="url(#chain-arrow)" />
-        @SvgText((edge.X1 + edge.X2) / 2, (edge.Y1 + edge.Y2) / 2 - 4, "text-anchor:middle;font-size:11px;fill:#52514e", edge.Label)
+        <path d="@CurvePath(edge.X1, edge.Y1, edge.X2, edge.Y2)" fill="none" stroke="#898781" stroke-width="1.5" marker-end="url(#chain-arrow)" />
+        @Text((edge.X1 + edge.X2) / 2, (edge.Y1 + edge.Y2) / 2 - 4, "text-anchor:middle;font-size:11px;fill:#52514e", edge.Label)
     }
 
     @foreach (var node in _layout.Nodes)
@@ -34,8 +33,8 @@
             <rect x="@N(node.X)" y="@N(node.Y)" width="@N(node.Width)" height="@N(node.Height)" rx="6"
                   fill="@node.Color" fill-opacity="0.15"
                   stroke="@node.Color" stroke-width="@(node.Material.Id == _selectedMaterial?.Id ? "3" : "1.5")" />
-            @SvgText(node.X + node.Width / 2, node.Y + node.Height / 2 - 4, "text-anchor:middle;font-size:13px;font-weight:600;fill:#0b0b0b", node.Material.Name)
-            @SvgText(node.X + node.Width / 2, node.Y + node.Height / 2 + 13, "text-anchor:middle;font-size:11px;fill:#52514e", node.Material.Sector.Name)
+            @Text(node.X + node.Width / 2, node.Y + node.Height / 2 - 4, "text-anchor:middle;font-size:13px;font-weight:600;fill:#0b0b0b", node.Material.Name)
+            @Text(node.X + node.Width / 2, node.Y + node.Height / 2 + 13, "text-anchor:middle;font-size:11px;fill:#52514e", node.Material.Sector.Name)
         </g>
     }
 </svg>
@@ -87,21 +86,4 @@
         _breakdown = DashboardDisplay.FlattenPyramid(pyramid);
         _rawTotals = MaterialChainDiagram.AggregateRawMaterials(pyramid);
     }
-
-    // SVG-геометрия — атрибуты синтаксиса формата (не текст для чтения человеком), обязаны идти с
-    // точкой как разделителем дробной части независимо от текущей культуры сервера — иначе на
-    // ru-RU (запятая) координаты ломают разбор d/x/y/width/height.
-    private static string N(double value) => value.ToString(CultureInfo.InvariantCulture);
-
-    private static string EdgePath(MaterialChainDiagram.Edge edge)
-    {
-        var midX = (edge.X1 + edge.X2) / 2;
-        return $"M{N(edge.X1)},{N(edge.Y1)} C{N(midX)},{N(edge.Y1)} {N(midX)},{N(edge.Y2)} {N(edge.X2)},{N(edge.Y2)}";
-    }
-
-    // Razor резервирует голый тег <text> для собственной разметочной конструкции (переход
-    // код/разметка) и не даёт повесить на него атрибуты (RZ1023) — единственный надёжный обход это
-    // собрать SVG <text> как сырую разметку в коде, а не как литеральный тег в @-разметке.
-    private static MarkupString SvgText(double x, double y, string style, string content) =>
-        new($"<text x=\"{N(x)}\" y=\"{N(y)}\" style=\"{style}\">{WebUtility.HtmlEncode(content)}</text>");
 }
