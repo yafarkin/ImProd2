@@ -8,9 +8,8 @@ public class PhaseTimerCalculatorTests
 
     private static readonly PhaseTimingConfig Timing = new()
     {
-        CalculationPhaseSeconds = 5,
+        SettlementPhaseSeconds = 5,
         DecisionPhaseSeconds = 300,
-        CompletionPhaseSeconds = 15,
     };
 
     private static (GameSession Session, Action<TimeSpan> Advance) StartSession()
@@ -44,9 +43,9 @@ public class PhaseTimerCalculatorTests
         Assert.Equal(TimeSpan.FromSeconds(300), PhaseTimerCalculator.Remaining(session, Epoch + TimeSpan.FromSeconds(5)));
 
         advance(TimeSpan.FromSeconds(300));
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // -> Closing, boundary timestamp = Epoch+305s
-        Assert.Equal(TurnPhase.Closing, session.State.CurrentPhase);
-        Assert.Equal(TimeSpan.FromSeconds(15), PhaseTimerCalculator.Remaining(session, Epoch + TimeSpan.FromSeconds(305)));
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // -> Settlement of turn 2, boundary timestamp = Epoch+305s
+        Assert.Equal(TurnPhase.Settlement, session.State.CurrentPhase);
+        Assert.Equal(TimeSpan.FromSeconds(5), PhaseTimerCalculator.Remaining(session, Epoch + TimeSpan.FromSeconds(305)));
     }
 
     [Fact]
@@ -101,12 +100,32 @@ public class PhaseTimerCalculatorTests
         var now = Epoch;
         var session = GameSession.StartWithEndTurn(config, "test", endTurn: 1, Array.Empty<TeamSpec>(), clock: () => now);
 
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Closing
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // finishes at end turn
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision(1) at EndTurn -> finishes
 
         Assert.True(session.State.IsFinished);
         Assert.Equal(TimeSpan.Zero, PhaseTimerCalculator.Remaining(session, now + TimeSpan.FromDays(1)));
+    }
+
+    [Fact]
+    public void TotalDuration_Is_The_Base_Duration_Of_The_Current_Phase()
+    {
+        var (session, _) = StartSession();
+
+        Assert.Equal(TimeSpan.FromSeconds(5), PhaseTimerCalculator.TotalDuration(session));
+
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // -> Decision
+        Assert.Equal(TimeSpan.FromSeconds(300), PhaseTimerCalculator.TotalDuration(session));
+    }
+
+    [Fact]
+    public void TotalDuration_Includes_The_Facilitators_Phase_Extension()
+    {
+        var (session, _) = StartSession();
+
+        session.ExtendCurrentPhase(TimeSpan.FromSeconds(30));
+
+        Assert.Equal(TimeSpan.FromSeconds(35), PhaseTimerCalculator.TotalDuration(session));
     }
 
     [Fact]

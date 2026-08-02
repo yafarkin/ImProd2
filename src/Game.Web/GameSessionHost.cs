@@ -196,7 +196,7 @@ public sealed class GameSessionHost
     /// <summary>Конфиг по умолчанию (SPEC-заглушка пилота) — предложен на экране администратора, может быть заменён загрузкой своего файла.</summary>
     public ResolvedGameConfig DefaultConfig { get; }
 
-    /// <summary>Тренировочный конфиг (Блок 10.2, SPEC §10) — те же секторы/материалы, что и <see cref="DefaultConfig"/>, но короткий пресет и тайминги фаз «по минуте».</summary>
+    /// <summary>Тренировочный конфиг (Блок 10.2, SPEC §10) — те же секторы/материалы, что и <see cref="DefaultConfig"/>, но короткий пресет (8–10 ходов), суммарно ~50–60 минут на сессию.</summary>
     public ResolvedGameConfig TrainingConfig { get; }
 
     /// <summary>

@@ -7,7 +7,7 @@ public class GameSessionRndInvestmentTests
     private static (GameSession Session, Ulid TeamId, Ulid FactoryId) StartInDecisionPhaseWithFactory()
     {
         var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation -> Decision
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
         var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
 
         return (session, teamId, built.FactoryId);
@@ -80,7 +80,7 @@ public class GameSessionRndInvestmentTests
     public void InvestInRnd_Throws_Outside_The_Decision_Phase()
     {
         var (session, teamId, factoryId) = StartInDecisionPhaseWithFactory();
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Closing
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement
 
         Assert.Throws<InvalidOperationException>(() => session.InvestInRnd(teamId, factoryId, 50m));
     }

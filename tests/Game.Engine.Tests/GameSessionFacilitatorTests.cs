@@ -6,7 +6,7 @@ public class GameSessionFacilitatorTests
     [Fact]
     public void AdvancePhase_With_FacilitatorTrigger_Advances_Immediately()
     {
-        var (session, _) = TestGameConfig.StartGameSessionWithOneTeam(); // Calculation, ход 1
+        var (session, _) = TestGameConfig.StartGameSessionWithOneTeam(); // Settlement, ход 1
 
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
 
@@ -75,7 +75,7 @@ public class GameSessionFacilitatorTests
     [Fact]
     public void GrantToTeam_Works_Outside_The_Decision_Phase()
     {
-        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(); // Calculation, ход 1
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(); // Settlement, ход 1
 
         var entry = session.GrantToTeam(teamId, 100m);
 
@@ -97,7 +97,7 @@ public class GameSessionFacilitatorTests
     public void EmergencyPurchase_Respects_The_Toggled_Flag_Even_When_The_Config_Default_Is_Enabled()
     {
         var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation -> Decision
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
         session.SetEmergencyPurchaseEnabled(false);
 
         Assert.Throws<InvalidOperationException>(() => session.EmergencyPurchase(teamId, "ore", 5m));

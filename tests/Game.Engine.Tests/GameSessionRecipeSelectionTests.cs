@@ -17,7 +17,7 @@ public class GameSessionRecipeSelectionTests
             {
                 new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id },
             });
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation -> Decision
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
 
         return (session, teamId);
     }
@@ -66,9 +66,9 @@ public class GameSessionRecipeSelectionTests
             {
                 new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id },
             });
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation -> Decision
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
         var built = (FactoryBuilt)session.BuildFactory(teamId, "steel-mill").Change;
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Closing
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement
 
         Assert.Throws<InvalidOperationException>(() => session.SelectRecipe(teamId, built.FactoryId, "wire-from-ore"));
     }

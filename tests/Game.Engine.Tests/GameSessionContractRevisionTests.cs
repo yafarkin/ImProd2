@@ -96,7 +96,7 @@ public class GameSessionContractRevisionTests
     public void ProposeContractRevision_Throws_Outside_The_Decision_Phase()
     {
         var (session, buyerId, _, contractId) = StartWithActiveRecurringContract();
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Closing
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement
 
         Assert.Throws<InvalidOperationException>(
             () => session.ProposeContractRevision(contractId, buyerId, 15m, 25m, 0.2m, 8));
@@ -168,7 +168,7 @@ public class GameSessionContractRevisionTests
     {
         var (session, buyerId, _, contractId) = StartWithActiveRecurringContract();
         session.ProposeContractRevision(contractId, buyerId, 15m, 25m, 0.2m, 8);
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Closing
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement
 
         Assert.Throws<InvalidOperationException>(
             () => session.RespondToContractRevision(contractId, TeamRole.Manager, accept: true, new Random(2)));

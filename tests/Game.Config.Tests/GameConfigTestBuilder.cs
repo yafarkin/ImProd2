@@ -39,9 +39,8 @@ internal static class GameConfigTestBuilder
             },
             PhaseTiming = new PhaseTimingConfig
             {
-                CalculationPhaseSeconds = 1,
+                SettlementPhaseSeconds = 1,
                 DecisionPhaseSeconds = 1,
-                CompletionPhaseSeconds = 1,
             },
             Economy = new EconomyConfig
             {

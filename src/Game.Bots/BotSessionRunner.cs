@@ -32,7 +32,7 @@ public static class BotSessionRunner
         {
             switch (session.State.CurrentPhase)
             {
-                case TurnPhase.Calculation:
+                case TurnPhase.Settlement:
                     turnStartIndex = session.Entries.Count;
                     session.RunTick(random);
                     session.AdvancePhase(PhaseTransitionTrigger.Timer);
@@ -58,10 +58,6 @@ public static class BotSessionRunner
                     }
 
                     onTurnCompleted?.Invoke(session.Entries.Skip(turnStartIndex).ToList());
-                    session.AdvancePhase(PhaseTransitionTrigger.Timer);
-                    break;
-
-                case TurnPhase.Closing:
                     session.AdvancePhase(PhaseTransitionTrigger.Timer);
                     break;
             }

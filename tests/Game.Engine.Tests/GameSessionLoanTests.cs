@@ -6,7 +6,7 @@ public class GameSessionLoanTests
     private static (GameSession Session, Ulid TeamId) StartInDecisionPhase()
     {
         var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(startingLoan: 0m);
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation -> Decision
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
 
         return (session, teamId);
     }
@@ -43,7 +43,7 @@ public class GameSessionLoanTests
     [Fact]
     public void TakeLoan_Throws_Outside_The_Decision_Phase()
     {
-        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(startingLoan: 0m); // Calculation, ход 1
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(startingLoan: 0m); // Settlement, ход 1
 
         Assert.Throws<InvalidOperationException>(() => session.TakeLoan(teamId, 500m));
     }
@@ -54,8 +54,7 @@ public class GameSessionLoanTests
         var (session, teamId) = StartInDecisionPhase();
         session.TakeLoan(teamId, 1000m); // ставка = BaseLoanInterestRate + LoanInterestRateGrowthPerUnitBorrowed * 1000
 
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Closing
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Closing -> Calculation, ход 2
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var appended = session.RunTick(new Random(1));
 
         var interest = Assert.IsType<LoanInterestCharged>(appended.Single(e => e.Change is LoanInterestCharged).Change);

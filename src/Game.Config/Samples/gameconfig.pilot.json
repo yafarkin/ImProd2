@@ -176,9 +176,8 @@
     }
   ],
   "PhaseTiming": {
-    "CalculationPhaseSeconds": 5,
-    "DecisionPhaseSeconds": 300,
-    "CompletionPhaseSeconds": 15
+    "SettlementPhaseSeconds": 20,
+    "DecisionPhaseSeconds": 300
   },
   "Economy": {
     "EmergencyPurchasePriceMultiplier": 1.5,

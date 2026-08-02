@@ -39,7 +39,7 @@ internal static class LoadTestRunner
         var preset = config.Raw.SessionPresets.Single(p => p.Id == "short");
         var sectorA = config.Sectors.Single(s => s.Id == "A");
         var sectorB = config.Sectors.Single(s => s.Id == "B");
-        var budgetMs = config.Raw.PhaseTiming.CalculationPhaseSeconds * 1000d;
+        var budgetMs = config.Raw.PhaseTiming.SettlementPhaseSeconds * 1000d;
 
         const int sessionCount = 10;
         var tickDurations = new List<(int Turn, double ElapsedMs)>();
@@ -65,7 +65,7 @@ internal static class LoadTestRunner
             {
                 switch (session.State.CurrentPhase)
                 {
-                    case TurnPhase.Calculation:
+                    case TurnPhase.Settlement:
                         var stopwatch = Stopwatch.StartNew();
                         session.RunTick(random);
                         stopwatch.Stop();
@@ -90,10 +90,6 @@ internal static class LoadTestRunner
                         {
                             bot.SellSurplusToSystem(session);
                         }
-                        session.AdvancePhase(PhaseTransitionTrigger.Timer);
-                        break;
-
-                    case TurnPhase.Closing:
                         session.AdvancePhase(PhaseTransitionTrigger.Timer);
                         break;
                 }

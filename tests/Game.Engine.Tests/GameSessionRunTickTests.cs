@@ -65,20 +65,19 @@ public class GameSessionRunTickTests
         session.RunTick(new Random(1)); // ход 1
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Closing
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation, ход 2
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement, ход 2
 
         session.RunTick(new Random(1)); // ход 2
 
         Assert.Equal(2, session.State.CurrentTurn);
-        Assert.Equal(TurnPhase.Calculation, session.State.CurrentPhase);
+        Assert.Equal(TurnPhase.Settlement, session.State.CurrentPhase);
         // Ещё 5 руды добыто и переработано за второй ход поверх уже накопленных 2.5 листа.
         Assert.Equal(5m, team.Warehouse.QuantityOf(TestGameConfig.Sheet));
         Assert.True(session.VerifyIntegrity());
     }
 
     [Fact]
-    public void RunTick_Throws_Outside_The_Calculation_Phase()
+    public void RunTick_Throws_Outside_The_Settlement_Phase()
     {
         var session = StartSessionWithOneFundedTeam(out _);
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision

@@ -8,10 +8,10 @@ public class GameSessionContractsTests
     private static void ToDecisionPhase(GameSession session) => session.AdvancePhase(PhaseTransitionTrigger.Timer);
 
     /// <summary>Крутит фазы вперёд, пока сессия не окажется в фазе расчёта уже следующего хода.</summary>
-    private static void ToNextCalculation(GameSession session)
+    private static void ToNextSettlement(GameSession session)
     {
         var turn = session.State.CurrentTurn;
-        while (!(session.State.CurrentTurn > turn && session.State.CurrentPhase == TurnPhase.Calculation))
+        while (!(session.State.CurrentTurn > turn && session.State.CurrentPhase == TurnPhase.Settlement))
         {
             session.AdvancePhase(PhaseTransitionTrigger.Timer);
         }
@@ -71,7 +71,7 @@ public class GameSessionContractsTests
         ToDecisionPhase(session);
         var contractId = SignAndConfirmSpot(session, buyerId, sellerId); // delivery turn 2
         session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
-        ToNextCalculation(session); // ход 2, фаза расчёта
+        ToNextSettlement(session); // ход 2, фаза расчёта
 
         session.RunTick(new Random(1));
 
@@ -87,7 +87,7 @@ public class GameSessionContractsTests
         var (session, buyerId, sellerId) = TestGameConfig.StartGameSessionWithTwoTeams();
         ToDecisionPhase(session);
         var contractId = SignAndConfirmSpot(session, buyerId, sellerId); // продавцу нечего поставить
-        ToNextCalculation(session);
+        ToNextSettlement(session);
 
         var appended = session.RunTick(new Random(1));
 
@@ -106,7 +106,7 @@ public class GameSessionContractsTests
         ToDecisionPhase(session);
         var contractId = SignAndConfirmSpot(session, buyerId, sellerId); // объём 10
         session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 9m); // на 1 меньше нужного
-        ToNextCalculation(session);
+        ToNextSettlement(session);
 
         var appended = session.RunTick(new Random(1));
 
@@ -174,14 +174,14 @@ public class GameSessionContractsTests
 
         // ход 2: продавец обеспечен -> поставка
         session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
-        ToNextCalculation(session);
+        ToNextSettlement(session);
         session.RunTick(new Random(1));
         Assert.Equal(10m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet));
         Assert.Equal(ContractStatus.Active, session.State.Contracts[contractId].Status); // recurring продолжается
 
         // ход 3: снова обеспечен -> вторая поставка
         session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
-        ToNextCalculation(session);
+        ToNextSettlement(session);
         session.RunTick(new Random(1));
         Assert.Equal(20m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet));
     }

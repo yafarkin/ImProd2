@@ -34,9 +34,8 @@ public class TurnHistoryCalculatorTests
             Id = Ulid.NewUlid(), TeamId = team.Id, MaterialId = "ore", Volume = 20m,
             WithinCapacityVolume = 20m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 200m,
         });
-        log.Append(new PhaseAdvanced { Id = Ulid.NewUlid(), Trigger = PhaseTransitionTrigger.Timer }); // Calculation -> Decision
-        log.Append(new PhaseAdvanced { Id = Ulid.NewUlid(), Trigger = PhaseTransitionTrigger.Timer }); // Decision -> Closing
-        log.Append(new PhaseAdvanced { Id = Ulid.NewUlid(), Trigger = PhaseTransitionTrigger.Timer }); // Closing -> Calculation, ход 2
+        log.Append(new PhaseAdvanced { Id = Ulid.NewUlid(), Trigger = PhaseTransitionTrigger.Timer }); // Settlement -> Decision
+        log.Append(new PhaseAdvanced { Id = Ulid.NewUlid(), Trigger = PhaseTransitionTrigger.Timer }); // Decision -> Settlement, ход 2
 
         var summary = TurnHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved);
 

@@ -49,13 +49,25 @@ public static class PhaseTimerCalculator
         var effectiveNow = activePauseStartedAt ?? now;
         var elapsed = effectiveNow - phaseStartedAt - pausedDuration;
 
-        var totalAllowed = BaseDuration(state.CurrentPhase, state.Config.Raw.PhaseTiming) + state.PhaseExtensionSeconds;
-        return totalAllowed - elapsed;
+        return TotalDuration(session) - elapsed;
+    }
+
+    /// <summary>
+    /// Полная длительность текущей фазы — базовый тайминг из конфига плюс продление ведущим (<see
+    /// cref="GameSessionState.PhaseExtensionSeconds"/>), если оно было. Для отображения рядом с
+    /// отсчётом (<see cref="Remaining"/>) — «осталось X из Y».
+    /// </summary>
+    public static TimeSpan TotalDuration(GameSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        var state = session.State;
+        return BaseDuration(state.CurrentPhase, state.Config.Raw.PhaseTiming) + state.PhaseExtensionSeconds;
     }
 
     /// <summary>
     /// Был ли уже посчитан тик расчёта для текущего пребывания сессии в фазе <see
-    /// cref="TurnPhase.Calculation"/> — по наличию <see cref="MarketUpdated"/> с момента последней
+    /// cref="TurnPhase.Settlement"/> — по наличию <see cref="MarketUpdated"/> с момента последней
     /// границы фазы (<see cref="GameSession.RunTick"/> дописывает его безусловно, даже без единой
     /// команды в сессии). Признак выводится из самого журнала, а не хранится отдельным флагом в
     /// памяти — иначе перезапуск процесса между <see cref="GameSession.RunTick"/> и последующим <see
@@ -98,9 +110,8 @@ public static class PhaseTimerCalculator
 
     private static TimeSpan BaseDuration(TurnPhase phase, Game.Config.Session.PhaseTimingConfig timing) => phase switch
     {
-        TurnPhase.Calculation => TimeSpan.FromSeconds(timing.CalculationPhaseSeconds),
+        TurnPhase.Settlement => TimeSpan.FromSeconds(timing.SettlementPhaseSeconds),
         TurnPhase.Decision => TimeSpan.FromSeconds(timing.DecisionPhaseSeconds),
-        TurnPhase.Closing => TimeSpan.FromSeconds(timing.CompletionPhaseSeconds),
         _ => throw new InvalidOperationException($"Unknown turn phase '{phase}'.")
     };
 }

@@ -44,7 +44,7 @@ public sealed record SessionStarted : Change<GameSessionState>
         state.PresetId = PresetId;
         state.EndTurn = EndTurn;
         state.CurrentTurn = 1;
-        state.CurrentPhase = TurnPhase.Calculation;
+        state.CurrentPhase = TurnPhase.Settlement;
         state.PhaseExtensionSeconds = TimeSpan.Zero;
         state.IsPaused = false;
         state.IsFinished = false;

@@ -170,8 +170,8 @@ internal static class TestGameConfig
 
     /// <summary>
     /// Собирает вариант базового конфига с другими длительностями фаз хода (Блок 8.2) — для тестов
-    /// таймера, которым нужны различающиеся между собой Calculation/Decision/Closing, а не
-    /// одинаковые заглушки по умолчанию.
+    /// таймера, которым нужны различающиеся между собой Settlement/Decision, а не одинаковые
+    /// заглушки по умолчанию.
     /// </summary>
     public static ResolvedGameConfig BuildWithPhaseTiming(PhaseTimingConfig phaseTiming) =>
         Build(phaseTiming: phaseTiming);
@@ -266,7 +266,7 @@ internal static class TestGameConfig
             {
                 new SessionPresetConfig { Id = "test", Name = "Test", MinTurns = 1, MaxTurns = 999, TurnDurationMinutes = 1 },
             },
-            PhaseTiming = phaseTiming ?? new PhaseTimingConfig { CalculationPhaseSeconds = 1, DecisionPhaseSeconds = 1, CompletionPhaseSeconds = 1 },
+            PhaseTiming = phaseTiming ?? new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {
                 EmergencyPurchasePriceMultiplier = 2m,

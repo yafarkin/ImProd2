@@ -6,7 +6,7 @@ public class GameSessionFactoryTests
     private static (GameSession Session, Ulid TeamId) StartInDecisionPhase()
     {
         var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation -> Decision
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
 
         return (session, teamId);
     }
@@ -54,7 +54,7 @@ public class GameSessionFactoryTests
     [Fact]
     public void BuildFactory_Throws_Outside_The_Decision_Phase()
     {
-        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(); // Calculation, ход 1
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(); // Settlement, ход 1
 
         Assert.Throws<InvalidOperationException>(() => session.BuildFactory(teamId, TestGameConfig.Mine.Id));
     }
@@ -115,8 +115,7 @@ public class GameSessionFactoryTests
         var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
         session.HireWorkers(teamId, built.FactoryId, 5);
 
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Closing
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Closing -> Calculation, ход 2
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var appended = session.RunTick(new Random(1));
 
         var produced = Assert.IsType<FactoryProduced>(appended.Single(e => e.Change is FactoryProduced).Change);

@@ -158,13 +158,12 @@
       "Name": "Тренировочная",
       "MinTurns": 8,
       "MaxTurns": 10,
-      "TurnDurationMinutes": 1
+      "TurnDurationMinutes": 6
     }
   ],
   "PhaseTiming": {
-    "CalculationPhaseSeconds": 5,
-    "DecisionPhaseSeconds": 45,
-    "CompletionPhaseSeconds": 10
+    "SettlementPhaseSeconds": 30,
+    "DecisionPhaseSeconds": 340
   },
   "Economy": {
     "EmergencyPurchasePriceMultiplier": 1.5,

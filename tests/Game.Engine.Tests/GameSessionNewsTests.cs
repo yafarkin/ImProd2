@@ -20,10 +20,10 @@ public class GameSessionNewsTests
             });
     }
 
-    private static void ToNextCalculation(GameSession session)
+    private static void ToNextSettlement(GameSession session)
     {
         var turn = session.State.CurrentTurn;
-        while (!(session.State.CurrentTurn > turn && session.State.CurrentPhase == TurnPhase.Calculation))
+        while (!(session.State.CurrentTurn > turn && session.State.CurrentPhase == TurnPhase.Settlement))
         {
             session.AdvancePhase(PhaseTransitionTrigger.Timer);
         }
@@ -66,7 +66,7 @@ public class GameSessionNewsTests
                 published.Add(((NewsPublished)newsEvent.Change).NewsItemId);
             }
 
-            ToNextCalculation(session);
+            ToNextSettlement(session);
         }
 
         Assert.Equal(2, published.Distinct().Count()); // оба заголовка прозвучали, ни один не повторился

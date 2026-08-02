@@ -11,10 +11,10 @@ public class GameSessionReputationTests
 {
     private static void ToDecisionPhase(GameSession session) => session.AdvancePhase(PhaseTransitionTrigger.Timer);
 
-    private static void ToNextCalculation(GameSession session)
+    private static void ToNextSettlement(GameSession session)
     {
         var turn = session.State.CurrentTurn;
-        while (!(session.State.CurrentTurn > turn && session.State.CurrentPhase == TurnPhase.Calculation))
+        while (!(session.State.CurrentTurn > turn && session.State.CurrentPhase == TurnPhase.Settlement))
         {
             session.AdvancePhase(PhaseTransitionTrigger.Timer);
         }
@@ -30,7 +30,7 @@ public class GameSessionReputationTests
         session.ConfirmContract(result.Contract!.Id, TeamRole.Manager);
         session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
 
-        ToNextCalculation(session); // ход 2
+        ToNextSettlement(session); // ход 2
         session.RunTick(new Random(1));
 
         var reputation = session.GetReputation(sellerId);
@@ -53,7 +53,7 @@ public class GameSessionReputationTests
 
         LoanInterestCharged? RunTurnAndGetSellerInterest()
         {
-            ToNextCalculation(session);
+            ToNextSettlement(session);
             var appended = session.RunTick(new Random(1));
             foreach (var entry in appended)
             {

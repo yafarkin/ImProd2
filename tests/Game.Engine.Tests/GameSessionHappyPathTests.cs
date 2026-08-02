@@ -18,7 +18,7 @@ public class GameSessionHappyPathTests
 
         // Ход 1 начинается сразу в фазе расчёта (SessionStarted уже опубликовал котировки хода 1);
         // решения команд — только в фазе Decision.
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation -> Decision, ход 1
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 1
 
         // --- Шаг 1: строим рудник и нанимаем рабочих ---
         var mineBuilt = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
@@ -40,8 +40,7 @@ public class GameSessionHappyPathTests
         var balanceAfterDecisionPhase = team.Balance;
 
         // --- Ход 2: расчёт тика — рудник добывает руду, завод в том же тике перерабатывает её в лист ---
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Closing
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Closing -> Calculation, ход 2
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var tick = session.RunTick(new Random(1));
 
         var mined = (FactoryProduced)tick.Single(e => e.Change is FactoryProduced p && p.FactoryId == mineBuilt.FactoryId).Change;
@@ -55,7 +54,7 @@ public class GameSessionHappyPathTests
         Assert.Equal(balanceAfterDecisionPhase - financeCost, team.Balance);
 
         // --- Шаг 4: продаём готовый лист системе ---
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Calculation -> Decision, ход 2
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 2
         var balanceBeforeSale = team.Balance;
         var sale = (MaterialSoldToSystem)session.SellToSystem(teamId, TestGameConfig.Sheet.Id, volume: 5m).Change;
 

@@ -146,7 +146,7 @@ public sealed class GameSession
 
     /// <summary>
     /// Бросает, если решения команд сейчас недопустимы (любая фаза, кроме
-    /// <see cref="TurnPhase.Decision"/>) — фазы расчёта и завершения read-only (SPEC §4).
+    /// <see cref="TurnPhase.Decision"/>) — фаза расчёта+завершения read-only (SPEC §4).
     /// Действия команд (контракты, производство и т.д. из следующих блоков) обязаны вызывать этот
     /// метод перед записью своих событий.
     /// </summary>
@@ -878,16 +878,16 @@ public sealed class GameSession
     /// срывы/расторжения этого же хода не успевали ударить по ставке, начисленной в его начале.
     /// <paramref name="newsRandom"/> — случайность подбора заголовка (AGENTS §2, правило 6:
     /// никакой случайности без явного, при необходимости засеянного, экземпляра); если пул
-    /// заголовков текущего тренда в этой сессии исчерпан, новости в этот ход не будет. Не
-    /// вызывается автоматически при переходе фаз — таймер-driven вызов появится с real-time слоем
-    /// (Блок 8.2).
+    /// заголовков текущего тренда в этой сессии исчерпан, новости в этот ход не будет. Вызывается
+    /// автоматически (<see cref="PhaseAutoAdvancer"/>) сразу при входе в <see
+    /// cref="TurnPhase.Settlement"/>, не дожидаясь истечения таймера фазы — сам расчёт мгновенный.
     /// </summary>
     public IReadOnlyList<EventLogEntry<GameSessionState>> RunTick(Random newsRandom)
     {
-        if (State.CurrentPhase != TurnPhase.Calculation)
+        if (State.CurrentPhase != TurnPhase.Settlement)
         {
             throw new InvalidOperationException(
-                $"Cannot run a tick outside the '{TurnPhase.Calculation}' phase (currently '{State.CurrentPhase}').");
+                $"Cannot run a tick outside the '{TurnPhase.Settlement}' phase (currently '{State.CurrentPhase}').");
         }
 
         var appended = new List<EventLogEntry<GameSessionState>>();

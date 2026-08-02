@@ -24,7 +24,7 @@ public class GameSessionNeedsTests
     [Fact]
     public void PostNeed_Succeeds_Outside_The_Decision_Phase()
     {
-        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(); // Calculation, ход 1
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(); // Settlement, ход 1
 
         var entry = session.PostNeed(teamId, "ore", NeedDirection.Surplus, NeedVolumeOrder.Small, null);
 

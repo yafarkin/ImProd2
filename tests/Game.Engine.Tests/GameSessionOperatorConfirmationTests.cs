@@ -41,7 +41,7 @@ public class GameSessionOperatorConfirmationTests
     public void ConfirmContractByOperator_Throws_Outside_The_Decision_Phase()
     {
         var (session, _, _, contractId) = StartWithPendingContract();
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Closing
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement
 
         Assert.Throws<InvalidOperationException>(() => session.ConfirmContractByOperator(contractId));
     }
@@ -79,7 +79,7 @@ public class GameSessionOperatorConfirmationTests
     public void RejectContract_Throws_Outside_The_Decision_Phase()
     {
         var (session, _, _, contractId) = StartWithPendingContract();
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Closing
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement
 
         Assert.Throws<InvalidOperationException>(() => session.RejectContract(contractId, "передумали"));
     }

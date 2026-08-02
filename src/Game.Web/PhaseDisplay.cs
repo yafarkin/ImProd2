@@ -12,10 +12,17 @@ public static class PhaseDisplay
     /// <summary>Русская подпись фазы для экрана.</summary>
     public static string PhaseLabel(TurnPhase phase) => phase switch
     {
-        TurnPhase.Calculation => "Расчёт",
+        TurnPhase.Settlement => "Расчёт",
         TurnPhase.Decision => "Решения",
-        TurnPhase.Closing => "Завершение",
         _ => phase.ToString()
+    };
+
+    /// <summary>Короткое пояснение смысла фазы для игроков (SPEC §4) — что сейчас происходит и можно ли действовать.</summary>
+    public static string PhaseExplanation(TurnPhase phase) => phase switch
+    {
+        TurnPhase.Settlement => "Система уже посчитала итоги хода — рынок, производство, финансы. Просмотрите результаты и дождитесь начала решений, действия команд пока не принимаются.",
+        TurnPhase.Decision => "Ваше окно для действий: стройте и прокачивайте фабрики, нанимайте рабочих, ведите переговоры и заключайте сделки.",
+        _ => string.Empty
     };
 
     /// <summary>Остаток фазы как «мм:сс»; отрицательный/просроченный остаток показывается как «00:00».</summary>

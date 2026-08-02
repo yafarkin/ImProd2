@@ -62,9 +62,8 @@ public class GameConfigDeserializationTests
         Assert.Equal(15, shortPreset.MinTurns);
         Assert.Equal(20, shortPreset.MaxTurns);
 
-        Assert.Equal(5, config.PhaseTiming.CalculationPhaseSeconds);
+        Assert.Equal(20, config.PhaseTiming.SettlementPhaseSeconds);
         Assert.Equal(300, config.PhaseTiming.DecisionPhaseSeconds);
-        Assert.Equal(15, config.PhaseTiming.CompletionPhaseSeconds);
     }
 
     [Fact]

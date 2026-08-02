@@ -21,7 +21,7 @@ public class GameSessionTests
 
         Assert.InRange(session.State.EndTurn, preset.MinTurns, preset.MaxTurns);
         Assert.Equal(1, session.State.CurrentTurn);
-        Assert.Equal(TurnPhase.Calculation, session.State.CurrentPhase);
+        Assert.Equal(TurnPhase.Settlement, session.State.CurrentPhase);
 
         var first = Assert.Single(session.Entries);
         var started = Assert.IsType<SessionStarted>(first.Change);
@@ -44,7 +44,7 @@ public class GameSessionTests
     }
 
     [Fact]
-    public void AdvancePhase_Cycles_Through_Calculation_Decision_And_Closing_Then_Increments_The_Turn()
+    public void AdvancePhase_Cycles_Through_Settlement_And_Decision_Then_Increments_The_Turn()
     {
         var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
 
@@ -53,11 +53,7 @@ public class GameSessionTests
         Assert.Equal(1, session.State.CurrentTurn);
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer);
-        Assert.Equal(TurnPhase.Closing, session.State.CurrentPhase);
-        Assert.Equal(1, session.State.CurrentTurn);
-
-        session.AdvancePhase(PhaseTransitionTrigger.Timer);
-        Assert.Equal(TurnPhase.Calculation, session.State.CurrentPhase);
+        Assert.Equal(TurnPhase.Settlement, session.State.CurrentPhase);
         Assert.Equal(2, session.State.CurrentTurn);
     }
 
@@ -73,17 +69,16 @@ public class GameSessionTests
     }
 
     [Fact]
-    public void Reaching_Closing_Of_The_End_Turn_Finishes_The_Session_And_Blocks_Further_Advances()
+    public void Reaching_The_End_Of_The_Last_Decision_Finishes_The_Session_And_Blocks_Further_Advances()
     {
         var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 1, Array.Empty<TeamSpec>());
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Closing
         Assert.False(session.State.IsFinished);
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // конец хода 1 == EndTurn
         Assert.True(session.State.IsFinished);
-        Assert.Equal(TurnPhase.Closing, session.State.CurrentPhase);
+        Assert.Equal(TurnPhase.Decision, session.State.CurrentPhase);
         Assert.Equal(1, session.State.CurrentTurn);
 
         Assert.Throws<InvalidOperationException>(() => session.AdvancePhase(PhaseTransitionTrigger.Timer));
@@ -94,12 +89,12 @@ public class GameSessionTests
     {
         var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
 
-        Assert.Throws<InvalidOperationException>(session.EnsureDecisionsAllowed); // Calculation
+        Assert.Throws<InvalidOperationException>(session.EnsureDecisionsAllowed); // Settlement
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision
         session.EnsureDecisionsAllowed();
 
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Closing — read-only
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement of next turn — read-only
         Assert.Throws<InvalidOperationException>(session.EnsureDecisionsAllowed);
     }
 
@@ -148,7 +143,6 @@ public class GameSessionTests
         session.Resume();
         session.ExtendCurrentPhase(TimeSpan.FromSeconds(10));
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
-        session.AdvancePhase(PhaseTransitionTrigger.Timer);
         session.AdvancePhase(PhaseTransitionTrigger.Timer);
 
         Assert.True(session.VerifyIntegrity());
