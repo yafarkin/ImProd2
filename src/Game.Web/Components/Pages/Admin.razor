@@ -48,7 +48,14 @@
     </form>
 </details>
 
-@if (!_sessionStarted)
+@if (_sessionStarted)
+{
+    <div class="alert alert-info">
+        Сессия уже начата — команды, конфиг и пресет здесь больше не редактируются. Управление ей
+        (пауза, фазы, сброс, экспорт истории) — на <a href="/session">странице сессии</a>.
+    </div>
+}
+else
 {
     <h2>Подключение участников</h2>
     <p>
@@ -66,35 +73,7 @@
         <button type="button" class="btn btn-secondary" @onclick="UseTrainingConfig">Тренировочный конфиг (короткие ходы, ~8-10)</button>
     </div>
 
-    <h2 class="mt-4">Пресет длительности</h2>
-    <select class="form-select w-auto mb-3" @bind="_selectedPresetId">
-        @foreach (var preset in Host.DraftConfig.Raw.SessionPresets)
-        {
-            <option value="@preset.Id">@preset.Name (@(preset.MinTurns)-@(preset.MaxTurns) ходов)</option>
-        }
-    </select>
-
-    <h2 class="mt-4">Чек-лист готовности</h2>
-    <ul class="list-unstyled">
-        <li>Конфиг загружен: ✓</li>
-        <li>Пресет выбран: @(_selectedPresetId is not null ? "✓" : "✗")</li>
-        <li>Команд в черновике: @Host.StagedTeams.Count</li>
-        <li>Секторы охвачены: @(Host.StagedTeams.Count == 0 ? "—" : string.Join(", ", Host.StagedTeams.Select(t => SectorName(t.SectorId)).Distinct()))</li>
-        <li>Команд без управляющего: @_teamsWithoutManagerCount</li>
-        <li>Операторов в черновике: @_stagedOperatorCount</li>
-        <li>Ведущих в черновике: @_stagedFacilitatorCount</li>
-    </ul>
-
-    <button type="button" class="btn btn-primary" @onclick="StartSession">Начать сессию</button>
-}
-else
-{
-    <p>
-        Сессия запущена. Статус: <strong>@(_isPaused ? "пауза" : "идёт")</strong>
-        <button type="button" class="btn btn-secondary btn-sm ms-2" @onclick="TogglePause">@(_isPaused ? "Возобновить" : "Пауза")</button>
-    </p>
-
-    <h2>Управление</h2>
+    <h2 class="mt-4">Персонал и команды</h2>
     <p>
         <a href="/admin/teams" class="btn btn-secondary">Команды</a>
         <a href="/admin/participants" class="btn btn-secondary">Персонал</a>
@@ -102,51 +81,25 @@ else
 
     <h2 class="mt-4">Чек-лист готовности</h2>
     <ul class="list-unstyled">
-        @foreach (var row in _teamChecklist)
-        {
-            <li>
-                @row.Name — Управляющий: @(row.HasManager ? "✓" : "✗"), Переговорщик: @(row.HasNegotiator ? "✓" : "✗")
-            </li>
-        }
-        <li>Оператор: @(_hasOperator ? "✓" : "✗")</li>
-        <li>Ведущий: @(_hasFacilitator ? "✓" : "✗")</li>
+        <li>Конфиг загружен: ✓</li>
+        <li>Команд в черновике: @Host.StagedTeams.Count</li>
+        <li>Секторы охвачены: @(Host.StagedTeams.Count == 0 ? "—" : string.Join(", ", Host.StagedTeams.Select(t => SectorName(t.SectorId)).Distinct()))</li>
+        <li>Команд без управляющего: @_teamsWithoutManagerCount</li>
+        <li>Операторов в черновике: @_stagedOperatorCount</li>
+        <li>Ведущих в черновике: @_stagedFacilitatorCount</li>
     </ul>
 
-    <h2 class="mt-4">Печатные материалы</h2>
     <p>
-        <a href="/print/contract-form" target="_blank">Бланк сделки</a> ·
-        <a href="/print/team-memo" target="_blank">Памятки команд</a>
+        Когда состав готов — пресет длительности и кнопка «Начать сессию» на
+        <a href="/session" class="btn btn-primary">странице сессии</a>.
     </p>
-
-    <h2 class="mt-4">Сброс сессии</h2>
-    <p class="text-muted">
-        <em>
-            Начинает новую сессию с тем же составом команд и теми же кодами входа — для перехода от
-            тренировочной игры к основной (SPEC §10). Текущий журнал архивируется на диске, но
-            обратно из интерфейса не читается — выгрузите историю (см. «Экспорт истории» на экране
-            ведущего) заранее, если она нужна.
-        </em>
-    </p>
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <select class="form-select w-auto" @bind="_resetPresetId">
-            @foreach (var preset in Host.DefaultConfig.Raw.SessionPresets)
-            {
-                <option value="@preset.Id">@preset.Name (@(preset.MinTurns)-@(preset.MaxTurns) ходов)</option>
-            }
-        </select>
-        <button type="button" class="btn btn-danger" @onclick="ResetSession">Сбросить и начать заново</button>
-    </div>
 }
 
 @code {
-    private sealed record TeamChecklistRow(string Name, bool HasManager, bool HasNegotiator);
-
     [SupplyParameterFromQuery(Name = "welcome")]
     public string? WelcomeParam { get; set; }
 
     private bool _showWelcome;
-
-    private string? _selectedPresetId;
     private string? _errorMessage;
 
     private int _teamsWithoutManagerCount;
@@ -154,22 +107,12 @@ else
     private int _stagedFacilitatorCount;
 
     private bool _sessionStarted;
-    private bool _isPaused;
-    private IReadOnlyList<Game.Domain.Team> _teams = Array.Empty<Game.Domain.Team>();
-    private IReadOnlyList<ParticipantRegistration> _participants = Array.Empty<ParticipantRegistration>();
-    private IReadOnlyList<TeamChecklistRow> _teamChecklist = Array.Empty<TeamChecklistRow>();
-    private bool _hasOperator;
-    private bool _hasFacilitator;
-
-    private string? _resetPresetId;
 
     private Timer? _tickTimer;
 
     protected override void OnInitialized()
     {
         _showWelcome = WelcomeParam == "1";
-        _selectedPresetId = Host.DraftConfig.Raw.SessionPresets.Count > 0 ? Host.DraftConfig.Raw.SessionPresets[0].Id : null;
-        _resetPresetId = Host.DefaultConfig.Raw.SessionPresets.Count > 0 ? Host.DefaultConfig.Raw.SessionPresets[0].Id : null;
 
         Refresh();
 
@@ -185,32 +128,19 @@ else
         lock (Host.SyncRoot)
         {
             _sessionStarted = Host.Session is not null;
-            if (!_sessionStarted)
+            if (_sessionStarted)
             {
-                var stagedParticipants = Host.StagedParticipants;
-                var teamIdsWithManager = stagedParticipants
-                    .Where(p => p.Role == ParticipantRole.Manager)
-                    .Select(p => p.TeamId)
-                    .ToHashSet();
-                _teamsWithoutManagerCount = Host.StagedTeams.Count(t => !teamIdsWithManager.Contains(t.Id));
-                _stagedOperatorCount = stagedParticipants.Count(p => p.Role == ParticipantRole.Operator);
-                _stagedFacilitatorCount = stagedParticipants.Count(p => p.Role == ParticipantRole.Facilitator);
                 return;
             }
 
-            var state = Host.Session!.State;
-            _isPaused = state.IsPaused;
-            _teams = state.Teams.Values.OrderBy(t => t.Name, StringComparer.Ordinal).ToList();
-            _participants = state.Participants.Values.ToList();
-
-            _teamChecklist = _teams
-                .Select(team => new TeamChecklistRow(
-                    team.Name,
-                    _participants.Any(p => p.Role == ParticipantRole.Manager && p.TeamId == team.Id),
-                    _participants.Any(p => p.Role == ParticipantRole.Negotiator && p.TeamId == team.Id)))
-                .ToList();
-            _hasOperator = _participants.Any(p => p.Role == ParticipantRole.Operator);
-            _hasFacilitator = _participants.Any(p => p.Role == ParticipantRole.Facilitator);
+            var stagedParticipants = Host.StagedParticipants;
+            var teamIdsWithManager = stagedParticipants
+                .Where(p => p.Role == ParticipantRole.Manager)
+                .Select(p => p.TeamId)
+                .ToHashSet();
+            _teamsWithoutManagerCount = Host.StagedTeams.Count(t => !teamIdsWithManager.Contains(t.Id));
+            _stagedOperatorCount = stagedParticipants.Count(p => p.Role == ParticipantRole.Operator);
+            _stagedFacilitatorCount = stagedParticipants.Count(p => p.Role == ParticipantRole.Facilitator);
         }
     }
 
@@ -220,7 +150,6 @@ else
     {
         _errorMessage = null;
         Host.SetDraftConfig(Host.TrainingConfig);
-        _selectedPresetId = Host.TrainingConfig.Raw.SessionPresets.Count > 0 ? Host.TrainingConfig.Raw.SessionPresets[0].Id : null;
     }
 
     private async Task OnConfigFileSelected(InputFileChangeEventArgs e)
@@ -232,62 +161,8 @@ else
             var json = await reader.ReadToEndAsync();
             var config = GameConfigLoader.Load(json);
             Host.SetDraftConfig(config);
-            _selectedPresetId = config.Raw.SessionPresets.Count > 0 ? config.Raw.SessionPresets[0].Id : null;
         }
         catch (GameConfigValidationException ex)
-        {
-            _errorMessage = ex.Message;
-        }
-    }
-
-    private void StartSession()
-    {
-        var preset = Host.DraftConfig.Raw.SessionPresets.FirstOrDefault(p => p.Id == _selectedPresetId);
-        if (preset is null)
-        {
-            _errorMessage = "Выберите пресет длительности.";
-            return;
-        }
-
-        RunAction(() => Host.StartSessionFromDraft(preset));
-    }
-
-    private void TogglePause() => RunAction(() =>
-    {
-        if (_isPaused)
-        {
-            Host.Session!.Resume();
-        }
-        else
-        {
-            Host.Session!.Pause();
-        }
-    });
-
-    private void ResetSession()
-    {
-        var preset = Host.DefaultConfig.Raw.SessionPresets.FirstOrDefault(p => p.Id == _resetPresetId);
-        if (preset is null)
-        {
-            _errorMessage = "Выберите пресет для новой сессии.";
-            return;
-        }
-
-        RunAction(() => Host.ResetSession(preset));
-    }
-
-    private void RunAction(Action action)
-    {
-        _errorMessage = null;
-        try
-        {
-            lock (Host.SyncRoot)
-            {
-                action();
-            }
-            Refresh();
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             _errorMessage = ex.Message;
         }

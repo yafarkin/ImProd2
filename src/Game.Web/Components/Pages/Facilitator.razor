@@ -38,6 +38,8 @@ else
         {
             <strong> (пауза)</strong>
         }
+        — пауза, ускорение фазы, продление и история переходов — на
+        <a href="/session">странице сессии</a>.
     </p>
     @if (_lastNewsHeadline is not null)
     {
@@ -49,15 +51,6 @@ else
 {
     <div class="alert alert-danger">@_errorMessage</div>
 }
-
-<h2>Управление фазой</h2>
-<div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-    <button type="button" class="btn btn-secondary" @onclick="AdvancePhaseNow">Ускорить фазу</button>
-    <button type="button" class="btn btn-secondary" @onclick="TogglePause">@(_isPaused ? "Снять с паузы" : "Пауза")</button>
-    <input type="number" min="1" class="form-control d-inline-block" style="width:5em" @bind="_extendSeconds" />
-    <span>сек.</span>
-    <button type="button" class="btn btn-secondary" @onclick="ExtendPhase">Продлить</button>
-</div>
 
 <h2>Обзор команд</h2>
 <div class="table-responsive">
@@ -162,13 +155,6 @@ else
     </div>
 }
 
-<h2 class="mt-4">Экспорт истории</h2>
-<p>
-    <a href="/export/journal.json">Журнал событий (JSON)</a> ·
-    <a href="/export/turns.csv">Сводка по ходам (CSV)</a> ·
-    <a href="/export/scores.csv">Итоговые счета команд (CSV)</a>
-</p>
-
 @code {
     [CascadingParameter]
     private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
@@ -186,7 +172,6 @@ else
     private string? _lastNewsHeadline;
     private Timer? _tickTimer;
     private string? _errorMessage;
-    private int _extendSeconds = 30;
 
     private sealed record TeamRow(
         Ulid TeamId, string Name, string SectorName, decimal Balance, decimal Debt,
@@ -276,22 +261,6 @@ else
             }
         }
     }
-
-    private void AdvancePhaseNow() => RunAction(() => Host.Session!.AdvancePhase(PhaseTransitionTrigger.Facilitator));
-
-    private void TogglePause() => RunAction(() =>
-    {
-        if (_isPaused)
-        {
-            Host.Session!.Resume();
-        }
-        else
-        {
-            Host.Session!.Pause();
-        }
-    });
-
-    private void ExtendPhase() => RunAction(() => Host.Session!.ExtendCurrentPhase(TimeSpan.FromSeconds(_extendSeconds)));
 
     private void Grant()
     {
