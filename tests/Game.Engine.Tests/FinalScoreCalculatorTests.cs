@@ -43,8 +43,8 @@ public class FinalScoreCalculatorTests
     public void Warehouse_Stock_Is_Valued_At_A_Fraction_Of_The_Current_Market_Price()
     {
         var team = new Team(Ulid.NewUlid(), "Команда А1", TestGameConfig.SectorA);
-        team.Warehouse.Add(TestGameConfig.Ore, 10m); // 10 * 10 * 0.5 = 50
-        team.Warehouse.Add(TestGameConfig.Sheet, 4m); // 4 * 25 * 0.5 = 50
+        team.Warehouse.Add(TestGameConfig.Ore, 10m, 0m); // 10 * 10 * 0.5 = 50
+        team.Warehouse.Add(TestGameConfig.Sheet, 4m, 0m); // 4 * 25 * 0.5 = 50
 
         var result = FinalScoreCalculator.Calculate(team, NewMarket(), Economy, FactoryDefinitions);
 
@@ -70,7 +70,7 @@ public class FinalScoreCalculatorTests
     {
         var team = new Team(Ulid.NewUlid(), "Команда А1", TestGameConfig.SectorA);
         team.TakeLoan(1000m);
-        team.Warehouse.Add(TestGameConfig.Ore, 10m); // 50
+        team.Warehouse.Add(TestGameConfig.Ore, 10m, 0m); // 50
         team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine); // 50
         team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mill); // 50
 

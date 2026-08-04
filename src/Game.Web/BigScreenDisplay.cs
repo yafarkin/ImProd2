@@ -35,6 +35,30 @@ public static class BigScreenDisplay
             .ToList();
     }
 
+    /// <summary>
+    /// График баланса всех команд по ходам для большого экрана (запрос ведущего: «видеть динамику
+    /// всех команд сразу», а не только свою на /team) — та же <see cref="FactoryHistoryCalculator"/>,
+    /// что уже строит персональный график баланса на /team, просто по одному ряду на каждую команду
+    /// сессии вместо одной. Команды упорядочены по имени (не по текущему рейтингу — рейтинг меняется
+    /// от хода к ходу, и перестановка рядов сбивала бы закреплённый за командой цвет).
+    /// </summary>
+    public static LineChartDiagram.ChartLayout BuildBalanceHistoryChart(GameSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        var teams = session.State.Teams.Values.OrderBy(team => team.Name, StringComparer.Ordinal).ToList();
+        var series = teams
+            .Select((team, index) =>
+            {
+                var history = FactoryHistoryCalculator.Summarize(session.Entries, session.State.Config, team.Id);
+                return new LineChartDiagram.ChartSeries(
+                    team.Name, SectorColors.Palette[index % SectorColors.Palette.Length], history.BalanceByTurn);
+            })
+            .ToList();
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 900, 320, DashboardDisplay.FormatMoney);
+    }
+
     /// <summary>Агрегированная сводка доски потребностей для большого экрана.</summary>
     public sealed record NeedsSummary(int ActiveCount, IReadOnlyList<string> MostSoughtMaterialNames);
 

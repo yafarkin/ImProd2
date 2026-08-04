@@ -28,7 +28,7 @@ public class GameSessionReputationTests
         var (buyerProposal, sellerProposal) = TestGameConfig.MatchingSheetSpotProposals(buyerId, sellerId, deliveryTurn: 2, effectiveTurn: 2);
         var result = session.SubmitContractProposals(buyerProposal, sellerProposal, new Random(1));
         session.ConfirmContract(result.Contract!.Id, TeamRole.Manager);
-        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
+        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
 
         ToNextSettlement(session); // ход 2
         session.RunTick(new Random(1));

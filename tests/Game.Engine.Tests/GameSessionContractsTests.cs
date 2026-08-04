@@ -70,7 +70,7 @@ public class GameSessionContractsTests
         var (session, buyerId, sellerId) = TestGameConfig.StartGameSessionWithTwoTeams();
         ToDecisionPhase(session);
         var contractId = SignAndConfirmSpot(session, buyerId, sellerId); // delivery turn 2
-        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
+        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
         ToNextSettlement(session); // ход 2, фаза расчёта
 
         session.RunTick(new Random(1));
@@ -105,7 +105,7 @@ public class GameSessionContractsTests
         var (session, buyerId, sellerId) = TestGameConfig.StartGameSessionWithTwoTeams();
         ToDecisionPhase(session);
         var contractId = SignAndConfirmSpot(session, buyerId, sellerId); // объём 10
-        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 9m); // на 1 меньше нужного
+        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 9m, 0m); // на 1 меньше нужного
         ToNextSettlement(session);
 
         var appended = session.RunTick(new Random(1));
@@ -173,14 +173,14 @@ public class GameSessionContractsTests
         var contractId = result.Contract!.Id;
 
         // ход 2: продавец обеспечен -> поставка
-        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
+        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
         ToNextSettlement(session);
         session.RunTick(new Random(1));
         Assert.Equal(10m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet));
         Assert.Equal(ContractStatus.Active, session.State.Contracts[contractId].Status); // recurring продолжается
 
         // ход 3: снова обеспечен -> вторая поставка
-        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m);
+        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
         ToNextSettlement(session);
         session.RunTick(new Random(1));
         Assert.Equal(20m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet));

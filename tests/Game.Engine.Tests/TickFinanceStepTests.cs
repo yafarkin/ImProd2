@@ -102,7 +102,7 @@ public class TickFinanceStepTests
         team.Credit(1000m); // с запасом
         var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
         factory.Hire(4); // зарплата = 20
-        team.Warehouse.Add(TestGameConfig.Ore, 15m); // сверх лимита (10) на 5 единиц
+        team.Warehouse.Add(TestGameConfig.Ore, 15m, 0m); // сверх лимита (10) на 5 единиц
         var warehouseConfig = new Config.Economy.WarehouseConfig { FreeCapacity = 10m, OverageFeePerUnit = 2m };
 
         var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, warehouseConfig, reputationPercentage: 100m);
@@ -124,7 +124,7 @@ public class TickFinanceStepTests
         team.Credit(90m); // хватит на проценты (50) и зарплату (20), но не на плату за склад
         var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
         factory.Hire(4); // зарплата = 20
-        team.Warehouse.Add(TestGameConfig.Ore, 15m); // сверх лимита (10) на 5 единиц
+        team.Warehouse.Add(TestGameConfig.Ore, 15m, 0m); // сверх лимита (10) на 5 единиц
         var warehouseConfig = new Config.Economy.WarehouseConfig { FreeCapacity = 10m, OverageFeePerUnit = 5m }; // плата = 25
 
         var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, warehouseConfig, reputationPercentage: 100m);
@@ -140,7 +140,7 @@ public class TickFinanceStepTests
     public void Run_Charges_No_Fee_When_Stock_Is_Within_Free_Capacity()
     {
         var (_, team) = TestGameConfig.StartSessionWithOneTeam();
-        team.Warehouse.Add(TestGameConfig.Ore, 5m); // намного меньше лимита по умолчанию (1000)
+        team.Warehouse.Add(TestGameConfig.Ore, 5m, 0m); // намного меньше лимита по умолчанию (1000)
 
         var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, reputationPercentage: 100m);
 

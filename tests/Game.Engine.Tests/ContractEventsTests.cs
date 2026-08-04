@@ -51,7 +51,7 @@ public class ContractEventsTests
     public void ContractDelivered_Moves_Material_Seller_To_Buyer_And_Money_Buyer_To_Seller()
     {
         var (log, buyer, seller, spec) = SignAndConfirm(volume: 10m, unitPrice: 20m);
-        seller.Warehouse.Add(TestGameConfig.Sheet, 10m);
+        seller.Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
 
         log.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = spec.ContractId, Turn = 1 });
 

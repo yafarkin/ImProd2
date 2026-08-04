@@ -65,8 +65,8 @@ public class ProductionCalculatorTests
     {
         var factory = NewFactory(workers: 5); // == BaseWorkerCount, отдача линейная 1:1
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, 1000m);
-        warehouse.Add(Coal, 1000m);
+        warehouse.Add(Ore, 1000m, 0m);
+        warehouse.Add(Coal, 1000m, 0m);
 
         var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
@@ -81,8 +81,8 @@ public class ProductionCalculatorTests
     {
         var factory = NewFactory(workers: 9); // 5 базовых + 4 сверх базы
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, 1000m);
-        warehouse.Add(Coal, 1000m);
+        warehouse.Add(Ore, 1000m, 0m);
+        warehouse.Add(Coal, 1000m, 0m);
 
         var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
@@ -96,8 +96,8 @@ public class ProductionCalculatorTests
     {
         var factory = NewFactory(workers: 5); // мощность позволила бы выпуск 5
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, 4m); // хватит только на 2 листа (2 руды на лист)
-        warehouse.Add(Coal, 1000m);
+        warehouse.Add(Ore, 4m, 0m); // хватит только на 2 листа (2 руды на лист)
+        warehouse.Add(Coal, 1000m, 0m);
 
         var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
@@ -116,7 +116,7 @@ public class ProductionCalculatorTests
         var factory = new Factory(Ulid.NewUlid(), SectorA, MillOreOnly);
         factory.Hire(5); // мощность (5) не станет узким местом рядом с сырьевым лимитом (~1.67)
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, 5m);
+        warehouse.Add(Ore, 5m, 0m);
 
         var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
@@ -143,8 +143,8 @@ public class ProductionCalculatorTests
     {
         var factory = NewFactory(workers: 0);
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, 1000m);
-        warehouse.Add(Coal, 1000m);
+        warehouse.Add(Ore, 1000m, 0m);
+        warehouse.Add(Coal, 1000m, 0m);
 
         var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
@@ -172,8 +172,8 @@ public class ProductionCalculatorTests
         var factory = NewFactory(workers: 5); // мощность 5
         factory.AdvanceLevel(); // уровень 2
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, 1000m);
-        warehouse.Add(Coal, 1000m);
+        warehouse.Add(Ore, 1000m, 0m);
+        warehouse.Add(Coal, 1000m, 0m);
         var rnd = new RndConfig
         {
             CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
@@ -192,8 +192,8 @@ public class ProductionCalculatorTests
     {
         var factory = NewFactory(workers: 5);
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, 1000m); // руды с избытком
-        warehouse.Add(Coal, 1m); // угля хватит только на 1 лист
+        warehouse.Add(Ore, 1000m, 0m); // руды с избытком
+        warehouse.Add(Coal, 1m, 0m); // угля хватит только на 1 лист
 
         var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, NoRndBonus);
 
@@ -209,8 +209,8 @@ public class ProductionCalculatorTests
         var mine = new Factory(Ulid.NewUlid(), SectorA, Mine); // добывает руду, ничего не потребляет
         mine.Hire(5);
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, 1000m);
-        warehouse.Add(Coal, 1000m);
+        warehouse.Add(Ore, 1000m, 0m);
+        warehouse.Add(Coal, 1000m, 0m);
 
         var results = ProductionCalculator.CalculateGroup(new[] { mill, mine }, warehouse, Productivity, NoRndBonus);
 
@@ -230,8 +230,8 @@ public class ProductionCalculatorTests
         var millOreOnly = new Factory(Ulid.NewUlid(), SectorA, MillOreOnly);
         millOreOnly.Hire(5);
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, 10m);
-        warehouse.Add(Coal, 1000m); // уголь не в дефиците — конкуренция только за руду
+        warehouse.Add(Ore, 10m, 0m);
+        warehouse.Add(Coal, 1000m, 0m); // уголь не в дефиците — конкуренция только за руду
 
         var results = ProductionCalculator.CalculateGroup(new[] { mill, millOreOnly }, warehouse, Productivity, NoRndBonus);
 
@@ -255,8 +255,8 @@ public class ProductionCalculatorTests
         millOreOnly.Hire(5);
         millOreOnly.SetAllocationShare(60m);
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, 10m);
-        warehouse.Add(Coal, 1000m);
+        warehouse.Add(Ore, 10m, 0m);
+        warehouse.Add(Coal, 1000m, 0m);
 
         var results = ProductionCalculator.CalculateGroup(new[] { mill, millOreOnly }, warehouse, Productivity, NoRndBonus);
 
@@ -277,8 +277,8 @@ public class ProductionCalculatorTests
         var millOreOnly = new Factory(Ulid.NewUlid(), SectorA, MillOreOnly);
         millOreOnly.Hire(1); // мощность 1 -> 1 партия -> 3 руды желаемо
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, 10m);
-        warehouse.Add(Coal, 1000m);
+        warehouse.Add(Ore, 10m, 0m);
+        warehouse.Add(Coal, 1000m, 0m);
 
         var results = ProductionCalculator.CalculateGroup(new[] { mill, millOreOnly }, warehouse, Productivity, NoRndBonus);
 

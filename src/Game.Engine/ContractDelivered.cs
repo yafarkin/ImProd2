@@ -24,7 +24,9 @@ public sealed record ContractDelivered : Change<GameSessionState>
         var sum = terms.Volume * terms.UnitPrice;
 
         seller.Warehouse.Remove(terms.Material, terms.Volume);
-        buyer.Warehouse.Add(terms.Material, terms.Volume);
+        // Для покупателя реально уплаченная по контракту сумма и есть его реальная себестоимость
+        // этой партии (Domain.MaterialOnStock) — не рыночная цена на момент поставки.
+        buyer.Warehouse.Add(terms.Material, terms.Volume, sum);
         buyer.Debit(sum);
         seller.Credit(sum);
 

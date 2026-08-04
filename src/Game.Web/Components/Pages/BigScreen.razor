@@ -60,6 +60,9 @@ else
     </tbody>
 </table>
 
+<h2 class="mt-4">Баланс команд по ходам</h2>
+@ChartRenderer.Render(_balanceHistoryChart)
+
 <h2 class="mt-4">Доска потребностей</h2>
 <p>
     Активных объявлений: <strong>@_needsSummary.ActiveCount</strong>
@@ -82,6 +85,8 @@ else
     private IReadOnlyList<string> _recentNews = Array.Empty<string>();
     private IReadOnlyList<BigScreenDisplay.TeamRatingRow> _ranking = Array.Empty<BigScreenDisplay.TeamRatingRow>();
     private BigScreenDisplay.NeedsSummary _needsSummary = new(0, Array.Empty<string>());
+    private LineChartDiagram.ChartLayout _balanceHistoryChart = new([], [], [], 900, 320);
+    private int _balanceHistoryEntryCount = -1;
     private bool _sessionNotStarted;
     private Timer? _tickTimer;
 
@@ -116,6 +121,16 @@ else
             _recentNews = PhaseDisplay.RecentNewsHeadlines(Host.Session, 5);
             _ranking = BigScreenDisplay.RankTeams(Host.Session);
             _needsSummary = BigScreenDisplay.SummarizeNeeds(state);
+
+            // Полный реплей журнала на каждую команду — не бесплатная операция, а страница
+            // обновляется раз в секунду; пересчитываем только когда в журнале появились новые записи
+            // (тот же приём, что и кеш истории на /team, см. Team.razor.RefreshDashboard).
+            var entryCount = Host.Session.Entries.Count;
+            if (_balanceHistoryEntryCount != entryCount)
+            {
+                _balanceHistoryChart = BigScreenDisplay.BuildBalanceHistoryChart(Host.Session);
+                _balanceHistoryEntryCount = entryCount;
+            }
         }
     }
 

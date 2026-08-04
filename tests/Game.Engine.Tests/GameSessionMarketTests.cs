@@ -22,7 +22,7 @@ public class GameSessionMarketTests
         var (session, buyerId, _) = TestGameConfig.StartGameSessionWithTwoTeams();
         ToDecisionPhase(session);
         var team = session.State.Teams[buyerId];
-        team.Warehouse.Add(TestGameConfig.Ore, 20m);
+        team.Warehouse.Add(TestGameConfig.Ore, 20m, 0m);
         var balanceBefore = team.Balance;
 
         session.SellToSystem(buyerId, "ore", 20m);
@@ -39,8 +39,8 @@ public class GameSessionMarketTests
         ToDecisionPhase(session);
         var buyer = session.State.Teams[buyerId];
         var seller = session.State.Teams[sellerId];
-        buyer.Warehouse.Add(TestGameConfig.Sheet, 5m);
-        seller.Warehouse.Add(TestGameConfig.Sheet, 5m);
+        buyer.Warehouse.Add(TestGameConfig.Sheet, 5m, 0m);
+        seller.Warehouse.Add(TestGameConfig.Sheet, 5m, 0m);
 
         // Sheet: ёмкость этого хода = 8. Первая продажа съедает всю ёмкость (5 из 8), вторая
         // команда продаёт ещё 5, из которых 3 всё ещё в пределах ёмкости, 2 — сверх.
@@ -59,7 +59,7 @@ public class GameSessionMarketTests
         var (session, buyerId, _) = TestGameConfig.StartGameSessionWithTwoTeams();
         ToDecisionPhase(session);
         var team = session.State.Teams[buyerId];
-        team.Warehouse.Add(TestGameConfig.Sheet, 16m);
+        team.Warehouse.Add(TestGameConfig.Sheet, 16m, 0m);
 
         session.SellToSystem(buyerId, "sheet", 8m); // выбирает всю ёмкость хода 1
         Assert.Equal(0m, session.State.Market.RemainingCapacityOf("sheet"));

@@ -64,14 +64,14 @@ public class ReputationCalculatorTests
     {
         var (recentLog, recentBuyer, recentSeller) = TestGameConfig.StartSessionWithTwoTeams();
         var recentContract = SignAndConfirmContract(recentLog, recentBuyer.Id, recentSeller.Id);
-        recentSeller.Warehouse.Add(TestGameConfig.Sheet, 10m);
+        recentSeller.Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
         recentLog.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = recentContract, Turn = 10 });
         var recentMiss = SignAndConfirmContract(recentLog, recentBuyer.Id, recentSeller.Id);
         recentLog.Append(new DeliveryMissed { Id = Ulid.NewUlid(), ContractId = recentMiss, Turn = 19, ShortfallVolume = 10m, PenaltyAmount = 20m });
 
         var (oldLog, oldBuyer, oldSeller) = TestGameConfig.StartSessionWithTwoTeams();
         var oldContract = SignAndConfirmContract(oldLog, oldBuyer.Id, oldSeller.Id);
-        oldSeller.Warehouse.Add(TestGameConfig.Sheet, 10m);
+        oldSeller.Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
         oldLog.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = oldContract, Turn = 10 });
         var oldMiss = SignAndConfirmContract(oldLog, oldBuyer.Id, oldSeller.Id);
         oldLog.Append(new DeliveryMissed { Id = Ulid.NewUlid(), ContractId = oldMiss, Turn = 11, ShortfallVolume = 10m, PenaltyAmount = 20m });
@@ -95,7 +95,7 @@ public class ReputationCalculatorTests
         for (var turn = 6; turn <= 15; turn++)
         {
             var contractId = SignAndConfirmContract(log, buyer.Id, seller.Id);
-            seller.Warehouse.Add(TestGameConfig.Sheet, 10m);
+            seller.Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
             log.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = contractId, Turn = turn });
         }
         var afterRecovering = ReputationCalculator.Calculate(log.Entries, log.State.Contracts, seller.Id, currentTurn: 25, Config);
@@ -148,14 +148,14 @@ public class ReputationCalculatorTests
     {
         var (missLog, missBuyer, missSeller) = TestGameConfig.StartSessionWithTwoTeams();
         var deliveredContract = SignAndConfirmContract(missLog, missBuyer.Id, missSeller.Id);
-        missSeller.Warehouse.Add(TestGameConfig.Sheet, 10m);
+        missSeller.Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
         missLog.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = deliveredContract, Turn = 5 });
         var missedContract = SignAndConfirmContract(missLog, missBuyer.Id, missSeller.Id);
         missLog.Append(new DeliveryMissed { Id = Ulid.NewUlid(), ContractId = missedContract, Turn = 5, ShortfallVolume = 10m, PenaltyAmount = 20m });
 
         var (termLog, termBuyer, termSeller) = TestGameConfig.StartSessionWithTwoTeams();
         var deliveredContract2 = SignAndConfirmContract(termLog, termBuyer.Id, termSeller.Id);
-        termSeller.Warehouse.Add(TestGameConfig.Sheet, 10m);
+        termSeller.Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
         termLog.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = deliveredContract2, Turn = 5 });
         var terminatedContract = SignAndConfirmContract(termLog, termBuyer.Id, termSeller.Id);
         termLog.Append(new ContractTerminated

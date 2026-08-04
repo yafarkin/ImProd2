@@ -17,23 +17,30 @@ public sealed class Warehouse
         return _stock.TryGetValue(material.Id, out var stock) ? stock.Quantity : 0m;
     }
 
-    /// <summary>Пополняет остаток материала на складе.</summary>
-    public void Add(Material material, decimal amount)
+    /// <summary>Реальная средняя себестоимость единицы остатка (см. <see cref="MaterialOnStock"/>); 0, если материал никогда не поступал.</summary>
+    public decimal AverageCostOf(Material material)
+    {
+        ArgumentNullException.ThrowIfNull(material);
+        return _stock.TryGetValue(material.Id, out var stock) ? stock.AverageUnitCost : 0m;
+    }
+
+    /// <summary>Пополняет остаток материала на складе вместе с его реальной стоимостью (0, если поступление было бесплатным — таких на практике не бывает, но метод этого не решает за вызывающий код).</summary>
+    public void Add(Material material, decimal amount, decimal cost)
     {
         ArgumentNullException.ThrowIfNull(material);
 
         if (_stock.TryGetValue(material.Id, out var existing))
         {
-            existing.Add(amount);
+            existing.Add(amount, cost);
         }
         else
         {
-            _stock[material.Id] = new MaterialOnStock(material, amount);
+            _stock[material.Id] = new MaterialOnStock(material, amount, cost);
         }
     }
 
-    /// <summary>Списывает материал со склада; бросает исключение при нехватке остатка.</summary>
-    public void Remove(Material material, decimal amount)
+    /// <summary>Списывает материал со склада; бросает исключение при нехватке остатка. Возвращает реальную себестоимость списанной части (см. <see cref="MaterialOnStock.Remove"/>).</summary>
+    public decimal Remove(Material material, decimal amount)
     {
         ArgumentNullException.ThrowIfNull(material);
 
@@ -42,6 +49,6 @@ public sealed class Warehouse
             throw new InvalidOperationException($"Not enough '{material.Id}' in stock: requested {amount}, have 0.");
         }
 
-        existing.Remove(amount);
+        return existing.Remove(amount);
     }
 }

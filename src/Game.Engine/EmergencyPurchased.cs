@@ -29,7 +29,7 @@ public sealed record EmergencyPurchased : Change<GameSessionState>
         var team = state.Teams[TeamId];
         var material = state.Config.Materials[MaterialId];
 
-        team.Warehouse.Add(material, Volume);
+        team.Warehouse.Add(material, Volume, TotalCost);
         // TotalCost может обнулиться, если затяжной спад увёл цену материала в 0 (MarketCalculator
         // ограничивает её снизу нулём) — Team.Debit(0) бросил бы.
         if (TotalCost > 0)

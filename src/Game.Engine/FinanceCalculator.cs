@@ -57,7 +57,12 @@ public static class FinanceCalculator
     /// <summary>
     /// Обязательный платёж по телу долга за один ход — доля от текущего долга
     /// (<see cref="StartingConditionsConfig.MandatoryRepaymentRatePerTurn"/>), отдельно от процентов
-    /// (см. <see cref="CalculateInterest"/>, тело они не уменьшают); 0, если долга нет.
+    /// (см. <see cref="CalculateInterest"/>, тело они не уменьшают); 0, если долга нет. Процент от
+    /// долга по определению никогда не доходит ровно до нуля — геометрическая убыль. Как только сам
+    /// такой платёж опускается ниже одной денежной единицы (уже неотличимо от нуля на экране, где
+    /// суммы округляются до целых), это перестаёт быть содержательным решением — вместо вечных
+    /// исчезающе малых списаний и записей «−0 ¤» в истории операций долг в этот момент закрывается
+    /// целиком одним платежом (запрос пользователя).
     /// </summary>
     public static decimal CalculateMandatoryRepayment(Team team, StartingConditionsConfig loanConfig)
     {
@@ -69,7 +74,8 @@ public static class FinanceCalculator
             return 0m;
         }
 
-        return team.Debt * loanConfig.MandatoryRepaymentRatePerTurn;
+        var repayment = team.Debt * loanConfig.MandatoryRepaymentRatePerTurn;
+        return repayment is > 0m and < 1m ? team.Debt : repayment;
     }
 
     /// <summary>Суммарная зарплата за один ход для заданного числа рабочих.</summary>

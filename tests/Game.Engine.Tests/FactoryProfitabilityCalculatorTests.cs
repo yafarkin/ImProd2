@@ -43,8 +43,8 @@ public class FactoryProfitabilityCalculatorTests
     private static Warehouse WarehouseWith(decimal ore, decimal coal)
     {
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, ore);
-        warehouse.Add(Coal, coal);
+        warehouse.Add(Ore, ore, 0m);
+        warehouse.Add(Coal, coal, 0m);
         return warehouse;
     }
 

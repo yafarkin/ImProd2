@@ -4,9 +4,6 @@
 @implements IDisposable
 @inject GameSessionHost Host
 @inject NavigationManager Nav
-@using static Game.Web.SvgMarkup
-@using System.Net
-@using System.Text
 @using Game.Config.Economy
 
 <PageTitle>Команда</PageTitle>
@@ -132,9 +129,9 @@ else
     else
     {
         <h4 class="h6 mt-4">Баланс по ходам</h4>
-        @RenderChart(BuildBalanceChartLayout())
+        @ChartRenderer.Render(BuildBalanceChartLayout())
         <h4 class="h6 mt-4">Репутация по ходам</h4>
-        @RenderChart(BuildReputationChartLayout())
+        @ChartRenderer.Render(BuildReputationChartLayout())
     }
 </div>
 <div style="display:@(_activePageTab == "factories" ? "" : "none")">
@@ -178,57 +175,66 @@ else
     else
     {
         <p class="text-muted">
-            Слева направо — по уровню сырьевой пирамиды. Сплошные узлы — построенные фабрики (число внутри
-            — оценка прибыли за тик), пунктирные — «построить ещё» этого типа (есть всегда, даже если
-            экземпляры уже есть). Красная рамка — этой фабрике не хватает сырья на общем складе команды,
-            чтобы выйти на полную мощность прямо сейчас. Клик по сплошному узлу открывает карточку с
-            деталями, по пунктирному — выбирает тип в форме постройки выше.
+            Сверху вниз — по уровню сырьевой пирамиды. Сплошная рамка — построенная фабрика (число
+            справа — сколько единиц реально произведено в прошлый ход, в скобках — насколько это
+            меньше потолка по рабочим/уровню), пунктирная — «построить ещё» этого типа (есть всегда,
+            даже если экземпляры уже есть). Красная рамка — этой фабрике в прошлый ход не хватило
+            сырья на общем складе команды, чтобы выйти на полную мощность. Клик по построенной —
+            открывает карточку с деталями, по пунктирной — выбирает тип в форме постройки выше.
         </p>
-        <svg width="@N(_factoryOverviewLayout!.Width)" height="@N(_factoryOverviewLayout.Height)" viewBox="@($"0 0 {N(_factoryOverviewLayout.Width)} {N(_factoryOverviewLayout.Height)}")" style="max-width: 100%; height: auto; border: 1px solid #e1e0d9;">
-            @foreach (var node in _factoryOverviewLayout.Nodes)
+        int? lastLevel = null;
+        <div class="d-flex flex-column gap-2">
+            @foreach (var node in _factoryOverviewRows)
             {
+                var level = node.Definition.Recipes[0].Output.Level;
+                @if (level != lastLevel)
+                {
+                    <div class="text-muted small text-uppercase mt-2">Уровень @level</div>
+                    lastLevel = level;
+                }
                 @if (node.Instance is { } instance)
                 {
                     var isSelected = instance.Id == _selectedFactoryId;
-                    var shortOfInput = node.Status == FactoryOverviewDiagram.LoadStatus.ShortOfInput;
+                    var shortOfInput = node.Status == FactoryOverviewList.LoadStatus.ShortOfInput;
                     var loadColor = shortOfInput ? "#dc3545" : "#198754";
+                    var title = node.IndexWithinType > 1 ? $"{instance.Definition.Name} №{node.IndexWithinType}" : instance.Definition.Name;
                     var subtitle = shortOfInput
                         ? $"рабочих: {instance.Workers} · нехватка сырья"
                         : $"рабочих: {instance.Workers} · {instance.SelectedRecipe.Output.Name}";
-                    var profitText = node.Profit is { } profit ? DashboardDisplay.FormatMoney(profit) : "нет цены";
-                    var profitColor = node.Profit is { } p2 ? (p2 >= 0 ? "#198754" : "#dc3545") : "#898781";
-                    <g style="cursor:pointer" @onclick="() => SelectFactory(instance.Id)">
-                        <rect x="@N(node.X)" y="@N(node.Y)" width="@N(node.Width)" height="@N(node.Height)" rx="6"
-                              fill="@loadColor" fill-opacity="0.12"
-                              stroke="@loadColor" stroke-width="@(isSelected ? 3 : 1.5)" />
-                        @Text(node.X + node.Width / 2, node.Y + 17, "text-anchor:middle;font-size:13px;font-weight:600;fill:#0b0b0b",
-                            node.IndexWithinType > 1 ? $"{instance.Definition.Name} №{node.IndexWithinType}" : instance.Definition.Name)
-                        @Text(node.X + node.Width / 2, node.Y + 34, "text-anchor:middle;font-size:11px;fill:#52514e", subtitle)
-                        @Text(node.X + node.Width / 2, node.Y + 51, $"text-anchor:middle;font-size:11px;font-weight:600;fill:{profitColor}", profitText)
-                    </g>
+                    var outputText = node.LastTurnOutput is { } lastOutput
+                        ? (node.TheoreticalMaxOutput is { } max && lastOutput < max
+                            ? $"{lastOutput:0.##} (не хватило {(max - lastOutput):0.##} до {max:0.##})"
+                            : $"{lastOutput:0.##}")
+                        : "ещё нет данных";
+                    <div class="border rounded p-2 d-flex justify-content-between align-items-center gap-2"
+                         style="cursor:pointer; border-color:@loadColor; border-width:@(isSelected ? "3px" : "1.5px"); background:@(loadColor)1f;"
+                         @onclick="() => SelectFactory(instance.Id)">
+                        <div>
+                            <div style="font-weight:600">@title</div>
+                            <div class="text-muted small">@subtitle</div>
+                        </div>
+                        <div class="text-end small flex-shrink-0" style="font-weight:600; color:@loadColor">@outputText</div>
+                    </div>
                 }
                 else
                 {
-                    var alreadyBuilt = _factoryOverviewLayout.Nodes.Any(n => n.Definition.Id == node.Definition.Id && n.Instance is not null);
+                    var alreadyBuilt = _factoryOverviewRows.Any(n => n.Definition.Id == node.Definition.Id && n.Instance is not null);
                     var buildCost = _buildCosts.GetValueOrDefault(node.Definition.Id);
-                    // Нехватку денег не пишем прямо на узле — подпись не помещается в ширину узла и
-                    // наезжает на соседние (клетки диаграммы узкие и фиксированной ширины). Явное
-                    // предупреждение и disabled-кнопка — у формы постройки выше, туда и ведёт клик.
                     var caption = (alreadyBuilt ? "построить ещё · от " : "не построена · от ") + DashboardDisplay.FormatMoney(buildCost);
-                    <g style="cursor:pointer" @onclick="() => SelectBuildable(node.Definition.Id)">
-                        <rect x="@N(node.X)" y="@N(node.Y)" width="@N(node.Width)" height="@N(node.Height)" rx="6"
-                              fill="none" stroke="#898781" stroke-width="1.5" stroke-dasharray="5 3" />
-                        @Text(node.X + node.Width / 2, node.Y + 25, "text-anchor:middle;font-size:13px;font-weight:600;fill:#0b0b0b", node.Definition.Name)
-                        @Text(node.X + node.Width / 2, node.Y + 43, "text-anchor:middle;font-size:11px;fill:#52514e", caption)
-                    </g>
+                    <div class="border rounded p-2 d-flex justify-content-between align-items-center gap-2"
+                         style="cursor:pointer; border-style:dashed; border-color:#898781;"
+                         @onclick="() => SelectBuildable(node.Definition.Id)">
+                        <div style="font-weight:600">@node.Definition.Name</div>
+                        <div class="text-muted small flex-shrink-0">@caption</div>
+                    </div>
                 }
             }
-        </svg>
+        </div>
 
         @if (_history is { ProfitByLevel.Count: > 0 })
         {
             <h4 class="h6 mt-3">Прибыльность по уровням пирамиды (вся команда)</h4>
-            @RenderChart(BuildProfitByLevelChartLayout())
+            @ChartRenderer.Render(BuildProfitByLevelChartLayout())
         }
 
         @if (_selectedFactory is { } factory)
@@ -251,13 +257,29 @@ else
                     {
                         @if (_isDecisionPhase)
                         {
-                            <div class="d-flex align-items-center gap-3 mb-2">
-                                <button type="button" class="btn btn-outline-secondary" disabled="@(factory.Workers == 0)" @onclick="() => FireWorkers(factory.FactoryId)">−</button>
-                                <span class="fs-4">@factory.Workers</span>
-                                <button type="button" class="btn btn-outline-secondary" @onclick="() => HireWorkers(factory.FactoryId)">+</button>
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                <span class="text-muted">Сейчас: @factory.Workers</span>
+                                <input type="number" min="0" step="1" class="form-control d-inline-block" style="width:6em" @bind="_targetWorkerCounts[factory.FactoryId]" />
+                                <button type="button" class="btn btn-secondary" disabled="@(!CanApplyWorkerCount(factory))" @onclick="() => ApplyWorkerCount(factory)">Применить</button>
                             </div>
+                            var (workerDelta, workerCost) = WorkerCountChange(factory);
+                            @if (workerDelta > 0)
+                            {
+                                <p class="text-muted small">Вы собираетесь нанять @workerDelta рабочих — стоимость @DashboardDisplay.FormatMoney(workerCost).</p>
+                            }
+                            else if (workerDelta < 0)
+                            {
+                                <p class="text-muted small">Вы собираетесь уволить @(-workerDelta) рабочих — стоимость @DashboardDisplay.FormatMoney(workerCost).</p>
+                            }
+                            @if (workerCost > _balance)
+                            {
+                                <p class="text-danger small mb-2">
+                                    Не хватает @DashboardDisplay.FormatMoney(workerCost - _balance) —
+                                    <button type="button" class="btn btn-link p-0 align-baseline" @onclick='() => _activePageTab = "finance"'>возьмите кредит в Финансах</button>.
+                                </p>
+                            }
                             <p class="text-muted small">
-                                Нанять ещё одного: @DashboardDisplay.FormatMoney(_hireCostPerWorker) ·
+                                Нанять одного: @DashboardDisplay.FormatMoney(_hireCostPerWorker) ·
                                 уволить одного: @DashboardDisplay.FormatMoney(_fireCostPerWorker)
                             </p>
                             <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
@@ -316,8 +338,15 @@ else
                         {
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                                 <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_rndInvestAmounts[factory.FactoryId]" />
-                                <button type="button" class="btn btn-secondary btn-sm" @onclick="() => InvestInRnd(factory.FactoryId)">Вложить в R&amp;D</button>
+                                <button type="button" class="btn btn-secondary btn-sm" disabled="@(!CanAffordRndInvestment(factory.FactoryId))" @onclick="() => InvestInRnd(factory.FactoryId)">Вложить в R&amp;D</button>
                             </div>
+                            @if (!CanAffordRndInvestment(factory.FactoryId))
+                            {
+                                <p class="text-danger small mb-2">
+                                    Не хватает @DashboardDisplay.FormatMoney(_rndInvestAmounts.GetValueOrDefault(factory.FactoryId, 50m) - _balance) —
+                                    <button type="button" class="btn btn-link p-0 align-baseline" @onclick='() => _activePageTab = "finance"'>возьмите кредит в Финансах</button>.
+                                </p>
+                            }
                         }
                     }
                     else if (_activeFactoryTab == "destination")
@@ -482,15 +511,8 @@ else
                             <text> (из них @preview.OverflowVolume.ToString("0.##") сверх дневного лимита ёмкости — по @DashboardDisplay.FormatMoney(preview.OverflowUnitPrice))</text>
                         }
                         <text> · доход: @DashboardDisplay.FormatMoney(preview.Revenue)</text>
-                        @if (preview.Profit is { } profit)
-                        {
-                            <text> · прибыль: </text>
-                            <strong class="@(profit >= 0 ? "text-success" : "text-danger")">@DashboardDisplay.FormatMoney(profit)</strong>
-                        }
-                        else
-                        {
-                            <text> · прибыль пока не посчитать — нет рыночных котировок сырья в её пирамиде.</text>
-                        }
+                        <text> · прибыль: </text>
+                        <strong class="@(preview.Profit >= 0 ? "text-success" : "text-danger")">@DashboardDisplay.FormatMoney(preview.Profit)</strong>
                     }
                     else
                     {
@@ -511,8 +533,19 @@ else
                 }
             </select>
             <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_emergencyPurchaseVolume" />
-            <button type="button" class="btn btn-secondary" @onclick="EmergencyPurchase">Купить</button>
+            <button type="button" class="btn btn-secondary" disabled="@(!CanAffordEmergencyPurchase)" @onclick="EmergencyPurchase">Купить</button>
         </div>
+        @if (EmergencyPurchaseCost > 0)
+        {
+            <p class="text-muted small">Стоимость: @DashboardDisplay.FormatMoney(EmergencyPurchaseCost)</p>
+        }
+        @if (!CanAffordEmergencyPurchase)
+        {
+            <p class="text-danger small mb-2">
+                Не хватает @DashboardDisplay.FormatMoney(EmergencyPurchaseCost - _balance) —
+                <button type="button" class="btn btn-link p-0 align-baseline" @onclick='() => _activePageTab = "finance"'>возьмите кредит в Финансах</button>.
+            </p>
+        }
     }
 
     <h4 class="mt-4">Остатки по ходам</h4>
@@ -522,7 +555,7 @@ else
     }
     else
     {
-        @RenderChart(BuildWarehouseStockChartLayout())
+        @ChartRenderer.Render(BuildWarehouseStockChartLayout())
     }
 </div>
 <div style="display:@(_activePageTab == "finance" ? "" : "none")">
@@ -732,15 +765,18 @@ else
     /// <summary>
     /// Предпросмотр продажи материала системе (запрос пользователя: «сразу видеть ставку, доход и
     /// прибыль») — пересчитывается на лету из уже закешированных <see cref="_market"/>/
-    /// <see cref="_economyConfig"/>/<see cref="_unitCostByMaterialId"/> при каждом изменении
+    /// <see cref="_economyConfig"/>/<see cref="_realUnitCostByMaterialId"/> при каждом изменении
     /// объёма, той же чистой функцией <see cref="MarketSaleCalculator.Calculate"/>, что и реальная
-    /// продажа — предпросмотр не может разойтись с фактом. <see cref="Profit"/> — <see
-    /// langword="null"/>, если себестоимость материала ещё не посчитать (нет рыночной котировки
-    /// сырья в его пирамиде), тот же отказ, что у <see cref="DashboardDisplay.TryCalculateUnitCost"/>.
+    /// продажа — предпросмотр не может разойтись с фактом. <see cref="Profit"/> считается по
+    /// реальной себестоимости остатка на складе (взвешенное среднее фактических трат — зарплата,
+    /// закупки, поставки по контрактам, см. <see cref="Warehouse.AverageCostOf"/>), а не по
+    /// рыночной цене — та отвечает на другой вопрос (см. doc-comment <see
+    /// cref="FactoryProfitabilityCalculator"/>) и тут не годится. Известна всегда, пока материал
+    /// вообще есть на складе.
     /// </summary>
     private sealed record SellPreviewResult(
         bool HasQuote, decimal UnitPrice, decimal OverflowVolume, decimal OverflowUnitPrice,
-        decimal Revenue, decimal? Profit);
+        decimal Revenue, decimal Profit);
 
     private sealed record MaterialOption(string Id, string Name);
 
@@ -787,7 +823,7 @@ else
 
     private IReadOnlyList<FactoryRow> _factories = Array.Empty<FactoryRow>();
     private IReadOnlyList<BuildableDefinition> _buildableDefinitions = Array.Empty<BuildableDefinition>();
-    private FactoryOverviewDiagram.Layout? _factoryOverviewLayout;
+    private IReadOnlyList<FactoryOverviewList.Node> _factoryOverviewRows = Array.Empty<FactoryOverviewList.Node>();
     private FactoryHistoryCalculator.TeamFactoryHistory? _history;
     private int _historyEntryCount = -1;
     private Ulid? _selectedFactoryId;
@@ -801,12 +837,15 @@ else
     private Market? _market;
     private EconomyConfig? _economyConfig;
     private readonly Dictionary<string, decimal> _unitCostByMaterialId = new();
+    /// <summary>Реальная себестоимость остатка (взвешенное среднее фактических трат, <see cref="Warehouse.AverageCostOf"/>) — для превью продажи, в отличие от рыночной <see cref="_unitCostByMaterialId"/> (для карточки фабрики).</summary>
+    private readonly Dictionary<string, decimal> _realUnitCostByMaterialId = new();
     private IReadOnlyList<ContractRow> _contracts = Array.Empty<ContractRow>();
     private IReadOnlyList<StockRow> _stock = Array.Empty<StockRow>();
     private IReadOnlyList<MaterialOption> _emergencyPurchaseMaterials = Array.Empty<MaterialOption>();
 
     private readonly Dictionary<Ulid, string> _selectedRecipeIds = new();
     private readonly Dictionary<Ulid, decimal> _rndInvestAmounts = new();
+    private readonly Dictionary<Ulid, int> _targetWorkerCounts = new();
     private readonly Dictionary<Ulid, decimal> _allocationShares = new();
     private readonly Dictionary<string, decimal> _sellVolumes = new();
     private readonly Dictionary<Ulid, decimal> _revisionVolumes = new();
@@ -937,6 +976,7 @@ else
             _market = state.Market;
             _economyConfig = state.Config.Raw.Economy;
             _unitCostByMaterialId.Clear();
+            _realUnitCostByMaterialId.Clear();
             _stock = team.Warehouse.Stock.Select(s =>
             {
                 _sellVolumes.TryAdd(s.Material.Id, 1m);
@@ -944,6 +984,7 @@ else
                 {
                     _unitCostByMaterialId[s.Material.Id] = unitCost;
                 }
+                _realUnitCostByMaterialId[s.Material.Id] = team.Warehouse.AverageCostOf(s.Material);
                 return new StockRow(s.Material.Id, s.Material.Name, s.Material, s.Quantity);
             }).ToList();
             _usedCapacity = _stock.Sum(s => s.Quantity);
@@ -975,6 +1016,7 @@ else
             {
                 _selectedRecipeIds.TryAdd(factory.Id, factory.SelectedRecipe.Id);
                 _rndInvestAmounts.TryAdd(factory.Id, 50m);
+                _targetWorkerCounts.TryAdd(factory.Id, factory.Workers);
                 _allocationShares.TryAdd(factory.Id, factory.AllocationShare);
 
                 var hasUnitCost = DashboardDisplay.TryCalculateUnitCost(factory.SelectedRecipe.Output, state, out var unitCost);
@@ -1039,7 +1081,12 @@ else
             {
                 _buildCosts[definition.Id] = state.Config.Raw.FactoryDefinitions.First(f => f.Id == definition.Id).BuildCost;
             }
-            _factoryOverviewLayout = FactoryOverviewDiagram.Build(sectorDefinitions, team.Factories, profitabilityByFactoryId);
+            var lastTurnOutputByFactoryId = _factories
+                .Where(f => f.ActivityHistory.Count > 0)
+                .ToDictionary(f => f.FactoryId, f => f.ActivityHistory[^1].OutputQuantity);
+            var theoreticalMaxOutputByFactoryId = _factories.ToDictionary(f => f.FactoryId, f => f.CapacityBreakdown.TheoreticalMaxOutput);
+            _factoryOverviewRows = FactoryOverviewList.Build(
+                sectorDefinitions, team.Factories, lastTurnOutputByFactoryId, theoreticalMaxOutputByFactoryId);
 
             _contracts = state.Contracts.Values
                 .Where(c => c.BuyerTeamId == _teamId || c.SellerTeamId == _teamId)
@@ -1074,6 +1121,9 @@ else
     /// <summary>Управляет и disabled-состоянием кнопки «Построить», и текстом-пояснением рядом с ней — единый источник правды, чтобы они не разъезжались.</summary>
     private bool CanAffordSelectedBuild => SelectedBuildableDefinition is not { } definition || _balance >= definition.BuildCost;
 
+    /// <summary>Тот же приём, что и <see cref="CanAffordSelectedBuild"/>: не даём вложить в R&amp;D больше, чем есть на балансе — иначе баланс уходит в минус без предупреждения (запрос пользователя после случая с уходом в -7,225 ¤).</summary>
+    private bool CanAffordRndInvestment(Ulid factoryId) => _rndInvestAmounts.GetValueOrDefault(factoryId, 50m) <= _balance;
+
     private void BuildFactory()
     {
         if (_selectedFactoryDefinitionId is null || !CanAffordSelectedBuild)
@@ -1103,10 +1153,43 @@ else
     /// </summary>
     private void ScrollTo(string elementId) => Nav.NavigateTo($"/team#{elementId}");
 
-    /// <summary>Степпер «Люди» нанимает/увольняет по одному за клик (запрос пользователя: ячейка с +/- вместо поля ввода количества).</summary>
-    private void HireWorkers(Ulid factoryId) => RunAction(() => Host.Session!.HireWorkers(_teamId, factoryId, 1));
+    /// <summary>
+    /// Разница между желаемой численностью (поле ввода <see cref="_targetWorkerCounts"/>) и текущей —
+    /// общая основа для текста-предпросмотра, disabled-состояния кнопки «Применить» и предупреждения
+    /// о нехватке денег (запрос пользователя: явно показывать «нанять/уволить N, стоимость Y» вместо
+    /// прежнего степпера по одному через +/-). Положительная разница — наём, отрицательная — увольнение.
+    /// </summary>
+    private (int Delta, decimal Cost) WorkerCountChange(FactoryRow factory)
+    {
+        var target = Math.Max(0, _targetWorkerCounts.GetValueOrDefault(factory.FactoryId, factory.Workers));
+        var delta = target - factory.Workers;
+        var cost = delta switch
+        {
+            > 0 => delta * _hireCostPerWorker,
+            < 0 => -delta * _fireCostPerWorker,
+            _ => 0m,
+        };
+        return (delta, cost);
+    }
 
-    private void FireWorkers(Ulid factoryId) => RunAction(() => Host.Session!.FireWorkers(_teamId, factoryId, 1));
+    private bool CanApplyWorkerCount(FactoryRow factory)
+    {
+        var (delta, cost) = WorkerCountChange(factory);
+        return delta != 0 && cost <= _balance;
+    }
+
+    private void ApplyWorkerCount(FactoryRow factory)
+    {
+        var (delta, _) = WorkerCountChange(factory);
+        if (delta > 0)
+        {
+            RunAction(() => Host.Session!.HireWorkers(_teamId, factory.FactoryId, delta));
+        }
+        else if (delta < 0)
+        {
+            RunAction(() => Host.Session!.FireWorkers(_teamId, factory.FactoryId, -delta));
+        }
+    }
 
     private string TabClass(string tab) => _activeFactoryTab == tab ? "active" : "";
 
@@ -1190,58 +1273,9 @@ else
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, value => value.ToString("0") + "%");
     }
 
-    private MarkupString RenderStockChart(FactoryRow factory) => RenderChart(BuildStockChartLayout(factory));
+    private MarkupString RenderStockChart(FactoryRow factory) => ChartRenderer.Render(BuildStockChartLayout(factory));
 
-    private MarkupString RenderOutputChart(FactoryRow factory) => RenderChart(BuildOutputChartLayout(factory));
-
-    /// <summary>
-    /// Рисует один <see cref="LineChartDiagram.ChartLayout"/> целиком (сетка, оси, линии рядов,
-    /// подпись последней точки, легенда при ≥2 рядах) как сырую разметку — тот же приём, что и
-    /// <see cref="SvgMarkup.Text"/>, но для всего графика сразу: собирать это построчно в @-разметке
-    /// Razor через @foreach было бы втрое длиннее ради одного и того же кода на три места вызова.
-    /// </summary>
-    private static MarkupString RenderChart(LineChartDiagram.ChartLayout layout)
-    {
-        if (layout.Series.Count == 0)
-        {
-            return new MarkupString("<p><em>Пока нет данных для графика — данные появятся после первого хода.</em></p>");
-        }
-
-        var svg = new StringBuilder();
-        svg.Append(System.Globalization.CultureInfo.InvariantCulture, $"<svg width=\"{N(layout.Width)}\" height=\"{N(layout.Height)}\" viewBox=\"0 0 {N(layout.Width)} {N(layout.Height)}\" style=\"max-width:100%;height:auto;border:1px solid #e1e0d9\">");
-
-        foreach (var tick in layout.YTicks)
-        {
-            svg.Append(System.Globalization.CultureInfo.InvariantCulture, $"<line x1=\"0\" y1=\"{N(tick.Y)}\" x2=\"{N(layout.Width)}\" y2=\"{N(tick.Y)}\" stroke=\"#e1e0d9\" stroke-width=\"1\" />");
-            svg.Append(System.Globalization.CultureInfo.InvariantCulture, $"<text x=\"2\" y=\"{N(tick.Y - 3)}\" style=\"font-size:10px;fill:#898781\">{WebUtility.HtmlEncode(tick.Label)}</text>");
-        }
-
-        foreach (var tick in layout.XTicks)
-        {
-            svg.Append(System.Globalization.CultureInfo.InvariantCulture, $"<text x=\"{N(tick.X)}\" y=\"{N(tick.Y + 14)}\" style=\"font-size:10px;fill:#898781;text-anchor:middle\">{WebUtility.HtmlEncode(tick.Label)}</text>");
-        }
-
-        foreach (var series in layout.Series)
-        {
-            svg.Append(System.Globalization.CultureInfo.InvariantCulture, $"<path d=\"{series.PathData}\" fill=\"none\" stroke=\"{series.Color}\" stroke-width=\"2\" />");
-            svg.Append(System.Globalization.CultureInfo.InvariantCulture, $"<circle cx=\"{N(series.LastX)}\" cy=\"{N(series.LastY)}\" r=\"3\" fill=\"{series.Color}\" />");
-            svg.Append(System.Globalization.CultureInfo.InvariantCulture, $"<text x=\"{N(series.LastX + 6)}\" y=\"{N(series.LastY + 4)}\" style=\"font-size:11px;font-weight:600;fill:{series.Color}\">{WebUtility.HtmlEncode(series.LastValueLabel)}</text>");
-        }
-
-        svg.Append("</svg>");
-
-        if (layout.Series.Count > 1)
-        {
-            svg.Append("<div style=\"display:flex;flex-wrap:wrap;gap:.75rem;font-size:11px;color:#52514e;margin-top:.25rem\">");
-            foreach (var series in layout.Series)
-            {
-                svg.Append(System.Globalization.CultureInfo.InvariantCulture, $"<span><span style=\"display:inline-block;width:10px;height:10px;background:{series.Color};margin-right:4px;border-radius:2px\"></span>{WebUtility.HtmlEncode(series.Label)}</span>");
-            }
-            svg.Append("</div>");
-        }
-
-        return new MarkupString(svg.ToString());
-    }
+    private MarkupString RenderOutputChart(FactoryRow factory) => ChartRenderer.Render(BuildOutputChartLayout(factory));
 
     private void SelectRecipe(Ulid factoryId)
     {
@@ -1264,14 +1298,13 @@ else
         var volume = _sellVolumes.GetValueOrDefault(row.MaterialId, 1m);
         if (_market is null || _economyConfig is null || volume <= 0 || !_market.HasQuote(row.MaterialId))
         {
-            return new SellPreviewResult(HasQuote: false, 0m, 0m, 0m, 0m, null);
+            return new SellPreviewResult(HasQuote: false, 0m, 0m, 0m, 0m, 0m);
         }
 
         var result = MarketSaleCalculator.Calculate(_market, _economyConfig, row.Material, volume);
         var overflowUnitPrice = result.UnitPrice * _economyConfig.MarketCapacityOverflowDiscount;
-        var profit = _unitCostByMaterialId.TryGetValue(row.MaterialId, out var unitCost)
-            ? result.TotalRevenue - unitCost * volume
-            : (decimal?)null;
+        var realUnitCost = _realUnitCostByMaterialId.GetValueOrDefault(row.MaterialId);
+        var profit = result.TotalRevenue - realUnitCost * volume;
 
         return new SellPreviewResult(HasQuote: true, result.UnitPrice, result.OverflowVolume, overflowUnitPrice, result.TotalRevenue, profit);
     }
@@ -1300,9 +1333,31 @@ else
     private void RejectRevision(Ulid contractId) =>
         RunAction(() => Host.Session!.RespondToContractRevision(contractId, TeamRole.Manager, accept: false, Random.Shared));
 
+    /// <summary>
+    /// Та же цена, что посчитает <see cref="Game.Engine.GameSession.EmergencyPurchase"/> — рыночная
+    /// котировка × множитель аварийной закупки — здесь только для предпросмотра стоимости и
+    /// проверки баланса до отправки действия (тот же приём, что <see cref="CanAffordSelectedBuild"/>).
+    /// </summary>
+    private decimal EmergencyPurchaseCost
+    {
+        get
+        {
+            if (_emergencyPurchaseMaterialId is null || _market is null || _economyConfig is null
+                || !_market.HasQuote(_emergencyPurchaseMaterialId))
+            {
+                return 0m;
+            }
+
+            var unitPrice = _market.QuoteOf(_emergencyPurchaseMaterialId).Price * _economyConfig.EmergencyPurchasePriceMultiplier;
+            return unitPrice * _emergencyPurchaseVolume;
+        }
+    }
+
+    private bool CanAffordEmergencyPurchase => EmergencyPurchaseCost <= _balance;
+
     private void EmergencyPurchase()
     {
-        if (_emergencyPurchaseMaterialId is null)
+        if (_emergencyPurchaseMaterialId is null || !CanAffordEmergencyPurchase)
         {
             return;
         }

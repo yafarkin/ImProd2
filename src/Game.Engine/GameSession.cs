@@ -961,6 +961,7 @@ public sealed class GameSession
 
                 foreach (var result in results)
                 {
+                    var factory = factoriesAtLevel.Single(f => f.Id == result.FactoryId);
                     appended.Add(_log.Append(new FactoryProduced
                     {
                         Id = Ulid.NewUlid(),
@@ -969,6 +970,7 @@ public sealed class GameSession
                         CapacityLimitedOutputQuantity = result.CapacityLimitedOutputQuantity,
                         OutputQuantity = result.OutputQuantity,
                         ConsumedInputs = result.ConsumedInputs,
+                        LaborCost = factory.Workers * config.Raw.WorkerProductivity.SalaryPerWorkerPerTurn,
                     }));
                 }
             }

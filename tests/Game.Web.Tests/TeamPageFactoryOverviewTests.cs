@@ -7,9 +7,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Game.Web.Tests;
 
 /// <summary>
-/// Единая диаграмма фабрик сектора на /team (запрос пользователя: один граф вместо двух, плейсхолдер
-/// «построить ещё» есть всегда) — проверяет, что страница реально отдаёт SVG с построенными и
-/// непостроенными узлами, а не просто что <see cref="FactoryOverviewDiagram.Build"/> сама по себе
+/// Единый список фабрик сектора на /team (запрос пользователя: один список вместо двух, плейсхолдер
+/// «построить ещё» есть всегда) — проверяет, что страница реально отдаёт HTML с построенными и
+/// непостроенными узлами, а не просто что <see cref="FactoryOverviewList.Build"/> сама по себе
 /// верна (это уже покрыто отдельными юнит-тестами). Изолированная фабрика + <see cref="GameSessionHost.HardReset"/>
 /// — тот же приём, что и у соседних тестов черновика/сессии в AuthenticationTests.cs. Дополнительно
 /// чистит за собой в конце (второй <c>HardReset()</c>) — этот тест единственный в проекте реально
@@ -50,11 +50,11 @@ public class TeamPageFactoryOverviewTests
 
             var response = await client.GetAsync("/team");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var html = await response.Content.ReadAsStringAsync();
+            var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
             Assert.Contains("id=\"decide-now\"", html);
             Assert.Contains($"factory-card-{host.Session!.State.Teams[team.Id].Factories.Single().Id}", html);
-            Assert.Contains("stroke-dasharray", html); // хотя бы один непостроенный узел
+            Assert.Contains("border-style:dashed", html); // хотя бы один непостроенный узел
             Assert.Contains("не построена", html);
         }
         finally
@@ -94,9 +94,9 @@ public class TeamPageFactoryOverviewTests
 
             var response = await client.GetAsync("/team");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var html = await response.Content.ReadAsStringAsync();
+            var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
-            Assert.Contains("№2", html); // второй экземпляр того же типа пронумерован на диаграмме
+            Assert.Contains("№2", html); // второй экземпляр того же типа пронумерован в списке
             Assert.Contains("построить ещё", html); // плейсхолдер остался и когда экземпляры уже есть
         }
         finally

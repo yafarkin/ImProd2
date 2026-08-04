@@ -110,6 +110,29 @@ public class FinanceCalculatorTests
     }
 
     [Fact]
+    public void CalculateMandatoryRepayment_Closes_The_Whole_Debt_Once_The_Percentage_Payment_Would_Round_To_Zero()
+    {
+        // Процент от долга по определению никогда не доходит ровно до нуля (запрос пользователя: не
+        // списывать и не логировать вечные «−0 ¤» на угасающем остатке долга) — при
+        // MandatoryRepaymentRatePerTurn = 0.1 платёж уходит ниже одной денежной единицы уже при долге
+        // меньше 10, и в этот момент вместо 10%-й доли гасится весь остаток разом.
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+        team.TakeLoan(5m);
+
+        Assert.Equal(5m, FinanceCalculator.CalculateMandatoryRepayment(team, LoanConfig));
+    }
+
+    [Fact]
+    public void CalculateMandatoryRepayment_Still_Uses_The_Percentage_When_The_Payment_Is_At_Least_One_Unit()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+        team.TakeLoan(10m);
+
+        // 10 * 0.1 = 1 ровно — граница ещё не «меньше единицы», обычная доля остаётся в силе.
+        Assert.Equal(1m, FinanceCalculator.CalculateMandatoryRepayment(team, LoanConfig));
+    }
+
+    [Fact]
     public void CalculateSalaries_Multiplies_Worker_Count_By_The_Configured_Rate()
     {
         Assert.Equal(35m, FinanceCalculator.CalculateSalaries(totalWorkers: 7, WorkerConfig));
