@@ -14,10 +14,11 @@
 {
     <p class="text-muted">
         <strong>@RoleDisplay.Name(ParticipantRole.Manager)</strong> — @RoleDisplay.Description(ParticipantRole.Manager)
-        Код, который вы получите ниже, уже рабочий — управляющий может входить сразу, не дожидаясь
+        QR-код, который вы получите ниже, уже рабочий — управляющий может входить сразу, не дожидаясь
         «Начать сессию» (просто увидит, что сессия ещё готовится). Переговорщиков себе в команду
         управляющий обычно добавляет сам на странице «Команда» — они появятся здесь же, как только он
-        это сделает.
+        это сделает. Сам код входа в таблице не показываем — только по клику на QR, чтобы его не
+        сфотографировали с общего экрана.
     </p>
     <p>Следующая команда будет автоматически назначена в сектор: <strong>@NextSector().Name</strong></p>
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -53,7 +54,6 @@
                                 else
                                 {
                                     <span>@manager.DisplayName</span>
-                                    <code>@manager.Code</code>
                                     <a href="@QrLink(manager, team.Name)" target="_blank">QR</a>
                                     <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Host.RemoveStagedParticipant(manager.Id)">Убрать</button>
                                 }
@@ -63,7 +63,6 @@
                                 <div class="d-flex align-items-center gap-1 mb-1">
                                     <span class="text-muted small" style="width:7em">@RoleDisplay.Name(ParticipantRole.Negotiator):</span>
                                     <span>@negotiator.DisplayName</span>
-                                    <code>@negotiator.Code</code>
                                     <a href="@QrLink(negotiator, team.Name)" target="_blank">QR</a>
                                     <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Host.RemoveStagedParticipant(negotiator.Id)">Убрать</button>
                                 </div>
@@ -100,7 +99,7 @@ else
                         <td>
                             @foreach (var participant in ParticipantsOf(team.Id))
                             {
-                                <div>@RoleDisplay.Name(participant.Role): @participant.DisplayName (<code>@participant.Code</code>)</div>
+                                <div>@RoleDisplay.Name(participant.Role): @participant.DisplayName · <a href="@QrLink(participant, team.Name)" target="_blank">QR</a></div>
                             }
                         </td>
                     </tr>
@@ -198,6 +197,9 @@ else
     }
 
     private static string QrLink(StagedParticipantSpec participant, string teamName) =>
+        $"/admin/qr/{participant.Code}?name={Uri.EscapeDataString($"{participant.DisplayName} — {RoleDisplay.Name(participant.Role)} команды «{teamName}»")}";
+
+    private static string QrLink(ParticipantRegistration participant, string teamName) =>
         $"/admin/qr/{participant.Code}?name={Uri.EscapeDataString($"{participant.DisplayName} — {RoleDisplay.Name(participant.Role)} команды «{teamName}»")}";
 
     public void Dispose() => _tickTimer?.Dispose();

@@ -19,7 +19,7 @@
 @if (!_sessionStarted)
 {
     <p><em>Здесь заводятся роли без команды — администраторы, операторы, ведущий. Управляющих команд заводят на странице <a href="/admin/teams">«Команды»</a>, переговорщиков — сами управляющие после старта сессии.</em></p>
-    <p><em>Код, который вы получите ниже, уже рабочий — можно раздавать сразу, не дожидаясь «Начать сессию».</em></p>
+    <p><em>QR-код, который вы получите ниже, уже рабочий — можно раздавать сразу, не дожидаясь «Начать сессию». Сам код входа в таблице не показываем — только по клику на QR, чтобы его не сфотографировали с общего экрана.</em></p>
 
     <RoleHints Roles="RoleLessRoles" />
 
@@ -38,7 +38,7 @@
         <table class="table table-striped table-sm align-middle">
             <thead>
                 <tr>
-                    <th>Код</th>
+                    <th></th>
                     <th>Роль</th>
                     <th>Имя</th>
                     <th></th>
@@ -48,7 +48,7 @@
                 @foreach (var participant in Host.StagedParticipants.Where(p => p.TeamId is null))
                 {
                     <tr>
-                        <td><code>@participant.Code</code> <a href="@QrLink(participant)" target="_blank">QR</a></td>
+                        <td><a href="@QrLink(participant)" target="_blank">QR</a></td>
                         <td>@RoleDisplay.Name(participant.Role)</td>
                         <td>@participant.DisplayName</td>
                         <td><button type="button" class="btn btn-secondary btn-sm" @onclick="() => Host.RemoveStagedParticipant(participant.Id)">Убрать</button></td>
@@ -78,7 +78,7 @@ else
         <table class="table table-striped table-sm align-middle">
             <thead>
                 <tr>
-                    <th>Код</th>
+                    <th></th>
                     <th>Роль</th>
                     <th>Имя</th>
                 </tr>
@@ -87,7 +87,7 @@ else
                 @foreach (var participant in _participants)
                 {
                     <tr>
-                        <td><code>@participant.Code</code></td>
+                        <td><a href="@QrLink(participant)" target="_blank">QR</a></td>
                         <td>@RoleDisplay.Name(participant.Role)</td>
                         <td>@participant.DisplayName</td>
                     </tr>
@@ -164,6 +164,9 @@ else
     }
 
     private static string QrLink(StagedParticipantSpec participant) =>
+        $"/admin/qr/{participant.Code}?name={Uri.EscapeDataString($"{participant.DisplayName} — {RoleDisplay.Name(participant.Role)}")}";
+
+    private static string QrLink(ParticipantRegistration participant) =>
         $"/admin/qr/{participant.Code}?name={Uri.EscapeDataString($"{participant.DisplayName} — {RoleDisplay.Name(participant.Role)}")}";
 
     private void RegisterParticipant()
