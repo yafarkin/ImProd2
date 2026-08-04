@@ -7,21 +7,22 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Game.Web.Tests;
 
 /// <summary>
-/// Диаграмма цепочки фабрик сектора на /team (запрос пользователя «не понятно с чего начинать») —
-/// проверяет, что страница реально отдаёт SVG с построенными и непостроенными узлами, а не просто
-/// что <see cref="FactoryChainDiagram.Build"/> сама по себе верна (это уже покрыто отдельными
-/// юнит-тестами). Изолированная фабрика + <see cref="GameSessionHost.HardReset"/> — тот же приём,
-/// что и у соседних тестов черновика/сессии в AuthenticationTests.cs. Дополнительно чистит за собой
-/// в конце (второй <c>HardReset()</c>) — этот тест единственный в проекте реально стартует сессию
-/// вне <c>AuthenticationTests</c>' общей fixture, а её конструктор считает себя первым и сеет
-/// тестовую сессию только если <c>Host.Session is null</c>; оставленная этим тестом на диске
-/// незавершённая сессия иначе просачивается в общую fixture, если тестовые классы этого проекта
-/// (все делят один физический <c>App_Data</c>, см. <see cref="AssemblyFixture"/>) выполнятся в другом порядке.
+/// Единая диаграмма фабрик сектора на /team (запрос пользователя: один граф вместо двух, плейсхолдер
+/// «построить ещё» есть всегда) — проверяет, что страница реально отдаёт SVG с построенными и
+/// непостроенными узлами, а не просто что <see cref="FactoryOverviewDiagram.Build"/> сама по себе
+/// верна (это уже покрыто отдельными юнит-тестами). Изолированная фабрика + <see cref="GameSessionHost.HardReset"/>
+/// — тот же приём, что и у соседних тестов черновика/сессии в AuthenticationTests.cs. Дополнительно
+/// чистит за собой в конце (второй <c>HardReset()</c>) — этот тест единственный в проекте реально
+/// стартует сессию вне <c>AuthenticationTests</c>' общей fixture, а её конструктор считает себя
+/// первым и сеет тестовую сессию только если <c>Host.Session is null</c>; оставленная этим тестом на
+/// диске незавершённая сессия иначе просачивается в общую fixture, если тестовые классы этого
+/// проекта (все делят один физический <c>App_Data</c>, см. <see cref="AssemblyFixture"/>) выполнятся
+/// в другом порядке.
 /// </summary>
-public class TeamPageFactoryChainTests
+public class TeamPageFactoryOverviewTests
 {
     [Fact]
-    public async Task Team_Page_Renders_Built_And_Unbuilt_Factory_Nodes_With_A_Connecting_Edge()
+    public async Task Team_Page_Renders_Built_And_Unbuilt_Factory_Nodes()
     {
         using var factory = new WebApplicationFactory<Program>();
         var host = factory.Services.GetRequiredService<GameSessionHost>();
@@ -51,7 +52,6 @@ public class TeamPageFactoryChainTests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var html = await response.Content.ReadAsStringAsync();
 
-            Assert.Contains("factory-chain-arrow", html);
             Assert.Contains("id=\"decide-now\"", html);
             Assert.Contains($"factory-card-{host.Session!.State.Teams[team.Id].Factories.Single().Id}", html);
             Assert.Contains("stroke-dasharray", html); // хотя бы один непостроенный узел
@@ -96,7 +96,8 @@ public class TeamPageFactoryChainTests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var html = await response.Content.ReadAsStringAsync();
 
-            Assert.Contains("построено: 2", html);
+            Assert.Contains("№2", html); // второй экземпляр того же типа пронумерован на диаграмме
+            Assert.Contains("построить ещё", html); // плейсхолдер остался и когда экземпляры уже есть
         }
         finally
         {

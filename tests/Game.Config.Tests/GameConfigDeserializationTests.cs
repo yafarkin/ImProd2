@@ -14,6 +14,15 @@ public class GameConfigDeserializationTests
                ?? throw new InvalidOperationException("Sample config deserialized to null.");
     }
 
+    private static GameConfig LoadDebugConfig()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.debug.json");
+        var json = File.ReadAllText(path);
+
+        return JsonSerializer.Deserialize<GameConfig>(json)
+               ?? throw new InvalidOperationException("Debug config deserialized to null.");
+    }
+
     [Fact]
     public void Sample_Config_Deserializes_Catalog_Without_Loss()
     {
@@ -53,9 +62,10 @@ public class GameConfigDeserializationTests
         var config = LoadSampleConfig();
 
         Assert.Equal(10000m, config.StartingConditions.MaxStartingLoanAmount);
-        Assert.Equal(0.05m, config.StartingConditions.BaseLoanInterestRate);
+        Assert.Equal(0.005m, config.StartingConditions.BaseLoanInterestRate);
         Assert.Equal(0.05m, config.StartingConditions.ForcedLoanPenaltyRatePerOccurrence);
         Assert.Equal(0.1m, config.StartingConditions.MaxReputationRatePenalty);
+        Assert.Equal(0.005m, config.StartingConditions.MandatoryRepaymentRatePerTurn);
 
         Assert.Equal(3, config.SessionPresets.Count);
         var shortPreset = Assert.Single(config.SessionPresets, preset => preset.Id == "short");
@@ -64,6 +74,21 @@ public class GameConfigDeserializationTests
 
         Assert.Equal(20, config.PhaseTiming.SettlementPhaseSeconds);
         Assert.Equal(300, config.PhaseTiming.DecisionPhaseSeconds);
+    }
+
+    /// <summary>Отладочный конфиг (кнопка «Отладочный конфиг» на /admin) — та же экономика, что и у pilot, но 30-секундный ход и 300 ходов подряд, чтобы наблюдать динамику без ожидания реальной игры.</summary>
+    [Fact]
+    public void Debug_Config_Has_A_Thirty_Second_Turn_Cycle_And_Three_Hundred_Turns()
+    {
+        var config = LoadDebugConfig();
+
+        Assert.Equal(5, config.PhaseTiming.SettlementPhaseSeconds);
+        Assert.Equal(25, config.PhaseTiming.DecisionPhaseSeconds);
+
+        var preset = Assert.Single(config.SessionPresets);
+        Assert.Equal("debug", preset.Id);
+        Assert.Equal(300, preset.MinTurns);
+        Assert.Equal(300, preset.MaxTurns);
     }
 
     [Fact]

@@ -12,8 +12,8 @@ namespace Game.Web;
 /// </summary>
 public static class DashboardDisplay
 {
-    /// <summary>Денежная сумма для отображения на экране.</summary>
-    public static string FormatMoney(decimal amount) => $"{amount:N0} ₽";
+    /// <summary>Денежная сумма для отображения на экране — универсальный знак валюты (U+00A4), не привязанный к конкретной стране.</summary>
+    public static string FormatMoney(decimal amount) => $"{amount:N0} ¤";
 
     /// <summary>Процентная ставка для отображения на экране (Блок 9.2).</summary>
     public static string FormatRate(decimal rate) => rate.ToString("P1");
@@ -73,6 +73,29 @@ public static class DashboardDisplay
     {
         ContractType.Spot => "Разовый",
         ContractType.Recurring => "Регулярный",
+        _ => type.ToString()
+    };
+
+    /// <summary>Русская подпись вида финансовой операции для истории операций «Финансов» (Блок 9.2).</summary>
+    public static string FinanceOperationLabel(FinanceHistoryCalculator.OperationType type) => type switch
+    {
+        FinanceHistoryCalculator.OperationType.LoanTaken => "Взят кредит",
+        FinanceHistoryCalculator.OperationType.ForcedLoan => "Принудительный заём",
+        FinanceHistoryCalculator.OperationType.InterestCharged => "Начислены проценты",
+        FinanceHistoryCalculator.OperationType.MandatoryRepayment => "Обязательный платёж по телу долга",
+        FinanceHistoryCalculator.OperationType.VoluntaryRepayment => "Досрочное погашение",
+        FinanceHistoryCalculator.OperationType.FactoryBuilt => "Постройка фабрики",
+        FinanceHistoryCalculator.OperationType.WorkersHired => "Наём рабочих",
+        FinanceHistoryCalculator.OperationType.WorkersFired => "Увольнение рабочих",
+        FinanceHistoryCalculator.OperationType.SalariesPaid => "Зарплата рабочих",
+        FinanceHistoryCalculator.OperationType.RndInvested => "Вложение в R&D",
+        FinanceHistoryCalculator.OperationType.MaterialSold => "Продажа материала системе",
+        FinanceHistoryCalculator.OperationType.EmergencyPurchase => "Аварийная закупка",
+        FinanceHistoryCalculator.OperationType.WarehouseFee => "Плата за склад сверх лимита",
+        FinanceHistoryCalculator.OperationType.ContractDelivery => "Поставка по контракту",
+        FinanceHistoryCalculator.OperationType.DeliveryMissPenalty => "Штраф за срыв поставки",
+        FinanceHistoryCalculator.OperationType.ContractTerminationFee => "Плата за расторжение контракта",
+        FinanceHistoryCalculator.OperationType.GrantReceived => "Грант от ведущего",
         _ => type.ToString()
     };
 

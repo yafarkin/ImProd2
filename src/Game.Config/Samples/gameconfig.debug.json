@@ -155,30 +155,16 @@
   },
   "SessionPresets": [
     {
-      "Id": "short",
-      "Name": "Короткая",
-      "MinTurns": 15,
-      "MaxTurns": 20,
-      "TurnDurationMinutes": 7
-    },
-    {
-      "Id": "medium",
-      "Name": "Средняя",
-      "MinTurns": 25,
-      "MaxTurns": 35,
-      "TurnDurationMinutes": 8
-    },
-    {
-      "Id": "full",
-      "Name": "Полная",
-      "MinTurns": 40,
-      "MaxTurns": 60,
-      "TurnDurationMinutes": 10
+      "Id": "debug",
+      "Name": "Отладочная",
+      "MinTurns": 300,
+      "MaxTurns": 300,
+      "TurnDurationMinutes": 1
     }
   ],
   "PhaseTiming": {
-    "SettlementPhaseSeconds": 20,
-    "DecisionPhaseSeconds": 300
+    "SettlementPhaseSeconds": 5,
+    "DecisionPhaseSeconds": 25
   },
   "Economy": {
     "EmergencyPurchasePriceMultiplier": 1.5,

@@ -17,6 +17,9 @@
     <None Include="..\Game.Config\Samples\gameconfig.training.json" Link="Samples\gameconfig.training.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\Game.Config\Samples\gameconfig.debug.json" Link="Samples\gameconfig.debug.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.8.0" />

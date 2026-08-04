@@ -285,4 +285,41 @@ public class ProductionCalculatorTests
         var oreOnlyResult = results.Single(r => r.FactoryId == millOreOnly.Id);
         Assert.Equal(3m, oreOnlyResult.ConsumedInputs[Ore.Id]); // взял ровно сколько хотел, не больше своей квоты (5)
     }
+
+    [Fact]
+    public void CalculateCapacityBreakdown_At_Base_Worker_Count_And_Level_One_Is_Just_Workers_Times_Rate()
+    {
+        var factory = NewFactory(workers: 5); // == BaseWorkerCount, отдача линейная 1:1, уровень 1
+
+        var breakdown = ProductionCalculator.CalculateCapacityBreakdown(factory, Productivity, NoRndBonus);
+
+        Assert.Equal(5, breakdown.Workers);
+        Assert.Equal(5m, breakdown.EffectiveCapacity);
+        Assert.Equal(1, breakdown.Level);
+        Assert.Equal(1m, breakdown.LevelBonus);
+        Assert.Equal(1m, breakdown.RecipeProductionRate);
+        Assert.Equal(5m, breakdown.TheoreticalMaxOutput);
+    }
+
+    [Fact]
+    public void CalculateCapacityBreakdown_Applies_Diminishing_Returns_Above_Base_Worker_Count_And_The_Rnd_Level_Bonus()
+    {
+        var factory = NewFactory(workers: 8); // 5 базовых + 3 сверх базы
+        factory.AdvanceLevel(); // уровень 2
+        var rnd = new RndConfig
+        {
+            CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
+            ProductionRateBonusPerLevel = 0.2m, // +20% за уровень сверх первого
+        };
+
+        var breakdown = ProductionCalculator.CalculateCapacityBreakdown(factory, Productivity, rnd);
+
+        // Мощность: 5 (база) + 3*0.5 (убывающая отдача) = 6.5.
+        Assert.Equal(6.5m, breakdown.EffectiveCapacity);
+        Assert.Equal(2, breakdown.Level);
+        Assert.Equal(1.2m, breakdown.LevelBonus);
+        Assert.Equal(1m, breakdown.RecipeProductionRate);
+        // Потолок: ставка (1) * бонус уровня (1.2) * мощность (6.5) = 7.8.
+        Assert.Equal(7.8m, breakdown.TheoreticalMaxOutput);
+    }
 }

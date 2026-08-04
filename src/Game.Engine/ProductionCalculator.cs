@@ -11,6 +11,41 @@ namespace Game.Engine;
 /// </summary>
 public static class ProductionCalculator
 {
+    /// <summary>
+    /// Разбивка теоретического потолка выпуска фабрики без учёта сырья (запрос пользователя «понять
+    /// максимальную теоретическую производительность» — сколько дают рабочие, сколько добавляет
+    /// R&amp;D) — те же слагаемые, что <see cref="CalculateGroup"/> считает внутри себя для
+    /// <see cref="ProductionResult.CapacityLimitedOutputQuantity"/>, только не спрятанные в одно
+    /// число, а показанные по отдельности для интерфейса.
+    /// </summary>
+    public sealed record CapacityBreakdown(
+        int Workers,
+        decimal EffectiveCapacity,
+        int Level,
+        decimal LevelBonus,
+        decimal RecipeProductionRate,
+        decimal TheoreticalMaxOutput);
+
+    /// <summary>
+    /// Считает <see cref="CapacityBreakdown"/> для фабрики по её текущему числу рабочих, уровню и
+    /// выбранному рецепту — то же самое произведение, что даёт <c>CapacityLimitedOutputQuantity</c>
+    /// в <see cref="CalculateGroup"/>, но с промежуточными слагаемыми напоказ. Не зависит от склада —
+    /// это потолок «если бы сырья было бесконечно много», а не прогноз фактического выпуска.
+    /// </summary>
+    public static CapacityBreakdown CalculateCapacityBreakdown(Factory factory, WorkerProductivityConfig productivity, RndConfig rnd)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        ArgumentNullException.ThrowIfNull(productivity);
+        ArgumentNullException.ThrowIfNull(rnd);
+
+        var effectiveCapacity = CalculateEffectiveCapacity(factory.Workers, productivity);
+        var levelBonus = 1m + (factory.Level - 1) * rnd.ProductionRateBonusPerLevel;
+        var recipeRate = factory.SelectedRecipe.ProductionRate;
+        var theoreticalMaxOutput = recipeRate * levelBonus * effectiveCapacity;
+
+        return new CapacityBreakdown(factory.Workers, effectiveCapacity, factory.Level, levelBonus, recipeRate, theoreticalMaxOutput);
+    }
+
     /// <summary>Считает производство одной фабрики без конкуренции за сырьё с другими — тонкая обёртка над <see cref="CalculateGroup"/> для группы из одной фабрики.</summary>
     public static ProductionResult Calculate(Factory factory, Warehouse warehouse, WorkerProductivityConfig productivity, RndConfig rnd)
     {

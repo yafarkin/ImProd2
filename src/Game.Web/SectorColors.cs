@@ -3,9 +3,11 @@ using Game.Domain;
 namespace Game.Web;
 
 /// <summary>
-/// Цвет сектора для SVG-диаграмм (<see cref="MaterialChainDiagram"/>, <see cref="FactoryChainDiagram"/>)
-/// — общая палитра и правило присвоения, чтобы один и тот же сектор был одного и того же цвета на
-/// обеих диаграммах.
+/// Цвет сектора для SVG-диаграмм (<see cref="MaterialChainDiagram"/>) — общая палитра и правило
+/// присвоения, чтобы один и тот же сектор был одного и того же цвета везде. Та же палитра
+/// (<see cref="Palette"/>) переиспользуется и для категориальных серий графиков
+/// (<see cref="LineChartDiagram"/>) — она уже проверена на разделимость, заново генерировать цвета
+/// под каждый новый график не нужно.
 /// </summary>
 public static class SectorColors
 {
@@ -13,7 +15,7 @@ public static class SectorColors
     // проверенный validate_palette.js на CVD-разделимость и контраст относительно белого холста;
     // не переставлять и не генерировать динамически. Секторам присваивается по порядку их
     // перечисления в конфиге.
-    private static readonly string[] Palette =
+    internal static readonly string[] Palette =
     [
         "#2a78d6", "#008300", "#e87ba4", "#eda100", "#1baf7a", "#eb6834", "#4a3aa7", "#e34948",
     ];

@@ -32,6 +32,7 @@ internal static class GameConfigTestBuilder
                 LoanInterestRateGrowthPerUnitBorrowed = 0m,
                 ForcedLoanPenaltyRatePerOccurrence = 0.05m,
                 MaxReputationRatePenalty = 0.1m,
+                MandatoryRepaymentRatePerTurn = 0.05m,
             },
             SessionPresets = new[]
             {

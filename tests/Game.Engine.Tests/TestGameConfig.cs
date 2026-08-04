@@ -261,6 +261,7 @@ internal static class TestGameConfig
                 LoanInterestRateGrowthPerUnitBorrowed = 0m,
                 ForcedLoanPenaltyRatePerOccurrence = 0.1m,
                 MaxReputationRatePenalty = 0.1m,
+                MandatoryRepaymentRatePerTurn = 0m,
             },
             SessionPresets = new[]
             {

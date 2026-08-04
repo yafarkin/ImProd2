@@ -23,6 +23,9 @@
     <None Include="..\..\src\Game.Config\Samples\gameconfig.pilot.json" Link="Samples\gameconfig.pilot.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\..\src\Game.Config\Samples\gameconfig.debug.json" Link="Samples\gameconfig.debug.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

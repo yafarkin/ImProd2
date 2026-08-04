@@ -62,4 +62,63 @@ public class GameSessionLoanTests
         var expectedRate = FinanceCalculator.CalculateEffectiveLoanRate(1000m, 0m, 100m, loanConfig);
         Assert.Equal(expectedRate, interest.Rate);
     }
+
+    [Fact]
+    public void RepayLoan_Appends_A_LoanRepaid_Event_And_Decreases_Debt_And_Balance()
+    {
+        var (session, teamId) = StartInDecisionPhase();
+        session.TakeLoan(teamId, 500m);
+
+        var entry = session.RepayLoan(teamId, 200m);
+
+        var loanRepaid = Assert.IsType<LoanRepaid>(entry.Change);
+        Assert.Equal(200m, loanRepaid.Amount);
+        Assert.Equal(300m, session.State.Teams[teamId].Debt);
+        Assert.Equal(300m, session.State.Teams[teamId].Balance);
+    }
+
+    [Fact]
+    public void RepayLoan_Can_Close_The_Debt_Exactly()
+    {
+        var (session, teamId) = StartInDecisionPhase();
+        session.TakeLoan(teamId, 500m);
+
+        session.RepayLoan(teamId, 500m);
+
+        Assert.Equal(0m, session.State.Teams[teamId].Debt);
+    }
+
+    [Fact]
+    public void RepayLoan_Throws_When_Amount_Exceeds_Current_Debt()
+    {
+        var (session, teamId) = StartInDecisionPhase();
+        session.TakeLoan(teamId, 500m);
+
+        Assert.Throws<InvalidOperationException>(() => session.RepayLoan(teamId, 500.01m));
+    }
+
+    [Fact]
+    public void RepayLoan_Throws_For_An_Unknown_Team()
+    {
+        var (session, _) = StartInDecisionPhase();
+
+        Assert.Throws<ArgumentException>(() => session.RepayLoan(Ulid.NewUlid(), 100m));
+    }
+
+    [Fact]
+    public void RepayLoan_Throws_For_A_NonPositive_Amount()
+    {
+        var (session, teamId) = StartInDecisionPhase();
+        session.TakeLoan(teamId, 500m);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => session.RepayLoan(teamId, 0m));
+    }
+
+    [Fact]
+    public void RepayLoan_Throws_Outside_The_Decision_Phase()
+    {
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(startingLoan: 500m); // Settlement, ход 1
+
+        Assert.Throws<InvalidOperationException>(() => session.RepayLoan(teamId, 100m));
+    }
 }

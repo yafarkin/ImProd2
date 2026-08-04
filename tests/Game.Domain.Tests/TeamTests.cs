@@ -78,6 +78,38 @@ public class TeamTests
     }
 
     [Fact]
+    public void RepayLoan_Decreases_Debt_Only_Balance_Is_Untouched()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+        team.TakeLoan(300m);
+
+        team.RepayLoan(120m);
+
+        Assert.Equal(180m, team.Debt);
+        Assert.Equal(300m, team.Balance); // погашение само по себе баланс не трогает — списывает вызывающее событие
+    }
+
+    [Fact]
+    public void RepayLoan_Throws_When_Amount_Exceeds_Current_Debt()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+        team.TakeLoan(100m);
+
+        Assert.Throws<InvalidOperationException>(() => team.RepayLoan(100.01m));
+    }
+
+    [Fact]
+    public void RepayLoan_Can_Fully_Close_The_Debt()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+        team.TakeLoan(100m);
+
+        team.RepayLoan(100m);
+
+        Assert.Equal(0m, team.Debt);
+    }
+
+    [Fact]
     public void IncreasePenaltyRateSurcharge_Accumulates()
     {
         var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
@@ -98,6 +130,7 @@ public class TeamTests
         Assert.Throws<ArgumentOutOfRangeException>(() => team.Credit(amount));
         Assert.Throws<ArgumentOutOfRangeException>(() => team.Debit(amount));
         Assert.Throws<ArgumentOutOfRangeException>(() => team.TakeLoan(amount));
+        Assert.Throws<ArgumentOutOfRangeException>(() => team.RepayLoan(amount));
         Assert.Throws<ArgumentOutOfRangeException>(() => team.IncreasePenaltyRateSurcharge(amount));
     }
 

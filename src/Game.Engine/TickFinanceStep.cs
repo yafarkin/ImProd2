@@ -6,8 +6,9 @@ namespace Game.Engine;
 
 /// <summary>
 /// Финансовая часть расчёта тика (Блок 4.3; SPEC §4 — «финансы» идут первым шагом расчёта):
-/// проценты по долгу → зарплаты → принудительный кредит, если после этого баланс всё ещё в минусе,
-/// в этом фиксированном порядке. Возвращает готовые события, но не применяет их — вызывающий код
+/// проценты по долгу → обязательный платёж по телу долга → зарплаты → плата за склад →
+/// принудительный кредит, если после всего этого баланс всё ещё в минусе, в этом фиксированном
+/// порядке. Возвращает готовые события, но не применяет их — вызывающий код
 /// (тесты сейчас, оркестровка полного тика в Блоке 4.4) сам решает, куда и как их дописать в
 /// журнал, как и <see cref="ProductionCalculator"/> в Блоке 4.2.
 /// </summary>
@@ -44,6 +45,19 @@ public static class TickFinanceStep
                 Rate = FinanceCalculator.CalculateEffectiveLoanRate(team, loanConfig, reputationPercentage),
             });
             projectedBalance -= interest;
+        }
+
+        var mandatoryRepayment = FinanceCalculator.CalculateMandatoryRepayment(team, loanConfig);
+        if (mandatoryRepayment > 0)
+        {
+            changes.Add(new MandatoryLoanRepaymentCharged
+            {
+                Id = Ulid.NewUlid(),
+                TeamId = team.Id,
+                Amount = mandatoryRepayment,
+                Rate = loanConfig.MandatoryRepaymentRatePerTurn,
+            });
+            projectedBalance -= mandatoryRepayment;
         }
 
         var totalWorkers = team.Factories.Sum(factory => factory.Workers);

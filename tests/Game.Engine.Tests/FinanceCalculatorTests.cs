@@ -15,6 +15,7 @@ public class FinanceCalculatorTests
         LoanInterestRateGrowthPerUnitBorrowed = 0.0001m,
         ForcedLoanPenaltyRatePerOccurrence = 0.1m,
         MaxReputationRatePenalty = 0.2m,
+        MandatoryRepaymentRatePerTurn = 0.1m,
     };
 
     private static readonly WorkerProductivityConfig WorkerConfig = new()
@@ -88,6 +89,24 @@ public class FinanceCalculatorTests
         var previewRate = FinanceCalculator.CalculateEffectiveLoanRate(1000m + 500m, 0m, reputationPercentage: 100m, LoanConfig);
 
         Assert.True(previewRate > currentRate);
+    }
+
+    [Fact]
+    public void CalculateMandatoryRepayment_Is_Zero_When_Team_Has_No_Debt()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+
+        Assert.Equal(0m, FinanceCalculator.CalculateMandatoryRepayment(team, LoanConfig));
+    }
+
+    [Fact]
+    public void CalculateMandatoryRepayment_Is_A_Fixed_Fraction_Of_Current_Debt_Not_Of_The_Interest_Rate()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+        team.TakeLoan(1000m);
+
+        // MandatoryRepaymentRatePerTurn = 0.1, независимо от эффективной ставки процентов (0.15 здесь).
+        Assert.Equal(100m, FinanceCalculator.CalculateMandatoryRepayment(team, LoanConfig));
     }
 
     [Fact]

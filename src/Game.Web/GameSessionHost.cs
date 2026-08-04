@@ -200,6 +200,13 @@ public sealed class GameSessionHost
     public ResolvedGameConfig TrainingConfig { get; }
 
     /// <summary>
+    /// Отладочный конфиг — те же секторы/материалы, что и <see cref="DefaultConfig"/>, но очень
+    /// короткий ход (30 секунд суммарно на фазы) и длинная сессия (300 ходов), чтобы наблюдать в
+    /// динамике, как меняются цифры и графики, не дожидаясь реальной игры.
+    /// </summary>
+    public ResolvedGameConfig DebugConfig { get; }
+
+    /// <summary>
     /// Код входа первого администратора — обычная запись с ролью
     /// <see cref="ParticipantRole.Administrator"/>, как у любого другого участника: до старта сессии
     /// ищется среди <see cref="StagedParticipants"/>, после — среди
@@ -222,6 +229,9 @@ public sealed class GameSessionHost
 
         var trainingConfigPath = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.training.json");
         TrainingConfig = GameConfigLoader.LoadFromFile(trainingConfigPath);
+
+        var debugConfigPath = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.debug.json");
+        DebugConfig = GameConfigLoader.LoadFromFile(debugConfigPath);
 
         _sessionDirectory = Path.Combine(AppContext.BaseDirectory, "App_Data", "session");
         Directory.CreateDirectory(_sessionDirectory);

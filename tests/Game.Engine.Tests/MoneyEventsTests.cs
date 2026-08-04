@@ -26,6 +26,30 @@ public class MoneyEventsTests
     }
 
     [Fact]
+    public void LoanRepaid_Decreases_Both_Balance_And_Debt_By_The_Same_Amount()
+    {
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
+        team.TakeLoan(1000m);
+
+        log.Append(new LoanRepaid { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 300m });
+
+        Assert.Equal(700m, team.Balance);
+        Assert.Equal(700m, team.Debt);
+    }
+
+    [Fact]
+    public void MandatoryLoanRepaymentCharged_Decreases_Both_Balance_And_Debt_By_The_Same_Amount()
+    {
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
+        team.TakeLoan(1000m);
+
+        log.Append(new MandatoryLoanRepaymentCharged { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 50m, Rate = 0.05m });
+
+        Assert.Equal(950m, team.Balance);
+        Assert.Equal(950m, team.Debt);
+    }
+
+    [Fact]
     public void SalariesPaid_Debits_The_Balance()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();

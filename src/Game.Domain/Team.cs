@@ -103,6 +103,27 @@ public sealed class Team
         Debt += amount;
     }
 
+    /// <summary>
+    /// Уменьшает тело долга на сумму погашения. Баланс эта операция сама не трогает — списание с
+    /// баланса делает вызывающее событие отдельным вызовом <see cref="Debit"/> (тот же приём
+    /// разделения «стоимость» / «сам факт», что и в <c>FactoryBuilt.Apply</c>, который отдельно
+    /// зовёт <c>BuildFactory</c> и <see cref="Debit"/>). Нельзя погасить больше, чем реально должны —
+    /// долг не уходит в минус.
+    /// </summary>
+    public void RepayLoan(decimal amount)
+    {
+        if (amount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Repayment amount must be positive.");
+        }
+        if (amount > Debt)
+        {
+            throw new InvalidOperationException($"Cannot repay {amount}, team '{Id}' only owes {Debt}.");
+        }
+
+        Debt -= amount;
+    }
+
     /// <summary>Увеличивает штрафную надбавку к ставке по кредиту (после принудительного займа).</summary>
     public void IncreasePenaltyRateSurcharge(decimal amount)
     {

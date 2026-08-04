@@ -71,6 +71,7 @@ else
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <InputFile OnChange="OnConfigFileSelected" class="form-control d-inline-block w-auto" />
         <button type="button" class="btn btn-secondary" @onclick="UseTrainingConfig">Тренировочный конфиг (короткие ходы, ~8-10)</button>
+        <button type="button" class="btn btn-secondary" @onclick="UseDebugConfig">Отладочный конфиг (30 сек/ход, 300 ходов)</button>
     </div>
 
     <h2 class="mt-4">Персонал и команды</h2>
@@ -150,6 +151,12 @@ else
     {
         _errorMessage = null;
         Host.SetDraftConfig(Host.TrainingConfig);
+    }
+
+    private void UseDebugConfig()
+    {
+        _errorMessage = null;
+        Host.SetDraftConfig(Host.DebugConfig);
     }
 
     private async Task OnConfigFileSelected(InputFileChangeEventArgs e)

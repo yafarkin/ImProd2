@@ -15,7 +15,9 @@
     <p class="text-muted">
         <strong>@RoleDisplay.Name(ParticipantRole.Manager)</strong> — @RoleDisplay.Description(ParticipantRole.Manager)
         Код, который вы получите ниже, уже рабочий — управляющий может входить сразу, не дожидаясь
-        «Начать сессию» (просто увидит, что сессия ещё готовится).
+        «Начать сессию» (просто увидит, что сессия ещё готовится). Переговорщиков себе в команду
+        управляющий обычно добавляет сам на странице «Команда» — они появятся здесь же, как только он
+        это сделает.
     </p>
     <p>Следующая команда будет автоматически назначена в сектор: <strong>@NextSector().Name</strong></p>
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -29,7 +31,7 @@
                 <tr>
                     <th>Команда</th>
                     <th>Сектор</th>
-                    <th>Управляющий</th>
+                    <th>Участники</th>
                     <th></th>
                 </tr>
             </thead>
@@ -41,18 +43,30 @@
                         <td>@team.Name</td>
                         <td>@SectorName(team.SectorId)</td>
                         <td>
-                            @if (manager is null)
-                            {
-                                <div class="d-flex gap-1">
+                            <div class="d-flex align-items-center gap-1 mb-1">
+                                <span class="text-muted small" style="width:7em">@RoleDisplay.Name(ParticipantRole.Manager):</span>
+                                @if (manager is null)
+                                {
                                     <input class="form-control form-control-sm" style="width:10em" @bind:get="GetNewManagerName(team.Id)" @bind:set="v => SetNewManagerName(team.Id, v)" placeholder="Имя управляющего" />
                                     <button type="button" class="btn btn-secondary btn-sm" @onclick="() => AddManager(team.Id)">Назначить</button>
-                                </div>
-                            }
-                            else
+                                }
+                                else
+                                {
+                                    <span>@manager.DisplayName</span>
+                                    <code>@manager.Code</code>
+                                    <a href="@QrLink(manager, team.Name)" target="_blank">QR</a>
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Host.RemoveStagedParticipant(manager.Id)">Убрать</button>
+                                }
+                            </div>
+                            @foreach (var negotiator in StagedNegotiatorsOf(team.Id))
                             {
-                                <code>@manager.Code</code>
-                                <a href="@QrLink(manager, team.Name)" target="_blank">QR</a>
-                                <button type="button" class="btn btn-secondary btn-sm ms-1" @onclick="() => Host.RemoveStagedParticipant(manager.Id)">Убрать</button>
+                                <div class="d-flex align-items-center gap-1 mb-1">
+                                    <span class="text-muted small" style="width:7em">@RoleDisplay.Name(ParticipantRole.Negotiator):</span>
+                                    <span>@negotiator.DisplayName</span>
+                                    <code>@negotiator.Code</code>
+                                    <a href="@QrLink(negotiator, team.Name)" target="_blank">QR</a>
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Host.RemoveStagedParticipant(negotiator.Id)">Убрать</button>
+                                </div>
                             }
                         </td>
                         <td><button type="button" class="btn btn-secondary btn-sm" @onclick="() => RemoveTeam(team.Id)">Убрать команду</button></td>
@@ -74,6 +88,7 @@ else
                 <tr>
                     <th>Команда</th>
                     <th>Сектор</th>
+                    <th>Участники</th>
                 </tr>
             </thead>
             <tbody>
@@ -82,6 +97,12 @@ else
                     <tr>
                         <td>@team.Name</td>
                         <td>@team.Sector.Name</td>
+                        <td>
+                            @foreach (var participant in ParticipantsOf(team.Id))
+                            {
+                                <div>@RoleDisplay.Name(participant.Role): @participant.DisplayName (<code>@participant.Code</code>)</div>
+                            }
+                        </td>
                     </tr>
                 }
             </tbody>
@@ -92,6 +113,7 @@ else
 @code {
     private bool _sessionStarted;
     private IReadOnlyList<Game.Domain.Team> _teams = Array.Empty<Game.Domain.Team>();
+    private IReadOnlyList<ParticipantRegistration> _participants = Array.Empty<ParticipantRegistration>();
     private string _newTeamName = string.Empty;
     private readonly Dictionary<Ulid, string> _newManagerNames = new();
     private Timer? _tickTimer;
@@ -118,6 +140,7 @@ else
             }
 
             _teams = Host.Session!.State.Teams.Values.OrderBy(t => t.Name, StringComparer.Ordinal).ToList();
+            _participants = Host.Session!.State.Participants.Values.ToList();
         }
     }
 
@@ -144,6 +167,19 @@ else
 
     private StagedParticipantSpec? StagedManagerOf(Ulid teamId) =>
         Host.StagedParticipants.FirstOrDefault(p => p.TeamId == teamId && p.Role == ParticipantRole.Manager);
+
+    private IReadOnlyList<StagedParticipantSpec> StagedNegotiatorsOf(Ulid teamId) =>
+        Host.StagedParticipants
+            .Where(p => p.TeamId == teamId && p.Role == ParticipantRole.Negotiator)
+            .OrderBy(p => p.DisplayName, StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>Управляющий сначала (та же роль, что и в черновике, выше), затем переговорщики — тот же порядок восприятия «кто главный, кто помогает».</summary>
+    private IEnumerable<ParticipantRegistration> ParticipantsOf(Ulid teamId) =>
+        _participants
+            .Where(p => p.TeamId == teamId)
+            .OrderBy(p => p.Role == ParticipantRole.Manager ? 0 : 1)
+            .ThenBy(p => p.DisplayName, StringComparer.Ordinal);
 
     private string GetNewManagerName(Ulid teamId) => _newManagerNames.GetValueOrDefault(teamId, string.Empty);
 

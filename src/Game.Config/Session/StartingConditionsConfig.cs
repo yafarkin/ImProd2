@@ -37,4 +37,15 @@ public sealed record StartingConditionsConfig
     /// истории поставок репутация по умолчанию 100% — надбавка не действует до первого нарекания.
     /// </summary>
     public required decimal MaxReputationRatePenalty { get; init; }
+
+    /// <summary>
+    /// Обязательный платёж по телу долга за ход — доля от текущего <see cref="Game.Domain.Team.Debt"/>
+    /// (не от исходной суммы займа: долг общий на команду, без учёта происхождения и срока отдельных
+    /// займов). Списывается автоматически каждый тик, отдельно от процентов
+    /// (<see cref="BaseLoanInterestRate"/>, проценты тело не уменьшают). Если баланса не хватает —
+    /// как и на любой другой расход хода, недостачу покрывает принудительный заём
+    /// (<see cref="ForcedLoanPenaltyRatePerOccurrence"/>) — то есть непосильный обязательный платёж
+    /// не «прощается», а конвертируется в худшую ставку.
+    /// </summary>
+    public required decimal MandatoryRepaymentRatePerTurn { get; init; }
 }

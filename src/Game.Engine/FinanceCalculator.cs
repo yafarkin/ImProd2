@@ -54,6 +54,24 @@ public static class FinanceCalculator
         return team.Debt * CalculateEffectiveLoanRate(team, loanConfig, reputationPercentage);
     }
 
+    /// <summary>
+    /// Обязательный платёж по телу долга за один ход — доля от текущего долга
+    /// (<see cref="StartingConditionsConfig.MandatoryRepaymentRatePerTurn"/>), отдельно от процентов
+    /// (см. <see cref="CalculateInterest"/>, тело они не уменьшают); 0, если долга нет.
+    /// </summary>
+    public static decimal CalculateMandatoryRepayment(Team team, StartingConditionsConfig loanConfig)
+    {
+        ArgumentNullException.ThrowIfNull(team);
+        ArgumentNullException.ThrowIfNull(loanConfig);
+
+        if (team.Debt <= 0)
+        {
+            return 0m;
+        }
+
+        return team.Debt * loanConfig.MandatoryRepaymentRatePerTurn;
+    }
+
     /// <summary>Суммарная зарплата за один ход для заданного числа рабочих.</summary>
     public static decimal CalculateSalaries(int totalWorkers, WorkerProductivityConfig productivity)
     {

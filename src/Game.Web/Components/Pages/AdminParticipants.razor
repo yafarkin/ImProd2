@@ -60,25 +60,16 @@
 }
 else
 {
-    <RoleHints Roles="AllRoles" />
+    <RoleHints Roles="RoleLessRoles" />
 
     <h2>Регистрация участника</h2>
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
         <select class="form-select w-auto" @bind="_registerRole">
-            @foreach (var role in Enum.GetValues<ParticipantRole>())
+            @foreach (var role in RoleLessRoles)
             {
                 <option value="@role">@RoleDisplay.Name(role)</option>
             }
         </select>
-        @if (_registerRole is ParticipantRole.Manager or ParticipantRole.Negotiator)
-        {
-            <select class="form-select w-auto" @bind="_registerTeamId">
-                @foreach (var team in _teams)
-                {
-                    <option value="@team.Id">@team.Name</option>
-                }
-            </select>
-        }
         <input class="form-control d-inline-block w-auto" @bind="_registerName" placeholder="Имя участника" />
         <button type="button" class="btn btn-secondary" @onclick="RegisterParticipant">Зарегистрировать</button>
     </div>
@@ -89,7 +80,6 @@ else
                 <tr>
                     <th>Код</th>
                     <th>Роль</th>
-                    <th>Команда</th>
                     <th>Имя</th>
                 </tr>
             </thead>
@@ -99,7 +89,6 @@ else
                     <tr>
                         <td><code>@participant.Code</code></td>
                         <td>@RoleDisplay.Name(participant.Role)</td>
-                        <td>@TeamName(participant.TeamId)</td>
                         <td>@participant.DisplayName</td>
                     </tr>
                 }
@@ -114,15 +103,11 @@ else
         ParticipantRole.Administrator, ParticipantRole.Operator, ParticipantRole.Facilitator,
     ];
 
-    private static readonly ParticipantRole[] AllRoles = Enum.GetValues<ParticipantRole>();
-
     private bool _sessionStarted;
     private string? _errorMessage;
-    private IReadOnlyList<Game.Domain.Team> _teams = Array.Empty<Game.Domain.Team>();
     private IReadOnlyList<ParticipantRegistration> _participants = Array.Empty<ParticipantRegistration>();
 
-    private ParticipantRole _registerRole;
-    private Ulid? _registerTeamId;
+    private ParticipantRole _registerRole = ParticipantRole.Operator;
     private string _registerName = string.Empty;
 
     private ParticipantRole _stageRole = ParticipantRole.Operator;
@@ -152,18 +137,12 @@ else
             }
 
             var state = Host.Session!.State;
-            _teams = state.Teams.Values.OrderBy(t => t.Name, StringComparer.Ordinal).ToList();
-            _participants = state.Participants.Values.ToList();
-
-            if (_registerTeamId is null || _teams.All(t => t.Id != _registerTeamId))
-            {
-                _registerTeamId = _teams.Count > 0 ? _teams[0].Id : null;
-            }
+            // Только роли без команды — управляющих и переговорщиков показывает и регистрирует
+            // страница «Команды» (у каждой команды свой список участников там же, где остальные её
+            // данные), здесь — только персонал, который не привязан ни к одной команде.
+            _participants = state.Participants.Values.Where(p => p.TeamId is null).ToList();
         }
     }
-
-    private string TeamName(Ulid? teamId) =>
-        teamId is { } id && _teams.FirstOrDefault(t => t.Id == id) is { } team ? team.Name : "—";
 
     private void StageParticipant()
     {
@@ -194,9 +173,8 @@ else
             return;
         }
 
-        var teamId = _registerRole is ParticipantRole.Manager or ParticipantRole.Negotiator ? _registerTeamId : null;
         var name = _registerName.Trim();
-        RunAction(() => Host.RegisterParticipant(_registerRole, teamId, name));
+        RunAction(() => Host.RegisterParticipant(_registerRole, null, name));
         if (_errorMessage is null)
         {
             _registerName = string.Empty;

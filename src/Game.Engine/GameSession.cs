@@ -522,6 +522,31 @@ public sealed class GameSession
     }
 
     /// <summary>
+    /// Добровольно гасит часть тела долга сверх обязательного платежа, который и без того списывается
+    /// каждый ход (<see cref="MandatoryLoanRepaymentCharged"/>) — симметричное действие к
+    /// <see cref="TakeLoan"/>. Нельзя погасить больше, чем команда реально должна; в отличие от
+    /// постройки фабрики или найма, отдельной проверки баланса здесь нет — если денег не хватит,
+    /// баланс уйдёт в минус и это решит следующий тик (<see cref="ForcedLoanTaken"/>), тем же
+    /// способом, каким уже работают все остальные решения команды. Требует фазы решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> RepayLoan(Ulid teamId, decimal amount)
+    {
+        EnsureDecisionsAllowed();
+
+        if (amount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Repayment amount must be positive.");
+        }
+        var team = GetTeam(teamId);
+        if (amount > team.Debt)
+        {
+            throw new InvalidOperationException($"Cannot repay {amount}, team '{teamId}' only owes {team.Debt}.");
+        }
+
+        return _log.Append(new LoanRepaid { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
+    }
+
+    /// <summary>
     /// Строит фабрику заданного типа для команды (SPEC §5.6, Блок 7.1): постройка мгновенная —
     /// фабрика естественным образом начинает работать со следующего хода, отдельного «отложенного»
     /// состояния не требуется, так как ближайший расчёт тика уже увидит её в составе команды.

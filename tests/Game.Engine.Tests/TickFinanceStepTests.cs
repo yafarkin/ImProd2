@@ -146,4 +146,68 @@ public class TickFinanceStepTests
 
         Assert.Empty(changes);
     }
+
+    // TestGameConfig.LoanConfig держит MandatoryRepaymentRatePerTurn=0 (чтобы не менять ожидания
+    // всех остальных тестов этого файла, которые его не касаются) — для этих тестов берём свою
+    // копию с ненулевой долей через `with`, не трогая остальные поля.
+    private static readonly Config.Session.StartingConditionsConfig RepaymentLoanConfig =
+        LoanConfig with { MandatoryRepaymentRatePerTurn = 0.1m };
+
+    [Fact]
+    public void Run_Charges_Interest_Then_Mandatory_Repayment_Then_Salaries_In_That_Order()
+    {
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        team.TakeLoan(1000m); // проценты = 1000 * 0.05 = 50; обязательный платёж = 1000 * 0.1 = 100
+        team.Credit(1000m); // с запасом
+        var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
+        factory.Hire(4); // зарплата = 20
+
+        var changes = TickFinanceStep.Run(team, RepaymentLoanConfig, WorkerConfig, WarehouseConfig, reputationPercentage: 100m);
+
+        Assert.Equal(3, changes.Count);
+        Assert.IsType<LoanInterestCharged>(changes[0]);
+        var repayment = Assert.IsType<MandatoryLoanRepaymentCharged>(changes[1]);
+        Assert.Equal(100m, repayment.Amount);
+        Assert.Equal(0.1m, repayment.Rate);
+        Assert.IsType<SalariesPaid>(changes[2]);
+    }
+
+    [Fact]
+    public void Applying_The_Mandatory_Repayment_Actually_Reduces_The_Debt()
+    {
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
+        team.TakeLoan(1000m);
+        team.Credit(1000m);
+
+        foreach (var change in TickFinanceStep.Run(team, RepaymentLoanConfig, WorkerConfig, WarehouseConfig, reputationPercentage: 100m))
+        {
+            log.Append(change);
+        }
+
+        Assert.Equal(900m, team.Debt); // 1000 - 1000*0.1
+    }
+
+    [Fact]
+    public void An_Unaffordable_Mandatory_Repayment_Is_Still_Charged_In_Full_And_Covered_By_A_Forced_Loan()
+    {
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
+        team.TakeLoan(1000m); // обязательный платёж = 100, процентов при этой ставке ниже нет (сумма займа сразу же обнулена)
+        team.Debit(1000m); // баланс обнулён — платить обязательный платёж (100) нечем
+
+        var changes = TickFinanceStep.Run(team, RepaymentLoanConfig, WorkerConfig, WarehouseConfig, reputationPercentage: 100m);
+        foreach (var change in changes)
+        {
+            log.Append(change);
+        }
+
+        var repayment = Assert.IsType<MandatoryLoanRepaymentCharged>(changes[1]);
+        Assert.Equal(100m, repayment.Amount); // платёж не урезается из-за нехватки баланса
+        var forcedLoan = Assert.IsType<ForcedLoanTaken>(changes[^1]);
+        Assert.Equal(150m, forcedLoan.Amount); // проценты (50) + обязательный платёж (100), которые нечем было покрыть
+        // Итог не «долг минус 100»: непокрытый обязательный платёж закрывается новым принудительным
+        // займом на ту же (плюс проценты) сумму — долг численно почти не меняется, но появляется
+        // штрафная надбавка к ставке (см. doc-comment MandatoryLoanRepaymentCharged).
+        Assert.Equal(1050m, team.Debt); // 1000 - 100 (обязательный платёж) + 150 (принудительный заём)
+        Assert.True(team.PenaltyRateSurcharge > 0);
+    }
 }
