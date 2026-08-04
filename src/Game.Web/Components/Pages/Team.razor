@@ -124,6 +124,18 @@ else
             }
         </li>
     </ul>
+
+    @if (_history is null)
+    {
+        <p><em>Графики по ходам появятся после первого хода сессии.</em></p>
+    }
+    else
+    {
+        <h4 class="h6 mt-4">Баланс по ходам</h4>
+        @RenderChart(BuildBalanceChartLayout())
+        <h4 class="h6 mt-4">Репутация по ходам</h4>
+        @RenderChart(BuildReputationChartLayout())
+    }
 </div>
 <div style="display:@(_activePageTab == "factories" ? "" : "none")">
     @if (!_isDecisionPhase)
@@ -1160,6 +1172,22 @@ else
             .ToList();
 
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
+    }
+
+    /// <summary>Баланс команды по ходам (вкладка «Обзор») — то же число, что и «Баланс» в списке выше, просто в динамике.</summary>
+    private LineChartDiagram.ChartLayout BuildBalanceChartLayout()
+    {
+        var series = new[] { new LineChartDiagram.ChartSeries("Баланс", SectorColors.Palette[0], _history!.BalanceByTurn) };
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
+    }
+
+    /// <summary>Репутация команды по ходам (вкладка «Обзор») — то же число, что и «Репутация» в списке выше, просто в динамике.</summary>
+    private LineChartDiagram.ChartLayout BuildReputationChartLayout()
+    {
+        var series = new[] { new LineChartDiagram.ChartSeries("Репутация", SectorColors.Palette[1], _history!.ReputationByTurn) };
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, value => value.ToString("0") + "%");
     }
 
     private MarkupString RenderStockChart(FactoryRow factory) => RenderChart(BuildStockChartLayout(factory));

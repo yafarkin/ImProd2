@@ -1,3 +1,5 @@
+using Game.Domain;
+
 namespace Game.Engine.Tests;
 
 /// <summary>Историческая аналитика по фабрикам одной команды для графиков на /team (Блок 9.1) — реплей журнала, тот же приём проверки, что и у <see cref="TurnHistoryCalculatorTests"/>.</summary>
@@ -24,6 +26,51 @@ public class FactoryHistoryCalculatorTests
         Assert.Empty(history.OutputByFactoryId);
         Assert.Empty(history.ConsumedInputsByFactoryId);
         Assert.Empty(history.ProfitByLevel);
+        Assert.Empty(history.BalanceByTurn);
+        Assert.Empty(history.ReputationByTurn);
+    }
+
+    [Fact]
+    public void Summarize_Snapshots_Balance_At_The_End_Of_Each_Completed_Turn()
+    {
+        // Ход 1: стартовый заём 100 000 минус постройка (100) минус наём 5 рабочих (5*50=250).
+        var (session, teamId, _) = BuildAndStaffAMine(workers: 5);
+
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
+        session.RunTick(new Random(1));
+
+        var history = FactoryHistoryCalculator.Summarize(session.Entries, TestGameConfig.Resolved, teamId);
+
+        var turn1 = Assert.Single(history.BalanceByTurn, point => point.Turn == 1);
+        Assert.Equal(99_650m, turn1.Balance);
+    }
+
+    [Fact]
+    public void Summarize_Snapshots_Reputation_Reflecting_Events_Up_To_Each_Turn_Not_The_Whole_Log()
+    {
+        var (log, buyer, seller) = TestGameConfig.StartSessionWithTwoTeams();
+        var terms = new ContractTerms(
+            ContractType.Spot, TestGameConfig.Sheet, volume: 10m, unitPrice: 20m, penaltyRate: 0.1m,
+            effectiveTurn: 1, spotDeliveryTurn: 5, recurringEndTurn: null);
+        var contract = new Contract(Ulid.NewUlid(), buyer.Id, seller.Id, terms, "ABC123");
+        var spec = ContractSpec.From(contract);
+        log.Append(new ContractSigned { Id = Ulid.NewUlid(), Contract = spec });
+        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId });
+
+        // 8 переходов фаз с хода 1 (Расчёт) доводят до хода 5 (Расчёт) — та же арифметика фаз, что и в движке.
+        for (var i = 0; i < 8; i++)
+        {
+            log.Append(new PhaseAdvanced { Id = Ulid.NewUlid(), Trigger = PhaseTransitionTrigger.Timer });
+        }
+
+        // Срыв после WarmupTurns (3) — реально штрафует репутацию продавца.
+        log.Append(new DeliveryMissed { Id = Ulid.NewUlid(), ContractId = spec.ContractId, Turn = 5, ShortfallVolume = 10m, PenaltyAmount = 20m });
+
+        var history = FactoryHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, seller.Id);
+
+        Assert.All(history.ReputationByTurn.Where(point => point.Turn < 5), point => Assert.Equal(100m, point.ReputationPercentage));
+        var turn5 = Assert.Single(history.ReputationByTurn, point => point.Turn == 5);
+        Assert.Equal(0m, turn5.ReputationPercentage);
     }
 
     [Fact]
