@@ -20,16 +20,19 @@ public static class FactoryHistoryCalculator
     /// каждого прошедшего хода, а не к текущим. <see cref="OutputByFactoryId"/> и
     /// <see cref="ConsumedInputsByFactoryId"/> для одной фабрики всегда одной длины и в одном порядке
     /// ходов — оба ряда пополняются из одного и того же события <see cref="FactoryProduced"/>.
-    /// <see cref="BalanceByTurn"/> и <see cref="ReputationByTurn"/> — те же значения, что показывает
-    /// вкладка «Обзор» сейчас (баланс и <see cref="ReputationCalculator"/>), просто по ходам, а не
-    /// только на текущий момент.
+    /// <see cref="NetWorthByTurn"/> и <see cref="ReputationByTurn"/> — те же значения, что показывает
+    /// вкладка «Обзор» сейчас (чистая стоимость и <see cref="ReputationCalculator"/>), просто по
+    /// ходам, а не только на текущий момент. <see cref="NetWorthByTurn"/> — баланс минус долг (та же
+    /// величина, что уже используется для рейтинга команд на большом экране в Game.Web), а не сырой
+    /// баланс: принудительный кредит держит баланс искусственно у нуля, пряча реальное ухудшение дел
+    /// за растущим долгом — график поэтому обязан уметь уходить ниже нуля (запрос пользователя).
     /// </summary>
     public sealed record TeamFactoryHistory(
         IReadOnlyDictionary<string, IReadOnlyList<(int Turn, decimal Quantity)>> StockByMaterialId,
         IReadOnlyDictionary<Ulid, IReadOnlyList<(int Turn, decimal OutputQuantity)>> OutputByFactoryId,
         IReadOnlyDictionary<Ulid, IReadOnlyList<(int Turn, IReadOnlyDictionary<string, decimal> ConsumedInputs)>> ConsumedInputsByFactoryId,
         IReadOnlyDictionary<int, IReadOnlyList<(int Turn, decimal Profit)>> ProfitByLevel,
-        IReadOnlyList<(int Turn, decimal Balance)> BalanceByTurn,
+        IReadOnlyList<(int Turn, decimal NetWorth)> NetWorthByTurn,
         IReadOnlyList<(int Turn, decimal ReputationPercentage)> ReputationByTurn);
 
     /// <summary>Можно звать в любой момент сессии; для команды, которой ещё нет в состоянии (сессия не началась), все ряды выходят пустыми.</summary>
@@ -44,7 +47,7 @@ public static class FactoryHistoryCalculator
         var outputByFactoryId = new Dictionary<Ulid, List<(int Turn, decimal OutputQuantity)>>();
         var consumedInputsByFactoryId = new Dictionary<Ulid, List<(int Turn, IReadOnlyDictionary<string, decimal> ConsumedInputs)>>();
         var profitByLevel = new Dictionary<int, List<(int Turn, decimal Profit)>>();
-        var balanceByTurn = new List<(int Turn, decimal Balance)>();
+        var netWorthByTurn = new List<(int Turn, decimal NetWorth)>();
         var reputationByTurn = new List<(int Turn, decimal ReputationPercentage)>();
         var processedEntries = new List<EventLogEntry<GameSessionState>>();
         var turn = 0;
@@ -79,26 +82,26 @@ public static class FactoryHistoryCalculator
 
             if (scratch.CurrentTurn != turn)
             {
-                FlushTurnSnapshot(turn, teamId, scratch, config, processedEntries, stockByMaterialId, profitByLevel, balanceByTurn, reputationByTurn);
+                FlushTurnSnapshot(turn, teamId, scratch, config, processedEntries, stockByMaterialId, profitByLevel, netWorthByTurn, reputationByTurn);
                 turn = scratch.CurrentTurn;
             }
         }
 
-        FlushTurnSnapshot(turn, teamId, scratch, config, processedEntries, stockByMaterialId, profitByLevel, balanceByTurn, reputationByTurn);
+        FlushTurnSnapshot(turn, teamId, scratch, config, processedEntries, stockByMaterialId, profitByLevel, netWorthByTurn, reputationByTurn);
 
         return new TeamFactoryHistory(
             stockByMaterialId.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<(int, decimal)>)pair.Value),
             outputByFactoryId.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<(int, decimal)>)pair.Value),
             consumedInputsByFactoryId.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<(int, IReadOnlyDictionary<string, decimal>)>)pair.Value),
             profitByLevel.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<(int, decimal)>)pair.Value),
-            balanceByTurn,
+            netWorthByTurn,
             reputationByTurn);
     }
 
     /// <summary>
     /// Снимок на конец завершённого хода <paramref name="completedTurn"/>: реальные остатки склада
-    /// команды (как их видит текущий дашборд через <c>_teamWarehouseByMaterialId</c>), баланс,
-    /// репутация на этот момент (<see cref="ReputationCalculator"/> — на уже проигранном до этого
+    /// команды (как их видит текущий дашборд через <c>_teamWarehouseByMaterialId</c>), чистая
+    /// стоимость (баланс минус долг), репутация на этот момент (<see cref="ReputationCalculator"/> — на уже проигранном до этого
     /// хода куске журнала <paramref name="processedEntries"/>, иначе события будущих ходов исказили
     /// бы её затухание по свежести) и оценка прибыльности каждой фабрики по этим остаткам и
     /// рыночным ценам того момента, просуммированная по уровню пирамиды. Фабрика без рыночной
@@ -110,7 +113,7 @@ public static class FactoryHistoryCalculator
         IReadOnlyList<EventLogEntry<GameSessionState>> processedEntries,
         Dictionary<string, List<(int Turn, decimal Quantity)>> stockByMaterialId,
         Dictionary<int, List<(int Turn, decimal Profit)>> profitByLevel,
-        List<(int Turn, decimal Balance)> balanceByTurn,
+        List<(int Turn, decimal NetWorth)> netWorthByTurn,
         List<(int Turn, decimal ReputationPercentage)> reputationByTurn)
     {
         if (completedTurn <= 0 || !scratch.Teams.TryGetValue(teamId, out var team))
@@ -118,7 +121,7 @@ public static class FactoryHistoryCalculator
             return;
         }
 
-        balanceByTurn.Add((completedTurn, team.Balance));
+        netWorthByTurn.Add((completedTurn, team.Balance - team.Debt));
 
         var reputation = ReputationCalculator.Calculate(processedEntries, scratch.Contracts, teamId, completedTurn, config.Raw.Reputation);
         reputationByTurn.Add((completedTurn, reputation.Percentage));

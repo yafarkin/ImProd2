@@ -33,6 +33,14 @@ public static class ChartRenderer
             svg.Append(CultureInfo.InvariantCulture, $"<text x=\"{SvgMarkup.N(tick.X)}\" y=\"{SvgMarkup.N(tick.Y + 14)}\" style=\"font-size:10px;fill:#898781;text-anchor:middle\">{WebUtility.HtmlEncode(tick.Label)}</text>");
         }
 
+        // Отдельная жирная линия на нуле поверх обычной сетки (запрос пользователя: «чётко видно, в
+        // плюсе команда или в минусе») — рисуется до рядов, чтобы сами линии данных были поверх неё,
+        // а не наоборот.
+        if (layout.ZeroLineY is { } zeroLineY)
+        {
+            svg.Append(CultureInfo.InvariantCulture, $"<line x1=\"0\" y1=\"{SvgMarkup.N(zeroLineY)}\" x2=\"{SvgMarkup.N(layout.Width)}\" y2=\"{SvgMarkup.N(zeroLineY)}\" stroke=\"#52514e\" stroke-width=\"2\" />");
+        }
+
         foreach (var series in layout.Series)
         {
             svg.Append(CultureInfo.InvariantCulture, $"<path d=\"{series.PathData}\" fill=\"none\" stroke=\"{series.Color}\" stroke-width=\"2\" />");

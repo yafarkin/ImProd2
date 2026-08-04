@@ -116,6 +116,34 @@ public class LineChartDiagramTests
     }
 
     [Fact]
+    public void Linear_Scale_Exposes_A_Zero_Line_Coordinate_Between_Positive_And_Negative_Points()
+    {
+        // Запрос пользователя: жирная линия на нуле, чтобы чётко видеть, в плюсе команда или в
+        // минусе — координата должна попадать строго между точками разных знаков.
+        var series = new[]
+        {
+            new LineChartDiagram.ChartSeries("Баланс", "#111", [(1, 500m), (2, -500m)]),
+        };
+
+        var layout = LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 400, 200);
+
+        var zeroLineY = Assert.NotNull(layout.ZeroLineY);
+        var points = ParsePoints(layout.Series.Single().PathData);
+        // SVG: Y растёт вниз — положительная точка выше (меньший Y), отрицательная ниже (больший Y).
+        Assert.InRange(zeroLineY, points[0].Y, points[1].Y);
+    }
+
+    [Fact]
+    public void Logarithmic_Scale_Has_No_Zero_Line()
+    {
+        var series = new[] { new LineChartDiagram.ChartSeries("Руда", "#111", [(1, 10m), (2, 100m)]) };
+
+        var layout = LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Logarithmic, 400, 200);
+
+        Assert.Null(layout.ZeroLineY);
+    }
+
+    [Fact]
     public void Build_Uses_The_Provided_Formatter_For_The_Last_Point_Label()
     {
         var series = new[] { new LineChartDiagram.ChartSeries("Прибыль", "#111", [(1, 5m), (2, 1234m)]) };

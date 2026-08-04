@@ -26,14 +26,17 @@ public class FactoryHistoryCalculatorTests
         Assert.Empty(history.OutputByFactoryId);
         Assert.Empty(history.ConsumedInputsByFactoryId);
         Assert.Empty(history.ProfitByLevel);
-        Assert.Empty(history.BalanceByTurn);
+        Assert.Empty(history.NetWorthByTurn);
         Assert.Empty(history.ReputationByTurn);
     }
 
     [Fact]
-    public void Summarize_Snapshots_Balance_At_The_End_Of_Each_Completed_Turn()
+    public void Summarize_Snapshots_Net_Worth_At_The_End_Of_Each_Completed_Turn()
     {
-        // Ход 1: стартовый заём 100 000 минус постройка (100) минус наём 5 рабочих (5*50=250).
+        // Ход 1: баланс — стартовый заём 100 000 минус постройка (100) минус наём 5 рабочих
+        // (5*50=250) = 99 650; долг — сам заём, 100 000 (ещё ничего не погашено); чистая стоимость —
+        // разница, 99 650 - 100 000 = -350 (сырой баланс выглядел бы позитивным, пряча реальный
+        // отрицательный результат первого хода за долгом).
         var (session, teamId, _) = BuildAndStaffAMine(workers: 5);
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
@@ -41,8 +44,8 @@ public class FactoryHistoryCalculatorTests
 
         var history = FactoryHistoryCalculator.Summarize(session.Entries, TestGameConfig.Resolved, teamId);
 
-        var turn1 = Assert.Single(history.BalanceByTurn, point => point.Turn == 1);
-        Assert.Equal(99_650m, turn1.Balance);
+        var turn1 = Assert.Single(history.NetWorthByTurn, point => point.Turn == 1);
+        Assert.Equal(-350m, turn1.NetWorth);
     }
 
     [Fact]

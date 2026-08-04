@@ -22,12 +22,18 @@ public static class LineChartDiagram
     public sealed record ChartSeriesPath(
         string Label, string Color, string PathData, double LastX, double LastY, string LastValueLabel);
 
-    /// <summary>Итоговая раскладка графика целиком.</summary>
+    /// <summary>
+    /// Итоговая раскладка графика целиком. <see cref="ZeroLineY"/> — координата нулевой отметки для
+    /// отдельной жирной линии поверх обычной сетки (запрос пользователя: «чётко видно, в плюсе
+    /// команда или в минусе»); заполняется только для линейной шкалы — на логарифмической ноль не
+    /// имеет представимой координаты (остатки склада, которые там строятся, и так всегда ≥ 0).
+    /// </summary>
     public sealed record ChartLayout(
         IReadOnlyList<ChartSeriesPath> Series,
         IReadOnlyList<(double X, double Y, string Label)> XTicks,
         IReadOnlyList<(double X, double Y, string Label)> YTicks,
-        double Width, double Height);
+        double Width, double Height,
+        double? ZeroLineY = null);
 
     private const double LeftMargin = 56;
     private const double RightMargin = 72;
@@ -93,8 +99,9 @@ public static class LineChartDiagram
 
         var xTicks = BuildXTicks(minTurn, maxTurn, MapX, plotBottom);
         var yTicks = yTickValues.Select(value => (plotLeft, mapY(value), formatValue(value))).ToList();
+        var zeroLineY = scale == ChartScale.Linear ? mapY(0m) : (double?)null;
 
-        return new ChartLayout(seriesPaths, xTicks, yTicks, width, height);
+        return new ChartLayout(seriesPaths, xTicks, yTicks, width, height, zeroLineY);
     }
 
     private static (Func<decimal, double> MapY, IReadOnlyList<decimal> Ticks) BuildLinearScale(

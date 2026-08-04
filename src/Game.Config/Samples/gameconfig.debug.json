@@ -11,22 +11,70 @@
   ],
   "Materials": [
     {
-      "Id": "ore",
-      "Name": "Железная руда",
+      "Id": "rock",
+      "Name": "Порода",
       "SectorId": "A",
       "Level": 0
     },
     {
-      "Id": "sheet",
-      "Name": "Стальные листы",
+      "Id": "iron",
+      "Name": "Железо",
       "SectorId": "A",
       "Level": 1
+    },
+    {
+      "Id": "copper",
+      "Name": "Медь",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "iron-sheet",
+      "Name": "Стальные листы",
+      "SectorId": "A",
+      "Level": 2
+    },
+    {
+      "Id": "copper-sheet",
+      "Name": "Медные листы",
+      "SectorId": "A",
+      "Level": 2
     },
     {
       "Id": "rebar",
       "Name": "Арматура",
       "SectorId": "A",
-      "Level": 2
+      "Level": 3
+    },
+    {
+      "Id": "copper-wire",
+      "Name": "Медная проволока",
+      "SectorId": "A",
+      "Level": 3
+    },
+    {
+      "Id": "steel-structures",
+      "Name": "Металлоконструкции",
+      "SectorId": "A",
+      "Level": 4
+    },
+    {
+      "Id": "electric-cable",
+      "Name": "Электрокабель",
+      "SectorId": "A",
+      "Level": 4
+    },
+    {
+      "Id": "steel-goods",
+      "Name": "Готовые металлоизделия",
+      "SectorId": "A",
+      "Level": 5
+    },
+    {
+      "Id": "electric-goods",
+      "Name": "Готовые электроизделия",
+      "SectorId": "A",
+      "Level": 5
     },
     {
       "Id": "oil",
@@ -43,11 +91,131 @@
   ],
   "Recipes": [
     {
-      "Id": "ore-mining",
-      "OutputMaterialId": "ore",
+      "Id": "rock-mining",
+      "OutputMaterialId": "rock",
       "OutputQuantity": 1,
       "Inputs": [],
+      "ProductionRate": 1000
+    },
+    {
+      "Id": "iron-extraction",
+      "OutputMaterialId": "iron",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "rock",
+          "Quantity": 10
+        }
+      ],
       "ProductionRate": 100
+    },
+    {
+      "Id": "copper-extraction",
+      "OutputMaterialId": "copper",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "rock",
+          "Quantity": 20
+        }
+      ],
+      "ProductionRate": 50
+    },
+    {
+      "Id": "iron-sheet-from-iron",
+      "OutputMaterialId": "iron-sheet",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "iron",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 10
+    },
+    {
+      "Id": "copper-sheet-from-copper",
+      "OutputMaterialId": "copper-sheet",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "copper",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 5
+    },
+    {
+      "Id": "rebar-from-iron-sheet",
+      "OutputMaterialId": "rebar",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "iron-sheet",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 1
+    },
+    {
+      "Id": "copper-wire-from-copper-sheet",
+      "OutputMaterialId": "copper-wire",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "copper-sheet",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 0.5
+    },
+    {
+      "Id": "steel-structures-from-rebar",
+      "OutputMaterialId": "steel-structures",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "rebar",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 0.1
+    },
+    {
+      "Id": "electric-cable-from-copper-wire",
+      "OutputMaterialId": "electric-cable",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "copper-wire",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 0.05
+    },
+    {
+      "Id": "steel-goods-from-steel-structures",
+      "OutputMaterialId": "steel-goods",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "steel-structures",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 0.01
+    },
+    {
+      "Id": "electric-goods-from-electric-cable",
+      "OutputMaterialId": "electric-goods",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "electric-cable",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 0.005
     },
     {
       "Id": "oil-drilling",
@@ -55,30 +223,6 @@
       "OutputQuantity": 1,
       "Inputs": [],
       "ProductionRate": 1
-    },
-    {
-      "Id": "sheet-from-ore",
-      "OutputMaterialId": "sheet",
-      "OutputQuantity": 1,
-      "Inputs": [
-        {
-          "MaterialId": "ore",
-          "Quantity": 2
-        }
-      ],
-      "ProductionRate": 75
-    },
-    {
-      "Id": "rebar-from-sheet",
-      "OutputMaterialId": "rebar",
-      "OutputQuantity": 10,
-      "Inputs": [
-        {
-          "MaterialId": "sheet",
-          "Quantity": 3
-        }
-      ],
-      "ProductionRate": 2
     },
     {
       "Id": "plastic-from-oil",
@@ -95,13 +239,33 @@
   ],
   "FactoryDefinitions": [
     {
-      "Id": "iron-mine",
-      "Name": "Рудник",
+      "Id": "rock-quarry",
+      "Name": "Карьер",
       "SectorId": "A",
       "RecipeIds": [
-        "ore-mining"
+        "rock-mining"
       ],
       "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5
+    },
+    {
+      "Id": "iron-extraction-plant",
+      "Name": "Железообогатительная фабрика",
+      "SectorId": "A",
+      "RecipeIds": [
+        "iron-extraction"
+      ],
+      "BuildCost": 800,
+      "LiquidationValueCoefficient": 0.5
+    },
+    {
+      "Id": "copper-extraction-plant",
+      "Name": "Медеобогатительная фабрика",
+      "SectorId": "A",
+      "RecipeIds": [
+        "copper-extraction"
+      ],
+      "BuildCost": 900,
       "LiquidationValueCoefficient": 0.5
     },
     {
@@ -109,7 +273,17 @@
       "Name": "Сталелитейный завод",
       "SectorId": "A",
       "RecipeIds": [
-        "sheet-from-ore"
+        "iron-sheet-from-iron"
+      ],
+      "BuildCost": 1500,
+      "LiquidationValueCoefficient": 0.5
+    },
+    {
+      "Id": "copper-mill",
+      "Name": "Медеплавильный завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "copper-sheet-from-copper"
       ],
       "BuildCost": 1500,
       "LiquidationValueCoefficient": 0.5
@@ -119,9 +293,59 @@
       "Name": "Прокатный стан",
       "SectorId": "A",
       "RecipeIds": [
-        "rebar-from-sheet"
+        "rebar-from-iron-sheet"
       ],
-      "BuildCost": 3000,
+      "BuildCost": 2500,
+      "LiquidationValueCoefficient": 0.5
+    },
+    {
+      "Id": "wire-mill",
+      "Name": "Волочильный цех",
+      "SectorId": "A",
+      "RecipeIds": [
+        "copper-wire-from-copper-sheet"
+      ],
+      "BuildCost": 2500,
+      "LiquidationValueCoefficient": 0.5
+    },
+    {
+      "Id": "steel-structure-plant",
+      "Name": "Завод металлоконструкций",
+      "SectorId": "A",
+      "RecipeIds": [
+        "steel-structures-from-rebar"
+      ],
+      "BuildCost": 4000,
+      "LiquidationValueCoefficient": 0.5
+    },
+    {
+      "Id": "cable-plant",
+      "Name": "Кабельный завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "electric-cable-from-copper-wire"
+      ],
+      "BuildCost": 4000,
+      "LiquidationValueCoefficient": 0.5
+    },
+    {
+      "Id": "steel-goods-plant",
+      "Name": "Завод готовых металлоизделий",
+      "SectorId": "A",
+      "RecipeIds": [
+        "steel-goods-from-steel-structures"
+      ],
+      "BuildCost": 6000,
+      "LiquidationValueCoefficient": 0.5
+    },
+    {
+      "Id": "electric-goods-plant",
+      "Name": "Завод готовых электроизделий",
+      "SectorId": "A",
+      "RecipeIds": [
+        "electric-goods-from-electric-cable"
+      ],
+      "BuildCost": 6000,
       "LiquidationValueCoefficient": 0.5
     },
     {
@@ -170,19 +394,59 @@
     "EmergencyPurchasePriceMultiplier": 1.5,
     "BaseMarketPerMaterial": [
       {
-        "MaterialId": "ore",
-        "BasePrice": 10,
-        "BaseCapacity": 200
+        "MaterialId": "rock",
+        "BasePrice": 1,
+        "BaseCapacity": 5000
       },
       {
-        "MaterialId": "sheet",
-        "BasePrice": 25,
-        "BaseCapacity": 120
+        "MaterialId": "iron",
+        "BasePrice": 15,
+        "BaseCapacity": 500
+      },
+      {
+        "MaterialId": "copper",
+        "BasePrice": 40,
+        "BaseCapacity": 250
+      },
+      {
+        "MaterialId": "iron-sheet",
+        "BasePrice": 40,
+        "BaseCapacity": 50
+      },
+      {
+        "MaterialId": "copper-sheet",
+        "BasePrice": 90,
+        "BaseCapacity": 25
       },
       {
         "MaterialId": "rebar",
-        "BasePrice": 30,
-        "BaseCapacity": 80
+        "BasePrice": 150,
+        "BaseCapacity": 5
+      },
+      {
+        "MaterialId": "copper-wire",
+        "BasePrice": 300,
+        "BaseCapacity": 2.5
+      },
+      {
+        "MaterialId": "steel-structures",
+        "BasePrice": 600,
+        "BaseCapacity": 0.5
+      },
+      {
+        "MaterialId": "electric-cable",
+        "BasePrice": 1200,
+        "BaseCapacity": 0.25
+      },
+      {
+        "MaterialId": "steel-goods",
+        "BasePrice": 3000,
+        "BaseCapacity": 0.05
+      },
+      {
+        "MaterialId": "electric-goods",
+        "BasePrice": 6000,
+        "BaseCapacity": 0.025
       },
       {
         "MaterialId": "oil",
@@ -211,6 +475,10 @@
       {
         "Level": 4,
         "MarginMultiplier": 1.5
+      },
+      {
+        "Level": 5,
+        "MarginMultiplier": 1.75
       }
     ],
     "MarketCapacityOverflowDiscount": 0.5,
@@ -256,7 +524,7 @@
     "ProductionRateBonusPerLevel": 0.1
   },
   "Warehouse": {
-    "FreeCapacity": 500,
+    "FreeCapacity": 100000,
     "OverageFeePerUnit": 0.1
   },
   "Reputation": {

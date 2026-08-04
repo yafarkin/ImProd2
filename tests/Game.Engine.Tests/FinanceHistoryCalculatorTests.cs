@@ -19,13 +19,16 @@ public class FinanceHistoryCalculatorTests
     public void Summarize_Captures_LoanTaken()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 500m });
+        var entry = log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 500m });
 
         var operation = Assert.Single(FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id));
 
         Assert.Equal(FinanceHistoryCalculator.OperationType.LoanTaken, operation.Type);
         Assert.Equal(500m, operation.Amount);
         Assert.Null(operation.Rate);
+        // Точное время записи в журнал (запрос пользователя: видеть, когда реально было совершено
+        // действие, а не только на каком ходу) — то же значение, что несёт сама запись журнала.
+        Assert.Equal(entry.Timestamp, operation.Timestamp);
     }
 
     [Fact]

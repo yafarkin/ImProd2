@@ -36,11 +36,14 @@ public static class BigScreenDisplay
     }
 
     /// <summary>
-    /// График баланса всех команд по ходам для большого экрана (запрос ведущего: «видеть динамику
-    /// всех команд сразу», а не только свою на /team) — та же <see cref="FactoryHistoryCalculator"/>,
-    /// что уже строит персональный график баланса на /team, просто по одному ряду на каждую команду
-    /// сессии вместо одной. Команды упорядочены по имени (не по текущему рейтингу — рейтинг меняется
-    /// от хода к ходу, и перестановка рядов сбивала бы закреплённый за командой цвет).
+    /// График чистой стоимости (баланс минус долг) всех команд по ходам для большого экрана (запрос
+    /// ведущего: «видеть динамику всех команд сразу», а не только свою на /team) — та же <see
+    /// cref="FactoryHistoryCalculator"/>, что уже строит персональный график на /team, просто по
+    /// одному ряду на каждую команду сессии вместо одной; та же величина, что и «Финансовый рейтинг»
+    /// в таблице выше (<see cref="RankTeams"/>) — не сырой баланс, чтобы принудительный кредит не
+    /// прятал реальное ухудшение дел за растущим долгом. Команды упорядочены по имени (не по
+    /// текущему рейтингу — рейтинг меняется от хода к ходу, и перестановка рядов сбивала бы
+    /// закреплённый за командой цвет).
     /// </summary>
     public static LineChartDiagram.ChartLayout BuildBalanceHistoryChart(GameSession session)
     {
@@ -52,7 +55,7 @@ public static class BigScreenDisplay
             {
                 var history = FactoryHistoryCalculator.Summarize(session.Entries, session.State.Config, team.Id);
                 return new LineChartDiagram.ChartSeries(
-                    team.Name, SectorColors.Palette[index % SectorColors.Palette.Length], history.BalanceByTurn);
+                    team.Name, SectorColors.Palette[index % SectorColors.Palette.Length], history.NetWorthByTurn);
             })
             .ToList();
 

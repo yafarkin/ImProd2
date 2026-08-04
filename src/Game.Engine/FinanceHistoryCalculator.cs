@@ -76,8 +76,8 @@ public static class FinanceHistoryCalculator
         Expense,
     }
 
-    /// <summary>Одна строка истории — ход, тип операции, направление, сумма и ставка, если у операции она есть (иначе <see langword="null"/>).</summary>
-    public sealed record FinanceOperation(int Turn, OperationType Type, MoneyDirection Direction, decimal Amount, decimal? Rate);
+    /// <summary>Одна строка истории — точное время записи в журнал, ход, тип операции, направление, сумма и ставка, если у операции она есть (иначе <see langword="null"/>).</summary>
+    public sealed record FinanceOperation(DateTimeOffset Timestamp, int Turn, OperationType Type, MoneyDirection Direction, decimal Amount, decimal? Rate);
 
     /// <summary>Можно звать в любой момент сессии; для команды без единой денежной операции список выходит пустым.</summary>
     public static IReadOnlyList<FinanceOperation> Summarize(
@@ -96,46 +96,46 @@ public static class FinanceHistoryCalculator
             switch (entry.Change)
             {
                 case LoanTaken change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.LoanTaken, MoneyDirection.Income, change.Amount, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.LoanTaken, MoneyDirection.Income, change.Amount, Rate: null));
                     break;
                 case ForcedLoanTaken change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.ForcedLoan, MoneyDirection.Income, change.Amount, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.ForcedLoan, MoneyDirection.Income, change.Amount, Rate: null));
                     break;
                 case LoanInterestCharged change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.InterestCharged, MoneyDirection.Expense, change.Amount, change.Rate));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.InterestCharged, MoneyDirection.Expense, change.Amount, change.Rate));
                     break;
                 case MandatoryLoanRepaymentCharged change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.MandatoryRepayment, MoneyDirection.Expense, change.Amount, change.Rate));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.MandatoryRepayment, MoneyDirection.Expense, change.Amount, change.Rate));
                     break;
                 case LoanRepaid change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.VoluntaryRepayment, MoneyDirection.Expense, change.Amount, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.VoluntaryRepayment, MoneyDirection.Expense, change.Amount, Rate: null));
                     break;
                 case FactoryBuilt change when change.TeamId == teamId && change.Cost > 0:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.FactoryBuilt, MoneyDirection.Expense, change.Cost, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryBuilt, MoneyDirection.Expense, change.Cost, Rate: null));
                     break;
                 case WorkersHired change when change.TeamId == teamId && change.Cost > 0:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.WorkersHired, MoneyDirection.Expense, change.Cost, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.WorkersHired, MoneyDirection.Expense, change.Cost, Rate: null));
                     break;
                 case WorkersFired change when change.TeamId == teamId && change.Cost > 0:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.WorkersFired, MoneyDirection.Expense, change.Cost, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.WorkersFired, MoneyDirection.Expense, change.Cost, Rate: null));
                     break;
                 case SalariesPaid change when change.TeamId == teamId && change.Amount > 0:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.SalariesPaid, MoneyDirection.Expense, change.Amount, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.SalariesPaid, MoneyDirection.Expense, change.Amount, Rate: null));
                     break;
                 case RndInvested change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.RndInvested, MoneyDirection.Expense, change.Amount, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.RndInvested, MoneyDirection.Expense, change.Amount, Rate: null));
                     break;
                 case MaterialSoldToSystem change when change.TeamId == teamId && change.TotalRevenue > 0:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.MaterialSold, MoneyDirection.Income, change.TotalRevenue, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.MaterialSold, MoneyDirection.Income, change.TotalRevenue, Rate: null));
                     break;
                 case EmergencyPurchased change when change.TeamId == teamId && change.TotalCost > 0:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.EmergencyPurchase, MoneyDirection.Expense, change.TotalCost, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.EmergencyPurchase, MoneyDirection.Expense, change.TotalCost, Rate: null));
                     break;
                 case WarehouseFeeCharged change when change.TeamId == teamId && change.Amount > 0:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.WarehouseFee, MoneyDirection.Expense, change.Amount, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.WarehouseFee, MoneyDirection.Expense, change.Amount, Rate: null));
                     break;
                 case GrantIssued change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.GrantReceived, MoneyDirection.Income, change.Amount, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.GrantReceived, MoneyDirection.Income, change.Amount, Rate: null));
                     break;
                 case ContractDelivered change:
                 {
@@ -143,11 +143,11 @@ public static class FinanceHistoryCalculator
                     var sum = contract.Terms.Volume * contract.Terms.UnitPrice;
                     if (sum > 0 && contract.BuyerTeamId == teamId)
                     {
-                        operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.ContractDelivery, MoneyDirection.Expense, sum, Rate: null));
+                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.ContractDelivery, MoneyDirection.Expense, sum, Rate: null));
                     }
                     else if (sum > 0 && contract.SellerTeamId == teamId)
                     {
-                        operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.ContractDelivery, MoneyDirection.Income, sum, Rate: null));
+                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.ContractDelivery, MoneyDirection.Income, sum, Rate: null));
                     }
                     break;
                 }
@@ -156,16 +156,16 @@ public static class FinanceHistoryCalculator
                     var contract = scratch.Contracts[change.ContractId];
                     if (contract.SellerTeamId == teamId)
                     {
-                        operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.DeliveryMissPenalty, MoneyDirection.Expense, change.PenaltyAmount, Rate: null));
+                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.DeliveryMissPenalty, MoneyDirection.Expense, change.PenaltyAmount, Rate: null));
                     }
                     else if (contract.BuyerTeamId == teamId)
                     {
-                        operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.DeliveryMissPenalty, MoneyDirection.Income, change.PenaltyAmount, Rate: null));
+                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.DeliveryMissPenalty, MoneyDirection.Income, change.PenaltyAmount, Rate: null));
                     }
                     break;
                 }
                 case ContractTerminated change when change.Fee > 0 && change.TerminatingTeamId == teamId:
-                    operations.Add(new FinanceOperation(scratch.CurrentTurn, OperationType.ContractTerminationFee, MoneyDirection.Expense, change.Fee, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.ContractTerminationFee, MoneyDirection.Expense, change.Fee, Rate: null));
                     break;
             }
         }

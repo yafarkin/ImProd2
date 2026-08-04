@@ -128,7 +128,7 @@ else
     }
     else
     {
-        <h4 class="h6 mt-4">Баланс по ходам</h4>
+        <h4 class="h6 mt-4">Баланс за вычетом долга по ходам</h4>
         @ChartRenderer.Render(BuildBalanceChartLayout())
         <h4 class="h6 mt-4">Репутация по ходам</h4>
         @ChartRenderer.Render(BuildReputationChartLayout())
@@ -221,11 +221,11 @@ else
                     var alreadyBuilt = _factoryOverviewRows.Any(n => n.Definition.Id == node.Definition.Id && n.Instance is not null);
                     var buildCost = _buildCosts.GetValueOrDefault(node.Definition.Id);
                     var caption = (alreadyBuilt ? "построить ещё · от " : "не построена · от ") + DashboardDisplay.FormatMoney(buildCost);
-                    <div class="border rounded p-2 d-flex justify-content-between align-items-center gap-2"
+                    <div class="border rounded p-2"
                          style="cursor:pointer; border-style:dashed; border-color:#898781;"
                          @onclick="() => SelectBuildable(node.Definition.Id)">
                         <div style="font-weight:600">@node.Definition.Name</div>
-                        <div class="text-muted small flex-shrink-0">@caption</div>
+                        <div class="text-muted small">@caption</div>
                     </div>
                 }
             }
@@ -608,6 +608,7 @@ else
             <table class="table table-striped table-sm align-middle">
                 <thead>
                     <tr>
+                        <th>Время</th>
                         <th>Ход</th>
                         <th>Операция</th>
                         <th>Сумма</th>
@@ -619,6 +620,7 @@ else
                     {
                         var isIncome = operation.Direction == FinanceHistoryCalculator.MoneyDirection.Income;
                         <tr>
+                            <td>@operation.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
                             <td>@operation.Turn</td>
                             <td>@DashboardDisplay.FinanceOperationLabel(operation.Type)</td>
                             <td class="@(isIncome ? "text-success" : "text-danger")">@(isIncome ? "+" : "−")@DashboardDisplay.FormatMoney(operation.Amount)</td>
@@ -1257,10 +1259,14 @@ else
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
     }
 
-    /// <summary>Баланс команды по ходам (вкладка «Обзор») — то же число, что и «Баланс» в списке выше, просто в динамике.</summary>
+    /// <summary>
+    /// Чистая стоимость команды (баланс минус долг) по ходам (вкладка «Обзор») — не сырой баланс:
+    /// принудительный кредит держит баланс у нуля, пряча реальное ухудшение дел за растущим долгом,
+    /// поэтому график обязан уметь уходить ниже нуля (запрос пользователя).
+    /// </summary>
     private LineChartDiagram.ChartLayout BuildBalanceChartLayout()
     {
-        var series = new[] { new LineChartDiagram.ChartSeries("Баланс", SectorColors.Palette[0], _history!.BalanceByTurn) };
+        var series = new[] { new LineChartDiagram.ChartSeries("Баланс за вычетом долга", SectorColors.Palette[0], _history!.NetWorthByTurn) };
 
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
     }
