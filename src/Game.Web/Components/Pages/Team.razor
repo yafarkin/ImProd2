@@ -135,7 +135,11 @@ else
     }
 </div>
 <div style="display:@(_activePageTab == "factories" ? "" : "none")">
-    @if (!_isDecisionPhase)
+    @if (_role != ParticipantRole.Manager)
+    {
+        <p><em>Строить фабрики и нанимать рабочих может только управляющий — вы видите то же самое, что и он, в режиме чтения.</em></p>
+    }
+    else if (!_isDecisionPhase)
     {
         <p><em>Решения недоступны — сейчас фаза «@_phaseLabel». Дождитесь фазы «Решения».</em></p>
     }
@@ -255,7 +259,7 @@ else
 
                     @if (_activeFactoryTab == "workers")
                     {
-                        @if (_isDecisionPhase)
+                        @if (_canManage)
                         {
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                                 <span class="text-muted">Сейчас: @factory.Workers</span>
@@ -300,7 +304,7 @@ else
                     else if (_activeFactoryTab == "recipe")
                     {
                         <p>Продукт: @factory.SelectedRecipeName</p>
-                        @if (_isDecisionPhase && factory.RecipeOptions.Count > 1)
+                        @if (_canManage && factory.RecipeOptions.Count > 1)
                         {
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
                                 <select class="form-select w-auto" @bind="_selectedRecipeIds[factory.FactoryId]">
@@ -334,7 +338,7 @@ else
                                 <text>(максимальный уровень)</text>
                             }
                         </p>
-                        @if (_isDecisionPhase)
+                        @if (_canManage)
                         {
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                                 <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_rndInvestAmounts[factory.FactoryId]" />
@@ -493,13 +497,13 @@ else
         {
             <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                 <span>@row.MaterialName: @row.Quantity.ToString("0.##")</span>
-                @if (_isDecisionPhase)
+                @if (_canManage)
                 {
                     <input type="number" min="1" step="1" class="form-control d-inline-block" style="width:6em" @bind="_sellVolumes[row.MaterialId]" @bind:event="oninput" />
                     <button type="button" class="btn btn-secondary btn-sm" @onclick="() => SellToSystem(row.MaterialId)">Продать системе</button>
                 }
             </div>
-            @if (_isDecisionPhase)
+            @if (_canManage)
             {
                 var preview = SellPreview(row);
                 <p class="text-muted small mb-2">
@@ -522,7 +526,7 @@ else
             }
         }
     }
-    @if (_isDecisionPhase && _emergencyPurchaseEnabled && _emergencyPurchaseMaterials.Count > 0)
+    @if (_canManage && _emergencyPurchaseEnabled && _emergencyPurchaseMaterials.Count > 0)
     {
         <h4>Аварийная закупка</h4>
         <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
@@ -568,7 +572,7 @@ else
             <text> (включая штрафную надбавку @_penaltyRateSurcharge.ToString("P1") от принудительных займов)</text>
         }
     </p>
-    @if (_isDecisionPhase)
+    @if (_canManage)
     {
         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
             <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_loanAmount" @bind:event="oninput" />
@@ -812,6 +816,15 @@ else
     private string _phaseLabel = string.Empty;
     private string _phaseExplanation = string.Empty;
     private bool _isDecisionPhase;
+    /// <summary>
+    /// Может принимать решения (строить, нанимать, вкладывать в R&amp;D, продавать, брать кредит) —
+    /// фаза «Решения» и роль «Управляющий»; переговорщик видит все те же панели, но в режиме чтения
+    /// (запрос пользователя: «у переговорщика были те же права, что и у управляющего» — по факту
+    /// действие раньше проверялось только по фазе, не по роли). Вкладка «Контракты» — исключение,
+    /// у неё уже есть своя, более тонкая проверка по ролям прямо в разметке (например, подтвердить
+    /// сделку и принять пересмотр может только управляющий) — эту вкладку не трогаем.
+    /// </summary>
+    private bool _canManage;
     private string _phaseDuration = string.Empty;
     private string _countdown = string.Empty;
     private string? _lastNewsHeadline;
@@ -937,6 +950,7 @@ else
             _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
             _phaseExplanation = PhaseDisplay.PhaseExplanation(state.CurrentPhase);
             _isDecisionPhase = state.CurrentPhase == TurnPhase.Decision;
+            _canManage = _isDecisionPhase && _role == ParticipantRole.Manager;
             _phaseDuration = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.TotalDuration(Host.Session!));
             _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session!, DateTimeOffset.UtcNow));
             _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session!);
@@ -1014,6 +1028,19 @@ else
             _hireCostPerWorker = state.Config.Raw.WorkerProductivity.HireCostPerWorker;
             _fireCostPerWorker = state.Config.Raw.WorkerProductivity.FireCostPerWorker;
             _baseWorkerCount = state.Config.Raw.WorkerProductivity.BaseWorkerCount;
+
+            // Фабрики не хранят собственное имя — только тип (Definition.Name) и Id. При нескольких
+            // экземплярах одного типа это раньше давало неразличимые подписи (например, «Сейчас это
+            // потребляют: Обогатительная фабрика, Обогатительная фабрика» — запрос пользователя).
+            // Нумеруем так же, как уже нумерует карточки список фабрик (FactoryOverviewList) — по
+            // порядку Id внутри типа, «№2» и далее со второго экземпляра.
+            var factoryDisplayNames = team.Factories
+                .GroupBy(f => f.Definition.Id)
+                .SelectMany(group => group
+                    .OrderBy(f => f.Id)
+                    .Select((f, index) => (f.Id, Name: index > 0 ? $"{f.Definition.Name} №{index + 1}" : f.Definition.Name)))
+                .ToDictionary(x => x.Id, x => x.Name);
+
             _factories = team.Factories.Select(factory =>
             {
                 _selectedRecipeIds.TryAdd(factory.Id, factory.SelectedRecipe.Id);
@@ -1032,7 +1059,7 @@ else
                 // отдельного получателя задать нельзя, всё решает общий склад).
                 var consumingFactoryNames = team.Factories
                     .Where(other => other.Id != factory.Id && other.SelectedRecipe.Inputs.Any(i => i.Material == factory.SelectedRecipe.Output))
-                    .Select(other => other.Definition.Name)
+                    .Select(other => factoryDisplayNames[other.Id])
                     .ToList();
 
                 var capacityBreakdown = ProductionCalculator.CalculateCapacityBreakdown(
@@ -1052,7 +1079,7 @@ else
                     output.OutputQuantity)).ToList();
 
                 return new FactoryRow(
-                    factory.Id, factory.Definition.Name, factory.Level, factory.Workers,
+                    factory.Id, factoryDisplayNames[factory.Id], factory.Level, factory.Workers,
                     factory.SelectedRecipe.Output, factory.SelectedRecipe.Output.Name,
                     factory.Definition.Recipes.Select(r => (r.Id, r.Output.Name)).ToList(),
                     factory.SelectedRecipe.Inputs,
