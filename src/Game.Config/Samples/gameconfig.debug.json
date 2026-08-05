@@ -249,23 +249,14 @@
       "LiquidationValueCoefficient": 0.5
     },
     {
-      "Id": "iron-extraction-plant",
-      "Name": "Железообогатительная фабрика",
+      "Id": "concentration-plant",
+      "Name": "Обогатительная фабрика",
       "SectorId": "A",
       "RecipeIds": [
-        "iron-extraction"
-      ],
-      "BuildCost": 800,
-      "LiquidationValueCoefficient": 0.5
-    },
-    {
-      "Id": "copper-extraction-plant",
-      "Name": "Медеобогатительная фабрика",
-      "SectorId": "A",
-      "RecipeIds": [
+        "iron-extraction",
         "copper-extraction"
       ],
-      "BuildCost": 900,
+      "BuildCost": 850,
       "LiquidationValueCoefficient": 0.5
     },
     {
