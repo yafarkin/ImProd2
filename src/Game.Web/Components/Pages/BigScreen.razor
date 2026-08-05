@@ -63,6 +63,10 @@ else
 <h2 class="mt-4">Баланс команд за вычетом долга по ходам</h2>
 @ChartRenderer.Render(_balanceHistoryChart)
 
+<h2 class="mt-4">Остаток дневной ёмкости сырья (весь текущий ход)</h2>
+<p class="text-muted">По секундам с начала хода — падает, когда кто-то продаёт сырьё системе; при 0% дальнейшие продажи идут со скидкой за превышение ёмкости.</p>
+@ChartRenderer.Render(_marketCapacityChart)
+
 <h2 class="mt-4">Доска потребностей</h2>
 <p>
     Активных объявлений: <strong>@_needsSummary.ActiveCount</strong>
@@ -86,6 +90,7 @@ else
     private IReadOnlyList<BigScreenDisplay.TeamRatingRow> _ranking = Array.Empty<BigScreenDisplay.TeamRatingRow>();
     private BigScreenDisplay.NeedsSummary _needsSummary = new(0, Array.Empty<string>());
     private LineChartDiagram.ChartLayout _balanceHistoryChart = new([], [], [], 900, 320);
+    private LineChartDiagram.ChartLayout _marketCapacityChart = new([], [], [], 900, 320);
     private int _balanceHistoryEntryCount = -1;
     private bool _sessionNotStarted;
     private Timer? _tickTimer;
@@ -129,6 +134,7 @@ else
             if (_balanceHistoryEntryCount != entryCount)
             {
                 _balanceHistoryChart = BigScreenDisplay.BuildBalanceHistoryChart(Host.Session);
+                _marketCapacityChart = BigScreenDisplay.BuildMarketCapacityChart(Host.Session);
                 _balanceHistoryEntryCount = entryCount;
             }
         }

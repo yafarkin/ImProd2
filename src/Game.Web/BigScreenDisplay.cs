@@ -62,6 +62,32 @@ public static class BigScreenDisplay
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 900, 320, DashboardDisplay.FormatMoney);
     }
 
+    /// <summary>
+    /// Живой остаток дневной ёмкости сырья в рамках текущего хода (запрос пользователя: «видеть на
+    /// большом экране, как крупная продажа роняет ёмкость в реальном времени»). Ось X —
+    /// <see cref="MarketCapacityHistoryCalculator"/> отдаёт секунды с начала хода, не номер хода —
+    /// поле <c>Turn</c> в <see cref="LineChartDiagram.ChartSeries"/> используется тут просто как
+    /// обобщённая числовая ось, без изменений в самом графике. Материал без продаж в текущем ходу
+    /// получает единственную точку «100% на начало хода», чтобы линия не пропадала из легенды.
+    /// </summary>
+    public static LineChartDiagram.ChartLayout BuildMarketCapacityChart(GameSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        var rawMaterials = session.State.Config.Materials.Values
+            .Where(material => material.IsRawMaterial)
+            .OrderBy(material => material.Name, StringComparer.Ordinal)
+            .ToList();
+        var pointsByMaterialId = MarketCapacityHistoryCalculator.SummarizeCurrentTurn(session.Entries, session.State.Config);
+        var series = rawMaterials
+            .Select((material, index) => new LineChartDiagram.ChartSeries(
+                material.Name, SectorColors.Palette[index % SectorColors.Palette.Length],
+                pointsByMaterialId.GetValueOrDefault(material.Id, [(0, 100m)])))
+            .ToList();
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 900, 320, value => value.ToString("0") + "%");
+    }
+
     /// <summary>Агрегированная сводка доски потребностей для большого экрана.</summary>
     public sealed record NeedsSummary(int ActiveCount, IReadOnlyList<string> MostSoughtMaterialNames);
 
