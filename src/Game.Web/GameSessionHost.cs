@@ -257,7 +257,7 @@ public sealed class GameSessionHost
             foreach (var registration in Session.State.Participants.Values)
             {
                 logger.LogInformation(
-                    "Код входа {Code}: {Role} {DisplayName}", registration.Code, registration.Role, registration.DisplayName);
+                    "Код {Role} {DisplayName}: {Code}", registration.Role, registration.DisplayName, registration.Code);
             }
         }
 
@@ -326,7 +326,7 @@ public sealed class GameSessionHost
             var entry = Session.RegisterParticipant(role, teamId, displayName, Random.Shared);
             var registered = (ParticipantRegistered)entry.Change;
             _logger.LogInformation(
-                "Код входа {Code}: {Role} {DisplayName}", registered.Code, registered.Role, registered.DisplayName);
+                "Код {Role} {DisplayName}: {Code}", registered.Role, registered.DisplayName, registered.Code);
             return entry;
         }
     }
@@ -378,7 +378,7 @@ public sealed class GameSessionHost
             {
                 session.ReregisterParticipant(participant.Code, participant.Role, participant.TeamId, participant.DisplayName);
                 _logger.LogInformation(
-                    "Код входа {Code}: {Role} {DisplayName}", participant.Code, participant.Role, participant.DisplayName);
+                    "Код {Role} {DisplayName}: {Code}", participant.Role, participant.DisplayName, participant.Code);
             }
 
             lock (_draftLock)
@@ -434,8 +434,8 @@ public sealed class GameSessionHost
             {
                 session.ReregisterParticipant(participant.Code, participant.Role, participant.TeamId, participant.DisplayName);
                 _logger.LogInformation(
-                    "Код входа {Code}: {Role} {DisplayName} (сохранён после сброса)",
-                    participant.Code, participant.Role, participant.DisplayName);
+                    "Код {Role} {DisplayName}: {Code} (сохранён после сброса)",
+                    participant.Role, participant.DisplayName, participant.Code);
             }
 
             Session = session;
