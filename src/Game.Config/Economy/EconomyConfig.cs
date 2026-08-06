@@ -19,8 +19,19 @@ public sealed record EconomyConfig
     /// <summary>Понижающий коэффициент цены при продаже сверх ёмкости рынка (0..1).</summary>
     public required decimal MarketCapacityOverflowDiscount { get; init; }
 
-    /// <summary>Базовая цена электричества (потребляется фабриками уровня 2 и выше).</summary>
+    /// <summary>Базовая цена электричества.</summary>
     public required decimal ElectricityBasePrice { get; init; }
+
+    /// <summary>
+    /// Расход электричества на единицу выпуска — вместе с текущей <see
+    /// cref="Game.Domain.Market.ElectricityPrice"/> даёт переменную часть затрат фабрики на работу
+    /// (энергия, растёт вместе с объёмом выпуска, в отличие от фиксированной
+    /// <see cref="Game.Config.Catalog.FactoryDefinitionConfig.FixedCostPerTurn"/> — запрос
+    /// пользователя: «если фабрика работает — рост затрат пропорционален»). Единая ставка для всех
+    /// типов фабрик и уровней передела — не про то, что производит фабрика, а про сам факт работы.
+    /// Заглушка, требует калибровки.
+    /// </summary>
+    public required decimal ElectricityConsumptionPerOutputUnit { get; init; }
 
     /// <summary>Сценарный тренд сессии, разбитый на отрезки ходов.</summary>
     public required IReadOnlyList<EconomyTrendPhaseConfig> TrendScenario { get; init; }

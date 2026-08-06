@@ -22,6 +22,7 @@ public class MarketSaleCalculatorTests
             },
             MarketCapacityOverflowDiscount = 0.5m,
             ElectricityBasePrice = 1m,
+            ElectricityConsumptionPerOutputUnit = 0m,
             TrendScenario = Array.Empty<EconomyTrendPhaseConfig>(),
             WarehouseLiquidationRate = 0.5m,
         };

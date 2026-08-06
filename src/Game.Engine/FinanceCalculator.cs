@@ -1,3 +1,4 @@
+using Game.Config.Catalog;
 using Game.Config.Economy;
 using Game.Config.Session;
 using Game.Domain;
@@ -84,5 +85,19 @@ public static class FinanceCalculator
         ArgumentNullException.ThrowIfNull(productivity);
 
         return totalWorkers * productivity.SalaryPerWorkerPerTurn;
+    }
+
+    /// <summary>
+    /// Суммарные капитальные затраты за один ход по всем построенным фабрикам команды
+    /// (<see cref="FactoryDefinitionConfig.FixedCostPerTurn"/>) — платится за каждую построенную
+    /// фабрику вне зависимости от числа рабочих и объёма выпуска (запрос пользователя: «платим за
+    /// фабрику, даже если она вообще не работает»).
+    /// </summary>
+    public static decimal CalculateFactoryUpkeep(IReadOnlyList<Factory> factories, IReadOnlyList<FactoryDefinitionConfig> factoryDefinitions)
+    {
+        ArgumentNullException.ThrowIfNull(factories);
+        ArgumentNullException.ThrowIfNull(factoryDefinitions);
+
+        return factories.Sum(factory => factoryDefinitions.First(definition => definition.Id == factory.Definition.Id).FixedCostPerTurn);
     }
 }

@@ -50,6 +50,7 @@ internal static class GameConfigTestBuilder
                 MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
+                ElectricityConsumptionPerOutputUnit = 0m,
                 TrendScenario = Array.Empty<EconomyTrendPhaseConfig>(),
                 WarehouseLiquidationRate = 0.5m,
             },

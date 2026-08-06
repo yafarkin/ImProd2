@@ -56,6 +56,12 @@ public static class FinanceHistoryCalculator
         /// <summary>Плата за превышение бесплатного лимита склада за ход (<see cref="WarehouseFeeCharged"/>).</summary>
         WarehouseFee,
 
+        /// <summary>Капитальные затраты на содержание построенных фабрик за ход (<see cref="FactoryUpkeepPaid"/>).</summary>
+        FactoryUpkeep,
+
+        /// <summary>Переменные затраты на работу фабрики за ход — энергия, растёт с объёмом выпуска (<see cref="FactoryProduced.OverheadCost"/>).</summary>
+        FactoryOverhead,
+
         /// <summary>Исполнение поставки по контракту — оплата (мы покупатель) или поступление (мы продавец) (<see cref="ContractDelivered"/>).</summary>
         ContractDelivery,
 
@@ -133,6 +139,12 @@ public static class FinanceHistoryCalculator
                     break;
                 case WarehouseFeeCharged change when change.TeamId == teamId && change.Amount > 0:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.WarehouseFee, MoneyDirection.Expense, change.Amount, Rate: null));
+                    break;
+                case FactoryUpkeepPaid change when change.TeamId == teamId && change.Amount > 0:
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryUpkeep, MoneyDirection.Expense, change.Amount, Rate: null));
+                    break;
+                case FactoryProduced change when change.TeamId == teamId && change.OverheadCost > 0:
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryOverhead, MoneyDirection.Expense, change.OverheadCost, Rate: null));
                     break;
                 case GrantIssued change when change.TeamId == teamId:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.GrantReceived, MoneyDirection.Income, change.Amount, Rate: null));

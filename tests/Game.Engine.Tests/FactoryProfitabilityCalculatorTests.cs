@@ -133,6 +133,54 @@ public class FactoryProfitabilityCalculatorTests
     }
 
     [Fact]
+    public void TryCalculate_Subtracts_Fixed_And_Output_Proportional_Overhead_From_Profit()
+    {
+        // Запрос пользователя: виджет должен учитывать капитальные затраты фабрики, а не только
+        // сырьё и зарплату — иначе он систематически завышает реальную прибыльность.
+        var factory = NewFactory(workers: 5); // 5 листов/тик: 10 руды, 5 угля
+        var warehouse = WarehouseWith(ore: 1000m, coal: 1000m);
+        var market = new Market();
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
+        {
+            [Ore.Id] = new(2m, 1000m),
+            [Coal.Id] = new(1m, 1000m),
+            [Sheet.Id] = new(10m, 1000m),
+        }, electricityPrice: 3m);
+
+        FactoryProfitabilityCalculator.TryCalculate(
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
+            salaryPerWorkerPerTurn: Productivity.SalaryPerWorkerPerTurn, out var estimate,
+            fixedCostPerTurn: 8m, electricityConsumptionPerOutputUnit: 1m);
+
+        // OverheadCost = 8 (капитальные) + 5 листов * 1 * 3 (энергия) = 23.
+        Assert.Equal(23m, estimate.OverheadCost);
+        Assert.Equal(50m - 25m - 25m - 23m, estimate.Profit); // выручка - сырьё - зарплата - содержание
+    }
+
+    [Fact]
+    public void TryCalculate_Defaults_Overhead_To_Zero_When_Not_Provided()
+    {
+        // Обратная совместимость: вызывающая сторона, которая ещё не передаёт капитальные затраты,
+        // получает ровно то же поведение, что и раньше.
+        var factory = NewFactory(workers: 5);
+        var warehouse = WarehouseWith(ore: 1000m, coal: 1000m);
+        var market = new Market();
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
+        {
+            [Ore.Id] = new(2m, 1000m),
+            [Coal.Id] = new(1m, 1000m),
+            [Sheet.Id] = new(10m, 1000m),
+        }, electricityPrice: 3m);
+
+        FactoryProfitabilityCalculator.TryCalculate(
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
+            salaryPerWorkerPerTurn: Productivity.SalaryPerWorkerPerTurn, out var estimate);
+
+        Assert.Equal(0m, estimate.OverheadCost);
+        Assert.Equal(0m, estimate.Profit); // как в TryCalculate_Reports_Profit_When_Output_Price_Exceeds_Inputs_And_Wages
+    }
+
+    [Fact]
     public void TryCalculate_Splits_Scarce_Input_Between_Team_Factories_Sharing_A_Level()
     {
         var factoryA = NewFactory(workers: 5);

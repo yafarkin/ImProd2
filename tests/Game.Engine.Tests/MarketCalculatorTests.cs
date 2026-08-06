@@ -17,6 +17,7 @@ public class MarketCalculatorTests
             MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
             MarketCapacityOverflowDiscount = 0.5m,
             ElectricityBasePrice = 5m,
+            ElectricityConsumptionPerOutputUnit = 0m,
             TrendScenario = trend,
             WarehouseLiquidationRate = 0.5m,
         };

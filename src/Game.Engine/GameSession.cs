@@ -943,7 +943,8 @@ public sealed class GameSession
         {
             var reputation = GetReputation(team.Id);
             foreach (var change in TickFinanceStep.Run(
-                team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse, reputation.Percentage))
+                team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
+                config.Raw.FactoryDefinitions, reputation.Percentage))
             {
                 appended.Add(_log.Append(change));
             }
@@ -962,6 +963,13 @@ public sealed class GameSession
                 foreach (var result in results)
                 {
                     var factory = factoriesAtLevel.Single(f => f.Id == result.FactoryId);
+                    // Переменная часть затрат на работу фабрики (энергия) — растёт вместе с объёмом
+                    // выпуска, а не с числом рабочих или потреблённым сырьём (запрос пользователя),
+                    // и известна только здесь, после расчёта производства (см. doc-comment
+                    // TickFinanceStep — фиксированная часть, FactoryUpkeepPaid, списана раньше).
+                    var overheadCost = result.OutputQuantity
+                                        * config.Raw.Economy.ElectricityConsumptionPerOutputUnit
+                                        * State.Market.ElectricityPrice;
                     appended.Add(_log.Append(new FactoryProduced
                     {
                         Id = Ulid.NewUlid(),
@@ -971,6 +979,7 @@ public sealed class GameSession
                         OutputQuantity = result.OutputQuantity,
                         ConsumedInputs = result.ConsumedInputs,
                         LaborCost = factory.Workers * config.Raw.WorkerProductivity.SalaryPerWorkerPerTurn,
+                        OverheadCost = overheadCost,
                     }));
                 }
             }

@@ -190,12 +190,24 @@ internal static class TestGameConfig
     /// </summary>
     public static ResolvedGameConfig BuildWithWarehouse(WarehouseConfig warehouse) => Build(warehouse: warehouse);
 
+    /// <summary>
+    /// Собирает вариант базового конфига с ненулевыми капитальными затратами фабрики
+    /// (<see cref="FactoryDefinitionConfig.FixedCostPerTurn"/>, у обоих типов сразу) и/или
+    /// переменной частью (<see cref="EconomyConfig.ElectricityConsumptionPerOutputUnit"/>) — для
+    /// тестов <c>FactoryUpkeepPaid</c>/<c>TickFinanceStep</c>/<c>FactoryProduced.OverheadCost</c>,
+    /// которым не подходит заглушка 0 по умолчанию у <see cref="Resolved"/>.
+    /// </summary>
+    public static ResolvedGameConfig BuildWithFactoryUpkeep(decimal fixedCostPerTurn = 0m, decimal electricityConsumptionPerOutputUnit = 0m) =>
+        Build(fixedCostPerTurn: fixedCostPerTurn, electricityConsumptionPerOutputUnit: electricityConsumptionPerOutputUnit);
+
     private static ResolvedGameConfig Build(
         IReadOnlyList<NewsItemConfig>? news = null,
         IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null,
         PhaseTimingConfig? phaseTiming = null,
         bool addSecondMillRecipe = false,
-        WarehouseConfig? warehouse = null)
+        WarehouseConfig? warehouse = null,
+        decimal fixedCostPerTurn = 0m,
+        decimal electricityConsumptionPerOutputUnit = 0m)
     {
         var config = new GameConfig
         {
@@ -246,12 +258,14 @@ internal static class TestGameConfig
                 },
             FactoryDefinitions = new[]
             {
-                new FactoryDefinitionConfig { Id = "iron-mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m },
+                // FixedCostPerTurn=0 по умолчанию — большинство тестов этого файла не про капитальные
+                // затраты; тесты на них берут вариант через BuildWithFactoryUpkeep.
+                new FactoryDefinitionConfig { Id = "iron-mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = fixedCostPerTurn },
                 new FactoryDefinitionConfig
                 {
                     Id = "steel-mill", Name = "Сталелитейный завод", SectorId = "A",
                     RecipeIds = addSecondMillRecipe ? new[] { "sheet-from-ore", "wire-from-ore" } : new[] { "sheet-from-ore" },
-                    BuildCost = 100m, LiquidationValueCoefficient = 0.5m,
+                    BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = fixedCostPerTurn,
                 },
             },
             StartingConditions = new StartingConditionsConfig
@@ -282,6 +296,9 @@ internal static class TestGameConfig
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
+                // 0 по умолчанию — большинство тестов этого файла не про переменные затраты на
+                // работу фабрики; тесты на них берут вариант через BuildWithFactoryUpkeep.
+                ElectricityConsumptionPerOutputUnit = electricityConsumptionPerOutputUnit,
                 TrendScenario = trendScenario ?? Array.Empty<EconomyTrendPhaseConfig>(),
                 WarehouseLiquidationRate = 0.5m,
             },

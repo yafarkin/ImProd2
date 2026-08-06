@@ -23,4 +23,14 @@ public sealed record FactoryDefinitionConfig
     /// типа (SPEC §5.6, §5.11), 0..1. Заглушка, требует калибровки.
     /// </summary>
     public required decimal LiquidationValueCoefficient { get; init; }
+
+    /// <summary>
+    /// Капитальные затраты на существование фабрики за ход (амортизация, охрана, аренда площадки,
+    /// базовые коммунальные услуги) — списываются каждый ход, пока фабрика построена, вне
+    /// зависимости от числа рабочих и объёма выпуска (запрос пользователя: «платим за фабрику, даже
+    /// если она вообще не работает»). Переменная часть, растущая вместе с объёмом выпуска —
+    /// отдельно, см. <see cref="Game.Config.Economy.EconomyConfig.ElectricityConsumptionPerOutputUnit"/>.
+    /// Заглушка, требует калибровки.
+    /// </summary>
+    public required decimal FixedCostPerTurn { get; init; }
 }

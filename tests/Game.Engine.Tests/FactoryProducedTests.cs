@@ -18,6 +18,7 @@ public class FactoryProducedTests
             OutputQuantity = 3m,
             ConsumedInputs = new Dictionary<string, decimal> { [TestGameConfig.Ore.Id] = 6m },
             LaborCost = 15m,
+            OverheadCost = 0m,
         };
 
         var entry = log.Append(change);
@@ -44,6 +45,7 @@ public class FactoryProducedTests
             OutputQuantity = 0m,
             ConsumedInputs = new Dictionary<string, decimal> { [TestGameConfig.Ore.Id] = 0m },
             LaborCost = 15m,
+            OverheadCost = 0m,
         });
 
         Assert.Equal(0m, team.Warehouse.QuantityOf(TestGameConfig.Ore));
@@ -71,6 +73,7 @@ public class FactoryProducedTests
             OutputQuantity = result.OutputQuantity,
             ConsumedInputs = result.ConsumedInputs,
             LaborCost = 0m,
+            OverheadCost = 0m,
         });
 
         Assert.Equal(100m - result.ConsumedInputs[TestGameConfig.Ore.Id], team.Warehouse.QuantityOf(TestGameConfig.Ore));
@@ -94,6 +97,7 @@ public class FactoryProducedTests
             OutputQuantity = 5m,
             ConsumedInputs = new Dictionary<string, decimal>(),
             LaborCost = 25m,
+            OverheadCost = 0m,
         });
 
         Assert.Equal(5m, team.Warehouse.AverageCostOf(TestGameConfig.Ore)); // 25 / 5
@@ -115,6 +119,7 @@ public class FactoryProducedTests
             OutputQuantity = 10m,
             ConsumedInputs = new Dictionary<string, decimal>(),
             LaborCost = 20m, // реальная себестоимость руды: 2 за единицу
+            OverheadCost = 0m,
         });
 
         log.Append(new FactoryProduced
@@ -126,11 +131,58 @@ public class FactoryProducedTests
             OutputQuantity = 2m,
             ConsumedInputs = new Dictionary<string, decimal> { [TestGameConfig.Ore.Id] = 10m },
             LaborCost = 30m,
+            OverheadCost = 0m,
         });
 
         // Себестоимость листов = зарплата завода (30) + реальная (не рыночная) себестоимость
         // потреблённой руды (10 * 2 = 20) = 50, на 2 листа -> 25 за единицу.
         Assert.Equal(0m, team.Warehouse.QuantityOf(TestGameConfig.Ore));
         Assert.Equal(25m, team.Warehouse.AverageCostOf(TestGameConfig.Sheet));
+    }
+
+    [Fact]
+    public void Apply_Debits_The_Overhead_Cost_From_The_Balance_Unlike_Labor_Cost()
+    {
+        // В отличие от LaborCost (зарплата уже целиком списана через SalariesPaid до этого события —
+        // см. doc-comment FactoryProduced), у OverheadCost своего отдельного события списания нет: он
+        // ещё нигде не потрачен, поэтому Apply обязан списать его сам.
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
+        team.Credit(100m);
+
+        log.Append(new FactoryProduced
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = team.Id,
+            FactoryId = factory.Id,
+            CapacityLimitedOutputQuantity = 5m,
+            OutputQuantity = 5m,
+            ConsumedInputs = new Dictionary<string, decimal>(),
+            LaborCost = 25m,
+            OverheadCost = 4m,
+        });
+
+        Assert.Equal(96m, team.Balance); // 100 - 4 (LaborCost тут не списывается повторно)
+    }
+
+    [Fact]
+    public void Apply_Includes_The_Overhead_Cost_In_The_Produced_Batchs_Cost_Basis()
+    {
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
+
+        log.Append(new FactoryProduced
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = team.Id,
+            FactoryId = factory.Id,
+            CapacityLimitedOutputQuantity = 5m,
+            OutputQuantity = 5m,
+            ConsumedInputs = new Dictionary<string, decimal>(),
+            LaborCost = 25m,
+            OverheadCost = 5m,
+        });
+
+        Assert.Equal(6m, team.Warehouse.AverageCostOf(TestGameConfig.Ore)); // (25 + 5) / 5
     }
 }

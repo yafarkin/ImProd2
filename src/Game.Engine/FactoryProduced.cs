@@ -15,6 +15,11 @@ namespace Game.Engine;
 /// здесь это чисто бухгалтерская привязка реальной стоимости к конкретной партии товара на складе,
 /// см. <see cref="Domain.MaterialOnStock"/>), нужна вместе со списанной реальной себестоимостью
 /// входов, чтобы посчитать реальную (не рыночную) себестоимость новой партии выхода.
+/// <see cref="OverheadCost"/> — переменная часть затрат на работу фабрики (энергия, растёт вместе с
+/// объёмом выпуска), в отличие от <see cref="LaborCost"/> нигде заранее не списана: для неё нет
+/// своего аналога <see cref="SalariesPaid"/> (она не известна до расчёта производства за ход, см.
+/// doc-comment <see cref="TickFinanceStep"/>), поэтому здесь она одновременно и списывается с
+/// баланса, и относится на себестоимость партии.
 /// </summary>
 public sealed record FactoryProduced : Change<GameSessionState>
 {
@@ -36,6 +41,12 @@ public sealed record FactoryProduced : Change<GameSessionState>
     /// <summary>Зарплата, отнесённая на эту фабрику за этот ход (число рабочих × ставка за ход).</summary>
     public required decimal LaborCost { get; init; }
 
+    /// <summary>
+    /// Переменные затраты на работу фабрики за этот ход (энергия — объём выпуска × расход
+    /// электричества на единицу × текущая цена электричества), 0 при простое.
+    /// </summary>
+    public required decimal OverheadCost { get; init; }
+
     public override void Apply(GameSessionState state)
     {
         var team = state.Teams[TeamId];
@@ -56,10 +67,16 @@ public sealed record FactoryProduced : Change<GameSessionState>
 
         // Если выхода в этот ход нет (простой из-за нехватки сырья), LaborCost и consumedCostBasis
         // просто пропадают — деньги уже потрачены (зарплата, а не эта партия), а товара, на который
-        // их можно было бы отнести, не появилось. Так же и в жизни.
+        // их можно было бы отнести, не появилось. Так же и в жизни. OverheadCost в этом случае и так
+        // 0 (переменная часть пропорциональна OutputQuantity), списывать нечего.
         if (OutputQuantity > 0)
         {
-            team.Warehouse.Add(recipe.Output, OutputQuantity, LaborCost + consumedCostBasis);
+            team.Warehouse.Add(recipe.Output, OutputQuantity, LaborCost + OverheadCost + consumedCostBasis);
+        }
+
+        if (OverheadCost > 0)
+        {
+            team.Debit(OverheadCost);
         }
     }
 }

@@ -156,7 +156,7 @@ else
                 <select class="form-select w-auto" @bind="_selectedFactoryDefinitionId">
                     @foreach (var definition in _buildableDefinitions)
                     {
-                        <option value="@definition.Id">@definition.Name (@DashboardDisplay.FormatMoney(definition.BuildCost))</option>
+                        <option value="@definition.Id">@definition.Name (постройка @DashboardDisplay.FormatMoney(definition.BuildCost), обслуживание @DashboardDisplay.FormatMoney(definition.FixedCostPerTurn)/ход)</option>
                     }
                 </select>
                 <button type="button" class="btn btn-primary" disabled="@(!CanAffordSelectedBuild)" @onclick="BuildFactory">Построить</button>
@@ -224,7 +224,9 @@ else
                 {
                     var alreadyBuilt = _factoryOverviewRows.Any(n => n.Definition.Id == node.Definition.Id && n.Instance is not null);
                     var buildCost = _buildCosts.GetValueOrDefault(node.Definition.Id);
-                    var caption = (alreadyBuilt ? "построить ещё · от " : "не построена · от ") + DashboardDisplay.FormatMoney(buildCost);
+                    var upkeepCost = _upkeepCosts.GetValueOrDefault(node.Definition.Id);
+                    var caption = (alreadyBuilt ? "построить ещё · от " : "не построена · от ") + DashboardDisplay.FormatMoney(buildCost)
+                                  + " + " + DashboardDisplay.FormatMoney(upkeepCost) + "/ход";
                     <div class="border rounded p-2"
                          style="cursor:pointer; border-style:dashed; border-color:#898781;"
                          @onclick="() => SelectBuildable(node.Definition.Id)">
@@ -401,6 +403,7 @@ else
                                 <li>Выручка (по рыночной цене продукта): @DashboardDisplay.FormatMoney(profitability.Revenue)</li>
                                 <li>Затраты на сырьё (по рыночной цене): @DashboardDisplay.FormatMoney(profitability.InputCost)</li>
                                 <li>Зарплата рабочих: @DashboardDisplay.FormatMoney(profitability.WageCost)</li>
+                                <li>Содержание фабрики (аренда/охрана/амортизация + энергия): @DashboardDisplay.FormatMoney(profitability.OverheadCost)</li>
                                 <li>
                                     Итог: <strong class="@(profitability.Profit >= 0 ? "text-success" : "text-danger")">@DashboardDisplay.FormatMoney(profitability.Profit)</strong>
                                 </li>
@@ -756,7 +759,7 @@ else
     /// <summary>Одна строка таблицы «История по ходам» — что фабрика потребила со склада и сколько произвела за тот же ход (оба значения из одного и того же события <see cref="FactoryProduced"/>).</summary>
     private sealed record FactoryActivityRow(int Turn, string ConsumedSummary, decimal OutputQuantity);
 
-    private sealed record BuildableDefinition(string Id, string Name, decimal BuildCost);
+    private sealed record BuildableDefinition(string Id, string Name, decimal BuildCost, decimal FixedCostPerTurn);
 
     private sealed record ContractRow(
         Ulid ContractId, string Role, string CounterpartyName, string MaterialName,
@@ -849,6 +852,7 @@ else
     private int _baseWorkerCount;
     private readonly Dictionary<string, decimal> _teamWarehouseByMaterialId = new();
     private readonly Dictionary<string, decimal> _buildCosts = new();
+    private readonly Dictionary<string, decimal> _upkeepCosts = new();
     private Market? _market;
     private EconomyConfig? _economyConfig;
     private readonly Dictionary<string, decimal> _unitCostByMaterialId = new();
@@ -1016,9 +1020,11 @@ else
             var profitabilityByFactoryId = new Dictionary<Ulid, FactoryProfitabilityCalculator.FactoryProfitabilityEstimate>();
             foreach (var factory in team.Factories)
             {
+                var fixedCostPerTurn = state.Config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id).FixedCostPerTurn;
                 if (FactoryProfitabilityCalculator.TryCalculate(
                     factory, team.Factories, team.Warehouse, state.Market,
-                    state.Config.Raw.WorkerProductivity, state.Config.Raw.Rnd, salaryPerWorkerPerTurn, out var estimate))
+                    state.Config.Raw.WorkerProductivity, state.Config.Raw.Rnd, salaryPerWorkerPerTurn, out var estimate,
+                    fixedCostPerTurn, state.Config.Raw.Economy.ElectricityConsumptionPerOutputUnit))
                 {
                     profitabilityByFactoryId[factory.Id] = estimate;
                 }
@@ -1097,8 +1103,11 @@ else
             // делить дефицитное сырьё между ними помогает AllocationShare (см. карточки фабрик ниже).
             var sectorDefinitions = state.Config.FactoryDefinitions.Where(d => d.Sector == team.Sector).ToList();
             _buildableDefinitions = sectorDefinitions
-                .Select(d => new BuildableDefinition(
-                    d.Id, d.Name, state.Config.Raw.FactoryDefinitions.First(f => f.Id == d.Id).BuildCost))
+                .Select(d =>
+                {
+                    var raw = state.Config.Raw.FactoryDefinitions.First(f => f.Id == d.Id);
+                    return new BuildableDefinition(d.Id, d.Name, raw.BuildCost, raw.FixedCostPerTurn);
+                })
                 .ToList();
             if (_selectedFactoryDefinitionId is null || _buildableDefinitions.All(d => d.Id != _selectedFactoryDefinitionId))
             {
@@ -1106,9 +1115,12 @@ else
             }
 
             _buildCosts.Clear();
+            _upkeepCosts.Clear();
             foreach (var definition in sectorDefinitions)
             {
-                _buildCosts[definition.Id] = state.Config.Raw.FactoryDefinitions.First(f => f.Id == definition.Id).BuildCost;
+                var raw = state.Config.Raw.FactoryDefinitions.First(f => f.Id == definition.Id);
+                _buildCosts[definition.Id] = raw.BuildCost;
+                _upkeepCosts[definition.Id] = raw.FixedCostPerTurn;
             }
             var lastTurnOutputByFactoryId = _factories
                 .Where(f => f.ActivityHistory.Count > 0)

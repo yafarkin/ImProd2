@@ -15,13 +15,19 @@ namespace Game.Engine;
 /// </summary>
 public static class FactoryProfitabilityCalculator
 {
-    /// <summary>Оценка прибыльности одной фабрики за предстоящий тик при текущих остатках склада и рыночных ценах.</summary>
+    /// <summary>
+    /// Оценка прибыльности одной фабрики за предстоящий тик при текущих остатках склада и рыночных
+    /// ценах. <see cref="OverheadCost"/> — та же капитальная + переменная часть затрат на работу
+    /// фабрики, что реально списывается за тик (<see cref="FactoryUpkeepPaid"/> +
+    /// <see cref="FactoryProduced.OverheadCost"/>), 0 у вызывающей стороны, которая её не передала.
+    /// </summary>
     public sealed record FactoryProfitabilityEstimate(
         decimal ProjectedOutputQuantity,
         decimal CapacityLimitedOutputQuantity,
         decimal Revenue,
         decimal InputCost,
         decimal WageCost,
+        decimal OverheadCost,
         decimal Profit,
         bool HasPriceSignal);
 
@@ -33,12 +39,17 @@ public static class FactoryProfitabilityCalculator
     /// сырьё (<see cref="Factory.AllocationShare"/>), а не считала фабрику в отрыве от соседей.
     /// Возвращает <c>false</c>, если у выхода фабрики или у любого потреблённого ею материала ещё
     /// нет рыночной котировки (<see cref="Market.HasQuote"/>) — тот же приём отказа, что у
-    /// <c>DashboardDisplay.TryCalculateUnitCost</c>.
+    /// <c>DashboardDisplay.TryCalculateUnitCost</c>. <paramref name="fixedCostPerTurn"/> и
+    /// <paramref name="electricityConsumptionPerOutputUnit"/> по умолчанию 0 — тогда виджет считает
+    /// как раньше, без капитальных затрат (это не заглушка «выключено по умолчанию», а обязанность
+    /// вызывающей стороны передать значения из конфига, см. <see cref="FactoryHistoryCalculator"/>).
     /// </summary>
     public static bool TryCalculate(
         Factory factory, IReadOnlyList<Factory> teamFactories, Warehouse warehouse, Market market,
         WorkerProductivityConfig productivity, RndConfig rnd, decimal salaryPerWorkerPerTurn,
-        out FactoryProfitabilityEstimate estimate)
+        out FactoryProfitabilityEstimate estimate,
+        decimal fixedCostPerTurn = 0m,
+        decimal electricityConsumptionPerOutputUnit = 0m)
     {
         ArgumentNullException.ThrowIfNull(factory);
         ArgumentNullException.ThrowIfNull(teamFactories);
@@ -58,7 +69,7 @@ public static class FactoryProfitabilityCalculator
         if (!market.HasQuote(outputMaterial.Id))
         {
             estimate = new FactoryProfitabilityEstimate(
-                result.OutputQuantity, result.CapacityLimitedOutputQuantity, 0m, 0m, 0m, 0m, HasPriceSignal: false);
+                result.OutputQuantity, result.CapacityLimitedOutputQuantity, 0m, 0m, 0m, 0m, 0m, HasPriceSignal: false);
             return false;
         }
 
@@ -68,7 +79,7 @@ public static class FactoryProfitabilityCalculator
             if (!market.HasQuote(materialId))
             {
                 estimate = new FactoryProfitabilityEstimate(
-                    result.OutputQuantity, result.CapacityLimitedOutputQuantity, 0m, 0m, 0m, 0m, HasPriceSignal: false);
+                    result.OutputQuantity, result.CapacityLimitedOutputQuantity, 0m, 0m, 0m, 0m, 0m, HasPriceSignal: false);
                 return false;
             }
 
@@ -77,10 +88,15 @@ public static class FactoryProfitabilityCalculator
 
         var revenue = result.OutputQuantity * market.QuoteOf(outputMaterial.Id).Price;
         var wageCost = factory.Workers * salaryPerWorkerPerTurn;
-        var profit = revenue - inputCost - wageCost;
+        // Те же два слагаемых, что реально списываются с баланса при настоящем производстве (см.
+        // FactoryUpkeepPaid и FactoryProduced.OverheadCost) — иначе оценка тут была бы систематически
+        // оптимистичнее реального результата (запрос пользователя: виджет должен считать так же, как
+        // считает реальный тик, а не только по зарплате и рыночным ценам).
+        var overheadCost = fixedCostPerTurn + result.OutputQuantity * electricityConsumptionPerOutputUnit * market.ElectricityPrice;
+        var profit = revenue - inputCost - wageCost - overheadCost;
 
         estimate = new FactoryProfitabilityEstimate(
-            result.OutputQuantity, result.CapacityLimitedOutputQuantity, revenue, inputCost, wageCost, profit,
+            result.OutputQuantity, result.CapacityLimitedOutputQuantity, revenue, inputCost, wageCost, overheadCost, profit,
             HasPriceSignal: true);
         return true;
     }

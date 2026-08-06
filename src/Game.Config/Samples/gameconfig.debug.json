@@ -246,7 +246,8 @@
         "rock-mining"
       ],
       "BuildCost": 500,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
     },
     {
       "Id": "concentration-plant",
@@ -257,7 +258,8 @@
         "copper-extraction"
       ],
       "BuildCost": 850,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 17
     },
     {
       "Id": "steel-mill",
@@ -267,7 +269,8 @@
         "iron-sheet-from-iron"
       ],
       "BuildCost": 1500,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 30
     },
     {
       "Id": "copper-mill",
@@ -277,7 +280,8 @@
         "copper-sheet-from-copper"
       ],
       "BuildCost": 1500,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 30
     },
     {
       "Id": "rolling-mill",
@@ -287,7 +291,8 @@
         "rebar-from-iron-sheet"
       ],
       "BuildCost": 2500,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 50
     },
     {
       "Id": "wire-mill",
@@ -297,7 +302,8 @@
         "copper-wire-from-copper-sheet"
       ],
       "BuildCost": 2500,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 50
     },
     {
       "Id": "steel-structure-plant",
@@ -307,7 +313,8 @@
         "steel-structures-from-rebar"
       ],
       "BuildCost": 4000,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 80
     },
     {
       "Id": "cable-plant",
@@ -317,7 +324,8 @@
         "electric-cable-from-copper-wire"
       ],
       "BuildCost": 4000,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 80
     },
     {
       "Id": "steel-goods-plant",
@@ -327,7 +335,8 @@
         "steel-goods-from-steel-structures"
       ],
       "BuildCost": 6000,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 120
     },
     {
       "Id": "electric-goods-plant",
@@ -337,7 +346,8 @@
         "electric-goods-from-electric-cable"
       ],
       "BuildCost": 6000,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 120
     },
     {
       "Id": "oil-well",
@@ -347,7 +357,8 @@
         "oil-drilling"
       ],
       "BuildCost": 500,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
     },
     {
       "Id": "petrochemical-plant",
@@ -357,7 +368,8 @@
         "plastic-from-oil"
       ],
       "BuildCost": 1500,
-      "LiquidationValueCoefficient": 0.5
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 30
     }
   ],
   "StartingConditions": {
@@ -386,7 +398,7 @@
     "BaseMarketPerMaterial": [
       {
         "MaterialId": "rock",
-        "BasePrice": 1,
+        "BasePrice": 0.1,
         "BaseCapacity": 5000
       },
       {
@@ -474,6 +486,7 @@
     ],
     "MarketCapacityOverflowDiscount": 0.5,
     "ElectricityBasePrice": 2.0,
+    "ElectricityConsumptionPerOutputUnit": 0.01,
     "TrendScenario": [
       {
         "Trend": "Stable",

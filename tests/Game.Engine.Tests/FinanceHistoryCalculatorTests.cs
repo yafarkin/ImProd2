@@ -252,6 +252,49 @@ public class FinanceHistoryCalculatorTests
     }
 
     [Fact]
+    public void Summarize_Captures_FactoryUpkeepPaid_As_An_Expense()
+    {
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
+        log.Append(new FactoryUpkeepPaid { Id = Ulid.NewUlid(), TeamId = team.Id, FactoryCount = 2, Amount = 20m });
+
+        var operation = Assert.Single(FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id));
+
+        Assert.Equal(FinanceHistoryCalculator.OperationType.FactoryUpkeep, operation.Type);
+        Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, operation.Direction);
+        Assert.Equal(20m, operation.Amount);
+    }
+
+    [Fact]
+    public void Summarize_Captures_FactoryProduced_OverheadCost_As_An_Expense()
+    {
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factoryId = Ulid.NewUlid();
+        log.Append(new FactoryBuilt
+        {
+            Id = Ulid.NewUlid(), TeamId = team.Id, FactoryId = factoryId,
+            FactoryDefinitionId = TestGameConfig.Mine.Id, RecipeId = TestGameConfig.Mine.Recipes[0].Id, Cost = 100m,
+        });
+        log.Append(new FactoryProduced
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = team.Id,
+            FactoryId = factoryId,
+            CapacityLimitedOutputQuantity = 5m,
+            OutputQuantity = 5m,
+            ConsumedInputs = new Dictionary<string, decimal>(),
+            LaborCost = 25m,
+            OverheadCost = 8m,
+        });
+
+        var operation = Assert.Single(
+            FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id),
+            o => o.Type == FinanceHistoryCalculator.OperationType.FactoryOverhead);
+
+        Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, operation.Direction);
+        Assert.Equal(8m, operation.Amount);
+    }
+
+    [Fact]
     public void Summarize_Captures_GrantReceived_As_Income()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
