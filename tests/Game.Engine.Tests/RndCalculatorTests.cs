@@ -8,6 +8,7 @@ public class RndCalculatorTests
     {
         CumulativeInvestmentThresholdsByLevel = new[] { 100m, 300m, 600m }, // 1->2, 2->3, 3->4
         ProductionRateBonusPerLevel = 0.1m,
+        MaxCommitmentPerTurn = 1000m,
     };
 
     [Fact]

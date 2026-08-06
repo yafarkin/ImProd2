@@ -51,18 +51,44 @@ public sealed class SimpleBot
     /// Берёт первый кредит (команды больше не получают стартовый капитал автоматически — это их
     /// первое собственное финансовое решение, SPEC §5.1; боту нужен детерминированный эквивалент
     /// для калибровки, поэтому сумма — <see cref="Game.Config.Session.StartingConditionsConfig.MaxStartingLoanAmount"/>),
-    /// затем строит все фабрики сектора и нанимает на каждую базовую численность рабочих.
-    /// Вызывать один раз, на первом ходу.
+    /// строит все УЖЕ разблокированные фабрики сектора (Блок 9.2 — более глубокие переделы
+    /// открываются постепенно, не сразу; остальные достраивает по мере разблокировки
+    /// <see cref="BuildNewlyUnlockedFactories"/>) и нанимает на каждую базовую численность рабочих,
+    /// а также объявляет постоянное вложение в исследование следующего поколения на максимум
+    /// потолка — чтобы бот вообще прогрессировал по пирамиде, а не застревал на стартовом поколении
+    /// навсегда. Вызывать один раз, на первом ходу.
     /// </summary>
     public void BuildOutSectorChain(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
         session.TakeLoan(TeamId, session.State.Config.Raw.StartingConditions.MaxStartingLoanAmount);
+        session.SetGenerationResearchCommitment(TeamId, session.State.Config.Raw.GenerationResearch.MaxCommitmentPerTurn);
 
+        BuildNewlyUnlockedFactories(session);
+    }
+
+    /// <summary>
+    /// Достраивает те фабрики сектора, которые ещё не построены и уже разблокированы (Блок 9.2) —
+    /// на первом ходу это подмножество, доступное сразу; на последующих — то, что только что
+    /// открылось благодаря <see cref="GameSession.SetGenerationResearchCommitment"/>, объявленному в
+    /// <see cref="BuildOutSectorChain"/>. Вызывать каждый ход решений, идемпотентно (уже
+    /// построенные типы пропускаются).
+    /// </summary>
+    public void BuildNewlyUnlockedFactories(GameSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        var team = session.State.Teams[TeamId];
+        var builtDefinitionIds = team.Factories.Select(f => f.Definition.Id).ToHashSet();
         var baseWorkerCount = session.State.Config.Raw.WorkerProductivity.BaseWorkerCount;
         foreach (var definition in _sectorFactories)
         {
+            if (builtDefinitionIds.Contains(definition.Id) || definition.Recipes[0].Output.Level > team.UnlockedGeneration)
+            {
+                continue;
+            }
+
             var built = (FactoryBuilt)session.BuildFactory(TeamId, definition.Id).Change;
             session.HireWorkers(TeamId, built.FactoryId, baseWorkerCount);
         }
@@ -90,7 +116,10 @@ public sealed class SimpleBot
     /// Раз в <see cref="ContractIntervalTurns"/> ходов заключает и сразу подтверждает простой
     /// spot-контракт на поставку финального продукта партнёру по сектору (SPEC §6). Обе заявки
     /// вычисляет сам вызывающий код — это не имитация переговоров двух независимых игроков, а
-    /// механическое упражнение контрактной машины движка при автопрогоне (Блок 7.2).
+    /// механическое упражнение контрактной машины движка при автопрогоне (Блок 7.2). Ничего не
+    /// подписывает, пока продавец ещё не построил фабрику финального продукта (Блок 9.2: она может
+    /// быть временно недоступна — ждёт исследования следующего поколения) — иначе бот обещал бы
+    /// поставку того, что физически не производит, и гарантированно сорвал бы её.
     /// </summary>
     public static void TrySignSimpleContract(GameSession session, SimpleBot seller, SimpleBot buyer, Random confirmationCodeRandom)
     {
@@ -101,6 +130,12 @@ public sealed class SimpleBot
 
         var turn = session.State.CurrentTurn;
         if (turn % ContractIntervalTurns != 0)
+        {
+            return;
+        }
+
+        var sellerTeam = session.State.Teams[seller.TeamId];
+        if (!sellerTeam.Factories.Any(f => f.SelectedRecipe.Output == seller.FinalMaterial))
         {
             return;
         }

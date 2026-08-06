@@ -140,10 +140,9 @@ public class FactoryHistoryCalculatorTests
         session.RunTick(new Random(1));
 
         var team = session.State.Teams[teamId];
-        var salary = TestGameConfig.Resolved.Raw.WorkerProductivity.SalaryPerWorkerPerTurn;
         var found = FactoryProfitabilityCalculator.TryCalculate(
             team.Factories.Single(), team.Factories, team.Warehouse, session.State.Market,
-            TestGameConfig.Resolved.Raw.WorkerProductivity, TestGameConfig.Resolved.Raw.Rnd, salary,
+            TestGameConfig.Resolved.Raw.WorkerProductivity, TestGameConfig.Resolved.Raw.Rnd,
             out var liveEstimate);
         Assert.True(found);
 

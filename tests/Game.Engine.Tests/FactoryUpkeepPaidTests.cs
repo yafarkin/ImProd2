@@ -21,7 +21,7 @@ public class FactoryUpkeepPaidTests
 
         var changes = TickFinanceStep.Run(
             team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-            config.Raw.FactoryDefinitions, reputationPercentage: 100m);
+            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputationPercentage: 100m);
 
         var upkeep = Assert.IsType<FactoryUpkeepPaid>(Assert.Single(changes));
         Assert.Equal(10m, upkeep.Amount); // 0 рабочих, ноль зарплаты — но апкип платится в любом случае
@@ -39,7 +39,7 @@ public class FactoryUpkeepPaidTests
 
         var changes = TickFinanceStep.Run(
             team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-            config.Raw.FactoryDefinitions, reputationPercentage: 100m);
+            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputationPercentage: 100m);
 
         var upkeep = Assert.IsType<FactoryUpkeepPaid>(Assert.Single(changes));
         Assert.Equal(20m, upkeep.Amount); // 10 + 10 — два типа, у обоих FixedCostPerTurn=10 в этом варианте конфига
@@ -54,7 +54,7 @@ public class FactoryUpkeepPaidTests
 
         var changes = TickFinanceStep.Run(
             team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-            config.Raw.FactoryDefinitions, reputationPercentage: 100m);
+            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputationPercentage: 100m);
 
         Assert.Empty(changes);
     }
@@ -70,7 +70,7 @@ public class FactoryUpkeepPaidTests
 
         var changes = TickFinanceStep.Run(
             team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-            config.Raw.FactoryDefinitions, reputationPercentage: 100m);
+            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputationPercentage: 100m);
 
         Assert.Equal(2, changes.Count);
         Assert.IsType<SalariesPaid>(changes[0]);

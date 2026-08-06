@@ -143,7 +143,7 @@ public static class FactoryHistoryCalculator
             var fixedCostPerTurn = config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id).FixedCostPerTurn;
             if (!FactoryProfitabilityCalculator.TryCalculate(
                     factory, team.Factories, team.Warehouse, scratch.Market,
-                    config.Raw.WorkerProductivity, config.Raw.Rnd, config.Raw.WorkerProductivity.SalaryPerWorkerPerTurn,
+                    config.Raw.WorkerProductivity, config.Raw.Rnd,
                     out var estimate, fixedCostPerTurn, config.Raw.Economy.ElectricityConsumptionPerOutputUnit))
             {
                 continue;

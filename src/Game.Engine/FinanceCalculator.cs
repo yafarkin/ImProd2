@@ -79,12 +79,27 @@ public static class FinanceCalculator
         return repayment is > 0m and < 1m ? team.Debt : repayment;
     }
 
-    /// <summary>Суммарная зарплата за один ход для заданного числа рабочих.</summary>
+    /// <summary>
+    /// Суммарная зарплата за один ход для заданной ОБЩЕЙ численности рабочих команды (сумма по всем
+    /// её фабрикам, не одной фабрики) — линейно до <see cref="WorkerProductivityConfig.TeamSalaryBaseWorkerCount"/>,
+    /// дальше рабочие сверх порога обходятся дороже базовой ставки в <see cref="WorkerProductivityConfig.SalaryEscalationFactor"/>
+    /// раз (зеркало убывающей отдачи выработки, <see cref="ProductionCalculator"/>, но для стоимости,
+    /// а не выработки — запрос пользователя: раздувать одну фабрику должно становиться дороже само
+    /// по себе, без штрафов за неудачу).
+    /// </summary>
     public static decimal CalculateSalaries(int totalWorkers, WorkerProductivityConfig productivity)
     {
         ArgumentNullException.ThrowIfNull(productivity);
 
-        return totalWorkers * productivity.SalaryPerWorkerPerTurn;
+        if (totalWorkers <= productivity.TeamSalaryBaseWorkerCount)
+        {
+            return totalWorkers * productivity.SalaryPerWorkerPerTurn;
+        }
+
+        var baseCost = productivity.TeamSalaryBaseWorkerCount * productivity.SalaryPerWorkerPerTurn;
+        var excessWorkers = totalWorkers - productivity.TeamSalaryBaseWorkerCount;
+        var excessCost = excessWorkers * productivity.SalaryPerWorkerPerTurn * productivity.SalaryEscalationFactor;
+        return baseCost + excessCost;
     }
 
     /// <summary>

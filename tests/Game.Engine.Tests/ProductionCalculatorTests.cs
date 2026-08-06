@@ -40,6 +40,8 @@ public class ProductionCalculatorTests
         HireCostPerWorker = 100m,
         FireCostPerWorker = 50m,
         SalaryPerWorkerPerTurn = 5m,
+        TeamSalaryBaseWorkerCount = 1000,
+        SalaryEscalationFactor = 1.5m,
     };
 
     // Нулевой бонус — большинство тестов проверяют мощность/сырьё изолированно от R&D;
@@ -48,6 +50,7 @@ public class ProductionCalculatorTests
     {
         CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
         ProductionRateBonusPerLevel = 0m,
+        MaxCommitmentPerTurn = 1000m,
     };
 
     private static Factory NewFactory(int workers)
@@ -178,6 +181,7 @@ public class ProductionCalculatorTests
         {
             CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
             ProductionRateBonusPerLevel = 0.2m, // +20% за уровень сверх первого
+            MaxCommitmentPerTurn = 1000m,
         };
 
         var result = ProductionCalculator.Calculate(factory, warehouse, Productivity, rnd);
@@ -310,6 +314,7 @@ public class ProductionCalculatorTests
         {
             CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
             ProductionRateBonusPerLevel = 0.2m, // +20% за уровень сверх первого
+            MaxCommitmentPerTurn = 1000m,
         };
 
         var breakdown = ProductionCalculator.CalculateCapacityBreakdown(factory, Productivity, rnd);

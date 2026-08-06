@@ -113,7 +113,7 @@ public class ContractEventsTests
 
         log.Append(new EmergencyPurchased
         {
-            Id = Ulid.NewUlid(), TeamId = buyer.Id, MaterialId = "ore", Volume = 5m, UnitPrice = 20m, TotalCost = 100m,
+            Id = Ulid.NewUlid(), Turn = 1, TeamId = buyer.Id, MaterialId = "ore", Volume = 5m, UnitPrice = 20m, TotalCost = 100m,
         });
 
         Assert.Equal(5m, buyer.Warehouse.QuantityOf(TestGameConfig.Ore));

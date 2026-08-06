@@ -68,6 +68,7 @@ else
 <ul class="nav nav-pills flex-nowrap mb-3" style="overflow-x:auto; white-space:nowrap">
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("overview")" @onclick='() => _activePageTab = "overview"'>Обзор</button></li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("factories")" @onclick='() => _activePageTab = "factories"'>Фабрики</button></li>
+    <li class="nav-item"><button type="button" class="nav-link @PageTabClass("technology")" @onclick='() => _activePageTab = "technology"'>Технологии</button></li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("warehouse")" @onclick='() => _activePageTab = "warehouse"'>Склад</button></li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("finance")" @onclick='() => _activePageTab = "finance"'>Финансы</button></li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("contracts")" @onclick='() => _activePageTab = "contracts"'>Контракты</button></li>
@@ -220,6 +221,13 @@ else
                         <div class="text-end small flex-shrink-0" style="font-weight:600; color:@loadColor">@outputText</div>
                     </div>
                 }
+                else if (level > _unlockedGeneration)
+                {
+                    <div class="border rounded p-2" style="border-style:dashed; border-color:#898781; opacity:0.7">
+                        <div style="font-weight:600">@node.Definition.Name</div>
+                        <div class="text-muted small">🔒 требует технологию поколения @level — см. вкладку «Технологии»</div>
+                    </div>
+                }
                 else
                 {
                     var alreadyBuilt = _factoryOverviewRows.Any(n => n.Definition.Id == node.Definition.Id && n.Instance is not null);
@@ -254,8 +262,7 @@ else
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("recipe")" @onclick='() => _activeFactoryTab = "recipe"'>Рецепт и склад</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("rnd")" @onclick='() => _activeFactoryTab = "rnd"'>R&amp;D</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("destination")" @onclick='() => _activeFactoryTab = "destination"'>Куда идёт продукция</button></li>
-                        <li class="nav-item"><button type="button" class="nav-link @TabClass("profitability")" @onclick='() => _activeFactoryTab = "profitability"'>Прибыльность</button></li>
-                        <li class="nav-item"><button type="button" class="nav-link @TabClass("pyramid")" @onclick='() => _activeFactoryTab = "pyramid"'>Себестоимость</button></li>
+                        <li class="nav-item"><button type="button" class="nav-link @TabClass("profitability")" @onclick='() => _activeFactoryTab = "profitability"'>Финансы</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("charts")" @onclick='() => _activeFactoryTab = "charts"'>Графики</button></li>
                     </ul>
 
@@ -340,19 +347,19 @@ else
                                 <text>(максимальный уровень)</text>
                             }
                         </p>
+                        <p>
+                            Сейчас выделяется: @factory.RndCommitmentPerTurn.ToString("0.##") ¤/ход
+                        </p>
                         @if (_canManage)
                         {
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_rndInvestAmounts[factory.FactoryId]" />
-                                <button type="button" class="btn btn-secondary btn-sm" disabled="@(!CanAffordRndInvestment(factory.FactoryId))" @onclick="() => InvestInRnd(factory.FactoryId)">Вложить в R&amp;D</button>
+                                <input type="number" min="0" max="@_maxRndCommitmentPerTurn" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_rndCommitmentAmounts[factory.FactoryId]" />
+                                <button type="button" class="btn btn-secondary btn-sm" @onclick="() => SetRndCommitment(factory.FactoryId)">Изменить</button>
                             </div>
-                            @if (!CanAffordRndInvestment(factory.FactoryId))
-                            {
-                                <p class="text-danger small mb-2">
-                                    Не хватает @DashboardDisplay.FormatMoney(_rndInvestAmounts.GetValueOrDefault(factory.FactoryId, 50m) - _balance) —
-                                    <button type="button" class="btn btn-link p-0 align-baseline" @onclick='() => _activePageTab = "finance"'>возьмите кредит в Финансах</button>.
-                                </p>
-                            }
+                            <p class="text-muted small mb-2">
+                                Списывается автоматически каждый ход, до @_maxRndCommitmentPerTurn.ToString("0.##") ¤/ход на одну
+                                фабрику — так рост уровня растянут по ходам, а не мгновенный за счёт большого кредита.
+                            </p>
                         }
                     }
                     else if (_activeFactoryTab == "destination")
@@ -392,34 +399,78 @@ else
                         </ul>
                         @if (factory.Profitability is { } profitability)
                         {
-                            <ul class="list-unstyled">
-                                <li>
-                                    Выпуск за ход при текущих остатках: @profitability.ProjectedOutputQuantity.ToString("0.##")
-                                    @if (profitability.ProjectedOutputQuantity < profitability.CapacityLimitedOutputQuantity)
-                                    {
-                                        <span class="text-danger">(ограничено нехваткой сырья, мощность — @profitability.CapacityLimitedOutputQuantity.ToString("0.##"))</span>
-                                    }
-                                </li>
-                                <li>Выручка (по рыночной цене продукта): @DashboardDisplay.FormatMoney(profitability.Revenue)</li>
-                                <li>Затраты на сырьё (по рыночной цене): @DashboardDisplay.FormatMoney(profitability.InputCost)</li>
-                                <li>Зарплата рабочих: @DashboardDisplay.FormatMoney(profitability.WageCost)</li>
-                                <li>Содержание фабрики (аренда/охрана/амортизация + энергия): @DashboardDisplay.FormatMoney(profitability.OverheadCost)</li>
-                                <li>
-                                    Итог: <strong class="@(profitability.Profit >= 0 ? "text-success" : "text-danger")">@DashboardDisplay.FormatMoney(profitability.Profit)</strong>
-                                </li>
-                            </ul>
+                            var isLimitedByStock = profitability.ProjectedOutputQuantity < profitability.CapacityLimitedOutputQuantity;
+                            <div class="table-responsive">
+                                <table class="table table-striped table-sm align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th></th>
+                                            <th>Сейчас</th>
+                                            <th>Максимум за ход@(isLimitedByStock ? "" : " (=сейчас, сырья хватает)")</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Выпуск, @factory.ProducedMaterial.Name</td>
+                                            <td>@profitability.ProjectedOutputQuantity.ToString("0.##")</td>
+                                            <td>@profitability.CapacityLimitedOutputQuantity.ToString("0.##")</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Выручка (по рыночной цене продукта)</td>
+                                            <td>@DashboardDisplay.FormatMoney(profitability.Revenue)</td>
+                                            <td>@DashboardDisplay.FormatMoney(profitability.MaxRevenue)</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Затраты на сырьё (по рыночной цене)</td>
+                                            <td>@DashboardDisplay.FormatMoney(profitability.InputCost)</td>
+                                            <td>@DashboardDisplay.FormatMoney(profitability.MaxInputCost)</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Зарплата рабочих</td>
+                                            <td colspan="2">@DashboardDisplay.FormatMoney(profitability.WageCost)</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Содержание фабрики (аренда/охрана/амортизация + энергия)</td>
+                                            <td>@DashboardDisplay.FormatMoney(profitability.OverheadCost)</td>
+                                            <td>@DashboardDisplay.FormatMoney(profitability.MaxOverheadCost)</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Себестоимость единицы</td>
+                                            <td>@DashboardDisplay.FormatUnitCost(profitability.UnitCost)</td>
+                                            <td>@DashboardDisplay.FormatUnitCost(profitability.MaxUnitCost)</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Рыночная цена</td>
+                                            <td colspan="2">@DashboardDisplay.FormatUnitCost(profitability.OutputPrice)</td>
+                                        </tr>
+                                        <tr class="border-top">
+                                            <td><strong>Итог (прибыль)</strong></td>
+                                            <td><strong class="@(profitability.Profit >= 0 ? "text-success" : "text-danger")">@DashboardDisplay.FormatMoney(profitability.Profit)</strong></td>
+                                            <td><strong class="@(profitability.MaxProfit >= 0 ? "text-success" : "text-danger")">@DashboardDisplay.FormatMoney(profitability.MaxProfit)</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            @if (isLimitedByStock)
+                            {
+                                <p class="text-danger mb-1"><em>Выпуск ограничен нехваткой сырья на складе — колонка «Максимум за ход» показывает, сколько получилось бы заработать, если бы сырья хватало на весь потолок мощности фабрики.</em></p>
+                            }
                             <p class="text-muted"><em>Оценка по текущим остаткам склада и рыночным ценам — не гарантирован факт на конец хода.</em></p>
                         }
                         else
                         {
                             <p><em>Прибыльность пока не посчитать — нет рыночных котировок.</em></p>
                         }
-                    }
-                    else if (_activeFactoryTab == "pyramid")
-                    {
+
+                        <h4 class="h6 mt-4">Теоретическая себестоимость с нуля (по всей цепочке сырья)</h4>
+                        <p class="text-muted small">
+                            <em>Другая оценка, чем «Себестоимость единицы» выше: не то, что реально стоило произвести эту
+                            партию сейчас, а то, сколько стоила бы единица, если бы всю цепочку — от этого материала до
+                            сырья в самом низу — покупали на рынке с нуля, без труда рабочих.</em>
+                        </p>
                         @if (factory.HasUnitCost)
                         {
-                            <p>Себестоимость единицы: @DashboardDisplay.FormatMoney(factory.UnitCost)</p>
+                            <p>Теоретическая себестоимость единицы: @DashboardDisplay.FormatUnitCost(factory.UnitCost)</p>
                             <ul>
                                 @foreach (var row in factory.Pyramid)
                                 {
@@ -429,7 +480,7 @@ else
                         }
                         else
                         {
-                            <p><em>Себестоимость пока не посчитать — нет рыночных котировок сырья.</em></p>
+                            <p><em>Теоретическая себестоимость пока не посчитать — нет рыночных котировок сырья.</em></p>
                         }
                     }
                     else if (_activeFactoryTab == "charts")
@@ -479,6 +530,38 @@ else
                 </div>
             </div>
         }
+    }
+</div>
+<div style="display:@(_activePageTab == "technology" ? "" : "none")">
+    <h3>Технологии</h3>
+    <p class="text-muted">
+        Более глубокие переделы пирамиды сырья открываются не сразу, а через отдельное командное
+        исследование — общий счётчик на всю команду, не по фабрикам.
+    </p>
+    <p>
+        Разблокировано поколение: <strong>@_unlockedGeneration</strong>
+        @if (_nextGenerationThreshold is { } nextThreshold)
+        {
+            <text>(накоплено очков исследований: @_generationResearchPoints.ToString("0.##") из @nextThreshold.ToString("0.##"))</text>
+        }
+        else
+        {
+            <text>(максимальное поколение)</text>
+        }
+    </p>
+    <p>Вложено всего: @_generationResearchInvestment.ToString("0.##") ¤</p>
+    <p>Сейчас выделяется: @_generationResearchCommitmentPerTurn.ToString("0.##") ¤/ход</p>
+    @if (_canManage)
+    {
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <input type="number" min="0" max="@_maxGenerationResearchCommitmentPerTurn" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_generationResearchCommitmentInput" />
+            <button type="button" class="btn btn-secondary btn-sm" @onclick="SetGenerationResearchCommitment">Изменить</button>
+        </div>
+        <p class="text-muted small">
+            Списывается автоматически каждый ход, до @_maxGenerationResearchCommitmentPerTurn.ToString("0.##") ¤/ход
+            на команду. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
+            всё сразу за счёт кредита.
+        </p>
     }
 </div>
 <div style="display:@(_activePageTab == "warehouse" ? "" : "none")">
@@ -544,7 +627,12 @@ else
         </div>
         @if (EmergencyPurchaseCost > 0)
         {
-            <p class="text-muted small">Стоимость: @DashboardDisplay.FormatMoney(EmergencyPurchaseCost)</p>
+            <p class="text-muted small">
+                Стоимость: @DashboardDisplay.FormatMoney(EmergencyPurchaseCost)
+                (множитель к рыночной цене: ×@EmergencyPurchaseEffectiveMultiplier.ToString("0.##") —
+                растёт с недавними экстренными закупками этого материала вашей командой, затухает
+                через несколько ходов без них)
+            </p>
         }
         @if (!CanAffordEmergencyPurchase)
         {
@@ -750,7 +838,7 @@ else
         Material ProducedMaterial, string SelectedRecipeName, IReadOnlyList<(string Id, string Name)> RecipeOptions,
         IReadOnlyList<RecipeInput> Inputs,
         bool HasUnitCost, decimal UnitCost, IReadOnlyList<DashboardDisplay.PyramidRow> Pyramid,
-        decimal RndInvestment, decimal? NextLevelThreshold, decimal AllocationShare,
+        decimal RndInvestment, decimal RndCommitmentPerTurn, decimal? NextLevelThreshold, decimal AllocationShare,
         IReadOnlyList<string> ConsumingFactoryNames,
         FactoryProfitabilityCalculator.FactoryProfitabilityEstimate? Profitability,
         ProductionCalculator.CapacityBreakdown CapacityBreakdown,
@@ -842,6 +930,7 @@ else
     private IReadOnlyList<FactoryRow> _factories = Array.Empty<FactoryRow>();
     private IReadOnlyList<BuildableDefinition> _buildableDefinitions = Array.Empty<BuildableDefinition>();
     private IReadOnlyList<FactoryOverviewList.Node> _factoryOverviewRows = Array.Empty<FactoryOverviewList.Node>();
+    private int _unlockedGeneration = 1;
     private FactoryHistoryCalculator.TeamFactoryHistory? _history;
     private int _historyEntryCount = -1;
     private Ulid? _selectedFactoryId;
@@ -863,7 +952,14 @@ else
     private IReadOnlyList<MaterialOption> _emergencyPurchaseMaterials = Array.Empty<MaterialOption>();
 
     private readonly Dictionary<Ulid, string> _selectedRecipeIds = new();
-    private readonly Dictionary<Ulid, decimal> _rndInvestAmounts = new();
+    private readonly Dictionary<Ulid, decimal> _rndCommitmentAmounts = new();
+    private decimal _maxRndCommitmentPerTurn;
+    private decimal _generationResearchInvestment;
+    private decimal _generationResearchPoints;
+    private decimal? _nextGenerationThreshold;
+    private decimal _generationResearchCommitmentPerTurn;
+    private decimal _generationResearchCommitmentInput;
+    private decimal _maxGenerationResearchCommitmentPerTurn;
     private readonly Dictionary<Ulid, int> _targetWorkerCounts = new();
     private readonly Dictionary<Ulid, decimal> _allocationShares = new();
     private readonly Dictionary<string, decimal> _sellVolumes = new();
@@ -1016,14 +1112,13 @@ else
                 _teamWarehouseByMaterialId[stockRow.Material.Id] = stockRow.Quantity;
             }
 
-            var salaryPerWorkerPerTurn = state.Config.Raw.WorkerProductivity.SalaryPerWorkerPerTurn;
             var profitabilityByFactoryId = new Dictionary<Ulid, FactoryProfitabilityCalculator.FactoryProfitabilityEstimate>();
             foreach (var factory in team.Factories)
             {
                 var fixedCostPerTurn = state.Config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id).FixedCostPerTurn;
                 if (FactoryProfitabilityCalculator.TryCalculate(
                     factory, team.Factories, team.Warehouse, state.Market,
-                    state.Config.Raw.WorkerProductivity, state.Config.Raw.Rnd, salaryPerWorkerPerTurn, out var estimate,
+                    state.Config.Raw.WorkerProductivity, state.Config.Raw.Rnd, out var estimate,
                     fixedCostPerTurn, state.Config.Raw.Economy.ElectricityConsumptionPerOutputUnit))
                 {
                     profitabilityByFactoryId[factory.Id] = estimate;
@@ -1031,6 +1126,21 @@ else
             }
 
             var rndThresholds = state.Config.Raw.Rnd.CumulativeInvestmentThresholdsByLevel;
+            _maxRndCommitmentPerTurn = state.Config.Raw.Rnd.MaxCommitmentPerTurn;
+
+            var generationResearchConfig = state.Config.Raw.GenerationResearch;
+            _generationResearchInvestment = team.GenerationResearchInvestment;
+            _generationResearchPoints = GenerationResearchCalculator.CalculateResearchPoints(team.GenerationResearchInvestment, generationResearchConfig);
+            _nextGenerationThreshold = team.UnlockedGeneration - generationResearchConfig.StartingGeneration < generationResearchConfig.ResearchPointThresholdsByGeneration.Count
+                ? generationResearchConfig.ResearchPointThresholdsByGeneration[team.UnlockedGeneration - generationResearchConfig.StartingGeneration]
+                : (decimal?)null;
+            _generationResearchCommitmentPerTurn = team.GenerationResearchCommitmentPerTurn;
+            _maxGenerationResearchCommitmentPerTurn = generationResearchConfig.MaxCommitmentPerTurn;
+            if (_generationResearchCommitmentInput == 0m)
+            {
+                _generationResearchCommitmentInput = team.GenerationResearchCommitmentPerTurn;
+            }
+
             _hireCostPerWorker = state.Config.Raw.WorkerProductivity.HireCostPerWorker;
             _fireCostPerWorker = state.Config.Raw.WorkerProductivity.FireCostPerWorker;
             _baseWorkerCount = state.Config.Raw.WorkerProductivity.BaseWorkerCount;
@@ -1050,7 +1160,7 @@ else
             _factories = team.Factories.Select(factory =>
             {
                 _selectedRecipeIds.TryAdd(factory.Id, factory.SelectedRecipe.Id);
-                _rndInvestAmounts.TryAdd(factory.Id, 50m);
+                _rndCommitmentAmounts.TryAdd(factory.Id, factory.RndCommitmentPerTurn);
                 _targetWorkerCounts.TryAdd(factory.Id, factory.Workers);
                 _allocationShares.TryAdd(factory.Id, factory.AllocationShare);
 
@@ -1089,7 +1199,7 @@ else
                     factory.SelectedRecipe.Output, factory.SelectedRecipe.Output.Name,
                     factory.Definition.Recipes.Select(r => (r.Id, r.Output.Name)).ToList(),
                     factory.SelectedRecipe.Inputs,
-                    hasUnitCost, unitCost, pyramid, factory.RndInvestment, nextLevelThreshold, factory.AllocationShare,
+                    hasUnitCost, unitCost, pyramid, factory.RndInvestment, factory.RndCommitmentPerTurn, nextLevelThreshold, factory.AllocationShare,
                     consumingFactoryNames, profitabilityByFactoryId.GetValueOrDefault(factory.Id),
                     capacityBreakdown, activityHistory);
             }).ToList();
@@ -1102,7 +1212,9 @@ else
             // его не проверяет). Команда осознанно может строить сколько угодно фабрик одного типа —
             // делить дефицитное сырьё между ними помогает AllocationShare (см. карточки фабрик ниже).
             var sectorDefinitions = state.Config.FactoryDefinitions.Where(d => d.Sector == team.Sector).ToList();
+            _unlockedGeneration = team.UnlockedGeneration;
             _buildableDefinitions = sectorDefinitions
+                .Where(d => d.Recipes[0].Output.Level <= _unlockedGeneration)
                 .Select(d =>
                 {
                     var raw = state.Config.Raw.FactoryDefinitions.First(f => f.Id == d.Id);
@@ -1161,9 +1273,6 @@ else
 
     /// <summary>Управляет и disabled-состоянием кнопки «Построить», и текстом-пояснением рядом с ней — единый источник правды, чтобы они не разъезжались.</summary>
     private bool CanAffordSelectedBuild => SelectedBuildableDefinition is not { } definition || _balance >= definition.BuildCost;
-
-    /// <summary>Тот же приём, что и <see cref="CanAffordSelectedBuild"/>: не даём вложить в R&amp;D больше, чем есть на балансе — иначе баланс уходит в минус без предупреждения (запрос пользователя после случая с уходом в -7,225 ¤).</summary>
-    private bool CanAffordRndInvestment(Ulid factoryId) => _rndInvestAmounts.GetValueOrDefault(factoryId, 50m) <= _balance;
 
     private void BuildFactory()
     {
@@ -1379,9 +1488,31 @@ else
         RunAction(() => Host.Session!.RespondToContractRevision(contractId, TeamRole.Manager, accept: false, Random.Shared));
 
     /// <summary>
+    /// Тот же эффективный множитель, что посчитает <see cref="Game.Engine.GameSession.EmergencyPurchase"/>
+    /// — базовый плюс надбавка за недавние экстренные закупки этой команды именно этого материала
+    /// (запрос пользователя: наказывать зависимость от рынка, а не саму операцию) — здесь только для
+    /// предпросмотра до отправки действия.
+    /// </summary>
+    private decimal EmergencyPurchaseEffectiveMultiplier
+    {
+        get
+        {
+            if (_emergencyPurchaseMaterialId is null || _economyConfig is null || Host.Session is null)
+            {
+                return 0m;
+            }
+
+            var recentVolume = EmergencyPurchasePressureCalculator.CalculateRecentVolume(
+                Host.Session.Entries, _teamId, _emergencyPurchaseMaterialId, _currentTurn, _economyConfig);
+            return _economyConfig.EmergencyPurchaseBaseMultiplier + _economyConfig.EmergencyPurchasePressureMultiplierPerUnit * recentVolume;
+        }
+    }
+
+    /// <summary>
     /// Та же цена, что посчитает <see cref="Game.Engine.GameSession.EmergencyPurchase"/> — рыночная
-    /// котировка × множитель аварийной закупки — здесь только для предпросмотра стоимости и
-    /// проверки баланса до отправки действия (тот же приём, что <see cref="CanAffordSelectedBuild"/>).
+    /// котировка × эффективный множитель (см. <see cref="EmergencyPurchaseEffectiveMultiplier"/>) —
+    /// здесь только для предпросмотра стоимости и проверки баланса до отправки действия (тот же
+    /// приём, что <see cref="CanAffordSelectedBuild"/>).
     /// </summary>
     private decimal EmergencyPurchaseCost
     {
@@ -1393,7 +1524,7 @@ else
                 return 0m;
             }
 
-            var unitPrice = _market.QuoteOf(_emergencyPurchaseMaterialId).Price * _economyConfig.EmergencyPurchasePriceMultiplier;
+            var unitPrice = _market.QuoteOf(_emergencyPurchaseMaterialId).Price * EmergencyPurchaseEffectiveMultiplier;
             return unitPrice * _emergencyPurchaseVolume;
         }
     }
@@ -1410,10 +1541,15 @@ else
         RunAction(() => Host.Session!.EmergencyPurchase(_teamId, _emergencyPurchaseMaterialId, _emergencyPurchaseVolume));
     }
 
-    private void InvestInRnd(Ulid factoryId)
+    private void SetRndCommitment(Ulid factoryId)
     {
-        var amount = _rndInvestAmounts.GetValueOrDefault(factoryId, 50m);
-        RunAction(() => Host.Session!.InvestInRnd(_teamId, factoryId, amount));
+        var amount = _rndCommitmentAmounts.GetValueOrDefault(factoryId, 0m);
+        RunAction(() => Host.Session!.SetRndCommitment(_teamId, factoryId, amount));
+    }
+
+    private void SetGenerationResearchCommitment()
+    {
+        RunAction(() => Host.Session!.SetGenerationResearchCommitment(_teamId, _generationResearchCommitmentInput));
     }
 
     private void SetAllocationShare(Ulid factoryId)

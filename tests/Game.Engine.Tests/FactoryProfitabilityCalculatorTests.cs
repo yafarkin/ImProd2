@@ -25,12 +25,17 @@ public class FactoryProfitabilityCalculatorTests
         HireCostPerWorker = 100m,
         FireCostPerWorker = 50m,
         SalaryPerWorkerPerTurn = 5m,
+        // Выше суммарной численности любого сценария этого файла (максимум — 10, два экземпляра по
+        // 5 рабочих) — тесты этого файла не про прогрессивную надбавку, она не должна включаться.
+        TeamSalaryBaseWorkerCount = 1000,
+        SalaryEscalationFactor = 1.5m,
     };
 
     private static readonly RndConfig NoRndBonus = new()
     {
         CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
         ProductionRateBonusPerLevel = 0m,
+        MaxCommitmentPerTurn = 1000m,
     };
 
     private static Factory NewFactory(int workers)
@@ -63,7 +68,7 @@ public class FactoryProfitabilityCalculatorTests
 
         var found = FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
-            salaryPerWorkerPerTurn: Productivity.SalaryPerWorkerPerTurn, out var estimate);
+            out var estimate);
 
         Assert.True(found);
         Assert.True(estimate.HasPriceSignal);
@@ -73,6 +78,8 @@ public class FactoryProfitabilityCalculatorTests
         Assert.Equal(25m, estimate.InputCost); // 10 руды*2 + 5 угля*1
         Assert.Equal(25m, estimate.WageCost); // 5 рабочих * 5
         Assert.Equal(0m, estimate.Profit); // 50 - 25 - 25
+        Assert.Equal(10m, estimate.UnitCost); // (25 + 25 + 0) / 5
+        Assert.Equal(10m, estimate.OutputPrice);
     }
 
     [Fact]
@@ -90,7 +97,7 @@ public class FactoryProfitabilityCalculatorTests
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
-            salaryPerWorkerPerTurn: Productivity.SalaryPerWorkerPerTurn, out var estimate);
+            out var estimate);
 
         Assert.True(estimate.Profit < 0m);
     }
@@ -110,11 +117,18 @@ public class FactoryProfitabilityCalculatorTests
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
-            salaryPerWorkerPerTurn: Productivity.SalaryPerWorkerPerTurn, out var estimate);
+            out var estimate);
 
         Assert.Equal(5m, estimate.CapacityLimitedOutputQuantity);
         Assert.True(estimate.ProjectedOutputQuantity < estimate.CapacityLimitedOutputQuantity);
         Assert.Equal(2m, estimate.ProjectedOutputQuantity); // 4 руды / 2 на лист
+
+        // «Максимум за ход» (запрос пользователя) — по полному рецепту по потолку мощности (5 листов
+        // = 10 руды + 5 угля), а не по фактически потреблённому (4 руды из-за нехватки).
+        Assert.Equal(50m, estimate.MaxRevenue); // 5 * 10
+        Assert.Equal(25m, estimate.MaxInputCost); // 10 руды*2 + 5 угля*1
+        Assert.Equal(0m, estimate.MaxProfit); // 50 - 25 - 25 (зарплата) - 0 (без капитальных затрат)
+        Assert.Equal(10m, estimate.MaxUnitCost); // (25 + 25 + 0) / 5
     }
 
     [Fact]
@@ -126,7 +140,7 @@ public class FactoryProfitabilityCalculatorTests
 
         var found = FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
-            salaryPerWorkerPerTurn: Productivity.SalaryPerWorkerPerTurn, out var estimate);
+            out var estimate);
 
         Assert.False(found);
         Assert.False(estimate.HasPriceSignal);
@@ -149,12 +163,38 @@ public class FactoryProfitabilityCalculatorTests
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
-            salaryPerWorkerPerTurn: Productivity.SalaryPerWorkerPerTurn, out var estimate,
+            out var estimate,
             fixedCostPerTurn: 8m, electricityConsumptionPerOutputUnit: 1m);
 
         // OverheadCost = 8 (капитальные) + 5 листов * 1 * 3 (энергия) = 23.
         Assert.Equal(23m, estimate.OverheadCost);
         Assert.Equal(50m - 25m - 25m - 23m, estimate.Profit); // выручка - сырьё - зарплата - содержание
+    }
+
+    [Fact]
+    public void TryCalculate_Scales_The_Variable_Overhead_By_Capacity_In_The_Max_Scenario()
+    {
+        // Сырья хватает ровно на потолок мощности — «сейчас» и «максимум» совпадают по объёму, но
+        // остаются разными величинами (запрос пользователя: явно видеть оба сценария).
+        var factory = NewFactory(workers: 5);
+        var warehouse = WarehouseWith(ore: 1000m, coal: 1000m);
+        var market = new Market();
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
+        {
+            [Ore.Id] = new(2m, 1000m),
+            [Coal.Id] = new(1m, 1000m),
+            [Sheet.Id] = new(10m, 1000m),
+        }, electricityPrice: 3m);
+
+        FactoryProfitabilityCalculator.TryCalculate(
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
+            out var estimate,
+            fixedCostPerTurn: 8m, electricityConsumptionPerOutputUnit: 1m);
+
+        // Капацитет = проекция = 5 листов, поэтому MaxOverheadCost = OverheadCost = 23, но это два
+        // независимо посчитанных числа, не переиспользование одного и того же поля.
+        Assert.Equal(estimate.OverheadCost, estimate.MaxOverheadCost);
+        Assert.Equal(estimate.Profit, estimate.MaxProfit);
     }
 
     [Fact]
@@ -174,7 +214,7 @@ public class FactoryProfitabilityCalculatorTests
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
-            salaryPerWorkerPerTurn: Productivity.SalaryPerWorkerPerTurn, out var estimate);
+            out var estimate);
 
         Assert.Equal(0m, estimate.OverheadCost);
         Assert.Equal(0m, estimate.Profit); // как в TryCalculate_Reports_Profit_When_Output_Price_Exceeds_Inputs_And_Wages
@@ -199,10 +239,10 @@ public class FactoryProfitabilityCalculatorTests
 
         FactoryProfitabilityCalculator.TryCalculate(
             factoryA, teamFactories, warehouse, market, Productivity, NoRndBonus,
-            salaryPerWorkerPerTurn: Productivity.SalaryPerWorkerPerTurn, out var estimateA);
+            out var estimateA);
         FactoryProfitabilityCalculator.TryCalculate(
             factoryB, teamFactories, warehouse, market, Productivity, NoRndBonus,
-            salaryPerWorkerPerTurn: Productivity.SalaryPerWorkerPerTurn, out var estimateB);
+            out var estimateB);
 
         // Доля 3:1 от 8 руды -> 6 и 2 -> 3 и 1 лист.
         Assert.Equal(3m, estimateA.ProjectedOutputQuantity);

@@ -7,8 +7,29 @@ namespace Game.Config.Economy;
 /// </summary>
 public sealed record EconomyConfig
 {
-    /// <summary>Множитель к текущей рыночной цене материала при аварийной закупке у системы.</summary>
-    public required decimal EmergencyPurchasePriceMultiplier { get; init; }
+    /// <summary>
+    /// Множитель к текущей рыночной цене материала при аварийной закупке у системы, если команда
+    /// давно (или никогда) не закупала этот материал экстренно — было
+    /// <c>EmergencyPurchasePriceMultiplier</c>. Наказывает не саму операцию, а зависимость от неё
+    /// (запрос пользователя): реальный множитель растёт сверх этой базы с недавним объёмом закупок
+    /// именно этой команды именно этого материала, см. <see cref="EmergencyPurchasePressureMultiplierPerUnit"/>.
+    /// </summary>
+    public required decimal EmergencyPurchaseBaseMultiplier { get; init; }
+
+    /// <summary>
+    /// Дополнительный множитель за каждую единицу «недавнего давления» — см.
+    /// <c>EmergencyPurchasePressureCalculator</c>: чем больше команда закупала этот материал
+    /// экстренно в последних ходах, тем дороже ей обходится следующая такая закупка того же
+    /// материала. Заглушка, требует калибровки.
+    /// </summary>
+    public required decimal EmergencyPurchasePressureMultiplierPerUnit { get; init; }
+
+    /// <summary>
+    /// Период полураспада «давления» недавних экстренных закупок, в ходах — тот же приём, что
+    /// <see cref="ReputationConfig.HalfLifeTurns"/>: несколько ходов без закупок этого материала —
+    /// и цена вновь возвращается к базовой.
+    /// </summary>
+    public required int EmergencyPurchasePressureHalfLifeTurns { get; init; }
 
     /// <summary>Базовые цена и ёмкость по каждому материалу (Блок 6.1), от которых тренд отсчитывает изменение по ходам.</summary>
     public required IReadOnlyList<MaterialMarketConfig> BaseMarketPerMaterial { get; init; }

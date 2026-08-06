@@ -54,6 +54,10 @@ public static class BotSessionRunner
                     }
                     foreach (var bot in bots)
                     {
+                        // Идемпотентно: на ходу первой постройки ничего нового не найдёт (уже
+                        // построено BuildOutSectorChain), на последующих — достраивает то, что
+                        // разблокировало исследование поколений.
+                        bot.BuildNewlyUnlockedFactories(session);
                         bot.SellSurplusToSystem(session);
                     }
 

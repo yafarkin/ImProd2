@@ -15,6 +15,14 @@ public static class DashboardDisplay
     /// <summary>Денежная сумма для отображения на экране — универсальный знак валюты (U+00A4), не привязанный к конкретной стране.</summary>
     public static string FormatMoney(decimal amount) => $"{amount:N0} ¤";
 
+    /// <summary>
+    /// Себестоимость/цена одной единицы товара — в отличие от <see cref="FormatMoney"/> (округление до
+    /// целого, годится для сумм по партии/ходу), тут значение систематически на 2-4 порядка меньше
+    /// (делится на объём выпуска), и округление до целого почти всегда даёт бесполезный «0 ¤»
+    /// (обнаружено на живой проверке блока «Прибыльность»: себестоимость 0.03 показывалась как 0 ¤).
+    /// </summary>
+    public static string FormatUnitCost(decimal amount) => $"{amount:0.####} ¤";
+
     /// <summary>Процентная ставка для отображения на экране (Блок 9.2).</summary>
     public static string FormatRate(decimal rate) => rate.ToString("P1");
 

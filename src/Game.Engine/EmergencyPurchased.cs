@@ -18,6 +18,13 @@ public sealed record EmergencyPurchased : Change<GameSessionState>
     /// <summary>Закупленный объём.</summary>
     public required decimal Volume { get; init; }
 
+    /// <summary>
+    /// Ход, в который сделана закупка — нужен <c>EmergencyPurchasePressureCalculator</c>, чтобы
+    /// считать затухающее по свежести «давление» недавних закупок этой команды этого материала (тот
+    /// же приём, что <see cref="ContractDelivered.Turn"/>/<see cref="DeliveryMissed.Turn"/> для репутации).
+    /// </summary>
+    public required int Turn { get; init; }
+
     /// <summary>Цена за единицу по аварийной закупке (рыночная котировка × множитель) — для аудита.</summary>
     public required decimal UnitPrice { get; init; }
 

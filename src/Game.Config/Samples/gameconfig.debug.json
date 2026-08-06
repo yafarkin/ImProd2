@@ -394,7 +394,9 @@
     "DecisionPhaseSeconds": 25
   },
   "Economy": {
-    "EmergencyPurchasePriceMultiplier": 1.5,
+    "EmergencyPurchaseBaseMultiplier": 1.5,
+    "EmergencyPurchasePressureMultiplierPerUnit": 0.05,
+    "EmergencyPurchasePressureHalfLifeTurns": 3,
     "BaseMarketPerMaterial": [
       {
         "MaterialId": "rock",
@@ -517,7 +519,9 @@
     "DiminishingReturnsFactor": 0.5,
     "HireCostPerWorker": 50,
     "FireCostPerWorker": 30,
-    "SalaryPerWorkerPerTurn": 5
+    "SalaryPerWorkerPerTurn": 5,
+    "TeamSalaryBaseWorkerCount": 30,
+    "SalaryEscalationFactor": 1.5
   },
   "Rnd": {
     "CumulativeInvestmentThresholdsByLevel": [
@@ -525,7 +529,8 @@
       3000,
       6000
     ],
-    "ProductionRateBonusPerLevel": 0.1
+    "ProductionRateBonusPerLevel": 0.1,
+    "MaxCommitmentPerTurn": 200
   },
   "Warehouse": {
     "FreeCapacity": 100000,
@@ -575,5 +580,16 @@
     "TaxesEnabled": false,
     "DepositsEnabled": false,
     "EmergencyPurchaseEnabled": true
+  },
+  "GenerationResearch": {
+    "StartingGeneration": 1,
+    "ResearchPointThresholdsByGeneration": [
+      50,
+      120,
+      220,
+      350
+    ],
+    "DiminishingReturnsExponent": 0.5,
+    "MaxCommitmentPerTurn": 300
   }
 }

@@ -60,6 +60,42 @@ public class GameSessionFactoryTests
     }
 
     [Fact]
+    public void BuildFactory_Throws_For_A_Factory_Whose_Generation_Is_Not_Yet_Unlocked()
+    {
+        // TestGameConfig.BuildWithGenerationResearch добавляет уровень 2 (coil-plant) поверх
+        // обычной цепочки руда(0)/лист(1) — по умолчанию StartingGeneration=1, порогов нет, значит
+        // команда никогда не разблокирует поколение 2 сама по себе (Блок 9.2, запрос пользователя:
+        // будущие фабрики должны появляться постепенно, а не быть доступны с хода 1).
+        var config = TestGameConfig.BuildWithGenerationResearch();
+        var teamId = Ulid.NewUlid();
+        var session = GameSession.StartWithEndTurn(
+            new EventLog<GameSessionState>(new GameSessionState(config)), "test", endTurn: 999,
+            new[] { new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id } });
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
+
+        var ex = Assert.Throws<ArgumentException>(() => session.BuildFactory(teamId, "coil-plant"));
+        Assert.Contains("generation 2", ex.Message);
+        Assert.Empty(session.State.Teams[teamId].Factories);
+    }
+
+    [Fact]
+    public void BuildFactory_Succeeds_Once_The_Required_Generation_Is_Unlocked()
+    {
+        var config = TestGameConfig.BuildWithGenerationResearch();
+        var teamId = Ulid.NewUlid();
+        var log = new EventLog<GameSessionState>(new GameSessionState(config));
+        var session = GameSession.StartWithEndTurn(
+            log, "test", endTurn: 999,
+            new[] { new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id } });
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
+        log.Append(new TeamGenerationAdvanced { Id = Ulid.NewUlid(), TeamId = teamId, NewGeneration = 2 });
+
+        var entry = session.BuildFactory(teamId, "coil-plant");
+
+        Assert.IsType<FactoryBuilt>(entry.Change);
+    }
+
+    [Fact]
     public void HireWorkers_Charges_The_Configured_Cost_Per_Worker()
     {
         var (session, teamId) = StartInDecisionPhase();

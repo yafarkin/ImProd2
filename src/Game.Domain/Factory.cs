@@ -33,6 +33,14 @@ public sealed class Factory
     /// </summary>
     public decimal AllocationShare { get; private set; } = 1m;
 
+    /// <summary>
+    /// Сколько команда выделяет на R&amp;D этой фабрики за ход — списывается автоматически каждый
+    /// ход (см. <see cref="Game.Engine.TickFinanceStep"/>), а не разово, до тех пор пока команда не
+    /// поменяет значение (запрос пользователя: «постоянные затраты», не разовое вложение). 0 по
+    /// умолчанию — не значит «на паузе», значит «пока не выделяли».
+    /// </summary>
+    public decimal RndCommitmentPerTurn { get; private set; }
+
     public Factory(Ulid id, Sector ownerSector, FactoryDefinition definition, Recipe? selectedRecipe = null)
     {
         if (id == Ulid.Empty)
@@ -112,6 +120,22 @@ public sealed class Factory
         }
 
         AllocationShare = share;
+    }
+
+    /// <summary>
+    /// Меняет сумму, выделяемую на R&amp;D этой фабрики за ход (см. <see cref="RndCommitmentPerTurn"/>).
+    /// Потолок суммы конфигурируется отдельно (<see cref="Game.Config.Economy.RndConfig.MaxCommitmentPerTurn"/>)
+    /// и проверяется на уровне <see cref="Game.Engine.GameSession"/>, а не здесь — фабрика сама по
+    /// себе не знает конфиг сессии, как и везде в этом классе (см. <see cref="SetAllocationShare"/>).
+    /// </summary>
+    public void SetRndCommitment(decimal amountPerTurn)
+    {
+        if (amountPerTurn < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amountPerTurn), amountPerTurn, "R&D commitment must not be negative.");
+        }
+
+        RndCommitmentPerTurn = amountPerTurn;
     }
 
     /// <summary>Добавляет вложение в R&amp;D этой фабрики.</summary>

@@ -153,4 +153,81 @@ public class TeamTests
         Assert.Throws<ArgumentException>(() => team.BuildFactory(Ulid.NewUlid(), PlasticPlant));
         Assert.Empty(team.Factories);
     }
+
+    [Fact]
+    public void Construction_Defaults_To_Generation_One()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+
+        Assert.Equal(1, team.UnlockedGeneration);
+        Assert.Equal(0m, team.GenerationResearchInvestment);
+        Assert.Equal(0m, team.GenerationResearchCommitmentPerTurn);
+    }
+
+    [Fact]
+    public void Construction_Accepts_A_Custom_Starting_Generation()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA, startingGeneration: 3);
+
+        Assert.Equal(3, team.UnlockedGeneration);
+    }
+
+    [Fact]
+    public void SetGenerationResearchCommitment_Changes_The_Commitment()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+
+        team.SetGenerationResearchCommitment(50m);
+
+        Assert.Equal(50m, team.GenerationResearchCommitmentPerTurn);
+    }
+
+    [Fact]
+    public void SetGenerationResearchCommitment_Accepts_Zero()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+        team.SetGenerationResearchCommitment(50m);
+
+        team.SetGenerationResearchCommitment(0m);
+
+        Assert.Equal(0m, team.GenerationResearchCommitmentPerTurn);
+    }
+
+    [Fact]
+    public void SetGenerationResearchCommitment_Throws_When_Negative()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => team.SetGenerationResearchCommitment(-1m));
+    }
+
+    [Fact]
+    public void InvestInGenerationResearch_Debits_The_Balance_And_Accumulates_The_Investment()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+        team.Credit(100m);
+
+        team.InvestInGenerationResearch(30m);
+
+        Assert.Equal(70m, team.Balance);
+        Assert.Equal(30m, team.GenerationResearchInvestment);
+    }
+
+    [Fact]
+    public void InvestInGenerationResearch_Throws_For_A_NonPositive_Amount()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => team.InvestInGenerationResearch(0m));
+    }
+
+    [Fact]
+    public void AdvanceGeneration_Increases_The_Unlocked_Generation_By_One()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+
+        team.AdvanceGeneration();
+
+        Assert.Equal(2, team.UnlockedGeneration);
+    }
 }

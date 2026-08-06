@@ -22,7 +22,7 @@ public class GameSessionWarehouseFeeTests
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
         session.TakeLoan(teamId, 1000m); // команда сама берёт первый кредит (SPEC §5.1) — не предустановка
         session.EmergencyPurchase(teamId, "ore", 10m); // склад: 10 единиц, бесплатный лимит — 5;
-        // цена = 10 (BasePrice) * 2 (EmergencyPurchasePriceMultiplier) = 20/ед., итого 200
+        // цена = 10 (BasePrice) * 2 (EmergencyPurchaseBaseMultiplier, давления ещё нет) = 20/ед., итого 200
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var balanceBeforeTick = session.State.Teams[teamId].Balance; // 1000 - 200 = 800
 

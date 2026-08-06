@@ -175,4 +175,33 @@ public class FactoryTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() => factory.SetAllocationShare(-1m));
     }
+
+    [Fact]
+    public void SetRndCommitment_Changes_The_Commitment()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+
+        factory.SetRndCommitment(50m);
+
+        Assert.Equal(50m, factory.RndCommitmentPerTurn);
+    }
+
+    [Fact]
+    public void SetRndCommitment_Accepts_Zero()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+        factory.SetRndCommitment(50m);
+
+        factory.SetRndCommitment(0m);
+
+        Assert.Equal(0m, factory.RndCommitmentPerTurn);
+    }
+
+    [Fact]
+    public void SetRndCommitment_Throws_When_Negative()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => factory.SetRndCommitment(-1m));
+    }
 }

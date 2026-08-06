@@ -45,7 +45,9 @@ internal static class GameConfigTestBuilder
             },
             Economy = new EconomyConfig
             {
-                EmergencyPurchasePriceMultiplier = 1m,
+                EmergencyPurchaseBaseMultiplier = 1m,
+                EmergencyPurchasePressureMultiplierPerUnit = 0m,
+                EmergencyPurchasePressureHalfLifeTurns = 1,
                 BaseMarketPerMaterial = Array.Empty<MaterialMarketConfig>(),
                 MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
                 MarketCapacityOverflowDiscount = 0.5m,
@@ -61,11 +63,21 @@ internal static class GameConfigTestBuilder
                 HireCostPerWorker = 1m,
                 FireCostPerWorker = 1m,
                 SalaryPerWorkerPerTurn = 1m,
+                TeamSalaryBaseWorkerCount = 1000,
+                SalaryEscalationFactor = 1.5m,
             },
             Rnd = new RndConfig
             {
                 CumulativeInvestmentThresholdsByLevel = new[] { 100m, 300m, 600m },
                 ProductionRateBonusPerLevel = 0.1m,
+                MaxCommitmentPerTurn = 1000m,
+            },
+            GenerationResearch = new GenerationResearchConfig
+            {
+                StartingGeneration = 1,
+                ResearchPointThresholdsByGeneration = Array.Empty<decimal>(),
+                DiminishingReturnsExponent = 0.5m,
+                MaxCommitmentPerTurn = 1000m,
             },
             Warehouse = new WarehouseConfig { FreeCapacity = 1m, OverageFeePerUnit = 0.1m },
             Reputation = new ReputationConfig { HalfLifeTurns = 1, WarmupTurns = 0, TerminationSeverityMultiplier = 1m },

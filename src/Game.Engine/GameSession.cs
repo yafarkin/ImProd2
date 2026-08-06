@@ -442,7 +442,16 @@ public sealed class GameSession
             throw new ArgumentException($"Unknown team '{teamId}'.", nameof(teamId));
         }
 
-        var unitPrice = GetQuoteOrThrow(materialId).Price * State.Config.Raw.Economy.EmergencyPurchasePriceMultiplier;
+        var economy = State.Config.Raw.Economy;
+        // Наказывает не саму операцию, а зависимость от неё (запрос пользователя): множитель растёт
+        // сверх базового с недавним объёмом закупок именно этой команды именно этого материала и
+        // затухает сам по себе через несколько ходов без таких закупок, см.
+        // EmergencyPurchasePressureCalculator.
+        var recentVolume = EmergencyPurchasePressureCalculator.CalculateRecentVolume(
+            Entries, teamId, materialId, State.CurrentTurn, economy);
+        var effectiveMultiplier = economy.EmergencyPurchaseBaseMultiplier
+            + economy.EmergencyPurchasePressureMultiplierPerUnit * recentVolume;
+        var unitPrice = GetQuoteOrThrow(materialId).Price * effectiveMultiplier;
 
         return _log.Append(new EmergencyPurchased
         {
@@ -452,6 +461,7 @@ public sealed class GameSession
             Volume = volume,
             UnitPrice = unitPrice,
             TotalCost = unitPrice * volume,
+            Turn = State.CurrentTurn,
         });
     }
 
@@ -568,6 +578,18 @@ public sealed class GameSession
             throw new ArgumentException(
                 $"Factory definition '{factoryDefinitionId}' belongs to sector '{definition.Sector.Id}', " +
                 $"not team's sector '{team.Sector.Id}'.",
+                nameof(factoryDefinitionId));
+        }
+
+        // Тот же приём, что уже использует UI (Team.razor) для группировки по «уровню пирамиды» —
+        // берём уровень материала-выхода первого рецепта фабрики (Блок 9.2, запрос пользователя:
+        // будущие фабрики должны открываться постепенно, а не быть доступны с хода 1).
+        var generation = definition.Recipes[0].Output.Level;
+        if (generation > team.UnlockedGeneration)
+        {
+            throw new ArgumentException(
+                $"Factory definition '{factoryDefinitionId}' requires generation {generation}, " +
+                $"but team has only unlocked generation {team.UnlockedGeneration}.",
                 nameof(factoryDefinitionId));
         }
 
@@ -690,25 +712,67 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Вкладывает деньги команды в R&amp;D конкретной фабрики (SPEC §5.8): накопленные вложения
-    /// двигают фабрику по уровням, темп выбирает команда. Может вернуть несколько событий — само
-    /// вложение и, если накопленное вложение перешагивает один или несколько порогов, столько же
-    /// событий перехода уровня подряд (<see cref="RndInvestmentStep"/>). Требует фазы решений.
+    /// Меняет сумму, которую команда выделяет на R&amp;D конкретной фабрики за ход (SPEC §5.8) —
+    /// само объявление бесплатно и мгновенно, как выбор рецепта или доля при дефиците сырья; реальное
+    /// списание и рост уровня фабрики происходят отдельно, автоматически каждый ход (запрос
+    /// пользователя: «постоянные затраты», не разовое вложение — см. <see cref="TickFinanceStep"/>).
+    /// Требует фазы решений. Бросает <see cref="ArgumentOutOfRangeException"/> на отрицательную сумму
+    /// или сумму сверх потолка <see cref="Config.Economy.RndConfig.MaxCommitmentPerTurn"/> (запрос
+    /// пользователя: чтобы даже с любым кредитом нельзя было мгновенно прокачать фабрику на несколько
+    /// уровней за один ход).
     /// </summary>
-    public IReadOnlyList<EventLogEntry<GameSessionState>> InvestInRnd(Ulid teamId, Ulid factoryId, decimal amount)
+    public EventLogEntry<GameSessionState> SetRndCommitment(Ulid teamId, Ulid factoryId, decimal amountPerTurn)
     {
         EnsureDecisionsAllowed();
 
         var team = GetTeam(teamId);
-        var factory = GetFactory(team, factoryId);
+        GetFactory(team, factoryId);
 
-        var appended = new List<EventLogEntry<GameSessionState>>();
-        foreach (var change in RndInvestmentStep.Run(teamId, factory, amount, State.Config.Raw.Rnd))
+        var maxCommitmentPerTurn = State.Config.Raw.Rnd.MaxCommitmentPerTurn;
+        if (amountPerTurn < 0 || amountPerTurn > maxCommitmentPerTurn)
         {
-            appended.Add(_log.Append(change));
+            throw new ArgumentOutOfRangeException(
+                nameof(amountPerTurn), amountPerTurn, $"R&D commitment must be between 0 and {maxCommitmentPerTurn} per turn.");
         }
 
-        return appended;
+        return _log.Append(new RndCommitmentSet
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            FactoryId = factoryId,
+            Amount = amountPerTurn,
+        });
+    }
+
+    /// <summary>
+    /// Меняет сумму, которую команда выделяет на исследование следующего поколения фабрик за ход
+    /// (Блок 9.2, запрос пользователя: будущие фабрики должны появляться постепенно, через
+    /// исследование) — то же самое декларативное действие, что и <see cref="SetRndCommitment"/>, но
+    /// на уровне команды, а не одной фабрики; реальное списание и переход поколения происходят
+    /// отдельно, автоматически каждый ход (см. <see cref="TickFinanceStep"/>). Требует фазы решений.
+    /// Бросает <see cref="ArgumentOutOfRangeException"/> на отрицательную сумму или сумму сверх
+    /// потолка <see cref="Config.Economy.GenerationResearchConfig.MaxCommitmentPerTurn"/>.
+    /// </summary>
+    public EventLogEntry<GameSessionState> SetGenerationResearchCommitment(Ulid teamId, decimal amountPerTurn)
+    {
+        EnsureDecisionsAllowed();
+
+        GetTeam(teamId);
+
+        var maxCommitmentPerTurn = State.Config.Raw.GenerationResearch.MaxCommitmentPerTurn;
+        if (amountPerTurn < 0 || amountPerTurn > maxCommitmentPerTurn)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(amountPerTurn), amountPerTurn,
+                $"Generation research commitment must be between 0 and {maxCommitmentPerTurn} per turn.");
+        }
+
+        return _log.Append(new GenerationResearchCommitmentSet
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            Amount = amountPerTurn,
+        });
     }
 
     /// <summary>
@@ -944,7 +1008,7 @@ public sealed class GameSession
             var reputation = GetReputation(team.Id);
             foreach (var change in TickFinanceStep.Run(
                 team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-                config.Raw.FactoryDefinitions, reputation.Percentage))
+                config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputation.Percentage))
             {
                 appended.Add(_log.Append(change));
             }

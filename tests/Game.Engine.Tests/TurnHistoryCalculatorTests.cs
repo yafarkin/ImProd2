@@ -28,7 +28,7 @@ public class TurnHistoryCalculatorTests
     public void Summarize_Attributes_A_Sale_To_The_Turn_It_Happened_In_And_Starts_A_Fresh_Row_Next_Turn()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        log.Append(new EmergencyPurchased { Id = Ulid.NewUlid(), TeamId = team.Id, MaterialId = "ore", Volume = 20m, UnitPrice = 10m, TotalCost = 200m });
+        log.Append(new EmergencyPurchased { Id = Ulid.NewUlid(), Turn = 1, TeamId = team.Id, MaterialId = "ore", Volume = 20m, UnitPrice = 10m, TotalCost = 200m });
         log.Append(new MaterialSoldToSystem
         {
             Id = Ulid.NewUlid(), TeamId = team.Id, MaterialId = "ore", Volume = 20m,

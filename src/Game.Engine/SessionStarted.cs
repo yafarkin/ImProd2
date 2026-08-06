@@ -53,7 +53,7 @@ public sealed record SessionStarted : Change<GameSessionState>
         foreach (var spec in Teams)
         {
             var sector = state.Config.Sectors.First(s => s.Id == spec.SectorId);
-            var team = new Team(spec.Id, spec.Name, sector);
+            var team = new Team(spec.Id, spec.Name, sector, state.Config.Raw.GenerationResearch.StartingGeneration);
             state.AddTeam(team);
         }
 

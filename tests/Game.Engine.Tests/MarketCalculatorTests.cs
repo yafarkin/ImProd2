@@ -9,7 +9,9 @@ public class MarketCalculatorTests
     {
         return new EconomyConfig
         {
-            EmergencyPurchasePriceMultiplier = 1m,
+            EmergencyPurchaseBaseMultiplier = 1m,
+            EmergencyPurchasePressureMultiplierPerUnit = 0m,
+            EmergencyPurchasePressureHalfLifeTurns = 1,
             BaseMarketPerMaterial = new[]
             {
                 new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100m },

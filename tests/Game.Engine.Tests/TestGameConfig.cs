@@ -200,6 +200,24 @@ internal static class TestGameConfig
     public static ResolvedGameConfig BuildWithFactoryUpkeep(decimal fixedCostPerTurn = 0m, decimal electricityConsumptionPerOutputUnit = 0m) =>
         Build(fixedCostPerTurn: fixedCostPerTurn, electricityConsumptionPerOutputUnit: electricityConsumptionPerOutputUnit);
 
+    /// <summary>
+    /// Собирает вариант базового конфига с третьим переделом («катанка» из «листов», уровень 2) и
+    /// низким <see cref="GenerationResearchConfig.StartingGeneration"/> (1) — для тестов ворот
+    /// <c>GameSession.BuildFactory</c>/шага исследования поколений, которым нужна реальная
+    /// разница между «уже разблокировано» и «ещё нет» (у <see cref="Resolved"/> пирамида не выше
+    /// уровня 1 — там разблокировано всё с самого начала).
+    /// </summary>
+    public static ResolvedGameConfig BuildWithGenerationResearch(GenerationResearchConfig? generationResearch = null) =>
+        Build(addThirdLevelFactory: true, generationResearch: generationResearch);
+
+    /// <summary>
+    /// Собирает вариант базового конфига с ненулевой надбавкой к множителю экстренной закупки за
+    /// «давление» недавних закупок (Блок 9.2, запрос пользователя: наказывать зависимость от рынка) —
+    /// для тестов эскалации цены, которым не подходит заглушка 0 по умолчанию у <see cref="Resolved"/>.
+    /// </summary>
+    public static ResolvedGameConfig BuildWithEmergencyPurchasePressure(decimal pressureMultiplierPerUnit) =>
+        Build(emergencyPurchasePressureMultiplierPerUnit: pressureMultiplierPerUnit);
+
     private static ResolvedGameConfig Build(
         IReadOnlyList<NewsItemConfig>? news = null,
         IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null,
@@ -207,12 +225,41 @@ internal static class TestGameConfig
         bool addSecondMillRecipe = false,
         WarehouseConfig? warehouse = null,
         decimal fixedCostPerTurn = 0m,
-        decimal electricityConsumptionPerOutputUnit = 0m)
+        decimal electricityConsumptionPerOutputUnit = 0m,
+        bool addThirdLevelFactory = false,
+        GenerationResearchConfig? generationResearch = null,
+        decimal emergencyPurchasePressureMultiplierPerUnit = 0m)
     {
+        // Третий передел («катанка» из «листов», уровень 2) — только для BuildWithGenerationResearch,
+        // остальные тесты этого файла его не видят вообще (Concat с пустым массивом — no-op).
+        var thirdLevelMaterials = addThirdLevelFactory
+            ? new[] { new MaterialConfig { Id = "coil", Name = "Катанка", SectorId = "A", Level = 2 } }
+            : Array.Empty<MaterialConfig>();
+        var thirdLevelRecipes = addThirdLevelFactory
+            ? new[]
+            {
+                new RecipeConfig
+                {
+                    Id = "coil-from-sheet", OutputMaterialId = "coil", OutputQuantity = 1m,
+                    Inputs = new[] { new RecipeInputConfig { MaterialId = "sheet", Quantity = 1m } }, ProductionRate = 1m,
+                },
+            }
+            : Array.Empty<RecipeConfig>();
+        var thirdLevelFactoryDefinitions = addThirdLevelFactory
+            ? new[]
+            {
+                new FactoryDefinitionConfig
+                {
+                    Id = "coil-plant", Name = "Прокатный стан", SectorId = "A", RecipeIds = new[] { "coil-from-sheet" },
+                    BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = fixedCostPerTurn,
+                },
+            }
+            : Array.Empty<FactoryDefinitionConfig>();
+
         var config = new GameConfig
         {
             Sectors = new[] { new SectorConfig { Id = "A", Name = "Металлургия" } },
-            Materials = addSecondMillRecipe
+            Materials = (addSecondMillRecipe
                 ? new[]
                 {
                     new MaterialConfig { Id = "ore", Name = "Железная руда", SectorId = "A", Level = 0 },
@@ -223,8 +270,8 @@ internal static class TestGameConfig
                 {
                     new MaterialConfig { Id = "ore", Name = "Железная руда", SectorId = "A", Level = 0 },
                     new MaterialConfig { Id = "sheet", Name = "Стальные листы", SectorId = "A", Level = 1 },
-                },
-            Recipes = addSecondMillRecipe
+                }).Concat(thirdLevelMaterials).ToArray(),
+            Recipes = (addSecondMillRecipe
                 ? new[]
                 {
                     new RecipeConfig
@@ -255,7 +302,7 @@ internal static class TestGameConfig
                         Id = "sheet-from-ore", OutputMaterialId = "sheet", OutputQuantity = 1m,
                         Inputs = new[] { new RecipeInputConfig { MaterialId = "ore", Quantity = 2m } }, ProductionRate = 1m,
                     },
-                },
+                }).Concat(thirdLevelRecipes).ToArray(),
             FactoryDefinitions = new[]
             {
                 // FixedCostPerTurn=0 по умолчанию — большинство тестов этого файла не про капитальные
@@ -267,7 +314,7 @@ internal static class TestGameConfig
                     RecipeIds = addSecondMillRecipe ? new[] { "sheet-from-ore", "wire-from-ore" } : new[] { "sheet-from-ore" },
                     BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = fixedCostPerTurn,
                 },
-            },
+            }.Concat(thirdLevelFactoryDefinitions).ToArray(),
             StartingConditions = new StartingConditionsConfig
             {
                 MaxStartingLoanAmount = 100_000m,
@@ -284,7 +331,11 @@ internal static class TestGameConfig
             PhaseTiming = phaseTiming ?? new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {
-                EmergencyPurchasePriceMultiplier = 2m,
+                EmergencyPurchaseBaseMultiplier = 2m,
+                // 0 по умолчанию — большинство тестов этого файла не про давление недавних закупок;
+                // тесты на него используют BuildWithEmergencyPurchasePressure.
+                EmergencyPurchasePressureMultiplierPerUnit = emergencyPurchasePressureMultiplierPerUnit,
+                EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial = new[]
                 {
                     new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100m },
@@ -309,11 +360,28 @@ internal static class TestGameConfig
                 HireCostPerWorker = 50m,
                 FireCostPerWorker = 30m,
                 SalaryPerWorkerPerTurn = 5m,
+                // Заметно выше, чем в любом сценарии этого файла набирается рабочих — большинство
+                // тестов не про прогрессивную надбавку; тесты на неё используют собственный
+                // WorkerProductivityConfig с низким порогом.
+                TeamSalaryBaseWorkerCount = 1000,
+                SalaryEscalationFactor = 1.5m,
             },
             Rnd = new RndConfig
             {
                 CumulativeInvestmentThresholdsByLevel = new[] { 100m, 300m },
                 ProductionRateBonusPerLevel = 0.1m,
+                MaxCommitmentPerTurn = 200m,
+            },
+            // Материалы этого общего тестового конфига не заходят выше уровня 1 (ore=0, sheet=1) —
+            // StartingGeneration=1 покрывает их целиком, ни один существующий тест, строящий фабрики
+            // через GameSession.BuildFactory, не сломается. BuildWithGenerationResearch подставляет
+            // свой конфиг с более глубокой пирамидой (третий передел, level 2) и настоящими порогами.
+            GenerationResearch = generationResearch ?? new GenerationResearchConfig
+            {
+                StartingGeneration = 1,
+                ResearchPointThresholdsByGeneration = Array.Empty<decimal>(),
+                DiminishingReturnsExponent = 0.5m,
+                MaxCommitmentPerTurn = 300m,
             },
             Warehouse = warehouse ?? new WarehouseConfig { FreeCapacity = 1000m, OverageFeePerUnit = 0.1m },
             Reputation = new ReputationConfig { HalfLifeTurns = 10, WarmupTurns = 3, TerminationSeverityMultiplier = 3m },

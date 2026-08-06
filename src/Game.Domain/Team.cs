@@ -39,7 +39,25 @@ public sealed class Team
     /// <summary>Фабрики, построенные командой.</summary>
     public IReadOnlyList<Factory> Factories => _factories;
 
-    public Team(Ulid id, string name, Sector sector)
+    /// <summary>
+    /// Поколение пирамиды сырья (см. <see cref="Material.Level"/>), фабрики которого команда может
+    /// строить прямо сейчас — растёт через командное исследование (см.
+    /// <see cref="GenerationResearchInvestment"/>), а не доступно сразу целиком (запрос
+    /// пользователя: будущие фабрики должны появляться постепенно).
+    /// </summary>
+    public int UnlockedGeneration { get; private set; }
+
+    /// <summary>Накопленные вложения команды в исследование следующего поколения фабрик.</summary>
+    public decimal GenerationResearchInvestment { get; private set; }
+
+    /// <summary>
+    /// Сколько команда выделяет на исследование следующего поколения за ход — списывается
+    /// автоматически каждый ход (см. <see cref="Game.Engine.TickFinanceStep"/>), тем же приёмом, что
+    /// и <see cref="Factory.RndCommitmentPerTurn"/>, только на уровне команды, а не одной фабрики.
+    /// </summary>
+    public decimal GenerationResearchCommitmentPerTurn { get; private set; }
+
+    public Team(Ulid id, string name, Sector sector, int startingGeneration = 1)
     {
         if (id == Ulid.Empty)
         {
@@ -55,6 +73,7 @@ public sealed class Team
         Name = name;
         Sector = sector;
         Warehouse = new Warehouse();
+        UnlockedGeneration = startingGeneration;
     }
 
     /// <summary>Строит фабрику заданного типа для команды; тип фабрики обязан быть из сектора команды.</summary>
@@ -133,5 +152,40 @@ public sealed class Team
         }
 
         PenaltyRateSurcharge += amount;
+    }
+
+    /// <summary>
+    /// Меняет сумму, выделяемую на исследование следующего поколения фабрик за ход (см.
+    /// <see cref="GenerationResearchCommitmentPerTurn"/>). Потолок суммы конфигурируется отдельно
+    /// (<see cref="Game.Config.Economy.GenerationResearchConfig.MaxCommitmentPerTurn"/>) и
+    /// проверяется на уровне <see cref="Game.Engine.GameSession"/>, а не здесь — команда сама по себе
+    /// не знает конфиг сессии, как и везде в этом классе (см. <see cref="Factory.SetRndCommitment"/>).
+    /// </summary>
+    public void SetGenerationResearchCommitment(decimal amountPerTurn)
+    {
+        if (amountPerTurn < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amountPerTurn), amountPerTurn, "Generation research commitment must not be negative.");
+        }
+
+        GenerationResearchCommitmentPerTurn = amountPerTurn;
+    }
+
+    /// <summary>Добавляет вложение в исследование следующего поколения фабрик; списывает баланс и копит его же.</summary>
+    public void InvestInGenerationResearch(decimal amount)
+    {
+        if (amount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Generation research investment must be positive.");
+        }
+
+        Debit(amount);
+        GenerationResearchInvestment += amount;
+    }
+
+    /// <summary>Повышает разблокированное поколение на единицу.</summary>
+    public void AdvanceGeneration()
+    {
+        UnlockedGeneration++;
     }
 }

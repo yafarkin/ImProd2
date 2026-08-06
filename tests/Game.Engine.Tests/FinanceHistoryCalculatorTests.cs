@@ -221,7 +221,7 @@ public class FinanceHistoryCalculatorTests
     public void Summarize_Captures_MaterialSold_As_Income_And_EmergencyPurchase_As_Expense()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        log.Append(new EmergencyPurchased { Id = Ulid.NewUlid(), TeamId = team.Id, MaterialId = "ore", Volume = 20m, UnitPrice = 10m, TotalCost = 200m });
+        log.Append(new EmergencyPurchased { Id = Ulid.NewUlid(), Turn = 1, TeamId = team.Id, MaterialId = "ore", Volume = 20m, UnitPrice = 10m, TotalCost = 200m });
         log.Append(new MaterialSoldToSystem
         {
             Id = Ulid.NewUlid(), TeamId = team.Id, MaterialId = "ore", Volume = 20m,
@@ -324,7 +324,7 @@ public class FinanceHistoryCalculatorTests
         // Склад продавца пополняется через настоящее журналируемое событие (а не прямой вызов
         // Warehouse.Add на живом Team), иначе собственный реплей FinanceHistoryCalculator.Summarize
         // на свежем scratch-состоянии не увидит этот товар и упадёт на ContractDelivered.
-        log.Append(new EmergencyPurchased { Id = Ulid.NewUlid(), TeamId = seller.Id, MaterialId = TestGameConfig.Sheet.Id, Volume = 10m, UnitPrice = 0m, TotalCost = 0m });
+        log.Append(new EmergencyPurchased { Id = Ulid.NewUlid(), Turn = 1, TeamId = seller.Id, MaterialId = TestGameConfig.Sheet.Id, Volume = 10m, UnitPrice = 0m, TotalCost = 0m });
         var spec = SheetSpot(buyer.Id, seller.Id, volume: 10m, unitPrice: 20m);
         log.Append(new ContractSigned { Id = Ulid.NewUlid(), Contract = spec });
         log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId });

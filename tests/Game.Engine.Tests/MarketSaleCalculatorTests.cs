@@ -14,7 +14,9 @@ public class MarketSaleCalculatorTests
     {
         return new EconomyConfig
         {
-            EmergencyPurchasePriceMultiplier = 1m,
+            EmergencyPurchaseBaseMultiplier = 1m,
+            EmergencyPurchasePressureMultiplierPerUnit = 0m,
+            EmergencyPurchasePressureHalfLifeTurns = 1,
             BaseMarketPerMaterial = Array.Empty<MaterialMarketConfig>(),
             MarginMultiplierByProcessingLevel = new[]
             {

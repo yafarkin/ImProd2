@@ -112,4 +112,57 @@ public class GameSessionMarketTests
             session.AdvancePhase(PhaseTransitionTrigger.Timer);
         }
     }
+
+    /// <summary>Сессия на конфиге с ненулевой надбавкой за «давление» недавних экстренных закупок — по образцу <see cref="TestGameConfig.StartGameSessionWithOneTeam"/>, но с настраиваемым конфигом.</summary>
+    private static (GameSession Session, Ulid TeamId) StartWithEmergencyPurchasePressure(decimal pressureMultiplierPerUnit)
+    {
+        var config = TestGameConfig.BuildWithEmergencyPurchasePressure(pressureMultiplierPerUnit);
+        var teamId = Ulid.NewUlid();
+        var log = new EventLog<GameSessionState>(new GameSessionState(config));
+        var session = GameSession.StartWithEndTurn(
+            log, "test", endTurn: 999,
+            new[] { new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id } });
+        log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = teamId, Amount = 100_000m });
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
+
+        return (session, teamId);
+    }
+
+    [Fact]
+    public void EmergencyPurchase_Charges_The_Base_Multiplier_With_No_Prior_Purchases()
+    {
+        var (session, teamId) = StartWithEmergencyPurchasePressure(pressureMultiplierPerUnit: 1m);
+        var balanceBefore = session.State.Teams[teamId].Balance;
+
+        var entry = session.EmergencyPurchase(teamId, "ore", volume: 5m);
+
+        // TestGameConfig: ore BasePrice=10, EmergencyPurchaseBaseMultiplier=2 -> 20/ед., без давления.
+        var purchased = Assert.IsType<EmergencyPurchased>(entry.Change);
+        Assert.Equal(20m, purchased.UnitPrice);
+        Assert.Equal(balanceBefore - 100m, session.State.Teams[teamId].Balance);
+    }
+
+    [Fact]
+    public void EmergencyPurchase_Charges_A_Higher_Price_For_A_Second_Purchase_Of_The_Same_Material_The_Same_Turn()
+    {
+        var (session, teamId) = StartWithEmergencyPurchasePressure(pressureMultiplierPerUnit: 1m);
+        session.EmergencyPurchase(teamId, "ore", volume: 5m); // множитель 2 (базовый) — теперь есть давление 5
+
+        var second = (EmergencyPurchased)session.EmergencyPurchase(teamId, "ore", volume: 5m).Change;
+
+        // Множитель = база(2) + давление(5, от первой закупки) * 1 = 7 -> 70/ед.
+        Assert.Equal(70m, second.UnitPrice);
+    }
+
+    [Fact]
+    public void EmergencyPurchase_Does_Not_Escalate_The_Price_Of_A_Different_Material()
+    {
+        var (session, teamId) = StartWithEmergencyPurchasePressure(pressureMultiplierPerUnit: 1m);
+        session.EmergencyPurchase(teamId, "ore", volume: 5m);
+
+        var sheetPurchase = (EmergencyPurchased)session.EmergencyPurchase(teamId, "sheet", volume: 1m).Change;
+
+        // TestGameConfig: sheet BasePrice=25 * база(2) = 50, без давления от закупок руды.
+        Assert.Equal(50m, sheetPurchase.UnitPrice);
+    }
 }
