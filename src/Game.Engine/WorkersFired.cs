@@ -2,7 +2,11 @@ using Game.Domain;
 
 namespace Game.Engine;
 
-/// <summary>Команда уволила рабочих с фабрики (SPEC §5.6: увольнение мгновенное, с разовой платой за действие).</summary>
+/// <summary>
+/// Фабрика реально уволила рабочих — до объявленной командой численности (см. doc-comment <see
+/// cref="WorkersHired"/>). Разовая плата, списывается один раз за ход на финансовом шаге тика, а не
+/// в момент объявления (см. <see cref="TickFinanceStep"/>, <see cref="WorkforceStep"/>).
+/// </summary>
 public sealed record WorkersFired : Change<GameSessionState>
 {
     /// <summary>Команда, уволившая рабочих.</summary>

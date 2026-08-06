@@ -68,7 +68,11 @@ internal static class GameConfigTestBuilder
             },
             Rnd = new RndConfig
             {
-                CumulativeInvestmentThresholdsByLevel = new[] { 100m, 300m, 600m },
+                ResearchPointThresholdsByLevel = new[] { 100m, 300m, 600m },
+                // Экспонента 1 — очки исследований совпадают с накопленными ¤ один в один, чтобы не
+                // ломать арифметику существующих тестов, построенных на этом билдере (см. тот же приём
+                // в TestGameConfig.cs). Реальная нелинейная отдача — в живых конфигах и RndCalculatorTests.
+                DiminishingReturnsExponent = 1m,
                 ProductionRateBonusPerLevel = 0.1m,
                 MaxCommitmentPerTurn = 1000m,
             },

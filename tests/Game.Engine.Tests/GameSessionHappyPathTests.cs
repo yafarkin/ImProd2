@@ -20,11 +20,11 @@ public class GameSessionHappyPathTests
         // решения команд — только в фазе Decision.
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 1
 
-        // --- Шаг 1: строим рудник и нанимаем рабочих ---
+        // --- Шаг 1: строим рудник и объявляем желаемую численность рабочих ---
         var mineBuilt = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
-        session.HireWorkers(teamId, mineBuilt.FactoryId, count: 5);
+        session.SetWorkerCount(teamId, mineBuilt.FactoryId, count: 5);
         Assert.Equal(100m, mineBuilt.Cost); // TestGameConfig: BuildCost = 100
-        Assert.Equal(2000m - 100m - 5 * 50m, team.Balance); // постройка + наём (HireCostPerWorker = 50)
+        Assert.Equal(2000m - 100m, team.Balance); // постройка сразу; наём объявлен, но пока бесплатен — спишется на расчёте (см. financeCost ниже)
 
         // --- Шаг 2: закупаем руду про запас (аварийная закупка у системы, SPEC §5.3) ---
         var balanceBeforePurchase = team.Balance;
@@ -34,12 +34,13 @@ public class GameSessionHappyPathTests
         Assert.Equal(balanceBeforePurchase - 200m, team.Balance);
         Assert.Equal(10m, team.Warehouse.QuantityOf(TestGameConfig.Ore));
 
-        // --- Шаг 3: строим сталелитейный завод следующего уровня и тоже нанимаем рабочих ---
+        // --- Шаг 3: строим сталелитейный завод следующего уровня и тоже объявляем штат ---
         var millBuilt = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mill.Id).Change;
-        session.HireWorkers(teamId, millBuilt.FactoryId, count: 5);
+        session.SetWorkerCount(teamId, millBuilt.FactoryId, count: 5);
         var balanceAfterDecisionPhase = team.Balance;
 
-        // --- Ход 2: расчёт тика — рудник добывает руду, завод в том же тике перерабатывает её в лист ---
+        // --- Ход 2: расчёт тика — сначала settlement нанимает по обеим фабрикам, потом рудник
+        // добывает руду, а завод в том же тике перерабатывает её в лист ---
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var tick = session.RunTick(new Random(1));
 
@@ -50,7 +51,7 @@ public class GameSessionHappyPathTests
         Assert.Equal(5m, team.Warehouse.QuantityOf(TestGameConfig.Ore)); // 15 было - 10 потрачено заводом
         Assert.Equal(5m, team.Warehouse.QuantityOf(TestGameConfig.Sheet));
 
-        var financeCost = 2000m * 0.05m + 10 /* рабочих */ * 5m; // проценты по займу + зарплаты
+        var financeCost = 2000m * 0.05m + 10 /* рабочих */ * 50m /* наём, settled здесь */ + 10 /* рабочих */ * 5m; // проценты + наём + зарплаты
         Assert.Equal(balanceAfterDecisionPhase - financeCost, team.Balance);
 
         // --- Шаг 4: продаём готовый лист системе ---

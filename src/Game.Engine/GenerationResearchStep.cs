@@ -6,9 +6,11 @@ namespace Game.Engine;
 /// <summary>
 /// Вложение в исследование следующего поколения фабрик плюс, если накопленное вложение перешагнуло
 /// один или несколько порогов, столько же событий перехода поколения подряд (тот же приём, что
-/// <see cref="RndInvestmentStep"/> для одной фабрики, только на уровне команды). Возвращает готовые
-/// события, не применяет их — тот же принцип, что у <see cref="ProductionCalculator"/> и
-/// <see cref="TickFinanceStep"/>.
+/// <see cref="RndInvestmentStep"/> для одной фабрики, только на уровне команды). Ничего не делает и
+/// ничего не списывает, если команда уже на максимальном поколении (<see
+/// cref="GenerationResearchCalculator.IsAtMaxGeneration"/>) — тот же баг-репорт пользователя, что и у
+/// <see cref="RndInvestmentStep"/>. Возвращает готовые события, не применяет их — тот же принцип, что
+/// у <see cref="ProductionCalculator"/> и <see cref="TickFinanceStep"/>.
 /// </summary>
 public static class GenerationResearchStep
 {
@@ -19,6 +21,11 @@ public static class GenerationResearchStep
         if (amount <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(amount), amount, "Investment amount must be positive.");
+        }
+
+        if (GenerationResearchCalculator.IsAtMaxGeneration(team.UnlockedGeneration, config))
+        {
+            return Array.Empty<Change<GameSessionState>>();
         }
 
         var changes = new List<Change<GameSessionState>>

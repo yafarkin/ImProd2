@@ -271,28 +271,22 @@ else
                         @if (_canManage)
                         {
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                <span class="text-muted">Сейчас: @factory.Workers</span>
+                                <span class="text-muted">Сейчас: @factory.Workers · объявлено на расчёт: @factory.DesiredWorkers</span>
                                 <input type="number" min="0" step="1" class="form-control d-inline-block" style="width:6em" @bind="_targetWorkerCounts[factory.FactoryId]" />
                                 <button type="button" class="btn btn-secondary" disabled="@(!CanApplyWorkerCount(factory))" @onclick="() => ApplyWorkerCount(factory)">Применить</button>
                             </div>
                             var (workerDelta, workerCost) = WorkerCountChange(factory);
                             @if (workerDelta > 0)
                             {
-                                <p class="text-muted small">Вы собираетесь нанять @workerDelta рабочих — стоимость @DashboardDisplay.FormatMoney(workerCost).</p>
+                                <p class="text-muted small">При расчёте наймёт ещё @workerDelta — стоимость @DashboardDisplay.FormatMoney(workerCost).</p>
                             }
                             else if (workerDelta < 0)
                             {
-                                <p class="text-muted small">Вы собираетесь уволить @(-workerDelta) рабочих — стоимость @DashboardDisplay.FormatMoney(workerCost).</p>
+                                <p class="text-muted small">При расчёте уволит @(-workerDelta) — стоимость @DashboardDisplay.FormatMoney(workerCost).</p>
                             }
-                            @if (workerCost > _balance)
-                            {
-                                <p class="text-danger small mb-2">
-                                    Не хватает @DashboardDisplay.FormatMoney(workerCost - _balance) —
-                                    <button type="button" class="btn btn-link p-0 align-baseline" @onclick='() => _activePageTab = "finance"'>возьмите кредит в Финансах</button>.
-                                </p>
-                            }
-                            <p class="text-muted small">
-                                Нанять одного: @DashboardDisplay.FormatMoney(_hireCostPerWorker) ·
+                            <p class="text-muted small mb-2">
+                                Объявление бесплатно и можно менять сколько угодно раз — спишется один раз, при
+                                расчёте хода, по итоговой разнице. Нанять одного: @DashboardDisplay.FormatMoney(_hireCostPerWorker) ·
                                 уволить одного: @DashboardDisplay.FormatMoney(_fireCostPerWorker)
                             </p>
                             <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
@@ -306,7 +300,13 @@ else
                         }
                         else
                         {
-                            <p>Рабочих: @factory.Workers</p>
+                            <p>
+                                Рабочих: @factory.Workers
+                                @if (factory.DesiredWorkers != factory.Workers)
+                                {
+                                    <text> (объявлено на расчёт: @factory.DesiredWorkers)</text>
+                                }
+                            </p>
                             <p class="text-muted small">Доля при дефиците общего сырья: @factory.AllocationShare.ToString("0.##")</p>
                         }
                     }
@@ -337,29 +337,38 @@ else
                     else if (_activeFactoryTab == "rnd")
                     {
                         <p>
-                            Вложено @factory.RndInvestment.ToString("0.##")
+                            Очки исследования: @factory.RndPoints.ToString("0.##")
                             @if (factory.NextLevelThreshold is { } threshold)
                             {
-                                <text>(до следующего уровня: @threshold.ToString("0.##"))</text>
+                                <text>из @threshold.ToString("0.##") (до следующего уровня)</text>
                             }
                             else
                             {
                                 <text>(максимальный уровень)</text>
                             }
                         </p>
-                        <p>
-                            Сейчас выделяется: @factory.RndCommitmentPerTurn.ToString("0.##") ¤/ход
-                        </p>
-                        @if (_canManage)
+                        <p class="text-muted small">Вложено всего: @factory.RndInvestment.ToString("0.##") ¤</p>
+                        @if (factory.NextLevelThreshold is null)
                         {
-                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                <input type="number" min="0" max="@_maxRndCommitmentPerTurn" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_rndCommitmentAmounts[factory.FactoryId]" />
-                                <button type="button" class="btn btn-secondary btn-sm" @onclick="() => SetRndCommitment(factory.FactoryId)">Изменить</button>
-                            </div>
-                            <p class="text-muted small mb-2">
-                                Списывается автоматически каждый ход, до @_maxRndCommitmentPerTurn.ToString("0.##") ¤/ход на одну
-                                фабрику — так рост уровня растянут по ходам, а не мгновенный за счёт большого кредита.
+                            <p class="text-success small mb-2"><em>Максимальный уровень фабрики уже достигнут — вкладывать больше некуда, деньги не списываются.</em></p>
+                        }
+                        else
+                        {
+                            <p>
+                                Сейчас выделяется: @factory.RndCommitmentPerTurn.ToString("0.##") ¤/ход
                             </p>
+                            @if (_canManage)
+                            {
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                    <input type="number" min="0" max="@_maxRndCommitmentPerTurn" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_rndCommitmentAmounts[factory.FactoryId]" />
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => SetRndCommitment(factory.FactoryId)">Изменить</button>
+                                </div>
+                                <p class="text-muted small mb-2">
+                                    Списывается автоматически каждый ход, до @_maxRndCommitmentPerTurn.ToString("0.##") ¤/ход на одну
+                                    фабрику. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
+                                    всё сразу за счёт кредита.
+                                </p>
+                            }
                         }
                     }
                     else if (_activeFactoryTab == "destination")
@@ -421,10 +430,38 @@ else
                                             <td>@DashboardDisplay.FormatMoney(profitability.MaxRevenue)</td>
                                         </tr>
                                         <tr>
-                                            <td>Затраты на сырьё (по рыночной цене)</td>
+                                            <td>Затраты на сырьё (по реальной себестоимости)</td>
                                             <td>@DashboardDisplay.FormatMoney(profitability.InputCost)</td>
                                             <td>@DashboardDisplay.FormatMoney(profitability.MaxInputCost)</td>
                                         </tr>
+                                        @if (profitability.InputBreakdown.Count > 0)
+                                        {
+                                            <tr>
+                                                <td colspan="3" class="p-0 pb-2">
+                                                    <table class="table table-sm table-borderless mb-0 ms-3" style="width:auto">
+                                                        <thead>
+                                                            <tr class="text-muted small">
+                                                                <th>Сырьё</th>
+                                                                <th>Цена закупки за ед.</th>
+                                                                <th>Куплено единиц (на этот ход)</th>
+                                                                <th>Итого</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var line in profitability.InputBreakdown)
+                                                            {
+                                                                <tr class="small">
+                                                                    <td>@line.Material.Name</td>
+                                                                    <td>@DashboardDisplay.FormatUnitCost(line.UnitCost)</td>
+                                                                    <td>@line.Quantity.ToString("0.##")</td>
+                                                                    <td>@DashboardDisplay.FormatMoney(line.Cost)</td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        }
                                         <tr>
                                             <td>Зарплата рабочих</td>
                                             <td colspan="2">@DashboardDisplay.FormatMoney(profitability.WageCost)</td>
@@ -550,18 +587,25 @@ else
         }
     </p>
     <p>Вложено всего: @_generationResearchInvestment.ToString("0.##") ¤</p>
-    <p>Сейчас выделяется: @_generationResearchCommitmentPerTurn.ToString("0.##") ¤/ход</p>
-    @if (_canManage)
+    @if (_nextGenerationThreshold is null)
     {
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-            <input type="number" min="0" max="@_maxGenerationResearchCommitmentPerTurn" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_generationResearchCommitmentInput" />
-            <button type="button" class="btn btn-secondary btn-sm" @onclick="SetGenerationResearchCommitment">Изменить</button>
-        </div>
-        <p class="text-muted small">
-            Списывается автоматически каждый ход, до @_maxGenerationResearchCommitmentPerTurn.ToString("0.##") ¤/ход
-            на команду. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
-            всё сразу за счёт кредита.
-        </p>
+        <p class="text-success small"><em>Максимальное поколение уже разблокировано — вкладывать больше некуда, деньги не списываются.</em></p>
+    }
+    else
+    {
+        <p>Сейчас выделяется: @_generationResearchCommitmentPerTurn.ToString("0.##") ¤/ход</p>
+        @if (_canManage)
+        {
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <input type="number" min="0" max="@_maxGenerationResearchCommitmentPerTurn" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_generationResearchCommitmentInput" />
+                <button type="button" class="btn btn-secondary btn-sm" @onclick="SetGenerationResearchCommitment">Изменить</button>
+            </div>
+            <p class="text-muted small">
+                Списывается автоматически каждый ход, до @_maxGenerationResearchCommitmentPerTurn.ToString("0.##") ¤/ход
+                на команду. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
+                всё сразу за счёт кредита.
+            </p>
+        }
     }
 </div>
 <div style="display:@(_activePageTab == "warehouse" ? "" : "none")">
@@ -834,11 +878,11 @@ else
 
 @code {
     private sealed record FactoryRow(
-        Ulid FactoryId, string DefinitionName, int Level, int Workers,
+        Ulid FactoryId, string DefinitionName, int Level, int Workers, int DesiredWorkers,
         Material ProducedMaterial, string SelectedRecipeName, IReadOnlyList<(string Id, string Name)> RecipeOptions,
         IReadOnlyList<RecipeInput> Inputs,
         bool HasUnitCost, decimal UnitCost, IReadOnlyList<DashboardDisplay.PyramidRow> Pyramid,
-        decimal RndInvestment, decimal RndCommitmentPerTurn, decimal? NextLevelThreshold, decimal AllocationShare,
+        decimal RndInvestment, decimal RndPoints, decimal RndCommitmentPerTurn, decimal? NextLevelThreshold, decimal AllocationShare,
         IReadOnlyList<string> ConsumingFactoryNames,
         FactoryProfitabilityCalculator.FactoryProfitabilityEstimate? Profitability,
         ProductionCalculator.CapacityBreakdown CapacityBreakdown,
@@ -1125,8 +1169,9 @@ else
                 }
             }
 
-            var rndThresholds = state.Config.Raw.Rnd.CumulativeInvestmentThresholdsByLevel;
-            _maxRndCommitmentPerTurn = state.Config.Raw.Rnd.MaxCommitmentPerTurn;
+            var rndConfig = state.Config.Raw.Rnd;
+            var rndThresholds = rndConfig.ResearchPointThresholdsByLevel;
+            _maxRndCommitmentPerTurn = rndConfig.MaxCommitmentPerTurn;
 
             var generationResearchConfig = state.Config.Raw.GenerationResearch;
             _generationResearchInvestment = team.GenerationResearchInvestment;
@@ -1161,7 +1206,7 @@ else
             {
                 _selectedRecipeIds.TryAdd(factory.Id, factory.SelectedRecipe.Id);
                 _rndCommitmentAmounts.TryAdd(factory.Id, factory.RndCommitmentPerTurn);
-                _targetWorkerCounts.TryAdd(factory.Id, factory.Workers);
+                _targetWorkerCounts.TryAdd(factory.Id, factory.DesiredWorkers);
                 _allocationShares.TryAdd(factory.Id, factory.AllocationShare);
 
                 var hasUnitCost = DashboardDisplay.TryCalculateUnitCost(factory.SelectedRecipe.Output, state, out var unitCost);
@@ -1169,6 +1214,7 @@ else
                     ? DashboardDisplay.FlattenPyramid(CostCalculator.BuildInputPyramid(factory.SelectedRecipe.Output, 1m, state.Config.RecipeBook))
                     : Array.Empty<DashboardDisplay.PyramidRow>();
                 var nextLevelThreshold = factory.Level - 1 < rndThresholds.Count ? rndThresholds[factory.Level - 1] : (decimal?)null;
+                var rndPoints = RndCalculator.CalculateResearchPoints(factory.RndInvestment, rndConfig);
 
                 // Кто из своих же построенных фабрик заберёт этот выход как сырьё с общего склада —
                 // прямой ответ на вопрос «куда идёт продукция» (см. пояснение в карточке ниже:
@@ -1195,11 +1241,11 @@ else
                     output.OutputQuantity)).ToList();
 
                 return new FactoryRow(
-                    factory.Id, factoryDisplayNames[factory.Id], factory.Level, factory.Workers,
+                    factory.Id, factoryDisplayNames[factory.Id], factory.Level, factory.Workers, factory.DesiredWorkers,
                     factory.SelectedRecipe.Output, factory.SelectedRecipe.Output.Name,
                     factory.Definition.Recipes.Select(r => (r.Id, r.Output.Name)).ToList(),
                     factory.SelectedRecipe.Inputs,
-                    hasUnitCost, unitCost, pyramid, factory.RndInvestment, factory.RndCommitmentPerTurn, nextLevelThreshold, factory.AllocationShare,
+                    hasUnitCost, unitCost, pyramid, factory.RndInvestment, rndPoints, factory.RndCommitmentPerTurn, nextLevelThreshold, factory.AllocationShare,
                     consumingFactoryNames, profitabilityByFactoryId.GetValueOrDefault(factory.Id),
                     capacityBreakdown, activityHistory);
             }).ToList();
@@ -1304,14 +1350,16 @@ else
     private void ScrollTo(string elementId) => Nav.NavigateTo($"/team#{elementId}");
 
     /// <summary>
-    /// Разница между желаемой численностью (поле ввода <see cref="_targetWorkerCounts"/>) и текущей —
-    /// общая основа для текста-предпросмотра, disabled-состояния кнопки «Применить» и предупреждения
-    /// о нехватке денег (запрос пользователя: явно показывать «нанять/уволить N, стоимость Y» вместо
-    /// прежнего степпера по одному через +/-). Положительная разница — наём, отрицательная — увольнение.
+    /// Разница между полем ввода <see cref="_targetWorkerCounts"/> и уже объявленной численностью
+    /// (<see cref="FactoryRow.DesiredWorkers"/>) — превью того, что изменится в объявлении при клике
+    /// «Применить»: расчёт хода потом сам наймёт/уволит до этого значения и спишет стоимость один раз
+    /// по итоговой разнице с фактическим <see cref="FactoryRow.Workers"/> (запрос пользователя: не
+    /// списывать за каждое промежуточное значение, если команда меняла его несколько раз за ход — см.
+    /// doc-comment <see cref="GameSession.SetWorkerCount"/>). Положительная разница — наём, отрицательная — увольнение.
     /// </summary>
     private (int Delta, decimal Cost) WorkerCountChange(FactoryRow factory)
     {
-        var target = Math.Max(0, _targetWorkerCounts.GetValueOrDefault(factory.FactoryId, factory.Workers));
+        var target = Math.Max(0, _targetWorkerCounts.GetValueOrDefault(factory.FactoryId, factory.DesiredWorkers));
         var delta = target - factory.Workers;
         var cost = delta switch
         {
@@ -1324,21 +1372,14 @@ else
 
     private bool CanApplyWorkerCount(FactoryRow factory)
     {
-        var (delta, cost) = WorkerCountChange(factory);
-        return delta != 0 && cost <= _balance;
+        var target = Math.Max(0, _targetWorkerCounts.GetValueOrDefault(factory.FactoryId, factory.DesiredWorkers));
+        return target != factory.DesiredWorkers;
     }
 
     private void ApplyWorkerCount(FactoryRow factory)
     {
-        var (delta, _) = WorkerCountChange(factory);
-        if (delta > 0)
-        {
-            RunAction(() => Host.Session!.HireWorkers(_teamId, factory.FactoryId, delta));
-        }
-        else if (delta < 0)
-        {
-            RunAction(() => Host.Session!.FireWorkers(_teamId, factory.FactoryId, -delta));
-        }
+        var target = Math.Max(0, _targetWorkerCounts.GetValueOrDefault(factory.FactoryId, factory.DesiredWorkers));
+        RunAction(() => Host.Session!.SetWorkerCount(_teamId, factory.FactoryId, target));
     }
 
     private string TabClass(string tab) => _activeFactoryTab == tab ? "active" : "";

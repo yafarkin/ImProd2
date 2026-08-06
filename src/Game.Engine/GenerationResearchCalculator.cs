@@ -42,4 +42,16 @@ public static class GenerationResearchCalculator
 
         return generation;
     }
+
+    /// <summary>
+    /// Достигнут ли потолок поколений из <see
+    /// cref="GenerationResearchConfig.ResearchPointThresholdsByGeneration"/> — тот же смысл и та же
+    /// причина, что и у <see cref="RndCalculator.IsAtMaxLevel"/>, только на уровне команды.
+    /// </summary>
+    public static bool IsAtMaxGeneration(int currentGeneration, GenerationResearchConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        return currentGeneration - config.StartingGeneration >= config.ResearchPointThresholdsByGeneration.Count;
+    }
 }

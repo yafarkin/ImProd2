@@ -33,7 +33,8 @@ public class FactoryProfitabilityCalculatorTests
 
     private static readonly RndConfig NoRndBonus = new()
     {
-        CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
+        ResearchPointThresholdsByLevel = Array.Empty<decimal>(),
+        DiminishingReturnsExponent = 1m,
         ProductionRateBonusPerLevel = 0m,
         MaxCommitmentPerTurn = 1000m,
     };
@@ -45,11 +46,19 @@ public class FactoryProfitabilityCalculatorTests
         return factory;
     }
 
+    /// <summary>
+    /// Склад, чья реальная себестоимость (<see cref="Warehouse.AverageCostOf"/>) намеренно совпадает
+    /// с рыночной ценой руды/угля этих тестов (2 и 1 соответственно) — так большинству тестов этого
+    /// файла (про выручку, зарплату, мощность, накладные, распределение дефицита) не важно, какую из
+    /// двух величин на самом деле берёт калькулятор для InputCost, их значения совпадают. Тест на
+    /// реальное отличие (себестоимость ≠ рыночная цена) — TryCalculate_Prices_Consumed_Inputs_At_...
+    /// ниже, там себестоимость задаётся явно другой.
+    /// </summary>
     private static Warehouse WarehouseWith(decimal ore, decimal coal)
     {
         var warehouse = new Warehouse();
-        warehouse.Add(Ore, ore, 0m);
-        warehouse.Add(Coal, coal, 0m);
+        warehouse.Add(Ore, ore, ore * 2m);
+        warehouse.Add(Coal, coal, coal * 1m);
         return warehouse;
     }
 
@@ -129,6 +138,39 @@ public class FactoryProfitabilityCalculatorTests
         Assert.Equal(25m, estimate.MaxInputCost); // 10 руды*2 + 5 угля*1
         Assert.Equal(0m, estimate.MaxProfit); // 50 - 25 - 25 (зарплата) - 0 (без капитальных затрат)
         Assert.Equal(10m, estimate.MaxUnitCost); // (25 + 25 + 0) / 5
+    }
+
+    [Fact]
+    public void TryCalculate_Breaks_Down_Input_Cost_By_Material_With_Quantity_And_Unit_Price()
+    {
+        // Запрос пользователя: «добавь в таблицу цену закупки за единицу и сколько единиц купили —
+        // чтобы чётко видеть прослеживаемость цены» — InputBreakdown/MaxInputBreakdown должны давать
+        // ровно то, из чего складываются InputCost/MaxInputCost (по одной строке на материал).
+        var factory = NewFactory(workers: 5); // 5 листов/тик: 10 руды, 5 угля
+        var warehouse = WarehouseWith(ore: 1000m, coal: 1000m);
+        var market = new Market();
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
+        {
+            [Ore.Id] = new(2m, 1000m),
+            [Coal.Id] = new(1m, 1000m),
+            [Sheet.Id] = new(10m, 1000m),
+        }, electricityPrice: 0m);
+
+        FactoryProfitabilityCalculator.TryCalculate(
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
+            out var estimate);
+
+        Assert.Equal(2, estimate.InputBreakdown.Count);
+        var ore = Assert.Single(estimate.InputBreakdown, line => line.Material == Ore);
+        Assert.Equal(10m, ore.Quantity);
+        Assert.Equal(2m, ore.UnitCost);
+        Assert.Equal(20m, ore.Cost);
+        var coal = Assert.Single(estimate.InputBreakdown, line => line.Material == Coal);
+        Assert.Equal(5m, coal.Quantity);
+        Assert.Equal(1m, coal.UnitCost);
+        Assert.Equal(5m, coal.Cost);
+        Assert.Equal(estimate.InputCost, estimate.InputBreakdown.Sum(line => line.Cost));
+        Assert.Equal(estimate.MaxInputCost, estimate.MaxInputBreakdown.Sum(line => line.Cost));
     }
 
     [Fact]
@@ -247,5 +289,76 @@ public class FactoryProfitabilityCalculatorTests
         // Доля 3:1 от 8 руды -> 6 и 2 -> 3 и 1 лист.
         Assert.Equal(3m, estimateA.ProjectedOutputQuantity);
         Assert.Equal(1m, estimateB.ProjectedOutputQuantity);
+    }
+
+    [Fact]
+    public void TryCalculate_Prices_Consumed_Inputs_At_Their_Real_Average_Cost_Not_The_Market_Price()
+    {
+        // Пользовательский сценарий: руда добыта на собственном руднике (реальная себестоимость
+        // 0.5/ед. — зарплата рудокопов), а рыночная цена руды в это же время взлетела до 50/ед.
+        // (например, из-за чужих аварийных закупок) — прибыльность сталелитейного завода не должна
+        // обваливаться из-за чужой рыночной цены на то, что реально почти ничего не стоило.
+        var factory = NewFactory(workers: 5); // 5 листов/тик: 10 руды, 5 угля
+        var warehouse = new Warehouse();
+        warehouse.Add(Ore, 1000m, 1000m * 0.5m); // реальная себестоимость руды — 0.5/ед., не рыночная
+        warehouse.Add(Coal, 1000m, 1000m * 1m);
+        var market = new Market();
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
+        {
+            [Ore.Id] = new(50m, 1000m), // рыночная цена руды — 50/ед., но это не то, что реально заплачено
+            [Coal.Id] = new(1m, 1000m),
+            [Sheet.Id] = new(10m, 1000m),
+        }, electricityPrice: 0m);
+
+        FactoryProfitabilityCalculator.TryCalculate(
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
+            out var estimate);
+
+        Assert.Equal(10m * 0.5m + 5m * 1m, estimate.InputCost); // 10 руды*0.5 (реальная) + 5 угля*1 = 10, не 505 (по рыночной)
+        Assert.Equal(50m - 10m - 25m, estimate.Profit); // выручка(50) - реальное сырьё(10) - зарплата(25) = 15, не дикий минус
+    }
+
+    [Fact]
+    public void TryCalculate_Falls_Back_To_The_Market_Price_For_The_Max_Scenario_When_An_Input_Was_Never_Actually_Acquired()
+    {
+        var factory = NewFactory(workers: 5);
+        var warehouse = new Warehouse(); // ни руды, ни угля ещё не завозили — совсем новый цех
+        var market = new Market();
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
+        {
+            [Ore.Id] = new(2m, 1000m),
+            [Coal.Id] = new(1m, 1000m),
+            [Sheet.Id] = new(10m, 1000m),
+        }, electricityPrice: 0m);
+
+        var found = FactoryProfitabilityCalculator.TryCalculate(
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
+            out var estimate);
+
+        Assert.True(found); // рыночных котировок хватает, хоть реальной истории закупок и нет
+        Assert.Equal(0m, estimate.ProjectedOutputQuantity); // сырья нет вовсе — реального выпуска нет
+        Assert.Equal(0m, estimate.InputCost); // и тратить не на что
+        Assert.Equal(25m, estimate.MaxInputCost); // теоретический потолок (10 руды*2 + 5 угля*1) — по рыночной цене, раз реальной истории закупок ещё нет
+    }
+
+    [Fact]
+    public void TryCalculate_Returns_False_When_An_Input_Has_Neither_Real_Cost_History_Nor_A_Market_Quote()
+    {
+        var factory = NewFactory(workers: 5);
+        var warehouse = new Warehouse(); // руды и угля ещё не было
+        var market = new Market();
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
+        {
+            [Ore.Id] = new(2m, 1000m),
+            // Coal сознательно без котировки
+            [Sheet.Id] = new(10m, 1000m),
+        }, electricityPrice: 0m);
+
+        var found = FactoryProfitabilityCalculator.TryCalculate(
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
+            out var estimate);
+
+        Assert.False(found);
+        Assert.False(estimate.HasPriceSignal);
     }
 }

@@ -48,8 +48,12 @@ public class TickFinanceStepTests
     }
 
     [Fact]
-    public void Run_Appends_A_Forced_Loan_When_Interest_And_Salaries_Exceed_The_Balance()
+    public void Run_Charges_Interest_And_Salaries_In_Full_Even_When_The_Balance_Cannot_Cover_Them()
     {
+        // Раньше здесь же добавлялся принудительный заём — теперь решение о нём переехало в
+        // отдельный, самый последний шаг всего тика (ForcedLoanStep, вызывается GameSession.RunTick
+        // после производства и контрактов, не отсюда — баг-репорт пользователя, см. doc-comment
+        // TickFinanceStep и ForcedLoanStepTests).
         var (_, team) = TestGameConfig.StartSessionWithOneTeam();
         team.TakeLoan(1000m); // проценты = 50; TakeLoan сам зачисляет сумму на баланс...
         team.Debit(1000m); // ...поэтому сразу же её и тратим, чтобы остался только реальный остаток
@@ -59,11 +63,11 @@ public class TickFinanceStepTests
 
         var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
 
-        Assert.Equal(3, changes.Count);
-        var forcedLoan = Assert.IsType<ForcedLoanTaken>(changes[2]);
-        // баланс до принудительного займа: 30 - 50 - 20 = -40
-        Assert.Equal(40m, forcedLoan.Amount);
-        Assert.Equal(0.1m, forcedLoan.NewPenaltyRateSurcharge);
+        Assert.Equal(2, changes.Count);
+        var interest = Assert.IsType<LoanInterestCharged>(changes[0]);
+        Assert.Equal(50m, interest.Amount); // не урезано из-за нехватки баланса
+        var salaries = Assert.IsType<SalariesPaid>(changes[1]);
+        Assert.Equal(20m, salaries.Amount);
     }
 
     [Fact]
@@ -82,29 +86,7 @@ public class TickFinanceStepTests
     }
 
     [Fact]
-    public void Applying_Two_Consecutive_Shortfall_Ticks_Escalates_The_Penalty_Rate_Surcharge()
-    {
-        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        team.TakeLoan(1000m);
-        team.Debit(1000m); // баланс обнулён — весь заём уже потрачен, платить проценты нечем
-
-        foreach (var change in TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m))
-        {
-            log.Append(change);
-        }
-        Assert.Equal(0.1m, team.PenaltyRateSurcharge);
-
-        foreach (var change in TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m))
-        {
-            log.Append(change);
-        }
-        Assert.Equal(0.2m, team.PenaltyRateSurcharge); // второй принудительный заём эскалирует ещё раз
-
-        Assert.True(log.VerifyIntegrity());
-    }
-
-    [Fact]
-    public void Run_Charges_A_Warehouse_Fee_Between_Salaries_And_Forced_Loan()
+    public void Run_Charges_A_Warehouse_Fee_Last_After_Interest_And_Salaries()
     {
         var (_, team) = TestGameConfig.StartSessionWithOneTeam();
         team.TakeLoan(1000m); // проценты = 50
@@ -125,7 +107,7 @@ public class TickFinanceStepTests
     }
 
     [Fact]
-    public void Run_Counts_An_Unpayable_Warehouse_Fee_Toward_The_Forced_Loan()
+    public void Run_Charges_An_Unpayable_Warehouse_Fee_In_Full()
     {
         var (_, team) = TestGameConfig.StartSessionWithOneTeam();
         team.TakeLoan(1000m); // проценты = 50
@@ -138,11 +120,10 @@ public class TickFinanceStepTests
 
         var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, warehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
 
-        Assert.Equal(4, changes.Count);
-        Assert.IsType<WarehouseFeeCharged>(changes[2]);
-        var forcedLoan = Assert.IsType<ForcedLoanTaken>(changes[3]);
-        // баланс до принудительного займа: 90 - 50 - 20 - 25 = -5
-        Assert.Equal(5m, forcedLoan.Amount);
+        // Было 4 (включая ForcedLoanTaken) — теперь без него, см. doc-comment класса и ForcedLoanStepTests.
+        Assert.Equal(3, changes.Count);
+        var fee = Assert.IsType<WarehouseFeeCharged>(changes[2]);
+        Assert.Equal(25m, fee.Amount); // не урезано из-за нехватки баланса; баланс после: 90-50-20-25 = -5
     }
 
     [Fact]
@@ -197,7 +178,7 @@ public class TickFinanceStepTests
     }
 
     [Fact]
-    public void An_Unaffordable_Mandatory_Repayment_Is_Still_Charged_In_Full_And_Covered_By_A_Forced_Loan()
+    public void An_Unaffordable_Mandatory_Repayment_Is_Still_Charged_In_Full()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
         team.TakeLoan(1000m); // обязательный платёж = 100, процентов при этой ставке ниже нет (сумма займа сразу же обнулена)
@@ -211,12 +192,10 @@ public class TickFinanceStepTests
 
         var repayment = Assert.IsType<MandatoryLoanRepaymentCharged>(changes[1]);
         Assert.Equal(100m, repayment.Amount); // платёж не урезается из-за нехватки баланса
-        var forcedLoan = Assert.IsType<ForcedLoanTaken>(changes[^1]);
-        Assert.Equal(150m, forcedLoan.Amount); // проценты (50) + обязательный платёж (100), которые нечем было покрыть
-        // Итог не «долг минус 100»: непокрытый обязательный платёж закрывается новым принудительным
-        // займом на ту же (плюс проценты) сумму — долг численно почти не меняется, но появляется
-        // штрафная надбавка к ставке (см. doc-comment MandatoryLoanRepaymentCharged).
-        Assert.Equal(1050m, team.Debt); // 1000 - 100 (обязательный платёж) + 150 (принудительный заём)
-        Assert.True(team.PenaltyRateSurcharge > 0);
+        // Принудительный заём, который раньше покрывал эту дыру здесь же, теперь отдельный, самый
+        // последний шаг всего тика (ForcedLoanStep, см. doc-comment класса и ForcedLoanStepTests) —
+        // эта функция сама по себе просто оставляет баланс в минусе.
+        Assert.Equal(-150m, team.Balance); // проценты (50) + обязательный платёж (100)
+        Assert.Equal(900m, team.Debt); // 1000 - 100 (обязательный платёж), проценты тело долга не трогают
     }
 }

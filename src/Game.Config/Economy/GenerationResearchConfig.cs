@@ -18,7 +18,7 @@ public sealed record GenerationResearchConfig
     /// Очки исследований (не сырые ¤, см. <see cref="DiminishingReturnsExponent"/>), нужные для
     /// перехода с поколения (<see cref="StartingGeneration"/> + i) на (<see cref="StartingGeneration"/> + i + 1);
     /// индекс i = 0, 1, 2... Вложение, сразу перекрывающее несколько порогов, поднимает поколение на
-    /// несколько ступеней за раз — тот же приём, что и у <see cref="RndConfig.CumulativeInvestmentThresholdsByLevel"/>.
+    /// несколько ступеней за раз — тот же приём, что и у <see cref="RndConfig.ResearchPointThresholdsByLevel"/>.
     /// </summary>
     public required IReadOnlyList<decimal> ResearchPointThresholdsByGeneration { get; init; }
 

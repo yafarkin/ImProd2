@@ -8,9 +8,9 @@ namespace Game.Engine;
 /// <see cref="TurnHistoryCalculator"/> для своих экранов), поэтому список восстанавливается
 /// проигрыванием журнала. Перечисляет каждый <c>Change</c>, который трогает <see
 /// cref="Game.Domain.Team.Balance"/> или <see cref="Game.Domain.Team.Debt"/> команды — не только
-/// кредитные, но и постройку фабрик, наём/увольнение, зарплаты, R&amp;D, продажи/закупки и
-/// исполнение контрактов. Выдумывать операции, которых в движке нет (например, «закрытие вклада»),
-/// нельзя — вклады пока не реализованы.
+/// кредитные, но и постройку фабрик, наём/увольнение, зарплаты, R&amp;D фабрик и командное
+/// исследование поколения, продажи/закупки и исполнение контрактов. Выдумывать операции, которых в
+/// движке нет (например, «закрытие вклада»), нельзя — вклады пока не реализованы.
 /// </summary>
 public static class FinanceHistoryCalculator
 {
@@ -46,6 +46,9 @@ public static class FinanceHistoryCalculator
 
         /// <summary>Вложение в R&amp;D фабрики (<see cref="RndInvested"/>).</summary>
         RndInvested,
+
+        /// <summary>Вложение в командное исследование следующего поколения (<see cref="GenerationResearchInvested"/>).</summary>
+        GenerationResearchInvested,
 
         /// <summary>Продажа материала системе (<see cref="MaterialSoldToSystem"/>).</summary>
         MaterialSold,
@@ -130,6 +133,9 @@ public static class FinanceHistoryCalculator
                     break;
                 case RndInvested change when change.TeamId == teamId:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.RndInvested, MoneyDirection.Expense, change.Amount, Rate: null));
+                    break;
+                case GenerationResearchInvested change when change.TeamId == teamId:
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.GenerationResearchInvested, MoneyDirection.Expense, change.Amount, Rate: null));
                     break;
                 case MaterialSoldToSystem change when change.TeamId == teamId && change.TotalRevenue > 0:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.MaterialSold, MoneyDirection.Income, change.TotalRevenue, Rate: null));

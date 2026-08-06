@@ -8,6 +8,26 @@ public class GameConfigLoaderTests
     private static string SampleConfigPath =>
         Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
 
+    /// <summary>
+    /// Все три конфига, которые реально раздаёт `GameSessionHost` (админка «Полный»/«Отладочный»/
+    /// «Тренировочный»), должны проходить полную валидацию ссылочной целостности — не только pilot,
+    /// который проверяют остальные тесты этого файла подробно. Ловит опечатки в каталоге (например,
+    /// RecipeId, оставшийся от удалённого при слиянии типа фабрики), которые деsериализация сама по
+    /// себе не заметит.
+    /// </summary>
+    [Theory]
+    [InlineData("gameconfig.pilot.json")]
+    [InlineData("gameconfig.debug.json")]
+    [InlineData("gameconfig.training.json")]
+    public void LoadFromFile_Resolves_Every_Deployed_Sample_Config_Without_Validation_Errors(string fileName)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Samples", fileName);
+
+        var resolved = GameConfigLoader.LoadFromFile(path);
+
+        Assert.NotEmpty(resolved.FactoryDefinitions);
+    }
+
     [Fact]
     public void LoadFromFile_Resolves_Sample_Config_Into_Domain_Graph()
     {

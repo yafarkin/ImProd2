@@ -3,10 +3,12 @@ using Game.Domain;
 namespace Game.Engine;
 
 /// <summary>
-/// Команда наняла рабочих на фабрику (SPEC §5.6: наём мгновенный, с разовой платой за действие).
-/// Списание происходит сразу в момент действия, а не на финансовом шаге тика — в отличие от
-/// зарплаты, процентов и принудительного кредита (см. <see cref="LoanInterestCharged"/>,
-/// <see cref="SalariesPaid"/>), которые накапливаются и применяются раз в ход.
+/// Фабрика реально наняла рабочих — до объявленной командой численности (<see
+/// cref="Domain.Factory.DesiredWorkers"/>), см. <see cref="GameSession.SetWorkerCount"/>). Разовая
+/// плата, но списывается не в момент объявления, а один раз за ход, на финансовом шаге тика (<see
+/// cref="TickFinanceStep"/>, <see cref="WorkforceStep"/>) — тем же приёмом, что и R&amp;D (см. <see
+/// cref="RndInvested"/>), в отличие от постройки фабрики (<see cref="FactoryBuilt"/>), которая
+/// по-прежнему платится сразу в момент действия.
 /// </summary>
 public sealed record WorkersHired : Change<GameSessionState>
 {

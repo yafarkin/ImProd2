@@ -90,7 +90,7 @@ public sealed class SimpleBot
             }
 
             var built = (FactoryBuilt)session.BuildFactory(TeamId, definition.Id).Change;
-            session.HireWorkers(TeamId, built.FactoryId, baseWorkerCount);
+            session.SetWorkerCount(TeamId, built.FactoryId, baseWorkerCount);
         }
     }
 

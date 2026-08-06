@@ -1,6 +1,11 @@
 namespace Game.Engine.Tests;
 
-/// <summary>Постройка фабрик и наём/увольнение рабочих через <see cref="GameSession"/> (Блок 7.1, SPEC §5.6).</summary>
+/// <summary>
+/// Постройка фабрик и объявление желаемой численности рабочих через <see cref="GameSession"/> (Блок
+/// 7.1, SPEC §5.6). Объявление (<see cref="GameSession.SetWorkerCount"/>) бесплатно и мгновенно —
+/// реальный наём/увольнение и разовая плата за него проверены отдельно, на фазе расчёта, в
+/// WorkforceStepTests и TickFinanceStepWorkforceTests.
+/// </summary>
 public class GameSessionFactoryTests
 {
     private static (GameSession Session, Ulid TeamId) StartInDecisionPhase()
@@ -96,52 +101,55 @@ public class GameSessionFactoryTests
     }
 
     [Fact]
-    public void HireWorkers_Charges_The_Configured_Cost_Per_Worker()
+    public void SetWorkerCount_Declares_The_Desired_Headcount_Without_Charging_Anything_Yet()
     {
         var (session, teamId) = StartInDecisionPhase();
         var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
         var balanceAfterBuild = session.State.Teams[teamId].Balance;
 
-        var entry = session.HireWorkers(teamId, built.FactoryId, 5);
+        var entry = session.SetWorkerCount(teamId, built.FactoryId, 5);
 
-        var hired = Assert.IsType<WorkersHired>(entry.Change);
-        Assert.Equal(5 * 50m, hired.Cost); // TestGameConfig: HireCostPerWorker = 50
-        Assert.Equal(5, session.State.Teams[teamId].Factories.Single().Workers);
-        Assert.Equal(balanceAfterBuild - hired.Cost, session.State.Teams[teamId].Balance);
+        var set = Assert.IsType<WorkerCountSet>(entry.Change);
+        Assert.Equal(5, set.Count);
+        var factory = session.State.Teams[teamId].Factories.Single();
+        Assert.Equal(5, factory.DesiredWorkers);
+        Assert.Equal(0, factory.Workers); // реальный наём — только на фазе расчёта
+        Assert.Equal(balanceAfterBuild, session.State.Teams[teamId].Balance); // объявление бесплатно
     }
 
     [Fact]
-    public void HireWorkers_Throws_For_An_Unknown_Factory()
+    public void SetWorkerCount_Can_Be_Changed_Any_Number_Of_Times_Before_Settlement_For_Free()
     {
+        // Пользовательский сценарий: команда несколько раз крутит число туда-сюда за один и тот же
+        // ход — ни одно промежуточное значение не должно стоить денег, платится только итог (см.
+        // GameSessionRndProgressionTests и WorkforceStepTests — тот же приём и для R&D).
         var (session, teamId) = StartInDecisionPhase();
+        var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
+        var balanceAfterBuild = session.State.Teams[teamId].Balance;
 
-        Assert.Throws<ArgumentException>(() => session.HireWorkers(teamId, Ulid.NewUlid(), 5));
+        session.SetWorkerCount(teamId, built.FactoryId, 10); // нанял 10...
+        session.SetWorkerCount(teamId, built.FactoryId, 5);  // ...передумал, уволил 5...
+        session.SetWorkerCount(teamId, built.FactoryId, 5);  // ...остановился на 5
+
+        Assert.Equal(5, session.State.Teams[teamId].Factories.Single().DesiredWorkers);
+        Assert.Equal(balanceAfterBuild, session.State.Teams[teamId].Balance); // ни одно объявление не списывает деньги
     }
 
     [Fact]
-    public void FireWorkers_Charges_The_Configured_Cost_Per_Worker()
+    public void SetWorkerCount_Throws_For_A_Negative_Count()
     {
         var (session, teamId) = StartInDecisionPhase();
         var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
-        session.HireWorkers(teamId, built.FactoryId, 5);
-        var balanceAfterHire = session.State.Teams[teamId].Balance;
 
-        var entry = session.FireWorkers(teamId, built.FactoryId, 2);
-
-        var fired = Assert.IsType<WorkersFired>(entry.Change);
-        Assert.Equal(2 * 30m, fired.Cost); // TestGameConfig: FireCostPerWorker = 30
-        Assert.Equal(3, session.State.Teams[teamId].Factories.Single().Workers);
-        Assert.Equal(balanceAfterHire - fired.Cost, session.State.Teams[teamId].Balance);
+        Assert.Throws<ArgumentOutOfRangeException>(() => session.SetWorkerCount(teamId, built.FactoryId, -1));
     }
 
     [Fact]
-    public void FireWorkers_Throws_When_Firing_More_Than_Currently_Employed()
+    public void SetWorkerCount_Throws_For_An_Unknown_Factory()
     {
         var (session, teamId) = StartInDecisionPhase();
-        var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
-        session.HireWorkers(teamId, built.FactoryId, 2);
 
-        Assert.Throws<InvalidOperationException>(() => session.FireWorkers(teamId, built.FactoryId, 3));
+        Assert.Throws<ArgumentException>(() => session.SetWorkerCount(teamId, Ulid.NewUlid(), 5));
     }
 
     [Fact]
@@ -149,11 +157,12 @@ public class GameSessionFactoryTests
     {
         var (session, teamId) = StartInDecisionPhase();
         var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
-        session.HireWorkers(teamId, built.FactoryId, 5);
+        session.SetWorkerCount(teamId, built.FactoryId, 5);
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var appended = session.RunTick(new Random(1));
 
+        Assert.Contains(appended, e => e.Change is WorkersHired hired && hired.Count == 5); // наём settled здесь, разово
         var produced = Assert.IsType<FactoryProduced>(appended.Single(e => e.Change is FactoryProduced).Change);
         Assert.Equal(5m, produced.OutputQuantity); // 5 рабочих, ProductionRate=1, OutputQuantity=1 -> 5 руды
         Assert.Equal(5m, session.State.Teams[teamId].Warehouse.QuantityOf(TestGameConfig.Ore));

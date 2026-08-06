@@ -368,7 +368,12 @@ internal static class TestGameConfig
             },
             Rnd = new RndConfig
             {
-                CumulativeInvestmentThresholdsByLevel = new[] { 100m, 300m },
+                ResearchPointThresholdsByLevel = new[] { 100m, 300m },
+                // Экспонента 1 — очки исследований совпадают с накопленными ¤ один в один (линейно),
+                // так что этот общий тестовый конфиг не ломает арифметику существующих тестов, которые
+                // всюду считают пороги как сырые ¤, а не как очки. Нелинейная отдача (реальный p < 1,
+                // как в живом конфиге) отдельно проверена в RndCalculatorTests.
+                DiminishingReturnsExponent = 1m,
                 ProductionRateBonusPerLevel = 0.1m,
                 MaxCommitmentPerTurn = 200m,
             },
