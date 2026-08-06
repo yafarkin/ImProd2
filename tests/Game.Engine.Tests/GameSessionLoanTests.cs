@@ -89,12 +89,27 @@ public class GameSessionLoanTests
     }
 
     [Fact]
-    public void RepayLoan_Throws_When_Amount_Exceeds_Current_Debt()
+    public void RepayLoan_Clamps_An_Amount_Above_The_Current_Debt_Instead_Of_Throwing()
     {
+        // Баг-репорт пользователя: UI округляет долг для отображения («1 ¤» вместо реальных
+        // 0.9966...) — попытка погасить ровно показанное на экране раньше падала с исключением.
+        // Команда явно имела в виду «закрыть долг полностью».
         var (session, teamId) = StartInDecisionPhase();
         session.TakeLoan(teamId, 500m);
 
-        Assert.Throws<InvalidOperationException>(() => session.RepayLoan(teamId, 500.01m));
+        var entry = session.RepayLoan(teamId, 500.01m);
+
+        var loanRepaid = Assert.IsType<LoanRepaid>(entry.Change);
+        Assert.Equal(500m, loanRepaid.Amount); // урезано до реального остатка долга
+        Assert.Equal(0m, session.State.Teams[teamId].Debt);
+    }
+
+    [Fact]
+    public void RepayLoan_Throws_When_The_Team_Has_No_Debt_At_All()
+    {
+        var (session, teamId) = StartInDecisionPhase(); // без TakeLoan — долга вообще нет
+
+        Assert.Throws<InvalidOperationException>(() => session.RepayLoan(teamId, 10m));
     }
 
     [Fact]

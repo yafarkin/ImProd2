@@ -258,11 +258,12 @@
     "SalaryEscalationFactor": 1.5
   },
   "Rnd": {
-    "CumulativeInvestmentThresholdsByLevel": [
-      1000,
-      3000,
-      6000
+    "ResearchPointThresholdsByLevel": [
+      32,
+      55,
+      77
     ],
+    "DiminishingReturnsExponent": 0.5,
     "ProductionRateBonusPerLevel": 0.1,
     "MaxCommitmentPerTurn": 200
   },
@@ -318,7 +319,7 @@
   "GenerationResearch": {
     "StartingGeneration": 1,
     "ResearchPointThresholdsByGeneration": [
-      50
+      25
     ],
     "DiminishingReturnsExponent": 0.5,
     "MaxCommitmentPerTurn": 300

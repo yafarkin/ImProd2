@@ -10,7 +10,7 @@ public class FactoryHistoryCalculatorTests
         var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 1
         var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
-        session.HireWorkers(teamId, built.FactoryId, workers);
+        session.SetWorkerCount(teamId, built.FactoryId, workers);
 
         return (session, teamId, built.FactoryId);
     }
@@ -33,10 +33,12 @@ public class FactoryHistoryCalculatorTests
     [Fact]
     public void Summarize_Snapshots_Net_Worth_At_The_End_Of_Each_Completed_Turn()
     {
-        // Ход 1: баланс — стартовый заём 100 000 минус постройка (100) минус наём 5 рабочих
-        // (5*50=250) = 99 650; долг — сам заём, 100 000 (ещё ничего не погашено); чистая стоимость —
-        // разница, 99 650 - 100 000 = -350 (сырой баланс выглядел бы позитивным, пряча реальный
-        // отрицательный результат первого хода за долгом).
+        // Ход 1: баланс — стартовый заём 100 000 минус постройка (100) = 99 900; наём 5 рабочих
+        // (5*50=250) в ход 1 только объявлен (SetWorkerCount бесплатен и мгновенен), реально спишется
+        // только на расчёте хода 2 (см. TickFinanceStep/WorkforceStep — тот же приём, что и R&D).
+        // Долг — сам заём, 100 000 (ещё ничего не погашено); чистая стоимость — разница,
+        // 99 900 - 100 000 = -100 (сырой баланс выглядел бы позитивным, пряча реальный отрицательный
+        // результат первого хода за долгом).
         var (session, teamId, _) = BuildAndStaffAMine(workers: 5);
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
@@ -45,7 +47,7 @@ public class FactoryHistoryCalculatorTests
         var history = FactoryHistoryCalculator.Summarize(session.Entries, TestGameConfig.Resolved, teamId);
 
         var turn1 = Assert.Single(history.NetWorthByTurn, point => point.Turn == 1);
-        Assert.Equal(-350m, turn1.NetWorth);
+        Assert.Equal(-100m, turn1.NetWorth);
     }
 
     [Fact]
@@ -99,7 +101,7 @@ public class FactoryHistoryCalculatorTests
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 1
         session.EmergencyPurchase(teamId, TestGameConfig.Ore.Id, 1000m); // руды с избытком, чтобы не ограничивать выпуск
         var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mill.Id).Change;
-        session.HireWorkers(teamId, built.FactoryId, 5); // == BaseWorkerCount, отдача линейная 1:1
+        session.SetWorkerCount(teamId, built.FactoryId, 5); // == BaseWorkerCount, отдача линейная 1:1
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         session.RunTick(new Random(1)); // 5 рабочих -> 5 листов, потребляя 2 руды на лист = 10 руды
@@ -122,10 +124,11 @@ public class FactoryHistoryCalculatorTests
 
         var history = FactoryHistoryCalculator.Summarize(session.Entries, TestGameConfig.Resolved, teamId);
 
-        // Ход 1 закончился раньше, чем фабрика хоть что-то произвела (постройка и наём — тоже ход 1,
-        // а расчёт производства идёт только в Settlement следующего хода) — руда на склад ещё ни разу
-        // не поступала, поэтому в Warehouse.Stock (список только когда-либо пополнявшихся материалов)
-        // на тот момент её вообще нет. Финальный флаш — по состоянию сразу после RunTick хода 2.
+        // Ход 1 закончился раньше, чем фабрика хоть что-то произвела (постройка и объявление
+        // численности — тоже ход 1, а сам наём и расчёт производства идут только в Settlement
+        // следующего хода) — руда на склад ещё ни разу не поступала, поэтому в Warehouse.Stock
+        // (список только когда-либо пополнявшихся материалов) на тот момент её вообще нет. Финальный
+        // флаш — по состоянию сразу после RunTick хода 2.
         Assert.Equal(new[] { (2, 5m) }, history.StockByMaterialId[TestGameConfig.Ore.Id]);
     }
 
@@ -134,9 +137,15 @@ public class FactoryHistoryCalculatorTests
     {
         var (session, teamId, _) = BuildAndStaffAMine();
         // SessionStarted уже публикует базовые рыночные котировки (Блок 6.1) — ценовой сигнал есть
-        // с хода 1, до какого-либо RunTick; у рудника нет входов, поэтому его гипотетический выпуск
-        // не зависит от остатков склада и одинаков на обоих ходах ниже.
+        // с хода 1; но численность рабочих на ход 1 только объявлена (SetWorkerCount), реальный наём
+        // settled лишь на расчёте хода 2 (см. WorkforceStep) — снимок хода 1 в сравнение не берём, он
+        // предсказуемо нулевой (рабочих физически ещё нет). У рудника нет входов, поэтому его
+        // гипотетический выпуск не зависит от остатков склада и одинаков на обоих полностью
+        // укомплектованных ходах ниже (2 и 3).
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
+        session.RunTick(new Random(1));
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 2
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 3
         session.RunTick(new Random(1));
 
         var team = session.State.Teams[teamId];
@@ -149,8 +158,12 @@ public class FactoryHistoryCalculatorTests
         var history = FactoryHistoryCalculator.Summarize(session.Entries, TestGameConfig.Resolved, teamId);
 
         var level = TestGameConfig.Mine.Recipes[0].Output.Level;
-        Assert.Equal(new[] { 1, 2 }, history.ProfitByLevel[level].Select(point => point.Turn));
-        Assert.All(history.ProfitByLevel[level], point => Assert.Equal(liveEstimate.Profit, point.Profit));
+        Assert.Equal(new[] { 1, 2, 3 }, history.ProfitByLevel[level].Select(point => point.Turn));
+        var turn1 = Assert.Single(history.ProfitByLevel[level], point => point.Turn == 1);
+        Assert.Equal(0m, turn1.Profit); // рабочих на этот момент ещё нет физически — см. комментарий выше
+        Assert.All(
+            history.ProfitByLevel[level].Where(point => point.Turn is 2 or 3),
+            point => Assert.Equal(liveEstimate.Profit, point.Profit));
     }
 
     [Fact]
@@ -159,9 +172,9 @@ public class FactoryHistoryCalculatorTests
         var (session, buyerId, sellerId) = TestGameConfig.StartGameSessionWithTwoTeams();
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 1
         var buyerFactory = (FactoryBuilt)session.BuildFactory(buyerId, TestGameConfig.Mine.Id).Change;
-        session.HireWorkers(buyerId, buyerFactory.FactoryId, 5);
+        session.SetWorkerCount(buyerId, buyerFactory.FactoryId, 5);
         var sellerFactory = (FactoryBuilt)session.BuildFactory(sellerId, TestGameConfig.Mine.Id).Change;
-        session.HireWorkers(sellerId, sellerFactory.FactoryId, 3);
+        session.SetWorkerCount(sellerId, sellerFactory.FactoryId, 3);
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         session.RunTick(new Random(1));

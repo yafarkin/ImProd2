@@ -12,8 +12,20 @@ public sealed class Factory
     /// <summary>Тип фабрики (какие рецепты доступны, к какому сектору она относится).</summary>
     public FactoryDefinition Definition { get; }
 
-    /// <summary>Число рабочих на фабрике; никогда не отрицательно.</summary>
+    /// <summary>Число рабочих на фабрике сейчас; никогда не отрицательно.</summary>
     public int Workers { get; private set; }
+
+    /// <summary>
+    /// Сколько рабочих команда хочет видеть на этой фабрике по итогам ближайшего расчёта тика (SPEC
+    /// §5.6) — объявляется свободно и бесплатно в течение хода (см. <see
+    /// cref="Game.Engine.GameSession.SetWorkerCount"/>), сколько угодно раз, ни на что не влияя до
+    /// расчёта. Реальные наём/увольнение до этого значения и разовая плата за них — на фазе расчёта
+    /// (см. <see cref="Game.Engine.WorkforceStep"/>), один раз, по итоговой разнице с <see
+    /// cref="Workers"/> на момент расчёта — тот же приём, что и у <see cref="RndCommitmentPerTurn"/>.
+    /// Сразу после реального найма/увольнения (<see cref="Hire"/>/<see cref="Fire"/>) всегда равно
+    /// <see cref="Workers"/> — расхождение бывает только пока команда ещё не досчитала ход.
+    /// </summary>
+    public int DesiredWorkers { get; private set; }
 
     /// <summary>Рецепт, выбранный для производства сейчас; всегда один из <see cref="FactoryDefinition.Recipes"/>.</summary>
     public Recipe SelectedRecipe { get; private set; }
@@ -68,11 +80,17 @@ public sealed class Factory
         Definition = definition;
         SelectedRecipe = selectedRecipe;
         Workers = 0;
+        DesiredWorkers = 0;
         Level = 1;
         RndInvestment = 0m;
     }
 
-    /// <summary>Нанимает указанное число рабочих.</summary>
+    /// <summary>
+    /// Нанимает указанное число рабочих прямо сейчас. Заодно подтягивает <see cref="DesiredWorkers"/>
+    /// до нового <see cref="Workers"/> — реальный наём всегда закрывает объявленное расхождение
+    /// целиком (см. <see cref="Game.Engine.WorkforceStep"/>), поэтому сразу после него расхождения
+    /// снова нет.
+    /// </summary>
     public void Hire(int count)
     {
         if (count <= 0)
@@ -81,9 +99,14 @@ public sealed class Factory
         }
 
         Workers += count;
+        DesiredWorkers = Workers;
     }
 
-    /// <summary>Увольняет указанное число рабочих; бросает исключение, если их больше, чем есть на фабрике.</summary>
+    /// <summary>
+    /// Увольняет указанное число рабочих прямо сейчас; бросает исключение, если их больше, чем есть на
+    /// фабрике. Заодно подтягивает <see cref="DesiredWorkers"/> до нового <see cref="Workers"/> — см.
+    /// doc-comment <see cref="Hire"/>.
+    /// </summary>
     public void Fire(int count)
     {
         if (count <= 0)
@@ -96,6 +119,7 @@ public sealed class Factory
         }
 
         Workers -= count;
+        DesiredWorkers = Workers;
     }
 
     /// <summary>Переключает фабрику на другой рецепт из числа доступных её типу.</summary>
@@ -120,6 +144,21 @@ public sealed class Factory
         }
 
         AllocationShare = share;
+    }
+
+    /// <summary>
+    /// Меняет объявленную численность рабочих на ближайший расчёт (см. <see cref="DesiredWorkers"/>).
+    /// Ноль допустим — «сократить весь штат до нуля». Не трогает <see cref="Workers"/> — реальный
+    /// наём/увольнение происходит отдельно, на фазе расчёта.
+    /// </summary>
+    public void SetDesiredWorkers(int count)
+    {
+        if (count < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count), count, "Desired worker count must not be negative.");
+        }
+
+        DesiredWorkers = count;
     }
 
     /// <summary>

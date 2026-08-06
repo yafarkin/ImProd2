@@ -119,7 +119,8 @@ public class GameConfigDeserializationTests
 
         Assert.Equal(10, config.WorkerProductivity.BaseWorkerCount);
         Assert.Equal(5m, config.WorkerProductivity.SalaryPerWorkerPerTurn);
-        Assert.Equal(new[] { 1000m, 3000m, 6000m }, config.Rnd.CumulativeInvestmentThresholdsByLevel);
+        Assert.Equal(new[] { 32m, 55m, 77m }, config.Rnd.ResearchPointThresholdsByLevel);
+        Assert.Equal(0.5m, config.Rnd.DiminishingReturnsExponent);
         Assert.Equal(0.1m, config.Rnd.ProductionRateBonusPerLevel);
         Assert.Equal(500m, config.Warehouse.FreeCapacity);
         Assert.Equal(10, config.Reputation.HalfLifeTurns);

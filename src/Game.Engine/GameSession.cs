@@ -536,8 +536,14 @@ public sealed class GameSession
     /// каждый ход (<see cref="MandatoryLoanRepaymentCharged"/>) — симметричное действие к
     /// <see cref="TakeLoan"/>. Нельзя погасить больше, чем команда реально должна; в отличие от
     /// постройки фабрики или найма, отдельной проверки баланса здесь нет — если денег не хватит,
-    /// баланс уйдёт в минус и это решит следующий тик (<see cref="ForcedLoanTaken"/>), тем же
-    /// способом, каким уже работают все остальные решения команды. Требует фазы решений.
+    /// баланс уйдёт в минус и это решит тот же тик, самым последним шагом (<see
+    /// cref="ForcedLoanStep"/>), тем же способом, каким уже работают все остальные решения команды.
+    /// <paramref name="amount"/> сверх реального остатка долга не отклоняется, а тихо урезается до
+    /// него (баг-репорт пользователя: UI округляет долг для отображения — «1 ¤» вместо реальных
+    /// 0.9966... — и попытка погасить ровно то, что показано на экране, раньше падала с исключением;
+    /// команда явно имела в виду «закрыть долг полностью», а не какую-то конкретную копейку). Требует
+    /// фазы решений. Бросает, только если долга вообще нет (гасить нечего) — это уже настоящая ошибка
+    /// команды, а не следствие округления в UI.
     /// </summary>
     public EventLogEntry<GameSessionState> RepayLoan(Ulid teamId, decimal amount)
     {
@@ -548,19 +554,21 @@ public sealed class GameSession
             throw new ArgumentOutOfRangeException(nameof(amount), amount, "Repayment amount must be positive.");
         }
         var team = GetTeam(teamId);
-        if (amount > team.Debt)
+        if (team.Debt <= 0)
         {
-            throw new InvalidOperationException($"Cannot repay {amount}, team '{teamId}' only owes {team.Debt}.");
+            throw new InvalidOperationException($"Cannot repay {amount}, team '{teamId}' has no debt.");
         }
 
-        return _log.Append(new LoanRepaid { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
+        var repayAmount = Math.Min(amount, team.Debt);
+
+        return _log.Append(new LoanRepaid { Id = Ulid.NewUlid(), TeamId = teamId, Amount = repayAmount });
     }
 
     /// <summary>
     /// Строит фабрику заданного типа для команды (SPEC §5.6, Блок 7.1): постройка мгновенная —
     /// фабрика естественным образом начинает работать со следующего хода, отдельного «отложенного»
     /// состояния не требуется, так как ближайший расчёт тика уже увидит её в составе команды.
-    /// Фабрика без рабочих ничего не производит — наём отдельным действием (<see cref="HireWorkers"/>).
+    /// Фабрика без рабочих ничего не производит — наём отдельным действием (<see cref="SetWorkerCount"/>).
     /// Требует фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> BuildFactory(Ulid teamId, string factoryDefinitionId, string? recipeId = null)
@@ -615,55 +623,32 @@ public sealed class GameSession
         });
     }
 
-    /// <summary>Нанимает рабочих на фабрику (SPEC §5.6: наём мгновенный, с разовой платой за действие). Требует фазы решений.</summary>
-    public EventLogEntry<GameSessionState> HireWorkers(Ulid teamId, Ulid factoryId, int count)
+    /// <summary>
+    /// Меняет желаемую численность рабочих фабрики на ближайший расчёт (SPEC §5.6, запрос
+    /// пользователя: сколько бы раз команда ни передумала за ход, списать деньги только один раз) —
+    /// само объявление бесплатно и мгновенно, тем же приёмом, что и <see cref="SetRndCommitment"/>:
+    /// реальный наём/увольнение и разовая плата за него происходят один раз за ход, на фазе расчёта
+    /// (см. <see cref="TickFinanceStep"/>, <see cref="WorkforceStep"/>), по итоговой разнице между
+    /// объявленным и фактическим числом рабочих на тот момент. Требует фазы решений. Бросает <see
+    /// cref="ArgumentOutOfRangeException"/> на отрицательную численность.
+    /// </summary>
+    public EventLogEntry<GameSessionState> SetWorkerCount(Ulid teamId, Ulid factoryId, int count)
     {
         EnsureDecisionsAllowed();
 
-        if (count <= 0)
+        if (count < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(count), count, "Hire count must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(count), count, "Worker count must not be negative.");
         }
         var team = GetTeam(teamId);
         GetFactory(team, factoryId);
 
-        var cost = count * State.Config.Raw.WorkerProductivity.HireCostPerWorker;
-
-        return _log.Append(new WorkersHired
+        return _log.Append(new WorkerCountSet
         {
             Id = Ulid.NewUlid(),
             TeamId = teamId,
             FactoryId = factoryId,
             Count = count,
-            Cost = cost,
-        });
-    }
-
-    /// <summary>Увольняет рабочих с фабрики (SPEC §5.6: увольнение мгновенное, с разовой платой за действие). Требует фазы решений.</summary>
-    public EventLogEntry<GameSessionState> FireWorkers(Ulid teamId, Ulid factoryId, int count)
-    {
-        EnsureDecisionsAllowed();
-
-        if (count <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(count), count, "Fire count must be positive.");
-        }
-        var team = GetTeam(teamId);
-        var factory = GetFactory(team, factoryId);
-        if (count > factory.Workers)
-        {
-            throw new InvalidOperationException($"Cannot fire {count} workers, factory '{factoryId}' only has {factory.Workers}.");
-        }
-
-        var cost = count * State.Config.Raw.WorkerProductivity.FireCostPerWorker;
-
-        return _log.Append(new WorkersFired
-        {
-            Id = Ulid.NewUlid(),
-            TeamId = teamId,
-            FactoryId = factoryId,
-            Count = count,
-            Cost = cost,
         });
     }
 
@@ -980,12 +965,17 @@ public sealed class GameSession
     /// <summary>
     /// Прогоняет расчёт одного тика в фиксированном порядке (SPEC §4): для всех команд финансы (по
     /// репутации, накопленной за все предыдущие ходы, — Блок 6.2) → производство снизу вверх по
-    /// уровню материала, затем исполнение контрактов, затем обновление рынка (Блок 6.1), затем
-    /// новости по тренду (Блок 6.3) — оба публикуются даже без единой команды в сессии, они не
-    /// зависят от них. События дописываются в журнал сразу по мере расчёта — не собираются заранее
-    /// единым списком, — чтобы фабрика более высокого уровня видела в складе выход нижней в этом же
-    /// тике, а последующая поставка — склад после предыдущей, и (для финансов) чтобы собственные
-    /// срывы/расторжения этого же хода не успевали ударить по ставке, начисленной в его начале.
+    /// уровню материала, затем исполнение контрактов, затем для всех команд принудительный заём, если
+    /// баланс всё ещё отрицательный (<see cref="ForcedLoanStep"/>), затем обновление рынка (Блок 6.1),
+    /// затем новости по тренду (Блок 6.3) — оба публикуются даже без единой команды в сессии, они не
+    /// зависят от них. Принудительный заём намеренно в самом конце, а не внутри финансового шага
+    /// (баг-репорт пользователя: раньше решение принималось до переменных затрат на работу фабрики и
+    /// исполнения контрактов — команда могла закрыть дыру займом и тут же снова уйти в минус от того,
+    /// что на тот момент ещё не было посчитано, и это не покрывалось до следующего хода). События
+    /// дописываются в журнал сразу по мере расчёта — не собираются заранее единым списком, — чтобы
+    /// фабрика более высокого уровня видела в складе выход нижней в этом же тике, а последующая
+    /// поставка — склад после предыдущей, и (для финансов) чтобы собственные срывы/расторжения этого
+    /// же хода не успевали ударить по ставке, начисленной в его начале.
     /// <paramref name="newsRandom"/> — случайность подбора заголовка (AGENTS §2, правило 6:
     /// никакой случайности без явного, при необходимости засеянного, экземпляра); если пул
     /// заголовков текущего тренда в этой сессии исчерпан, новости в этот ход не будет. Вызывается
@@ -1050,6 +1040,18 @@ public sealed class GameSession
         }
 
         ExecuteContracts(appended);
+
+        // Самый последний шаг тика (см. doc-comment выше) — только теперь известны все возможные
+        // причины отрицательного баланса: финансы, переменные затраты на производство и исполнение
+        // контрактов (оплата покупки, штраф за срыв поставки — оба тоже могут увести в минус).
+        foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
+        {
+            var forcedLoan = ForcedLoanStep.Run(team, config.Raw.StartingConditions);
+            if (forcedLoan is not null)
+            {
+                appended.Add(_log.Append(forcedLoan));
+            }
+        }
 
         var marketUpdate = MarketCalculator.Calculate(State.CurrentTurn, config.Raw.Economy);
         appended.Add(_log.Append(new MarketUpdated

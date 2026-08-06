@@ -195,7 +195,7 @@ public class FinanceHistoryCalculatorTests
     }
 
     [Fact]
-    public void Summarize_Captures_SalariesPaid_And_RndInvested_As_Expenses()
+    public void Summarize_Captures_SalariesPaid_RndInvested_And_GenerationResearchInvested_As_Expenses()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
         var factoryId = Ulid.NewUlid();
@@ -206,6 +206,7 @@ public class FinanceHistoryCalculatorTests
         });
         log.Append(new SalariesPaid { Id = Ulid.NewUlid(), TeamId = team.Id, TotalWorkers = 3, Amount = 90m });
         log.Append(new RndInvested { Id = Ulid.NewUlid(), TeamId = team.Id, FactoryId = factoryId, Amount = 50m });
+        log.Append(new GenerationResearchInvested { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 30m });
 
         var operations = FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id);
 
@@ -215,6 +216,11 @@ public class FinanceHistoryCalculatorTests
         var rnd = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.RndInvested);
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, rnd.Direction);
         Assert.Equal(50m, rnd.Amount);
+        // Раньше это событие вообще не попадало в историю финансов (см. GameSessionRndProgressionTests
+        // и жалобу пользователя — «не вижу в истории списания R&D в целом по технологиям»).
+        var generationResearch = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.GenerationResearchInvested);
+        Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, generationResearch.Direction);
+        Assert.Equal(30m, generationResearch.Amount);
     }
 
     [Fact]

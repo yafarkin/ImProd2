@@ -5,7 +5,10 @@ namespace Game.Engine;
 
 /// <summary>
 /// Вложение в R&amp;D конкретной фабрики плюс, если накопленное вложение перешагнуло один или
-/// несколько порогов, столько же событий перехода уровня подряд (SPEC §5.8). Возвращает готовые
+/// несколько порогов, столько же событий перехода уровня подряд (SPEC §5.8). Ничего не делает и
+/// ничего не списывает, если фабрика уже на максимальном уровне (<see
+/// cref="RndCalculator.IsAtMaxLevel"/>) — баг-репорт пользователя: раньше деньги продолжали
+/// списываться каждый ход даже после того, как вкладывать было уже некуда. Возвращает готовые
 /// события, не применяет их — тот же принцип, что у <see cref="ProductionCalculator"/> и
 /// <see cref="TickFinanceStep"/>.
 /// </summary>
@@ -18,6 +21,11 @@ public static class RndInvestmentStep
         if (amount <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(amount), amount, "Investment amount must be positive.");
+        }
+
+        if (RndCalculator.IsAtMaxLevel(factory.Level, config))
+        {
+            return Array.Empty<Change<GameSessionState>>();
         }
 
         var changes = new List<Change<GameSessionState>>

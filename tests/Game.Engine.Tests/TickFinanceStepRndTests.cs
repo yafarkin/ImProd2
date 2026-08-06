@@ -77,7 +77,7 @@ public class TickFinanceStepRndTests
     }
 
     [Fact]
-    public void An_Unaffordable_Rnd_Commitment_Is_Still_Charged_In_Full_And_Covered_By_A_Forced_Loan()
+    public void An_Unaffordable_Rnd_Commitment_Is_Still_Charged_In_Full()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
         var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
@@ -91,8 +91,25 @@ public class TickFinanceStepRndTests
 
         var invested = Assert.IsType<RndInvested>(changes[0]);
         Assert.Equal(50m, invested.Amount); // вложение не урезается из-за нехватки баланса
-        var forcedLoan = Assert.IsType<ForcedLoanTaken>(changes[^1]);
-        Assert.Equal(50m, forcedLoan.Amount);
-        Assert.True(team.PenaltyRateSurcharge > 0);
+        // Принудительный заём, который раньше покрывал эту дыру здесь же, теперь отдельный, самый
+        // последний шаг всего тика (ForcedLoanStep, см. doc-comment TickFinanceStep и ForcedLoanStepTests).
+        Assert.Equal(-50m, team.Balance);
+    }
+
+    [Fact]
+    public void Run_Charges_Nothing_Once_The_Factory_Is_Already_At_The_Max_Level_Even_With_A_Positive_Commitment()
+    {
+        // Баг-репорт пользователя: команда объявила R&D-обязательство, фабрика вкачалась до
+        // максимального уровня, но команда не сняла объявление — деньги не должны продолжать списываться.
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
+        factory.AdvanceLevel(); // 1 -> 2
+        factory.AdvanceLevel(); // 2 -> 3, максимальный уровень при порогах {100, 300}
+        factory.SetRndCommitment(50m);
+        team.Credit(1000m);
+
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+
+        Assert.DoesNotContain(changes, c => c is RndInvested or FactoryLevelAdvanced);
     }
 }

@@ -48,7 +48,8 @@ public class ProductionCalculatorTests
     // сам бонус проверяет Calculate_Rnd_Level_Bonus_Multiplies_The_Production_Rate.
     private static readonly RndConfig NoRndBonus = new()
     {
-        CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
+        ResearchPointThresholdsByLevel = Array.Empty<decimal>(),
+        DiminishingReturnsExponent = 1m,
         ProductionRateBonusPerLevel = 0m,
         MaxCommitmentPerTurn = 1000m,
     };
@@ -179,7 +180,8 @@ public class ProductionCalculatorTests
         warehouse.Add(Coal, 1000m, 0m);
         var rnd = new RndConfig
         {
-            CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
+            ResearchPointThresholdsByLevel = Array.Empty<decimal>(),
+            DiminishingReturnsExponent = 1m,
             ProductionRateBonusPerLevel = 0.2m, // +20% за уровень сверх первого
             MaxCommitmentPerTurn = 1000m,
         };
@@ -312,7 +314,8 @@ public class ProductionCalculatorTests
         factory.AdvanceLevel(); // уровень 2
         var rnd = new RndConfig
         {
-            CumulativeInvestmentThresholdsByLevel = Array.Empty<decimal>(),
+            ResearchPointThresholdsByLevel = Array.Empty<decimal>(),
+            DiminishingReturnsExponent = 1m,
             ProductionRateBonusPerLevel = 0.2m, // +20% за уровень сверх первого
             MaxCommitmentPerTurn = 1000m,
         };

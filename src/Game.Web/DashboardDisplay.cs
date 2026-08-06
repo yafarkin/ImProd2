@@ -97,6 +97,7 @@ public static class DashboardDisplay
         FinanceHistoryCalculator.OperationType.WorkersFired => "Увольнение рабочих",
         FinanceHistoryCalculator.OperationType.SalariesPaid => "Зарплата рабочих",
         FinanceHistoryCalculator.OperationType.RndInvested => "Вложение в R&D",
+        FinanceHistoryCalculator.OperationType.GenerationResearchInvested => "Вложение в исследование поколения",
         FinanceHistoryCalculator.OperationType.MaterialSold => "Продажа материала системе",
         FinanceHistoryCalculator.OperationType.EmergencyPurchase => "Аварийная закупка",
         FinanceHistoryCalculator.OperationType.WarehouseFee => "Плата за склад сверх лимита",

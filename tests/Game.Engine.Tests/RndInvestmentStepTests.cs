@@ -76,4 +76,25 @@ public class RndInvestmentStepTests
         Assert.Equal(2, factory.Level);
         Assert.True(log.VerifyIntegrity());
     }
+
+    [Fact]
+    public void Run_Does_Nothing_And_Charges_Nothing_Once_The_Factory_Is_Already_At_The_Max_Level()
+    {
+        // Баг-репорт пользователя: раньше деньги продолжали списываться каждый ход даже после того,
+        // как фабрика уже достигла максимального уровня — вкладывать дальше было некуда.
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = NewFactory(team);
+        team.Credit(1000m);
+        foreach (var change in RndInvestmentStep.Run(team.Id, factory, 400m, TestGameConfig.Resolved.Raw.Rnd)) // оба порога разом
+        {
+            log.Append(change);
+        }
+        Assert.Equal(3, factory.Level); // максимальный уровень при порогах {100, 300}
+        var balanceAfterMaxed = team.Balance;
+
+        var changes = RndInvestmentStep.Run(team.Id, factory, 50m, TestGameConfig.Resolved.Raw.Rnd);
+
+        Assert.Empty(changes);
+        Assert.Equal(balanceAfterMaxed, team.Balance);
+    }
 }

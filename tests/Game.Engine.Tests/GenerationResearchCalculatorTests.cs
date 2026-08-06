@@ -64,4 +64,14 @@ public class GenerationResearchCalculatorTests
 
         Assert.Equal(afterLumpSum, afterFourInstallments);
     }
+
+    [Theory]
+    [InlineData(1, false)]
+    [InlineData(3, false)]
+    [InlineData(4, true)] // 3 порога {10, 20, 30} -> поколения 1..4, 4 — максимальное
+    [InlineData(5, true)] // выше максимального конфиг не предусматривает вовсе, но проверка всё равно должна отработать
+    public void IsAtMaxGeneration_Reflects_Whether_There_Is_A_Next_Threshold_Configured(int currentGeneration, bool expected)
+    {
+        Assert.Equal(expected, GenerationResearchCalculator.IsAtMaxGeneration(currentGeneration, Config));
+    }
 }

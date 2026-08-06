@@ -40,7 +40,7 @@ public class GameSessionRndProgressionTests
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 1
         session.TakeLoan(teamId, 1000m);
         var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
-        session.HireWorkers(teamId, built.FactoryId, TestGameConfig.Resolved.Raw.WorkerProductivity.BaseWorkerCount); // 5, линейная отдача без убывания
+        session.SetWorkerCount(teamId, built.FactoryId, TestGameConfig.Resolved.Raw.WorkerProductivity.BaseWorkerCount); // 5, линейная отдача без убывания
         session.SetRndCommitment(teamId, built.FactoryId, 100m); // ровно первый порог — перешагнём за один ход
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
