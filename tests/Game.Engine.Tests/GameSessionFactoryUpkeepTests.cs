@@ -3,7 +3,7 @@ using Game.Config.Session;
 namespace Game.Engine.Tests;
 
 /// <summary>
-/// Сквозная проверка капитальных и переменных затрат фабрики через полный тик (Блок 9.3): фиксированная
+/// Сквозная проверка капитальных и переменных затрат фабрики через полный тик (Блок 9.2): фиксированная
 /// часть — <see cref="FactoryUpkeepPaid"/> (см. также <see cref="FactoryUpkeepPaidTests"/> для
 /// покрытия самого <see cref="TickFinanceStep"/>), переменная — <see cref="FactoryProduced.OverheadCost"/>
 /// (энергия, зависит от объёма выпуска этого хода).
