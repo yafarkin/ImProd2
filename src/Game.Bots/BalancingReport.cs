@@ -19,6 +19,13 @@ public sealed record BalancingReport
     /// <summary>Средний по партиям разброс (максимум минус минимум) итоговых счётов команд.</summary>
     public required decimal AverageFinalScoreSpread { get; init; }
 
+    /// <summary>
+    /// Доля команд-ходов, на которых хотя бы одна фабрика пересекла критический порог износа и ушла
+    /// в вынужденный простой (SPEC §5.6) — тот же приём, что <see cref="ForcedLoanShare"/>, для новой
+    /// механики.
+    /// </summary>
+    public required decimal ForcedRepairEventShare { get; init; }
+
     public static BalancingReport Summarize(IReadOnlyList<SessionMetrics> sessions)
     {
         ArgumentNullException.ThrowIfNull(sessions);
@@ -45,12 +52,17 @@ public sealed record BalancingReport
                 AverageTotalCash = atThisTurn.Average(t => t.TotalCash),
                 AverageVolumeSoldToSystem = atThisTurn.Average(t => t.VolumeSoldToSystem),
                 SessionCount = atThisTurn.Count,
+                AverageFactoryCondition = atThisTurn.Average(t => t.AverageFactoryCondition),
+                AverageFactoriesUnderRepairCount = atThisTurn.Average(t => (decimal)t.FactoriesUnderRepairCount),
             });
         }
 
         var totalForcedLoans = sessions.Sum(session => session.Turns.Sum(turn => turn.ForcedLoanCount));
         var totalTeamTurns = sessions.Sum(session => session.Turns.Count * session.TeamCount);
         var forcedLoanShare = totalTeamTurns > 0 ? (decimal)totalForcedLoans / totalTeamTurns : 0m;
+
+        var totalForcedRepairs = sessions.Sum(session => session.Turns.Sum(turn => turn.ForcedRepairEventsCount));
+        var forcedRepairEventShare = totalTeamTurns > 0 ? (decimal)totalForcedRepairs / totalTeamTurns : 0m;
 
         var averageFinalScoreSpread = sessions.Average(session =>
         {
@@ -64,6 +76,7 @@ public sealed record BalancingReport
             TurnsByIndex = turnsByIndex,
             ForcedLoanShare = forcedLoanShare,
             AverageFinalScoreSpread = averageFinalScoreSpread,
+            ForcedRepairEventShare = forcedRepairEventShare,
         };
     }
 }

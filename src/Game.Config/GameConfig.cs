@@ -43,6 +43,9 @@ public sealed record GameConfig
     /// <summary>Параметры R&amp;D — стоимость перехода фабрики на следующий уровень и его эффект.</summary>
     public required RndConfig Rnd { get; init; }
 
+    /// <summary>Параметры износа и капремонта фабрик — см. doc-comment <see cref="WearConfig"/>.</summary>
+    public required WearConfig Wear { get; init; }
+
     /// <summary>Параметры командного исследования, разблокирующего доступ к более глубоким переделам пирамиды.</summary>
     public required GenerationResearchConfig GenerationResearch { get; init; }
 

@@ -25,14 +25,24 @@ public sealed class SimpleBot
     public Sector Sector { get; }
 
     private readonly IReadOnlyList<FactoryDefinition> _sectorFactories;
+    private readonly bool _maintainsFactories;
 
-    public SimpleBot(Ulid teamId, Sector sector, ResolvedGameConfig config)
+    /// <summary>
+    /// <paramref name="maintainsFactories"/> — обслуживает ли бот износ уже построенных фабрик (SPEC
+    /// §5.6, см. <see cref="MaintainFactories"/>); по умолчанию да, чтобы обычные прогоны
+    /// балансировки не спотыкались о новую механику незапланированно. <c>false</c> — «пренебрегающий»
+    /// вариант, нужен харнессу балансировки, чтобы проверить, что фиксированной декларации без
+    /// капремонта рано или поздно перестаёт хватать (запрос пользователя: механика не должна
+    /// вырождаться в «поставил и забыл» — см. doc-comment <see cref="Game.Config.Economy.WearConfig"/>).
+    /// </summary>
+    public SimpleBot(Ulid teamId, Sector sector, ResolvedGameConfig config, bool maintainsFactories = true)
     {
         ArgumentNullException.ThrowIfNull(sector);
         ArgumentNullException.ThrowIfNull(config);
 
         TeamId = teamId;
         Sector = sector;
+        _maintainsFactories = maintainsFactories;
         _sectorFactories = config.FactoryDefinitions
             .Where(f => f.Sector == sector)
             .OrderBy(f => f.Recipes[0].Output.Level)
@@ -109,6 +119,53 @@ public sealed class SimpleBot
         if (sellable > 0)
         {
             session.SellToSystem(TeamId, FinalMaterial.Id, sellable);
+        }
+    }
+
+    /// <summary>
+    /// Число самых дешёвых ступеней <see cref="Game.Config.Economy.WearConfig.OverhaulTiers"/>
+    /// (упорядоченных по убыванию состояния — от «почти не изношена» к «убита»), которые
+    /// намеренно невыгодны и на которые бот не реагирует, — запрос пользователя: «сначала имеет
+    /// смысл ничего не делать», кривая специально устроена так, чтобы чинить по любому чиху было
+    /// расточительно. Бот дожидается ступени с индексом <see cref="IgnoredCheapestTierCount"/> и
+    /// дальше, тем самым нащупывая баланс «чиню всё время» / «чиню слишком поздно» так же, как
+    /// должна была бы играть команда.
+    /// </summary>
+    private const int IgnoredCheapestTierCount = 2;
+
+    /// <summary>
+    /// Поддерживает состояние уже построенных фабрик (SPEC §5.6): заказывает капремонт, как только
+    /// состояние проваливается мимо первых <see cref="IgnoredCheapestTierCount"/> (намеренно
+    /// невыгодных) ступеней — не при любом, даже самом мелком, отклонении от идеала. Ничего не
+    /// делает, если бот сконструирован с <c>maintainsFactories: false</c> (см. doc-comment
+    /// конструктора) — специально для харнесса балансировки, которому нужен «пренебрегающий» вариант.
+    /// Идемпотентно, вызывать каждый ход решений.
+    /// </summary>
+    public void MaintainFactories(GameSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        if (!_maintainsFactories)
+        {
+            return;
+        }
+
+        var team = session.State.Teams[TeamId];
+        var tiers = session.State.Config.Raw.Wear.OverhaulTiers;
+        foreach (var factory in team.Factories)
+        {
+            if (factory.IsUnderRepair || factory.OverhaulRequested || factory.Condition >= 1m)
+            {
+                continue;
+            }
+
+            var tier = WearCalculator.SelectTier(factory.Condition, tiers);
+            var tierIndex = tier is null ? -1 : tiers.ToList().IndexOf(tier);
+            if (tierIndex < IgnoredCheapestTierCount)
+            {
+                continue;
+            }
+
+            session.SetOverhaulRequested(TeamId, factory.Id, requested: true);
         }
     }
 

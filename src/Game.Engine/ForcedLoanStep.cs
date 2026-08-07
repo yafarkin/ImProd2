@@ -15,6 +15,13 @@ namespace Game.Engine;
 /// </summary>
 public static class ForcedLoanStep
 {
+    /// <summary>
+    /// <see cref="StartingConditionsConfig.MaxTotalDebt"/> ограничивает сумму займа так, чтобы
+    /// итоговый <see cref="Team.Debt"/> никогда не превышал потолок (запрос пользователя: не уводить
+    /// команду в нереалистичные суммы долга) — заём выдаётся частично (меньше фактической дыры в
+    /// балансе), если запас до потолка меньше неё, и не выдаётся вообще, если запаса уже нет; баланс
+    /// в обоих случаях так и остаётся отрицательным, непокрытым.
+    /// </summary>
     public static Change<GameSessionState>? Run(Team team, StartingConditionsConfig loanConfig)
     {
         ArgumentNullException.ThrowIfNull(team);
@@ -25,11 +32,18 @@ public static class ForcedLoanStep
             return null;
         }
 
+        var headroom = loanConfig.MaxTotalDebt - team.Debt;
+        var amount = Math.Min(-team.Balance, Math.Max(0m, headroom));
+        if (amount <= 0m)
+        {
+            return null;
+        }
+
         return new ForcedLoanTaken
         {
             Id = Ulid.NewUlid(),
             TeamId = team.Id,
-            Amount = -team.Balance,
+            Amount = amount,
             NewPenaltyRateSurcharge = team.PenaltyRateSurcharge + loanConfig.ForcedLoanPenaltyRatePerOccurrence,
         };
     }

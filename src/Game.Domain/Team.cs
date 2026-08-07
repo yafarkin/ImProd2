@@ -78,9 +78,9 @@ public sealed class Team
 
     /// <summary>Строит фабрику заданного типа для команды; тип фабрики обязан быть из сектора команды.</summary>
     // Проверку сектора дублирует и конструктор Factory — это лишь точка входа для команд.
-    public Factory BuildFactory(Ulid factoryId, FactoryDefinition definition, Recipe? selectedRecipe = null)
+    public Factory BuildFactory(Ulid factoryId, FactoryDefinition definition, Recipe? selectedRecipe = null, int builtAtTurn = 0)
     {
-        var factory = new Factory(factoryId, Sector, definition, selectedRecipe);
+        var factory = new Factory(factoryId, Sector, definition, selectedRecipe, builtAtTurn);
         _factories.Add(factory);
         return factory;
     }

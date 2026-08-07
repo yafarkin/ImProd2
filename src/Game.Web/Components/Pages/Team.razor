@@ -261,6 +261,7 @@ else
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("workers")" @onclick='() => _activeFactoryTab = "workers"'>Люди</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("recipe")" @onclick='() => _activeFactoryTab = "recipe"'>Рецепт и склад</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("rnd")" @onclick='() => _activeFactoryTab = "rnd"'>R&amp;D</button></li>
+                        <li class="nav-item"><button type="button" class="nav-link @TabClass("wear")" @onclick='() => _activeFactoryTab = "wear"'>Износ</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("destination")" @onclick='() => _activeFactoryTab = "destination"'>Куда идёт продукция</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("profitability")" @onclick='() => _activeFactoryTab = "profitability"'>Финансы</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("charts")" @onclick='() => _activeFactoryTab = "charts"'>Графики</button></li>
@@ -368,6 +369,55 @@ else
                                     фабрику. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
                                     всё сразу за счёт кредита.
                                 </p>
+                            }
+                        }
+                    }
+                    else if (_activeFactoryTab == "wear")
+                    {
+                        @if (factory.IsUnderRepair)
+                        {
+                            <p class="text-danger">
+                                Фабрика на простое: осталось @factory.RepairTurnsRemaining ход(ов).
+                                Выпуск, зарплата и содержание — по тарифу, зафиксированному при начале этого простоя.
+                            </p>
+                        }
+                        else
+                        {
+                            <p>
+                                Состояние: @((factory.Condition * 100).ToString("0.#"))%
+                                @if (factory.UpkeepPenaltyMultiplier > 1m)
+                                {
+                                    <text>— штраф к содержанию: ×@factory.UpkeepPenaltyMultiplier.ToString("0.##")</text>
+                                }
+                            </p>
+                            @if (factory.Condition >= 1m)
+                            {
+                                <p class="text-success small mb-2"><em>Фабрика в идеальном состоянии — капремонт не нужен.</em></p>
+                            }
+                            else if (factory.OverhaulRequested)
+                            {
+                                <p class="text-muted small mb-2">
+                                    Капремонт заказан — сработает при ближайшем расчёте (ступень «@factory.OverhaulTierName»,
+                                    @factory.OverhaulTierCost.ToString("0.##") ¤, простой @factory.OverhaulTierDurationTurns ход(ов),
+                                    выпуск ×@factory.OverhaulTierOutputMultiplier.ToString("0.##") на это время).
+                                </p>
+                                @if (_canManage)
+                                {
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => CancelOverhaulRequest(factory.FactoryId)">Отменить запрос</button>
+                                }
+                            }
+                            else
+                            {
+                                <p class="text-muted small mb-2">
+                                    Капремонт сейчас — ступень «@factory.OverhaulTierName»: @factory.OverhaulTierCost.ToString("0.##") ¤,
+                                    простой @factory.OverhaulTierDurationTurns ход(ов), на это время выпуск
+                                    ×@factory.OverhaulTierOutputMultiplier.ToString("0.##"). Тяжесть зависит от того, насколько
+                                    фабрика изношена именно сейчас — чем раньше решите, тем дешевле и короче простой.
+                                </p>
+                                @if (_canManage)
+                                {
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => RequestOverhaul(factory.FactoryId)">Заказать капремонт</button>
+                                }
                             }
                         }
                     }
@@ -883,6 +933,9 @@ else
         IReadOnlyList<RecipeInput> Inputs,
         bool HasUnitCost, decimal UnitCost, IReadOnlyList<DashboardDisplay.PyramidRow> Pyramid,
         decimal RndInvestment, decimal RndPoints, decimal RndCommitmentPerTurn, decimal? NextLevelThreshold, decimal AllocationShare,
+        decimal Condition, bool IsUnderRepair, int RepairTurnsRemaining, bool OverhaulRequested,
+        decimal UpkeepPenaltyMultiplier, string OverhaulTierName, decimal OverhaulTierCost,
+        int OverhaulTierDurationTurns, decimal OverhaulTierOutputMultiplier,
         IReadOnlyList<string> ConsumingFactoryNames,
         FactoryProfitabilityCalculator.FactoryProfitabilityEstimate? Profitability,
         ProductionCalculator.CapacityBreakdown CapacityBreakdown,
@@ -1173,6 +1226,8 @@ else
             var rndThresholds = rndConfig.ResearchPointThresholdsByLevel;
             _maxRndCommitmentPerTurn = rndConfig.MaxCommitmentPerTurn;
 
+            var wearConfig = state.Config.Raw.Wear;
+
             var generationResearchConfig = state.Config.Raw.GenerationResearch;
             _generationResearchInvestment = team.GenerationResearchInvestment;
             _generationResearchPoints = GenerationResearchCalculator.CalculateResearchPoints(team.GenerationResearchInvestment, generationResearchConfig);
@@ -1215,6 +1270,15 @@ else
                     : Array.Empty<DashboardDisplay.PyramidRow>();
                 var nextLevelThreshold = factory.Level - 1 < rndThresholds.Count ? rndThresholds[factory.Level - 1] : (decimal?)null;
                 var rndPoints = RndCalculator.CalculateResearchPoints(factory.RndInvestment, rndConfig);
+                var upkeepPenaltyMultiplier = WearCalculator.CalculateUpkeepPenaltyMultiplier(factory.Condition, wearConfig);
+                // Ступень, которая сработает, если команда закажет капремонт прямо сейчас — только
+                // предпросмотр (та же формула, что применит WearStep в расчёте), null вне простоя не
+                // бывает, если Condition < 1 (сама сессия следит, чтобы ступени покрывали весь диапазон
+                // до CriticalConditionThreshold, см. doc-comment WearConfig.OverhaulTiers).
+                var overhaulTier = factory.IsUnderRepair ? null : WearCalculator.SelectTier(factory.Condition, wearConfig.OverhaulTiers);
+                var overhaulTierCost = overhaulTier is null
+                    ? 0m
+                    : state.Config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id).BuildCost * overhaulTier.CostFraction;
 
                 // Кто из своих же построенных фабрик заберёт этот выход как сырьё с общего склада —
                 // прямой ответ на вопрос «куда идёт продукция» (см. пояснение в карточке ниже:
@@ -1246,6 +1310,9 @@ else
                     factory.Definition.Recipes.Select(r => (r.Id, r.Output.Name)).ToList(),
                     factory.SelectedRecipe.Inputs,
                     hasUnitCost, unitCost, pyramid, factory.RndInvestment, rndPoints, factory.RndCommitmentPerTurn, nextLevelThreshold, factory.AllocationShare,
+                    factory.Condition, factory.IsUnderRepair, factory.RepairTurnsRemaining, factory.OverhaulRequested,
+                    upkeepPenaltyMultiplier, overhaulTier?.Name ?? string.Empty, overhaulTierCost,
+                    overhaulTier?.DurationTurns ?? 0, overhaulTier?.OutputMultiplier ?? 0m,
                     consumingFactoryNames, profitabilityByFactoryId.GetValueOrDefault(factory.Id),
                     capacityBreakdown, activityHistory);
             }).ToList();
@@ -1586,6 +1653,16 @@ else
     {
         var amount = _rndCommitmentAmounts.GetValueOrDefault(factoryId, 0m);
         RunAction(() => Host.Session!.SetRndCommitment(_teamId, factoryId, amount));
+    }
+
+    private void RequestOverhaul(Ulid factoryId)
+    {
+        RunAction(() => Host.Session!.SetOverhaulRequested(_teamId, factoryId, requested: true));
+    }
+
+    private void CancelOverhaulRequest(Ulid factoryId)
+    {
+        RunAction(() => Host.Session!.SetOverhaulRequested(_teamId, factoryId, requested: false));
     }
 
     private void SetGenerationResearchCommitment()

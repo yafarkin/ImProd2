@@ -17,13 +17,14 @@ public class TickFinanceStepTests
     // Ни у одной команды этих тестов нет GenerationResearchCommitmentPerTurn (по умолчанию 0) — эти
     // тесты не про исследование поколений, отдельные тесты на него — в TickFinanceStepGenerationResearchTests.
     private static readonly Config.Economy.GenerationResearchConfig GenerationResearchConfig = TestGameConfig.Resolved.Raw.GenerationResearch;
+    private static readonly Config.Economy.WearConfig WearConfig = TestGameConfig.Resolved.Raw.Wear;
 
     [Fact]
     public void Run_Returns_Nothing_For_A_Debt_Free_Team_With_No_Workers()
     {
         var (_, team) = TestGameConfig.StartSessionWithOneTeam();
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.Empty(changes);
     }
@@ -37,7 +38,7 @@ public class TickFinanceStepTests
         var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
         factory.Hire(4); // зарплата = 4 * 5 = 20
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.Equal(2, changes.Count);
         var interest = Assert.IsType<LoanInterestCharged>(changes[0]);
@@ -61,7 +62,7 @@ public class TickFinanceStepTests
         var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
         factory.Hire(4); // зарплата = 20
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.Equal(2, changes.Count);
         var interest = Assert.IsType<LoanInterestCharged>(changes[0]);
@@ -77,7 +78,7 @@ public class TickFinanceStepTests
         team.TakeLoan(1000m);
         team.Credit(1000m);
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 0m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 0m, wearConfig: WearConfig, currentTurn: 1);
 
         // ставка = 0.05 (база) + 0.1 (вся надбавка при 0% репутации) = 0.15; проценты = 1000 * 0.15 = 150
         var interest = Assert.IsType<LoanInterestCharged>(Assert.Single(changes));
@@ -96,7 +97,7 @@ public class TickFinanceStepTests
         team.Warehouse.Add(TestGameConfig.Ore, 15m, 0m); // сверх лимита (10) на 5 единиц
         var warehouseConfig = new Config.Economy.WarehouseConfig { FreeCapacity = 10m, OverageFeePerUnit = 2m };
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, warehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, warehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.Equal(3, changes.Count);
         Assert.IsType<LoanInterestCharged>(changes[0]);
@@ -118,7 +119,7 @@ public class TickFinanceStepTests
         team.Warehouse.Add(TestGameConfig.Ore, 15m, 0m); // сверх лимита (10) на 5 единиц
         var warehouseConfig = new Config.Economy.WarehouseConfig { FreeCapacity = 10m, OverageFeePerUnit = 5m }; // плата = 25
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, warehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, warehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         // Было 4 (включая ForcedLoanTaken) — теперь без него, см. doc-comment класса и ForcedLoanStepTests.
         Assert.Equal(3, changes.Count);
@@ -132,7 +133,7 @@ public class TickFinanceStepTests
         var (_, team) = TestGameConfig.StartSessionWithOneTeam();
         team.Warehouse.Add(TestGameConfig.Ore, 5m, 0m); // намного меньше лимита по умолчанию (1000)
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.Empty(changes);
     }
@@ -152,7 +153,7 @@ public class TickFinanceStepTests
         var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
         factory.Hire(4); // зарплата = 20
 
-        var changes = TickFinanceStep.Run(team, RepaymentLoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, RepaymentLoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.Equal(3, changes.Count);
         Assert.IsType<LoanInterestCharged>(changes[0]);
@@ -169,7 +170,7 @@ public class TickFinanceStepTests
         team.TakeLoan(1000m);
         team.Credit(1000m);
 
-        foreach (var change in TickFinanceStep.Run(team, RepaymentLoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m))
+        foreach (var change in TickFinanceStep.Run(team, RepaymentLoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1))
         {
             log.Append(change);
         }
@@ -184,7 +185,7 @@ public class TickFinanceStepTests
         team.TakeLoan(1000m); // обязательный платёж = 100, процентов при этой ставке ниже нет (сумма займа сразу же обнулена)
         team.Debit(1000m); // баланс обнулён — платить обязательный платёж (100) нечем
 
-        var changes = TickFinanceStep.Run(team, RepaymentLoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, RepaymentLoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
         foreach (var change in changes)
         {
             log.Append(change);

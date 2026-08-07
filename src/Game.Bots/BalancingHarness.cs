@@ -23,12 +23,20 @@ public static class BalancingHarness
             var volumeSold = appended.Sum(entry => entry.Change is MaterialSoldToSystem sale ? sale.Volume : 0m);
             var forcedLoans = appended.Count(entry => entry.Change is ForcedLoanTaken);
 
+            var allFactories = session.State.Teams.Values.SelectMany(team => team.Factories).ToList();
+            var averageFactoryCondition = allFactories.Count > 0 ? allFactories.Average(factory => factory.Condition) : 1m;
+            var factoriesUnderRepair = allFactories.Count(factory => factory.IsUnderRepair);
+            var forcedRepairEvents = appended.Count(entry => entry.Change is FactoryEnteredRepair);
+
             turns.Add(new TurnMetrics
             {
                 Turn = session.State.CurrentTurn,
                 TotalCash = totalCash,
                 VolumeSoldToSystem = volumeSold,
                 ForcedLoanCount = forcedLoans,
+                AverageFactoryCondition = averageFactoryCondition,
+                FactoriesUnderRepairCount = factoriesUnderRepair,
+                ForcedRepairEventsCount = forcedRepairEvents,
             });
         });
 

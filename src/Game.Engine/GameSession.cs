@@ -620,6 +620,7 @@ public sealed class GameSession
             FactoryDefinitionId = factoryDefinitionId,
             RecipeId = recipe.Id,
             Cost = cost,
+            Turn = State.CurrentTurn,
         });
     }
 
@@ -726,6 +727,46 @@ public sealed class GameSession
             TeamId = teamId,
             FactoryId = factoryId,
             Amount = amountPerTurn,
+        });
+    }
+
+    /// <summary>
+    /// Объявляет (или отменяет) запрос на капремонт конкретной фабрики на ближайший расчёт (SPEC
+    /// §5.6) — бесплатное и мгновенное объявление, тот же приём, что и <see cref="SetRndCommitment"/>;
+    /// какая именно ступень (цена, простой) сработает, определяется по факту, по состоянию фабрики на
+    /// момент расчёта (см. <see cref="WearStep"/>, <see cref="Config.Economy.WearConfig.OverhaulTiers"/>)
+    /// — запрос пользователя: капремонт должен быть действием с настоящей операционной ценой, а не
+    /// постоянной денежной декларацией. Требует фазы решений. Бросает <see
+    /// cref="InvalidOperationException"/> при попытке объявить запрос (<paramref name="requested"/> =
+    /// <see langword="true"/>), если фабрика уже в простое (нечинить нечего — он и так уже идёт) или
+    /// уже в идеальном состоянии (нечего чинить); отмену запроса (<see langword="false"/>) разрешает
+    /// всегда.
+    /// </summary>
+    public EventLogEntry<GameSessionState> SetOverhaulRequested(Ulid teamId, Ulid factoryId, bool requested)
+    {
+        EnsureDecisionsAllowed();
+
+        var team = GetTeam(teamId);
+        var factory = GetFactory(team, factoryId);
+
+        if (requested)
+        {
+            if (factory.IsUnderRepair)
+            {
+                throw new InvalidOperationException($"Factory '{factoryId}' is already under repair.");
+            }
+            if (factory.Condition >= 1m)
+            {
+                throw new InvalidOperationException($"Factory '{factoryId}' is already in perfect condition.");
+            }
+        }
+
+        return _log.Append(new FactoryOverhaulRequestSet
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            FactoryId = factoryId,
+            Requested = requested,
         });
     }
 
@@ -998,7 +1039,8 @@ public sealed class GameSession
             var reputation = GetReputation(team.Id);
             foreach (var change in TickFinanceStep.Run(
                 team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-                config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputation.Percentage))
+                config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputation.Percentage,
+                config.Raw.Wear, State.CurrentTurn))
             {
                 appended.Add(_log.Append(change));
             }

@@ -368,7 +368,8 @@
     "LoanInterestRateGrowthPerUnitBorrowed": 1e-07,
     "ForcedLoanPenaltyRatePerOccurrence": 0.05,
     "MaxReputationRatePenalty": 0.1,
-    "MandatoryRepaymentRatePerTurn": 0.005
+    "MandatoryRepaymentRatePerTurn": 0.005,
+    "MaxTotalDebt": 10000000
   },
   "SessionPresets": [
     {
@@ -522,6 +523,69 @@
     "DiminishingReturnsExponent": 0.5,
     "ProductionRateBonusPerLevel": 0.1,
     "MaxCommitmentPerTurn": 200
+  },
+  "Wear": {
+    "GracePeriodTurns": 8,
+    "BaseWearRatePerTurn": 0.01,
+    "AccelerationFactorPerTurn": 0.004,
+    "MaxUpkeepPenaltyMultiplier": 0.5,
+    "OverhaulTiers": [
+      {
+        "Id": "prevention",
+        "Name": "Профилактика",
+        "MinCondition": 0.9,
+        "CostFraction": 0.02,
+        "DurationTurns": 1,
+        "OutputMultiplier": 0.97,
+        "SalaryRate": 1.0,
+        "UpkeepRate": 1.0
+      },
+      {
+        "Id": "scheduled",
+        "Name": "Плановое обслуживание",
+        "MinCondition": 0.75,
+        "CostFraction": 0.06,
+        "DurationTurns": 1,
+        "OutputMultiplier": 0.85,
+        "SalaryRate": 1.0,
+        "UpkeepRate": 1.0
+      },
+      {
+        "Id": "major",
+        "Name": "Капремонт",
+        "MinCondition": 0.55,
+        "CostFraction": 0.15,
+        "DurationTurns": 2,
+        "OutputMultiplier": 0.75,
+        "SalaryRate": 0.66,
+        "UpkeepRate": 0.5
+      },
+      {
+        "Id": "heavy",
+        "Name": "Серьёзный ремонт",
+        "MinCondition": 0.35,
+        "CostFraction": 0.25,
+        "DurationTurns": 3,
+        "OutputMultiplier": 0.6,
+        "SalaryRate": 0.66,
+        "UpkeepRate": 0.5
+      },
+      {
+        "Id": "reconstruction",
+        "Name": "Полная реконструкция",
+        "MinCondition": 0.2,
+        "CostFraction": 0.4,
+        "DurationTurns": 5,
+        "OutputMultiplier": 0.4,
+        "SalaryRate": 0.66,
+        "UpkeepRate": 0.5
+      }
+    ],
+    "CriticalConditionThreshold": 0.2,
+    "ForcedRepairDurationTurns": 8,
+    "ForcedRepairSalaryRate": 0.66,
+    "ForcedRepairUpkeepRate": 0.5,
+    "PostForcedRepairCondition": 0.85
   },
   "Warehouse": {
     "FreeCapacity": 100000,

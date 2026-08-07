@@ -15,7 +15,12 @@ public sealed record ForcedLoanTaken : Change<GameSessionState>
     /// <summary>Команда, получившая принудительный заём.</summary>
     public required Ulid TeamId { get; init; }
 
-    /// <summary>Сумма принудительного займа — ровно недостающая часть, баланс после применения равен нулю.</summary>
+    /// <summary>
+    /// Сумма принудительного займа — обычно ровно недостающая часть (баланс после применения равен
+    /// нулю), но не больше, чем позволяет запас до <see
+    /// cref="Game.Config.Session.StartingConditionsConfig.MaxTotalDebt"/> (см. <see
+    /// cref="ForcedLoanStep"/>) — тогда баланс так и остаётся отрицательным после применения.
+    /// </summary>
     public required decimal Amount { get; init; }
 
     /// <summary>Штрафная надбавка команды к ставке после этого займа (накопительно, см. <see cref="Team.PenaltyRateSurcharge"/>).</summary>

@@ -56,4 +56,43 @@ public class ForcedLoanStepTests
 
         Assert.True(log.VerifyIntegrity());
     }
+
+    [Fact]
+    public void Run_Covers_Only_The_Remaining_Headroom_When_The_Shortfall_Would_Exceed_The_Debt_Cap()
+    {
+        var cappedConfig = LoanConfig with { MaxTotalDebt = 100m };
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        team.TakeLoan(70m); // Debt=70, запас до потолка 100 — 30
+        team.Debit(200m); // баланс -130, дыра больше, чем оставшийся запас
+
+        var change = ForcedLoanStep.Run(team, cappedConfig);
+
+        var forcedLoan = Assert.IsType<ForcedLoanTaken>(change);
+        Assert.Equal(30m, forcedLoan.Amount); // не вся дыра (130), а ровно оставшийся запас до потолка
+    }
+
+    [Fact]
+    public void Run_Returns_Null_When_Debt_Is_Already_At_The_Cap()
+    {
+        var cappedConfig = LoanConfig with { MaxTotalDebt = 100m };
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        team.TakeLoan(100m); // Debt уже равен потолку
+        team.Debit(50m); // баланс отрицательный, но занимать больше некуда
+
+        Assert.Null(ForcedLoanStep.Run(team, cappedConfig));
+    }
+
+    [Fact]
+    public void Applying_A_Capped_Forced_Loan_Leaves_The_Balance_Negative()
+    {
+        var cappedConfig = LoanConfig with { MaxTotalDebt = 100m };
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
+        team.TakeLoan(70m);
+        team.Debit(200m); // баланс -130
+
+        log.Append(ForcedLoanStep.Run(team, cappedConfig)!);
+
+        Assert.Equal(100m, team.Debt); // упёрлись ровно в потолок, не выше
+        Assert.Equal(-100m, team.Balance); // дыра покрыта только частично — баланс так и остался в минусе
+    }
 }

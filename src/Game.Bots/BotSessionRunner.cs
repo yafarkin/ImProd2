@@ -58,6 +58,7 @@ public static class BotSessionRunner
                         // построено BuildOutSectorChain), на последующих — достраивает то, что
                         // разблокировало исследование поколений.
                         bot.BuildNewlyUnlockedFactories(session);
+                        bot.MaintainFactories(session);
                         bot.SellSurplusToSystem(session);
                     }
 

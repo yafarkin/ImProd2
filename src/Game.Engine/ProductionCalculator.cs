@@ -24,6 +24,8 @@ public static class ProductionCalculator
         int Level,
         decimal LevelBonus,
         decimal RecipeProductionRate,
+        decimal Condition,
+        bool IsUnderRepair,
         decimal TheoreticalMaxOutput);
 
     /// <summary>
@@ -41,9 +43,13 @@ public static class ProductionCalculator
         var effectiveCapacity = CalculateEffectiveCapacity(factory.Workers, productivity);
         var levelBonus = 1m + (factory.Level - 1) * rnd.ProductionRateBonusPerLevel;
         var recipeRate = factory.SelectedRecipe.ProductionRate;
-        var theoreticalMaxOutput = recipeRate * levelBonus * effectiveCapacity;
+        // На простое (SPEC §5.6, вынужденном или по капремонту) множитель — RepairOutputMultiplier
+        // (зафиксирован при начале именно этого простоя), не Condition — тот же приоритет, что в
+        // CalculateGroup.
+        var theoreticalMaxOutput = recipeRate * levelBonus * effectiveCapacity
+                                    * (factory.IsUnderRepair ? factory.RepairOutputMultiplier : factory.Condition);
 
-        return new CapacityBreakdown(factory.Workers, effectiveCapacity, factory.Level, levelBonus, recipeRate, theoreticalMaxOutput);
+        return new CapacityBreakdown(factory.Workers, effectiveCapacity, factory.Level, levelBonus, recipeRate, factory.Condition, factory.IsUnderRepair, theoreticalMaxOutput);
     }
 
     /// <summary>Считает производство одной фабрики без конкуренции за сырьё с другими — тонкая обёртка над <see cref="CalculateGroup"/> для группы из одной фабрики.</summary>
@@ -80,7 +86,11 @@ public static class ProductionCalculator
         {
             var effectiveCapacity = CalculateEffectiveCapacity(factory.Workers, productivity);
             var levelBonus = 1m + (factory.Level - 1) * rnd.ProductionRateBonusPerLevel;
-            var capacityLimitedOutput = factory.SelectedRecipe.ProductionRate * levelBonus * effectiveCapacity;
+            // На простое (SPEC §5.6, вынужденном или по капремонту, WearStep) выпуск домножен на
+            // RepairOutputMultiplier — зафиксированный при начале именно этого простоя (0 — полная
+            // остановка у тяжёлых ступеней и вынужденного простоя; частичный у лёгкого обслуживания).
+            var conditionOrRepairMultiplier = factory.IsUnderRepair ? factory.RepairOutputMultiplier : factory.Condition;
+            var capacityLimitedOutput = factory.SelectedRecipe.ProductionRate * levelBonus * conditionOrRepairMultiplier * effectiveCapacity;
 
             capacityOutputs[factory.Id] = capacityLimitedOutput;
             desiredBatches[factory.Id] = capacityLimitedOutput / factory.SelectedRecipe.OutputQuantity;

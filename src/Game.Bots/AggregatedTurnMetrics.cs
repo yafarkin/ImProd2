@@ -14,4 +14,10 @@ public sealed record AggregatedTurnMetrics
 
     /// <summary>Сколько из прогнанных партий дожили до этого хода (более короткие партии не участвуют в среднем дальше своего последнего хода).</summary>
     public required int SessionCount { get; init; }
+
+    /// <summary>Среднее по партиям среднее состояние фабрик (SPEC §5.6) на этот ход.</summary>
+    public required decimal AverageFactoryCondition { get; init; }
+
+    /// <summary>Среднее по партиям число фабрик на вынужденном простое на этот ход.</summary>
+    public required decimal AverageFactoriesUnderRepairCount { get; init; }
 }

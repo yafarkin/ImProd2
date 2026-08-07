@@ -14,4 +14,13 @@ public sealed record TurnMetrics
 
     /// <summary>Сколько команд на этом ходу не смогли расплатиться и получили принудительный заём (прокси «дефолта»).</summary>
     public required int ForcedLoanCount { get; init; }
+
+    /// <summary>Среднее состояние (<c>Factory.Condition</c>) по всем построенным фабрикам всех команд на этот ход (SPEC §5.6) — 1.0, если фабрик ещё нет.</summary>
+    public required decimal AverageFactoryCondition { get; init; }
+
+    /// <summary>Сколько фабрик всех команд на вынужденном простое на этот ход.</summary>
+    public required int FactoriesUnderRepairCount { get; init; }
+
+    /// <summary>Сколько фабрик всех команд пересекло критический порог и ушло в простой именно на этом ходу.</summary>
+    public required int ForcedRepairEventsCount { get; init; }
 }

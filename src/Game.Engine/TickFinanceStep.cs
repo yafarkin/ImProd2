@@ -8,8 +8,9 @@ namespace Game.Engine;
 /// <summary>
 /// Финансовая часть расчёта тика (Блок 4.3; SPEC §4 — «финансы» идут первым шагом расчёта):
 /// проценты по долгу → обязательный платёж по телу долга → наём/увольнение рабочих по объявленной
-/// численности → зарплаты → капитальные затраты на фабрики → R&amp;D по фабрикам → исследование
-/// следующего поколения → плата за склад, в этом фиксированном порядке. Списывает всё целиком, никогда
+/// численности → зарплаты → капитальные затраты на фабрики → износ/капремонт фабрик (SPEC §5.6, <see
+/// cref="WearStep"/>) → R&amp;D по фабрикам → исследование следующего поколения → плата за склад, в
+/// этом фиксированном порядке. Списывает всё целиком, никогда
 /// не урезая из-за нехватки баланса — вплоть до отрицательного баланса на выходе. Принудительный
 /// кредит сюда НЕ входит: это отдельный, самый последний шаг всего тика (<see
 /// cref="ForcedLoanStep"/>, вызывается <see cref="GameSession.RunTick"/> после производства и
@@ -46,7 +47,8 @@ public static class TickFinanceStep
     public static IReadOnlyList<Change<GameSessionState>> Run(
         Team team, StartingConditionsConfig loanConfig, WorkerProductivityConfig workerConfig,
         WarehouseConfig warehouseConfig, IReadOnlyList<FactoryDefinitionConfig> factoryDefinitions,
-        RndConfig rndConfig, GenerationResearchConfig generationResearchConfig, decimal reputationPercentage)
+        RndConfig rndConfig, GenerationResearchConfig generationResearchConfig, decimal reputationPercentage,
+        WearConfig wearConfig, int currentTurn)
     {
         ArgumentNullException.ThrowIfNull(team);
         ArgumentNullException.ThrowIfNull(loanConfig);
@@ -55,6 +57,7 @@ public static class TickFinanceStep
         ArgumentNullException.ThrowIfNull(factoryDefinitions);
         ArgumentNullException.ThrowIfNull(rndConfig);
         ArgumentNullException.ThrowIfNull(generationResearchConfig);
+        ArgumentNullException.ThrowIfNull(wearConfig);
 
         var changes = new List<Change<GameSessionState>>();
 
@@ -96,17 +99,24 @@ public static class TickFinanceStep
         // DesiredWorkers, а не Workers: наём/увольнение выше ещё не применены (эта функция только
         // возвращает события, не применяет их — см. doc-comment класса), но зарплата этого же хода
         // должна считаться уже по новой численности, а не по вчерашней (см. doc-comment Run выше).
-        var totalWorkers = team.Factories.Sum(factory => factory.DesiredWorkers);
+        // Фабрики на вынужденном простое исключены из прогрессивной командной кривой — их зарплата
+        // считается отдельно, плоским льготным тарифом внутри WearStep (см. FactoryRepairTurnPassed).
+        var totalWorkers = team.Factories.Where(factory => !factory.IsUnderRepair).Sum(factory => factory.DesiredWorkers);
         var salaries = FinanceCalculator.CalculateSalaries(totalWorkers, workerConfig);
         if (salaries > 0)
         {
             changes.Add(new SalariesPaid { Id = Ulid.NewUlid(), TeamId = team.Id, TotalWorkers = totalWorkers, Amount = salaries });
         }
 
-        var factoryUpkeep = FinanceCalculator.CalculateFactoryUpkeep(team.Factories, factoryDefinitions);
+        var factoryUpkeep = FinanceCalculator.CalculateFactoryUpkeep(team.Factories, factoryDefinitions, wearConfig);
         if (factoryUpkeep > 0)
         {
             changes.Add(new FactoryUpkeepPaid { Id = Ulid.NewUlid(), TeamId = team.Id, FactoryCount = team.Factories.Count, Amount = factoryUpkeep });
+        }
+
+        foreach (var factory in team.Factories)
+        {
+            changes.AddRange(WearStep.Run(team.Id, factory, currentTurn, wearConfig, workerConfig, factoryDefinitions));
         }
 
         foreach (var factory in team.Factories)

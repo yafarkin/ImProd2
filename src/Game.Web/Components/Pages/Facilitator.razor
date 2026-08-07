@@ -87,6 +87,10 @@ else
                         {
                             <span class="badge text-bg-warning">Был принудительный заём</span>
                         }
+                        @if (team.FactoriesUnderRepairCount > 0)
+                        {
+                            <span class="badge text-bg-warning">Фабрик на ремонте: @team.FactoriesUnderRepairCount</span>
+                        }
                         @if (team.Inactive)
                         {
                             <span class="badge text-bg-secondary">Неактивна</span>
@@ -176,7 +180,7 @@ else
     private sealed record TeamRow(
         Ulid TeamId, string Name, string SectorName, decimal Balance, decimal Debt,
         decimal ReputationPercentage, int FactoryCount, int WorkerCount,
-        bool NegativeBalance, bool HadForcedLoan, bool Inactive);
+        bool NegativeBalance, bool HadForcedLoan, bool Inactive, int FactoriesUnderRepairCount);
 
     private sealed record NewsOption(string Id, string Label);
     private sealed record MaterialOption(string Id, string Name, decimal CurrentPrice);
@@ -233,7 +237,8 @@ else
                     Host.Session!.GetReputation(team.Id).Percentage,
                     team.Factories.Count, team.Factories.Sum(f => f.Workers),
                     team.Balance < 0, team.PenaltyRateSurcharge > 0,
-                    team.Factories.Count == 0 && state.CurrentTurn > 1))
+                    team.Factories.Count == 0 && state.CurrentTurn > 1,
+                    team.Factories.Count(f => f.IsUnderRepair)))
                 .OrderBy(t => t.Name, StringComparer.Ordinal)
                 .ToList();
             if (_grantTeamId is null || _teams.All(t => t.TeamId != _grantTeamId))

@@ -26,13 +26,20 @@ public sealed record FactoryBuilt : Change<GameSessionState>
     /// <summary>Стоимость постройки (<c>FactoryDefinitionConfig.BuildCost</c> на момент действия).</summary>
     public required decimal Cost { get; init; }
 
+    /// <summary>
+    /// Ход постройки — становится точкой отсчёта возраста износа (<see
+    /// cref="Game.Domain.Factory.LastResetTurn"/>, см. <see cref="WearCalculator"/>). Несёт значение
+    /// явно, а не читает его из ambient-состояния — тот же приём, что и у остальных полей события.
+    /// </summary>
+    public required int Turn { get; init; }
+
     public override void Apply(GameSessionState state)
     {
         var team = state.Teams[TeamId];
         var definition = state.Config.FactoryDefinitions.Single(f => f.Id == FactoryDefinitionId);
         var recipe = definition.Recipes.Single(r => r.Id == RecipeId);
 
-        team.BuildFactory(FactoryId, definition, recipe);
+        team.BuildFactory(FactoryId, definition, recipe, Turn);
         if (Cost > 0)
         {
             team.Debit(Cost);

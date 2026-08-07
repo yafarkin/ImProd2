@@ -16,6 +16,7 @@ public class TickFinanceStepGenerationResearchTests
     private static readonly Config.Economy.WarehouseConfig WarehouseConfig = TestGameConfig.Resolved.Raw.Warehouse;
     private static readonly IReadOnlyList<Config.Catalog.FactoryDefinitionConfig> FactoryDefinitions = TestGameConfig.Resolved.Raw.FactoryDefinitions;
     private static readonly Config.Economy.RndConfig RndConfig = TestGameConfig.Resolved.Raw.Rnd;
+    private static readonly Config.Economy.WearConfig WearConfig = TestGameConfig.Resolved.Raw.Wear;
 
     // Пороги в очках исследований: 100^0.5=10, 400^0.5=20 — накопленные ¤ 100 и 400 (1->2, 2->3).
     private static readonly Config.Economy.GenerationResearchConfig GenerationResearchConfig = new()
@@ -31,7 +32,7 @@ public class TickFinanceStepGenerationResearchTests
     {
         var (_, team) = TestGameConfig.StartSessionWithOneTeam(); // GenerationResearchCommitmentPerTurn по умолчанию 0
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.Empty(changes);
     }
@@ -43,7 +44,7 @@ public class TickFinanceStepGenerationResearchTests
         team.SetGenerationResearchCommitment(50m);
         team.Credit(100m); // с запасом
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         var invested = Assert.IsType<GenerationResearchInvested>(Assert.Single(changes));
         Assert.Equal(50m, invested.Amount);
@@ -57,7 +58,7 @@ public class TickFinanceStepGenerationResearchTests
         team.SetGenerationResearchCommitment(100m); // ровно первый порог по накопленным ¤
         team.Credit(200m);
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.Equal(2, changes.Count);
         Assert.IsType<GenerationResearchInvested>(changes[0]);
@@ -75,7 +76,7 @@ public class TickFinanceStepGenerationResearchTests
         team.Warehouse.Add(TestGameConfig.Ore, 1005m, 0m); // сверх лимита (1000) на 5 единиц
         team.Credit(1000m); // с запасом
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.Equal(3, changes.Count);
         Assert.IsType<RndInvested>(changes[0]);
@@ -89,7 +90,7 @@ public class TickFinanceStepGenerationResearchTests
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
         team.SetGenerationResearchCommitment(50m); // баланс пуст — платить нечем
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
         foreach (var change in changes)
         {
             log.Append(change);
@@ -114,7 +115,7 @@ public class TickFinanceStepGenerationResearchTests
         team.SetGenerationResearchCommitment(50m);
         team.Credit(1000m);
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m);
+        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.DoesNotContain(changes, c => c is GenerationResearchInvested or TeamGenerationAdvanced);
     }

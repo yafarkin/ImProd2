@@ -16,6 +16,7 @@ public class FinanceCalculatorTests
         ForcedLoanPenaltyRatePerOccurrence = 0.1m,
         MaxReputationRatePenalty = 0.2m,
         MandatoryRepaymentRatePerTurn = 0.1m,
+        MaxTotalDebt = 1_000_000_000m,
     };
 
     private static readonly WorkerProductivityConfig WorkerConfig = new()

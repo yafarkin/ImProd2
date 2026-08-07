@@ -162,6 +162,7 @@ public class FinanceHistoryCalculatorTests
         {
             Id = Ulid.NewUlid(), TeamId = team.Id, FactoryId = factoryId,
             FactoryDefinitionId = TestGameConfig.Mine.Id, RecipeId = TestGameConfig.Mine.Recipes[0].Id, Cost = 100m,
+            Turn = 1,
         });
 
         var operation = Assert.Single(FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id));
@@ -180,6 +181,7 @@ public class FinanceHistoryCalculatorTests
         {
             Id = Ulid.NewUlid(), TeamId = team.Id, FactoryId = factoryId,
             FactoryDefinitionId = TestGameConfig.Mine.Id, RecipeId = TestGameConfig.Mine.Recipes[0].Id, Cost = 100m,
+            Turn = 1,
         });
         log.Append(new WorkersHired { Id = Ulid.NewUlid(), TeamId = team.Id, FactoryId = factoryId, Count = 3, Cost = 150m });
         log.Append(new WorkersFired { Id = Ulid.NewUlid(), TeamId = team.Id, FactoryId = factoryId, Count = 1, Cost = 60m });
@@ -203,6 +205,7 @@ public class FinanceHistoryCalculatorTests
         {
             Id = Ulid.NewUlid(), TeamId = team.Id, FactoryId = factoryId,
             FactoryDefinitionId = TestGameConfig.Mine.Id, RecipeId = TestGameConfig.Mine.Recipes[0].Id, Cost = 100m,
+            Turn = 1,
         });
         log.Append(new SalariesPaid { Id = Ulid.NewUlid(), TeamId = team.Id, TotalWorkers = 3, Amount = 90m });
         log.Append(new RndInvested { Id = Ulid.NewUlid(), TeamId = team.Id, FactoryId = factoryId, Amount = 50m });
@@ -279,6 +282,7 @@ public class FinanceHistoryCalculatorTests
         {
             Id = Ulid.NewUlid(), TeamId = team.Id, FactoryId = factoryId,
             FactoryDefinitionId = TestGameConfig.Mine.Id, RecipeId = TestGameConfig.Mine.Recipes[0].Id, Cost = 100m,
+            Turn = 1,
         });
         log.Append(new FactoryProduced
         {

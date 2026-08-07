@@ -108,11 +108,19 @@ public static class FinanceCalculator
     /// фабрику вне зависимости от числа рабочих и объёма выпуска (запрос пользователя: «платим за
     /// фабрику, даже если она вообще не работает»).
     /// </summary>
-    public static decimal CalculateFactoryUpkeep(IReadOnlyList<Factory> factories, IReadOnlyList<FactoryDefinitionConfig> factoryDefinitions)
+    public static decimal CalculateFactoryUpkeep(
+        IReadOnlyList<Factory> factories, IReadOnlyList<FactoryDefinitionConfig> factoryDefinitions, WearConfig wearConfig)
     {
         ArgumentNullException.ThrowIfNull(factories);
         ArgumentNullException.ThrowIfNull(factoryDefinitions);
+        ArgumentNullException.ThrowIfNull(wearConfig);
 
-        return factories.Sum(factory => factoryDefinitions.First(definition => definition.Id == factory.Definition.Id).FixedCostPerTurn);
+        // Фабрики на вынужденном простое исключены отсюда: их содержание списывается отдельно, по
+        // льготному тарифу простоя (см. WearStep/FactoryRepairTurnPassed) — второй штраф поверх был бы
+        // избыточен, фабрика и так уже наказана простоем.
+        return factories
+            .Where(factory => !factory.IsUnderRepair)
+            .Sum(factory => factoryDefinitions.First(definition => definition.Id == factory.Definition.Id).FixedCostPerTurn
+                             * WearCalculator.CalculateUpkeepPenaltyMultiplier(factory.Condition, wearConfig));
     }
 }

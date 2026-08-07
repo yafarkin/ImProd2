@@ -323,6 +323,9 @@ internal static class TestGameConfig
                 ForcedLoanPenaltyRatePerOccurrence = 0.1m,
                 MaxReputationRatePenalty = 0.1m,
                 MandatoryRepaymentRatePerTurn = 0m,
+                // Огромный — этот общий тестовый конфиг не про потолок долга, существующие тесты не
+                // должны неожиданно словить недостачу принудительного займа.
+                MaxTotalDebt = 1_000_000_000m,
             },
             SessionPresets = new[]
             {
@@ -376,6 +379,28 @@ internal static class TestGameConfig
                 DiminishingReturnsExponent = 1m,
                 ProductionRateBonusPerLevel = 0.1m,
                 MaxCommitmentPerTurn = 200m,
+            },
+            Wear = new WearConfig
+            {
+                // GracePeriodTurns огромный — та же защита, что и в GameConfigTestBuilder: этот общий
+                // тестовый конфиг не должен неожиданно ронять Condition в тестах, не посвящённых износу.
+                GracePeriodTurns = 1000,
+                BaseWearRatePerTurn = 0.01m,
+                AccelerationFactorPerTurn = 0.004m,
+                MaxUpkeepPenaltyMultiplier = 0.5m,
+                OverhaulTiers = new[]
+                {
+                    new OverhaulTierConfig { Id = "prevention", Name = "Профилактика", MinCondition = 0.9m, CostFraction = 0.02m, DurationTurns = 1, OutputMultiplier = 0.97m, SalaryRate = 1m, UpkeepRate = 1m },
+                    new OverhaulTierConfig { Id = "scheduled", Name = "Плановое обслуживание", MinCondition = 0.75m, CostFraction = 0.06m, DurationTurns = 1, OutputMultiplier = 0.85m, SalaryRate = 1m, UpkeepRate = 1m },
+                    new OverhaulTierConfig { Id = "major", Name = "Капремонт", MinCondition = 0.55m, CostFraction = 0.15m, DurationTurns = 2, OutputMultiplier = 0.75m, SalaryRate = 0.66m, UpkeepRate = 0.5m },
+                    new OverhaulTierConfig { Id = "heavy", Name = "Серьёзный ремонт", MinCondition = 0.35m, CostFraction = 0.25m, DurationTurns = 3, OutputMultiplier = 0.6m, SalaryRate = 0.66m, UpkeepRate = 0.5m },
+                    new OverhaulTierConfig { Id = "reconstruction", Name = "Полная реконструкция", MinCondition = 0.2m, CostFraction = 0.4m, DurationTurns = 5, OutputMultiplier = 0.4m, SalaryRate = 0.66m, UpkeepRate = 0.5m },
+                },
+                CriticalConditionThreshold = 0.2m,
+                ForcedRepairDurationTurns = 8,
+                ForcedRepairSalaryRate = 0.66m,
+                ForcedRepairUpkeepRate = 0.5m,
+                PostForcedRepairCondition = 0.85m,
             },
             // Материалы этого общего тестового конфига не заходят выше уровня 1 (ore=0, sheet=1) —
             // StartingGeneration=1 покрывает их целиком, ни один существующий тест, строящий фабрики

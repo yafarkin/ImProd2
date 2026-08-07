@@ -204,4 +204,111 @@ public class FactoryTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() => factory.SetRndCommitment(-1m));
     }
+
+    [Fact]
+    public void Construction_Defaults_Condition_To_1_And_LastResetTurn_To_The_Given_BuiltAtTurn()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill, builtAtTurn: 7);
+
+        Assert.Equal(1m, factory.Condition);
+        Assert.Equal(7, factory.LastResetTurn);
+        Assert.False(factory.IsUnderRepair);
+        Assert.Equal(0, factory.RepairTurnsRemaining);
+    }
+
+    [Fact]
+    public void SetOverhaulRequested_Changes_The_Flag()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+
+        factory.SetOverhaulRequested(true);
+
+        Assert.True(factory.OverhaulRequested);
+
+        factory.SetOverhaulRequested(false);
+
+        Assert.False(factory.OverhaulRequested);
+    }
+
+    [Fact]
+    public void ApplyConditionChange_Sets_The_Condition()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+
+        factory.ApplyConditionChange(0.7m);
+
+        Assert.Equal(0.7m, factory.Condition);
+    }
+
+    [Theory]
+    [InlineData(-0.01)]
+    [InlineData(1.01)]
+    public void ApplyConditionChange_Throws_Outside_The_0_To_1_Range(decimal condition)
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => factory.ApplyConditionChange(condition));
+    }
+
+    [Fact]
+    public void StartRepair_Fixes_The_Condition_And_Captures_The_Repair_Parameters()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+        factory.SetOverhaulRequested(true);
+
+        factory.StartRepair(
+            conditionAtEntry: 0.45m, durationTurns: 4, outputMultiplier: 0m,
+            salaryRate: 0.66m, upkeepRate: 0.5m, targetCondition: 1m);
+
+        Assert.Equal(0.45m, factory.Condition);
+        Assert.True(factory.IsUnderRepair);
+        Assert.Equal(4, factory.RepairTurnsRemaining);
+        Assert.Equal(0m, factory.RepairOutputMultiplier);
+        Assert.Equal(0.66m, factory.RepairSalaryRate);
+        Assert.Equal(0.5m, factory.RepairUpkeepRate);
+        Assert.Equal(1m, factory.RepairTargetCondition);
+        Assert.False(factory.OverhaulRequested); // запрос удовлетворён простоем — сброшен
+    }
+
+    [Fact]
+    public void AdvanceRepairTurn_Decrements_The_Remaining_Turns()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+        factory.StartRepair(0.4m, durationTurns: 3, outputMultiplier: 0m, salaryRate: 0.66m, upkeepRate: 0.5m, targetCondition: 1m);
+
+        factory.AdvanceRepairTurn();
+
+        Assert.Equal(2, factory.RepairTurnsRemaining);
+        Assert.True(factory.IsUnderRepair);
+    }
+
+    [Fact]
+    public void AdvanceRepairTurn_Throws_When_Not_Under_Repair()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+
+        Assert.Throws<InvalidOperationException>(() => factory.AdvanceRepairTurn());
+    }
+
+    [Fact]
+    public void CompleteRepair_Returns_The_Factory_To_Service_At_The_Captured_Target_And_Resets_The_Age_Clock()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill, builtAtTurn: 1);
+        factory.StartRepair(0.4m, durationTurns: 1, outputMultiplier: 0m, salaryRate: 0.66m, upkeepRate: 0.5m, targetCondition: 0.85m);
+
+        factory.CompleteRepair(currentTurn: 20);
+
+        Assert.Equal(0.85m, factory.Condition);
+        Assert.False(factory.IsUnderRepair);
+        Assert.Equal(0, factory.RepairTurnsRemaining);
+        Assert.Equal(20, factory.LastResetTurn);
+    }
+
+    [Fact]
+    public void CompleteRepair_Throws_When_Not_Under_Repair()
+    {
+        var factory = new Factory(Ulid.NewUlid(), SectorA, MultiRecipeMill);
+
+        Assert.Throws<InvalidOperationException>(() => factory.CompleteRepair(currentTurn: 5));
+    }
 }
