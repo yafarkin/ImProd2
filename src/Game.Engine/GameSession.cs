@@ -511,57 +511,52 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Берёт заём по решению команды (SPEC §5.9: «в любой момент», ставка — кривая из
-    /// <see cref="FinanceCalculator"/>) — единственный способ получить деньги, первый он для
-    /// команды или очередной: никакого отдельного «стартового» кредита с иными правилами больше
-    /// нет (команда сама решает, сколько и когда занять — это её первое финансовое решение в игре,
-    /// а не предустановка администратора). Ничем не ограничен по сумме — риск команды
+    /// Объявляет желаемую сумму займа на ближайший расчёт (SPEC §4, §5.9: решения не применяются
+    /// сразу — только на расчёте; ставка — кривая из <see cref="FinanceCalculator"/>) — единственный
+    /// способ получить деньги, первый он для команды или очередной: никакого отдельного
+    /// «стартового» кредита с иными правилами больше нет (команда сама решает, сколько и когда
+    /// занять — это её первое финансовое решение в игре, а не предустановка администратора). Само
+    /// объявление бесплатно и мгновенно, тем же приёмом, что и <see cref="SetWorkerCount"/>: реальное
+    /// зачисление денег и рост долга происходят один раз, на расчёте (<see
+    /// cref="VoluntaryLoanStep"/>, самым последним шагом тика перед принудительным займом). Последнее
+    /// объявление в пределах хода замещает предыдущее — сколько раз команда ни передумала бы,
+    /// действует только оно; 0 снимает заявку. Ничем не ограничена по сумме — риск команды
     /// самонаказывающийся через растущую ставку, а не через жёсткий потолок. Требует фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> TakeLoan(Ulid teamId, decimal amount)
     {
         EnsureDecisionsAllowed();
 
-        if (amount <= 0)
+        if (amount < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Loan amount must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Loan amount must not be negative.");
         }
         GetTeam(teamId);
 
-        return _log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
+        return _log.Append(new LoanTakeRequested { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
     }
 
     /// <summary>
-    /// Добровольно гасит часть тела долга сверх обязательного платежа, который и без того списывается
-    /// каждый ход (<see cref="MandatoryLoanRepaymentCharged"/>) — симметричное действие к
-    /// <see cref="TakeLoan"/>. Нельзя погасить больше, чем команда реально должна; в отличие от
-    /// постройки фабрики или найма, отдельной проверки баланса здесь нет — если денег не хватит,
-    /// баланс уйдёт в минус и это решит тот же тик, самым последним шагом (<see
-    /// cref="ForcedLoanStep"/>), тем же способом, каким уже работают все остальные решения команды.
-    /// <paramref name="amount"/> сверх реального остатка долга не отклоняется, а тихо урезается до
-    /// него (баг-репорт пользователя: UI округляет долг для отображения — «1 ¤» вместо реальных
-    /// 0.9966... — и попытка погасить ровно то, что показано на экране, раньше падала с исключением;
-    /// команда явно имела в виду «закрыть долг полностью», а не какую-то конкретную копейку). Требует
-    /// фазы решений. Бросает, только если долга вообще нет (гасить нечего) — это уже настоящая ошибка
-    /// команды, а не следствие округления в UI.
+    /// Объявляет желаемую сумму добровольного погашения долга на ближайший расчёт, сверх
+    /// обязательного платежа, который и без того списывается каждый ход (<see
+    /// cref="MandatoryLoanRepaymentCharged"/>) — симметрично <see cref="TakeLoan"/>, тем же приёмом
+    /// «объявление сейчас, применение на расчёте» (SPEC §4). Реальное списание и урезание до
+    /// фактического остатка долга происходят на расчёте (<see cref="VoluntaryLoanStep"/>) — долг на
+    /// тот момент может уже отличаться от того, что видно сейчас (проценты, обязательный платёж),
+    /// поэтому здесь, в отличие от прежней немедленной версии, потолок не проверяется вовсе. Последнее
+    /// объявление в пределах хода замещает предыдущее; 0 снимает заявку. Требует фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> RepayLoan(Ulid teamId, decimal amount)
     {
         EnsureDecisionsAllowed();
 
-        if (amount <= 0)
+        if (amount < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Repayment amount must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Repayment amount must not be negative.");
         }
-        var team = GetTeam(teamId);
-        if (team.Debt <= 0)
-        {
-            throw new InvalidOperationException($"Cannot repay {amount}, team '{teamId}' has no debt.");
-        }
+        GetTeam(teamId);
 
-        var repayAmount = Math.Min(amount, team.Debt);
-
-        return _log.Append(new LoanRepaid { Id = Ulid.NewUlid(), TeamId = teamId, Amount = repayAmount });
+        return _log.Append(new LoanRepaymentRequested { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
     }
 
     /// <summary>
@@ -1083,11 +1078,19 @@ public sealed class GameSession
 
         ExecuteContracts(appended);
 
-        // Самый последний шаг тика (см. doc-comment выше) — только теперь известны все возможные
-        // причины отрицательного баланса: финансы, переменные затраты на производство и исполнение
-        // контрактов (оплата покупки, штраф за срыв поставки — оба тоже могут увести в минус).
+        // Добровольные решения по кредиту (SPEC §4, §5.9) — после производства и контрактов, перед
+        // принудительным займом (см. doc-comment VoluntaryLoanStep): последний шанс команды закрыть
+        // дыру в балансе по хорошей ставке до того, как это сделает система по штрафной.
+        // Принудительный заём — самый последний шаг тика (см. doc-comment выше) — только теперь
+        // известны все возможные причины отрицательного баланса: финансы, переменные затраты на
+        // производство, исполнение контрактов и сами добровольные решения по кредиту.
         foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
         {
+            foreach (var change in VoluntaryLoanStep.Run(team))
+            {
+                appended.Add(_log.Append(change));
+            }
+
             var forcedLoan = ForcedLoanStep.Run(team, config.Raw.StartingConditions);
             if (forcedLoan is not null)
             {

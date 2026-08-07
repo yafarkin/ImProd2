@@ -275,6 +275,10 @@ else
                                 <span class="text-muted">Сейчас: @factory.Workers · объявлено на расчёт: @factory.DesiredWorkers</span>
                                 <input type="number" min="0" step="1" class="form-control d-inline-block" style="width:6em" @bind="_targetWorkerCounts[factory.FactoryId]" />
                                 <button type="button" class="btn btn-secondary" disabled="@(!CanApplyWorkerCount(factory))" @onclick="() => ApplyWorkerCount(factory)">Применить</button>
+                                @if (factory.DesiredWorkers != factory.Workers)
+                                {
+                                    <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => CancelWorkerCount(factory)">Отменить</button>
+                                }
                             </div>
                             var (workerDelta, workerCost) = WorkerCountChange(factory);
                             @if (workerDelta > 0)
@@ -760,9 +764,17 @@ else
     @if (_canManage)
     {
         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-            <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_loanAmount" @bind:event="oninput" />
+            <input type="number" min="0" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_loanAmount" @bind:event="oninput" />
             <button type="button" class="btn btn-secondary" @onclick="TakeLoan">Взять кредит</button>
+            @if (_pendingLoanTakeAmount > 0)
+            {
+                <button type="button" class="btn btn-link btn-sm p-0" @onclick="CancelLoanRequest">Отменить</button>
+            }
         </div>
+        @if (_pendingLoanTakeAmount > 0)
+        {
+            <p class="text-muted small mb-2">Заявлено на расчёт: @DashboardDisplay.FormatMoney(_pendingLoanTakeAmount) — деньги поступят на баланс на следующем расчёте.</p>
+        }
         <p>
             <em>
                 Предпросмотр: ставка @DashboardDisplay.FormatRate(LoanPreview().Rate),
@@ -773,9 +785,17 @@ else
         @if (_debt > 0)
         {
             <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                <input type="number" min="0.01" max="@_debt" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_repayAmount" />
+                <input type="number" min="0" max="@_debt" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_repayAmount" />
                 <button type="button" class="btn btn-secondary" @onclick="RepayLoan">Погасить досрочно</button>
+                @if (_pendingLoanRepayAmount > 0)
+                {
+                    <button type="button" class="btn btn-link btn-sm p-0" @onclick="CancelLoanRepaymentRequest">Отменить</button>
+                }
             </div>
+            @if (_pendingLoanRepayAmount > 0)
+            {
+                <p class="text-muted small mb-2">Заявлено на расчёт: @DashboardDisplay.FormatMoney(_pendingLoanRepayAmount) — спишется на следующем расчёте.</p>
+            }
             <p class="text-muted small">
                 <em>
                     Сверх этого с баланса каждый ход и так автоматически списываются обязательный
@@ -1020,6 +1040,8 @@ else
 
     private decimal _balance;
     private decimal _debt;
+    private decimal _pendingLoanTakeAmount;
+    private decimal _pendingLoanRepayAmount;
     private decimal _penaltyRateSurcharge;
     private decimal _reputationPercentage;
     private int _reputationSampleCount;
@@ -1179,6 +1201,8 @@ else
 
             _balance = team.Balance;
             _debt = team.Debt;
+            _pendingLoanTakeAmount = team.PendingLoanTakeAmount;
+            _pendingLoanRepayAmount = team.PendingLoanRepayAmount;
             _penaltyRateSurcharge = team.PenaltyRateSurcharge;
 
             var reputation = Host.Session!.GetReputation(_teamId);
@@ -1449,6 +1473,17 @@ else
         RunAction(() => Host.Session!.SetWorkerCount(_teamId, factory.FactoryId, target));
     }
 
+    /// <summary>
+    /// Снимает объявленную на этот ход численность, откатывая её обратно к уже фактической (<see
+    /// cref="FactoryRow.Workers"/>) — сама отмена ничем не отличается от любого другого объявления
+    /// (SPEC §4, §5.6), просто равна текущему значению.
+    /// </summary>
+    private void CancelWorkerCount(FactoryRow factory)
+    {
+        _targetWorkerCounts[factory.FactoryId] = factory.Workers;
+        RunAction(() => Host.Session!.SetWorkerCount(_teamId, factory.FactoryId, factory.Workers));
+    }
+
     private string TabClass(string tab) => _activeFactoryTab == tab ? "active" : "";
 
     /// <summary>
@@ -1684,6 +1719,18 @@ else
     private void RepayLoan()
     {
         RunAction(() => Host.Session!.RepayLoan(_teamId, _repayAmount));
+    }
+
+    /// <summary>Снимает заявку на заём этого хода (SPEC §4, §5.9) — объявление 0 отменяет предыдущее.</summary>
+    private void CancelLoanRequest()
+    {
+        RunAction(() => Host.Session!.TakeLoan(_teamId, 0m));
+    }
+
+    /// <summary>Снимает заявку на добровольное погашение этого хода — симметрично <see cref="CancelLoanRequest"/>.</summary>
+    private void CancelLoanRepaymentRequest()
+    {
+        RunAction(() => Host.Session!.RepayLoan(_teamId, 0m));
     }
 
     private (decimal Rate, decimal Payment) LoanPreview()

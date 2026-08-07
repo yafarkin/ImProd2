@@ -28,6 +28,24 @@ public sealed class Team
     public decimal Debt { get; private set; }
 
     /// <summary>
+    /// Сумма, которую команда объявила занять на ближайшем расчёте (SPEC §4, §5.9: решения не
+    /// применяются сразу — только на расчёте) — само объявление бесплатно и мгновенно, реальное
+    /// зачисление и рост долга происходят один раз, на расчёте (<see cref="Game.Engine.VoluntaryLoanStep"/>).
+    /// Последнее объявление в пределах хода замещает предыдущее, а не суммируется с ним (тот же
+    /// приём, что и у <see cref="Game.Domain.Factory.DesiredWorkers"/>); 0 — заявка снята.
+    /// </summary>
+    public decimal PendingLoanTakeAmount { get; private set; }
+
+    /// <summary>
+    /// Сумма, которую команда объявила добровольно погасить на ближайшем расчёте, сверх
+    /// обязательного платежа. Реальный остаток долга на момент расчёта может отличаться от того, что
+    /// было видно в момент решения (проценты, обязательный платёж — уже применены тем же расчётом
+    /// раньше) — поэтому потолок «нельзя погасить больше реального долга» считается на расчёте, не
+    /// здесь (см. <see cref="Game.Engine.VoluntaryLoanStep"/>).
+    /// </summary>
+    public decimal PendingLoanRepayAmount { get; private set; }
+
+    /// <summary>
     /// Накопленная штрафная надбавка к ставке по кредиту — растёт с каждым принудительным займом
     /// (SPEC §5.9: «ставка принудительного займа заведомо хуже любого добровольного») и применяется
     /// ко всему долгу команды, а не только к принудительно взятой части.
@@ -110,7 +128,12 @@ public sealed class Team
         Balance -= amount;
     }
 
-    /// <summary>Оформляет заём: зачисляет сумму на баланс и одновременно увеличивает долг на ту же сумму.</summary>
+    /// <summary>
+    /// Оформляет заём: зачисляет сумму на баланс и одновременно увеличивает долг на ту же сумму.
+    /// Заодно снимает <see cref="PendingLoanTakeAmount"/> — заявка, из которой взята эта сумма,
+    /// исполнена (единственный вызывающий код — <see cref="Game.Engine.LoanTaken.Apply"/>, всегда с
+    /// уже разрешённой на расчёте суммой).
+    /// </summary>
     public void TakeLoan(decimal amount)
     {
         if (amount <= 0)
@@ -120,6 +143,21 @@ public sealed class Team
 
         Balance += amount;
         Debt += amount;
+        PendingLoanTakeAmount = 0;
+    }
+
+    /// <summary>
+    /// Объявляет желаемую сумму займа на ближайший расчёт (см. <see cref="PendingLoanTakeAmount"/>).
+    /// В отличие от <see cref="TakeLoan"/> ничего не зачисляет — это только намерение.
+    /// </summary>
+    public void RequestLoan(decimal amount)
+    {
+        if (amount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Requested loan amount must not be negative.");
+        }
+
+        PendingLoanTakeAmount = amount;
     }
 
     /// <summary>
@@ -141,6 +179,36 @@ public sealed class Team
         }
 
         Debt -= amount;
+        PendingLoanRepayAmount = 0;
+    }
+
+    /// <summary>
+    /// Объявляет желаемую сумму добровольного погашения на ближайший расчёт (см.
+    /// <see cref="PendingLoanRepayAmount"/>). В отличие от <see cref="RepayLoan"/> ничего не
+    /// списывает — это только намерение, и, в отличие от него же, не ограничена текущим <see
+    /// cref="Debt"/> (реальный остаток долга на момент расчёта может быть другим — см. doc-comment
+    /// <see cref="PendingLoanRepayAmount"/>).
+    /// </summary>
+    public void RequestLoanRepayment(decimal amount)
+    {
+        if (amount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Requested repayment amount must not be negative.");
+        }
+
+        PendingLoanRepayAmount = amount;
+    }
+
+    /// <summary>
+    /// Снимает заявку на добровольное погашение без самого погашения — расчёт решил, что реально
+    /// гасить нечего (например, долг успел обнулиться обязательным платежом раньше в этом же
+    /// расчёте, см. <see cref="Game.Engine.VoluntaryLoanStep"/>). Без этого метода заявка осталась бы
+    /// висеть и могла бы неожиданно исполниться следующим ходом, если у команды к тому времени
+    /// появится новый долг, который она не имела в виду гасить.
+    /// </summary>
+    public void ClearPendingLoanRepayRequest()
+    {
+        PendingLoanRepayAmount = 0;
     }
 
     /// <summary>Увеличивает штрафную надбавку к ставке по кредиту (после принудительного займа).</summary>

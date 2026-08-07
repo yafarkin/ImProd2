@@ -123,21 +123,26 @@ public class FinanceHistoryCalculatorTests
     [Fact]
     public void Summarize_Tags_Each_Operation_With_The_Turn_It_Happened_On()
     {
+        // TakeLoan/RepayLoan теперь только объявляют намерение (SPEC §4, §5.9) — LoanTaken/LoanRepaid
+        // порождаются расчётом следующего тика, поэтому каждой заявке соответствует свой RunTick.
         var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(startingLoan: 0m);
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 1
         session.TakeLoan(teamId, 500m);
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
-        session.RunTick(new Random(1));
+        session.RunTick(new Random(1)); // LoanTaken применяется здесь — тег хода 2
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 2
         session.RepayLoan(teamId, 50m);
+
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 3
+        session.RunTick(new Random(1)); // LoanRepaid применяется здесь — тег хода 3
 
         var operations = FinanceHistoryCalculator.Summarize(session.Entries, TestGameConfig.Resolved, teamId);
 
         var loanTaken = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.LoanTaken);
-        Assert.Equal(1, loanTaken.Turn);
+        Assert.Equal(2, loanTaken.Turn);
         var repaid = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.VoluntaryRepayment);
-        Assert.Equal(2, repaid.Turn);
+        Assert.Equal(3, repaid.Turn);
     }
 
     [Fact]

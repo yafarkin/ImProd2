@@ -20,10 +20,17 @@ public class GameSessionWarehouseFeeTests
                 new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id },
             });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
+        // Заём — теперь только заявка (SPEC §4, §5.9), реально зачисляется отдельным, уже
+        // «спокойным» тиком — иначе к интересующему нас тику (ниже) он ещё не был бы на балансе и
+        // проценты по нему в этом тесте не начислились бы.
         session.TakeLoan(teamId, 1000m); // команда сама берёт первый кредит (SPEC §5.1) — не предустановка
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
+        session.RunTick(new Random(1)); // заём зачислён, Debt=1000, Balance=1000
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 2
+
         session.EmergencyPurchase(teamId, "ore", 10m); // склад: 10 единиц, бесплатный лимит — 5;
         // цена = 10 (BasePrice) * 2 (EmergencyPurchaseBaseMultiplier, давления ещё нет) = 20/ед., итого 200
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 3
         var balanceBeforeTick = session.State.Teams[teamId].Balance; // 1000 - 200 = 800
 
         var appended = session.RunTick(new Random(1));

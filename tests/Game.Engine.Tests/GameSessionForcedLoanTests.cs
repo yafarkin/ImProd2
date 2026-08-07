@@ -23,11 +23,17 @@ public class GameSessionForcedLoanTests
             new[] { new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 1
 
+        // Заём — теперь только заявка (SPEC §4, §5.9), реально зачисляется отдельным, уже
+        // «спокойным» тиком — иначе к интересующему нас тику (ниже) он ещё не был бы на балансе.
         session.TakeLoan(teamId, 200m);
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
+        session.RunTick(new Random(1)); // заём зачислён, Debt=200, Balance=200
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 2
+
         var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change; // -100, баланс 100
         session.SetWorkerCount(teamId, built.FactoryId, 1); // объявление бесплатно; реальный наём и зарплата — на расчёте
 
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 3
         var appended = session.RunTick(new Random(1));
 
         // Баланс сразу после финансового шага: 100 - проценты(200*0.05=10) - наём(1*50=50) -
