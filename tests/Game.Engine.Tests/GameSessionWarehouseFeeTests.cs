@@ -28,10 +28,17 @@ public class GameSessionWarehouseFeeTests
         session.RunTick(new Random(1)); // заём зачислён, Debt=1000, Balance=1000
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 2
 
+        // Аварийная закупка — тоже только заявка (SPEC §4, §5.3); склад пополняется на расчёте хода 3,
+        // но плата за склад считается по остатку «на начало хода» (в TickFinanceStep, до разрешения
+        // заявки на закупку тем же тиком) — поэтому увидеть плату можно только на СЛЕДУЮЩЕМ, четвёртом
+        // ходу, когда закупленные 10 единиц уже лежат на складе с начала хода.
         session.EmergencyPurchase(teamId, "ore", 10m); // склад: 10 единиц, бесплатный лимит — 5;
         // цена = 10 (BasePrice) * 2 (EmergencyPurchaseBaseMultiplier, давления ещё нет) = 20/ед., итого 200
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 3
-        var balanceBeforeTick = session.State.Teams[teamId].Balance; // 1000 - 200 = 800
+        session.RunTick(new Random(1)); // закупка резрешена, склад: 10 единиц ore
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 3
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 4
+        var balanceBeforeTick = session.State.Teams[teamId].Balance;
 
         var appended = session.RunTick(new Random(1));
 

@@ -4,8 +4,10 @@ namespace Game.Engine;
 /// Команда закупила материал напрямую у системы по аварийной цене (SPEC §5.3): цена — текущая
 /// рыночная котировка материала (Блок 6.1) × множитель, служит потолком монопольных цен, потому
 /// что доступна всегда и следует за живой ценой, а не константой. Товар зачисляется на склад,
-/// деньги списываются. Стоимость вычислена до записи и несётся событием. Доступность (флаг
-/// конфига) и фаза проверяются до записи, в <see cref="GameSession.EmergencyPurchase"/>.
+/// деньги списываются. Стоимость вычислена до записи и несётся событием. Порождается на расчёте
+/// <see cref="EmergencyPurchaseStep"/> из <see cref="EmergencyPurchaseRequested"/> (SPEC §4);
+/// доступность (флаг конфига) и фаза проверяются раньше, при самой заявке, в <see
+/// cref="GameSession.EmergencyPurchase"/>.
 /// </summary>
 public sealed record EmergencyPurchased : Change<GameSessionState>
 {
@@ -43,5 +45,6 @@ public sealed record EmergencyPurchased : Change<GameSessionState>
         {
             team.Debit(TotalCost);
         }
+        team.ClearPendingEmergencyPurchase(MaterialId);
     }
 }

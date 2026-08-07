@@ -45,6 +45,28 @@ public sealed class Team
     /// </summary>
     public decimal PendingLoanRepayAmount { get; private set; }
 
+    private readonly Dictionary<string, decimal> _pendingEmergencyPurchaseVolumeByMaterial = new();
+
+    /// <summary>
+    /// Заявленные на ближайший расчёт объёмы аварийной закупки, по коду материала (SPEC §4, §5.3:
+    /// решения не применяются сразу) — тем же приёмом, что и <see cref="PendingLoanTakeAmount"/>:
+    /// последнее объявление по материалу замещает предыдущее (упрощение — команда, желающая купить
+    /// несколько раз за ход, теперь просто объявляет итоговый объём один раз; штраф «давления» за
+    /// дробление внутри одного хода этим убран, штраф за растягивание закупок по нескольким ходам —
+    /// нет, он считается на расчёте по фактической истории, см. <see cref="Game.Engine.EmergencyPurchaseStep"/>).
+    /// </summary>
+    public IReadOnlyDictionary<string, decimal> PendingEmergencyPurchaseVolumeByMaterial => _pendingEmergencyPurchaseVolumeByMaterial;
+
+    private readonly Dictionary<string, decimal> _pendingSaleVolumeByMaterial = new();
+
+    /// <summary>
+    /// Заявленные на ближайший расчёт объёмы продажи системе, по коду материала — симметрично <see
+    /// cref="PendingEmergencyPurchaseVolumeByMaterial"/>. Реальный остаток на складе на момент
+    /// расчёта может быть меньше заявленного (см. <see cref="Game.Engine.SystemSaleStep"/>) — потолок
+    /// считается там же, не здесь.
+    /// </summary>
+    public IReadOnlyDictionary<string, decimal> PendingSaleVolumeByMaterial => _pendingSaleVolumeByMaterial;
+
     /// <summary>
     /// Накопленная штрафная надбавка к ставке по кредиту — растёт с каждым принудительным займом
     /// (SPEC §5.9: «ставка принудительного займа заведомо хуже любого добровольного») и применяется
@@ -210,6 +232,56 @@ public sealed class Team
     {
         PendingLoanRepayAmount = 0;
     }
+
+    /// <summary>
+    /// Объявляет желаемый объём аварийной закупки материала на ближайший расчёт (см.
+    /// <see cref="PendingEmergencyPurchaseVolumeByMaterial"/>). 0 снимает заявку по этому материалу.
+    /// </summary>
+    public void RequestEmergencyPurchase(string materialId, decimal volume)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(materialId);
+        if (volume < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(volume), volume, "Requested purchase volume must not be negative.");
+        }
+
+        if (volume == 0)
+        {
+            _pendingEmergencyPurchaseVolumeByMaterial.Remove(materialId);
+        }
+        else
+        {
+            _pendingEmergencyPurchaseVolumeByMaterial[materialId] = volume;
+        }
+    }
+
+    /// <summary>Снимает заявку на аварийную закупку материала — вызывается после её разрешения на расчёте (см. <see cref="Game.Engine.EmergencyPurchased.Apply"/>).</summary>
+    public void ClearPendingEmergencyPurchase(string materialId) => _pendingEmergencyPurchaseVolumeByMaterial.Remove(materialId);
+
+    /// <summary>
+    /// Объявляет желаемый объём продажи материала системе на ближайший расчёт (см.
+    /// <see cref="PendingSaleVolumeByMaterial"/>). 0 снимает заявку по этому материалу.
+    /// </summary>
+    public void RequestSaleToSystem(string materialId, decimal volume)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(materialId);
+        if (volume < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(volume), volume, "Requested sale volume must not be negative.");
+        }
+
+        if (volume == 0)
+        {
+            _pendingSaleVolumeByMaterial.Remove(materialId);
+        }
+        else
+        {
+            _pendingSaleVolumeByMaterial[materialId] = volume;
+        }
+    }
+
+    /// <summary>Снимает заявку на продажу материала системе — вызывается после её разрешения на расчёте (см. <see cref="Game.Engine.MaterialSoldToSystem.Apply"/>).</summary>
+    public void ClearPendingSaleToSystem(string materialId) => _pendingSaleVolumeByMaterial.Remove(materialId);
 
     /// <summary>Увеличивает штрафную надбавку к ставке по кредиту (после принудительного займа).</summary>
     public void IncreasePenaltyRateSurcharge(decimal amount)

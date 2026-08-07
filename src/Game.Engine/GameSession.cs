@@ -421,9 +421,13 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Аварийная закупка материала у системы (SPEC §5.3): цена — текущая рыночная котировка
-    /// материала (Блок 6.1) × множитель, служит потолком монопольных цен. Требует включённого
-    /// флага и фазы решений.
+    /// Объявляет желаемый объём аварийной закупки материала на ближайший расчёт (SPEC §4, §5.3:
+    /// решения не применяются сразу — только на расчёте; цена — текущая рыночная котировка ×
+    /// множитель, служит потолком монопольных цен). Само объявление бесплатно и мгновенно, тем же
+    /// приёмом, что и <see cref="TakeLoan"/>: реальная покупка (склад, деньги) происходит один раз,
+    /// на расчёте (<see cref="EmergencyPurchaseStep"/>), считая цену уже по фактической истории на тот
+    /// момент. Последнее объявление по этому материалу в пределах хода замещает предыдущее; 0 снимает
+    /// заявку. Требует включённого флага и фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> EmergencyPurchase(Ulid teamId, string materialId, decimal volume)
     {
@@ -433,80 +437,67 @@ public sealed class GameSession
         {
             throw new InvalidOperationException("Emergency purchase is disabled in this session.");
         }
-        if (volume <= 0)
+        if (volume < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(volume), volume, "Emergency purchase volume must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(volume), volume, "Emergency purchase volume must not be negative.");
         }
         if (!State.Teams.ContainsKey(teamId))
         {
             throw new ArgumentException($"Unknown team '{teamId}'.", nameof(teamId));
         }
+        if (!State.Config.Materials.ContainsKey(materialId))
+        {
+            throw new ArgumentException($"Unknown material '{materialId}'.", nameof(materialId));
+        }
+        // Санити-проверка сейчас (материал вообще когда-либо котировался) — сама цена всё равно
+        // считается заново на расчёте, по котировке на тот момент, см. EmergencyPurchaseStep.
+        GetQuoteOrThrow(materialId);
 
-        var economy = State.Config.Raw.Economy;
-        // Наказывает не саму операцию, а зависимость от неё (запрос пользователя): множитель растёт
-        // сверх базового с недавним объёмом закупок именно этой команды именно этого материала и
-        // затухает сам по себе через несколько ходов без таких закупок, см.
-        // EmergencyPurchasePressureCalculator.
-        var recentVolume = EmergencyPurchasePressureCalculator.CalculateRecentVolume(
-            Entries, teamId, materialId, State.CurrentTurn, economy);
-        var effectiveMultiplier = economy.EmergencyPurchaseBaseMultiplier
-            + economy.EmergencyPurchasePressureMultiplierPerUnit * recentVolume;
-        var unitPrice = GetQuoteOrThrow(materialId).Price * effectiveMultiplier;
-
-        return _log.Append(new EmergencyPurchased
+        return _log.Append(new EmergencyPurchaseRequested
         {
             Id = Ulid.NewUlid(),
             TeamId = teamId,
             MaterialId = materialId,
             Volume = volume,
-            UnitPrice = unitPrice,
-            TotalCost = unitPrice * volume,
-            Turn = State.CurrentTurn,
         });
     }
 
     /// <summary>
-    /// Продажа материала (любого уровня передела) системе по рыночной цене (Блок 6.1, SPEC §5.4):
-    /// в пределах оставшейся на этот ход ёмкости — по полной цене с множителем маржи передела,
-    /// сверх — с понижающим коэффициентом. Требует фазы решений.
+    /// Объявляет желаемый объём продажи материала (любого уровня передела) системе на ближайший
+    /// расчёт (SPEC §4, §5.4: решения не применяются сразу) — тем же приёмом, что и <see
+    /// cref="EmergencyPurchase"/>. Реальная продажа (в пределах оставшейся на этот ход ёмкости — по
+    /// полной цене с множителем маржи передела, сверх — с понижающим коэффициентом) происходит один
+    /// раз, на расчёте (<see cref="SystemSaleStep"/>), в детерминированном порядке команд — так решена
+    /// гонка за общую ёмкость рынка, которая раньше зависела от того, кто раньше нажал кнопку. Остаток
+    /// на складе на момент расчёта может быть меньше того, что было видно при заявке — урезается там
+    /// же, без исключения (см. doc-comment <see cref="MaterialSoldToSystem.Volume"/>), поэтому здесь
+    /// достаточность склада больше не проверяется. Последнее объявление по этому материалу в пределах
+    /// хода замещает предыдущее; 0 снимает заявку. Требует фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> SellToSystem(Ulid teamId, string materialId, decimal volume)
     {
         EnsureDecisionsAllowed();
 
-        if (volume <= 0)
+        if (volume < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(volume), volume, "Sale volume must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(volume), volume, "Sale volume must not be negative.");
         }
-        if (!State.Teams.TryGetValue(teamId, out var team))
+        if (!State.Teams.ContainsKey(teamId))
         {
             throw new ArgumentException($"Unknown team '{teamId}'.", nameof(teamId));
         }
-        if (!State.Config.Materials.TryGetValue(materialId, out var material))
+        if (!State.Config.Materials.ContainsKey(materialId))
         {
             throw new ArgumentException($"Unknown material '{materialId}'.", nameof(materialId));
         }
         GetQuoteOrThrow(materialId);
 
-        var available = team.Warehouse.QuantityOf(material);
-        if (available < volume)
-        {
-            throw new InvalidOperationException(
-                $"Team '{teamId}' cannot sell {volume} of '{materialId}': only {available} in stock.");
-        }
-
-        var sale = MarketSaleCalculator.Calculate(State.Market, State.Config.Raw.Economy, material, volume);
-
-        return _log.Append(new MaterialSoldToSystem
+        return _log.Append(new MaterialSaleRequested
         {
             Id = Ulid.NewUlid(),
             TeamId = teamId,
             MaterialId = materialId,
             Volume = volume,
-            WithinCapacityVolume = sale.WithinCapacityVolume,
-            OverflowVolume = sale.OverflowVolume,
-            UnitPrice = sale.UnitPrice,
-            TotalRevenue = sale.TotalRevenue,
         });
     }
 
@@ -1036,6 +1027,21 @@ public sealed class GameSession
                 team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
                 config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputation.Percentage,
                 config.Raw.Wear, State.CurrentTurn))
+            {
+                appended.Add(_log.Append(change));
+            }
+
+            // Заявки на аварийную закупку и продажу системе (SPEC §4, §5.3-5.4) — после финансового
+            // шага, до расчёта производства (чтобы закупленное сырьё успело попасть в этот же расчёт
+            // производства, а продать можно было только то, что было на складе до него, не свежий
+            // выпуск). Порядок команд между собой (внешний foreach, по возрастанию Team.Id) здесь и
+            // решает гонку за общую ёмкость рынка между продажами разных команд.
+            foreach (var change in EmergencyPurchaseStep.Run(team, State.Market, config.Raw.Economy, Entries, State.CurrentTurn))
+            {
+                appended.Add(_log.Append(change));
+            }
+
+            foreach (var change in SystemSaleStep.Run(team, State.Market, config.Raw.Economy, config.Materials))
             {
                 appended.Add(_log.Append(change));
             }

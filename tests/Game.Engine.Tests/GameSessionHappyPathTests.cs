@@ -26,23 +26,28 @@ public class GameSessionHappyPathTests
         Assert.Equal(100m, mineBuilt.Cost); // TestGameConfig: BuildCost = 100
         Assert.Equal(2000m - 100m, team.Balance); // постройка сразу; наём объявлен, но пока бесплатен — спишется на расчёте (см. financeCost ниже)
 
-        // --- Шаг 2: закупаем руду про запас (аварийная закупка у системы, SPEC §5.3) ---
-        var balanceBeforePurchase = team.Balance;
-        var purchase = (EmergencyPurchased)session.EmergencyPurchase(teamId, TestGameConfig.Ore.Id, volume: 10m).Change;
-        Assert.Equal(20m, purchase.UnitPrice); // базовая цена руды 10 x множитель аварийной закупки 2
-        Assert.Equal(200m, purchase.TotalCost);
-        Assert.Equal(balanceBeforePurchase - 200m, team.Balance);
-        Assert.Equal(10m, team.Warehouse.QuantityOf(TestGameConfig.Ore));
+        // --- Шаг 2: заявляем аварийную закупку руды про запас (SPEC §5.3) — решение — только заявка
+        // (SPEC §4), реальная покупка (склад, деньги) произойдёт один раз, на расчёте хода 2 ---
+        var balanceBeforePurchaseRequest = team.Balance;
+        var purchaseRequest = (EmergencyPurchaseRequested)session.EmergencyPurchase(teamId, TestGameConfig.Ore.Id, volume: 10m).Change;
+        Assert.Equal(10m, purchaseRequest.Volume);
+        Assert.Equal(balanceBeforePurchaseRequest, team.Balance); // не изменился сразу
+        Assert.Equal(0m, team.Warehouse.QuantityOf(TestGameConfig.Ore)); // склад тоже не тронут
 
         // --- Шаг 3: строим сталелитейный завод следующего уровня и тоже объявляем штат ---
         var millBuilt = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mill.Id).Change;
         session.SetWorkerCount(teamId, millBuilt.FactoryId, count: 5);
-        var balanceAfterDecisionPhase = team.Balance;
+        var balanceAfterDecisionPhase = team.Balance; // 2000 - 100 (рудник) - 100 (завод) = 1800
 
-        // --- Ход 2: расчёт тика — сначала settlement нанимает по обеим фабрикам, потом рудник
-        // добывает руду, а завод в том же тике перерабатывает её в лист ---
+        // --- Ход 2: расчёт тика — сначала финансовый шаг (наём по обеим фабрикам), потом
+        // разрешается заявка на аварийную закупку (до расчёта производства, SPEC §4), потом рудник
+        // добывает руду, а завод в том же тике перерабатывает и купленную, и добытую руду в лист ---
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var tick = session.RunTick(new Random(1));
+
+        var purchased = (EmergencyPurchased)tick.Single(e => e.Change is EmergencyPurchased).Change;
+        Assert.Equal(20m, purchased.UnitPrice); // базовая цена руды 10 x множитель аварийной закупки 2
+        Assert.Equal(200m, purchased.TotalCost);
 
         var mined = (FactoryProduced)tick.Single(e => e.Change is FactoryProduced p && p.FactoryId == mineBuilt.FactoryId).Change;
         var milled = (FactoryProduced)tick.Single(e => e.Change is FactoryProduced p && p.FactoryId == millBuilt.FactoryId).Change;
@@ -51,18 +56,41 @@ public class GameSessionHappyPathTests
         Assert.Equal(5m, team.Warehouse.QuantityOf(TestGameConfig.Ore)); // 15 было - 10 потрачено заводом
         Assert.Equal(5m, team.Warehouse.QuantityOf(TestGameConfig.Sheet));
 
-        var financeCost = 2000m * 0.05m + 10 /* рабочих */ * 50m /* наём, settled здесь */ + 10 /* рабочих */ * 5m; // проценты + наём + зарплаты
+        var financeCost = 2000m * 0.05m /* проценты */ + 10 /* рабочих */ * 50m /* наём, settled здесь */
+            + 10 /* рабочих */ * 5m /* зарплаты */ + purchased.TotalCost /* аварийная закупка, тоже settled здесь */;
         Assert.Equal(balanceAfterDecisionPhase - financeCost, team.Balance);
 
-        // --- Шаг 4: продаём готовый лист системе ---
+        // --- Шаг 4: заявляем продажу готового листа системе — тоже только заявка ---
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 2
-        var balanceBeforeSale = team.Balance;
-        var sale = (MaterialSoldToSystem)session.SellToSystem(teamId, TestGameConfig.Sheet.Id, volume: 5m).Change;
+        var balanceBeforeSaleRequest = team.Balance;
+        var saleRequest = (MaterialSaleRequested)session.SellToSystem(teamId, TestGameConfig.Sheet.Id, volume: 5m).Change;
+        Assert.Equal(5m, saleRequest.Volume);
+        Assert.Equal(balanceBeforeSaleRequest, team.Balance); // не изменился сразу
+        Assert.Equal(5m, team.Warehouse.QuantityOf(TestGameConfig.Sheet)); // склад тоже не тронут
 
+        // --- Ход 3: расчёт тика применяет продажу до расчёта производства (SPEC §4) — продать можно
+        // только то, что уже было на складе, а не свежий выпуск этого же хода. Фабрики при этом не
+        // останавливаются сами по себе: обе продолжают работать и с той же численностью намалывают
+        // за ход 3 ровно столько же, сколько за ход 2, — проданные 5 листов освобождают место, но
+        // склад не остаётся пустым ---
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 3
+        var tick2 = session.RunTick(new Random(1));
+
+        var sale = (MaterialSoldToSystem)tick2.Single(e => e.Change is MaterialSoldToSystem).Change;
         Assert.Equal(30m, sale.UnitPrice); // базовая цена листа 25 x множитель маржи уровня 1 (1.2)
         Assert.Equal(150m, sale.TotalRevenue);
-        Assert.Equal(0m, team.Warehouse.QuantityOf(TestGameConfig.Sheet));
-        Assert.Equal(balanceBeforeSale + 150m, team.Balance);
+
+        var minedTurn3 = (FactoryProduced)tick2.Single(e => e.Change is FactoryProduced p && p.FactoryId == mineBuilt.FactoryId).Change;
+        var milledTurn3 = (FactoryProduced)tick2.Single(e => e.Change is FactoryProduced p && p.FactoryId == millBuilt.FactoryId).Change;
+        Assert.Equal(5m, minedTurn3.OutputQuantity);
+        Assert.Equal(5m, milledTurn3.OutputQuantity); // старые 5 (ход 2) + новые 5 (ход 3) руды -> 5 листов
+        Assert.Equal(0m, team.Warehouse.QuantityOf(TestGameConfig.Ore)); // вся руда ушла в переработку
+        Assert.Equal(5m, team.Warehouse.QuantityOf(TestGameConfig.Sheet)); // старые 5 проданы, эти — уже новый выпуск этого хода
+
+        // Ход 3 — те же проценты и зарплаты (наём уже никого не меняет — DesiredWorkers == Workers),
+        // без капитальных затрат (FixedCostPerTurn=0 в TestGameConfig), плюс сама продажа.
+        var turn3FinanceCost = 2000m * 0.05m + 10 * 5m;
+        Assert.Equal(balanceBeforeSaleRequest - turn3FinanceCost + sale.TotalRevenue, team.Balance);
 
         Assert.True(session.VerifyIntegrity());
     }

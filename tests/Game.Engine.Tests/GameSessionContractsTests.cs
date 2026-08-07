@@ -147,15 +147,19 @@ public class GameSessionContractsTests
     [Fact]
     public void EmergencyPurchase_Buys_At_System_Price_Times_The_Multiplier()
     {
+        // Решение — только заявка (SPEC §4, §5.3); реальная покупка — на расчёте.
         var (session, buyerId, _) = TestGameConfig.StartGameSessionWithTwoTeams();
         ToDecisionPhase(session);
-        var balanceBefore = session.State.Teams[buyerId].Balance;
 
         // ore: системная цена 10, множитель 2 -> 20 за единицу; 5 единиц -> 100
         session.EmergencyPurchase(buyerId, "ore", volume: 5m);
 
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
+        var appended = session.RunTick(new Random(1));
+
+        var purchased = Assert.IsType<EmergencyPurchased>(Assert.Single(appended, e => e.Change is EmergencyPurchased).Change);
+        Assert.Equal(100m, purchased.TotalCost);
         Assert.Equal(5m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Ore));
-        Assert.Equal(balanceBefore - 100m, session.State.Teams[buyerId].Balance);
     }
 
     [Fact]

@@ -683,12 +683,20 @@ else
                 <span>@row.MaterialName: @row.Quantity.ToString("0.##")</span>
                 @if (_canManage)
                 {
-                    <input type="number" min="1" step="1" class="form-control d-inline-block" style="width:6em" @bind="_sellVolumes[row.MaterialId]" @bind:event="oninput" />
+                    <input type="number" min="0" step="1" class="form-control d-inline-block" style="width:6em" @bind="_sellVolumes[row.MaterialId]" @bind:event="oninput" />
                     <button type="button" class="btn btn-secondary btn-sm" @onclick="() => SellToSystem(row.MaterialId)">Продать системе</button>
+                    @if (_pendingSaleVolumeByMaterial.GetValueOrDefault(row.MaterialId) > 0)
+                    {
+                        <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => CancelSaleToSystem(row.MaterialId)">Отменить</button>
+                    }
                 }
             </div>
             @if (_canManage)
             {
+                @if (_pendingSaleVolumeByMaterial.GetValueOrDefault(row.MaterialId) is var pendingSale && pendingSale > 0)
+                {
+                    <p class="text-muted small mb-1">Заявлено на расчёт: @pendingSale.ToString("0.##") — спишется со склада и зачислится на баланс на следующем расчёте.</p>
+                }
                 var preview = SellPreview(row);
                 <p class="text-muted small mb-2">
                     @if (preview.HasQuote)
@@ -720,9 +728,17 @@ else
                     <option value="@material.Id">@material.Name</option>
                 }
             </select>
-            <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_emergencyPurchaseVolume" />
+            <input type="number" min="0" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_emergencyPurchaseVolume" />
             <button type="button" class="btn btn-secondary" disabled="@(!CanAffordEmergencyPurchase)" @onclick="EmergencyPurchase">Купить</button>
+            @if (_emergencyPurchaseMaterialId is not null && _pendingEmergencyPurchaseVolumeByMaterial.GetValueOrDefault(_emergencyPurchaseMaterialId) > 0)
+            {
+                <button type="button" class="btn btn-link p-0" @onclick="CancelEmergencyPurchase">Отменить</button>
+            }
         </div>
+        @if (_emergencyPurchaseMaterialId is not null && _pendingEmergencyPurchaseVolumeByMaterial.GetValueOrDefault(_emergencyPurchaseMaterialId) is var pendingPurchase && pendingPurchase > 0)
+        {
+            <p class="text-muted small mb-1">Заявлено на расчёт: @pendingPurchase.ToString("0.##") — товар и списание появятся на следующем расчёте.</p>
+        }
         @if (EmergencyPurchaseCost > 0)
         {
             <p class="text-muted small">
@@ -1082,6 +1098,8 @@ else
     private readonly Dictionary<Ulid, int> _targetWorkerCounts = new();
     private readonly Dictionary<Ulid, decimal> _allocationShares = new();
     private readonly Dictionary<string, decimal> _sellVolumes = new();
+    private IReadOnlyDictionary<string, decimal> _pendingSaleVolumeByMaterial = new Dictionary<string, decimal>();
+    private IReadOnlyDictionary<string, decimal> _pendingEmergencyPurchaseVolumeByMaterial = new Dictionary<string, decimal>();
     private readonly Dictionary<Ulid, decimal> _revisionVolumes = new();
     private readonly Dictionary<Ulid, decimal> _revisionUnitPrices = new();
     private readonly Dictionary<Ulid, decimal> _revisionPenaltyRates = new();
@@ -1203,6 +1221,8 @@ else
             _debt = team.Debt;
             _pendingLoanTakeAmount = team.PendingLoanTakeAmount;
             _pendingLoanRepayAmount = team.PendingLoanRepayAmount;
+            _pendingSaleVolumeByMaterial = team.PendingSaleVolumeByMaterial;
+            _pendingEmergencyPurchaseVolumeByMaterial = team.PendingEmergencyPurchaseVolumeByMaterial;
             _penaltyRateSurcharge = team.PenaltyRateSurcharge;
 
             var reputation = Host.Session!.GetReputation(_teamId);
@@ -1590,6 +1610,12 @@ else
         RunAction(() => Host.Session!.SellToSystem(_teamId, materialId, volume));
     }
 
+    /// <summary>Снимает заявку на продажу этого материала этого хода (SPEC §4, §5.4) — объявление 0 отменяет предыдущее.</summary>
+    private void CancelSaleToSystem(string materialId)
+    {
+        RunAction(() => Host.Session!.SellToSystem(_teamId, materialId, 0m));
+    }
+
     private SellPreviewResult SellPreview(StockRow row)
     {
         var volume = _sellVolumes.GetValueOrDefault(row.MaterialId, 1m);
@@ -1682,6 +1708,17 @@ else
         }
 
         RunAction(() => Host.Session!.EmergencyPurchase(_teamId, _emergencyPurchaseMaterialId, _emergencyPurchaseVolume));
+    }
+
+    /// <summary>Снимает заявку на аварийную закупку выбранного материала этого хода (SPEC §4, §5.3) — объявление 0 отменяет предыдущее.</summary>
+    private void CancelEmergencyPurchase()
+    {
+        if (_emergencyPurchaseMaterialId is null)
+        {
+            return;
+        }
+
+        RunAction(() => Host.Session!.EmergencyPurchase(_teamId, _emergencyPurchaseMaterialId, 0m));
     }
 
     private void SetRndCommitment(Ulid factoryId)
