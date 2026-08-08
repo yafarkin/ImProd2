@@ -42,6 +42,11 @@ var app = builder.Build();
 // сессии (после перезапуска процесса) должны быть в логах до первого запроса.
 app.Services.GetRequiredService<GameSessionHost>();
 
+// Метка сборки для расследования подвисаний интерфейса (project_ui_freeze_investigation) — печатается
+// безусловно при каждом старте, чтобы по логу сразу было видно, что запущен билд с диагностикой
+// (EnterSyncRootTimed), а не более старый процесс, ещё не подобравший последние изменения.
+app.Logger.LogInformation("[diag] Диагностика подвисаний активна: лок Host.SyncRoot дольше 300мс будет отмечен предупреждением \"[diag] ...\".");
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
