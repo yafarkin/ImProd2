@@ -175,6 +175,7 @@ public class FinanceHistoryCalculatorTests
         Assert.Equal(FinanceHistoryCalculator.OperationType.FactoryBuilt, operation.Type);
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, operation.Direction);
         Assert.Equal(100m, operation.Amount);
+        Assert.Equal(factoryId, operation.FactoryId); // на какую фабрику пошли деньги — запрос пользователя
     }
 
     [Fact]
@@ -196,9 +197,11 @@ public class FinanceHistoryCalculatorTests
         var hired = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.WorkersHired);
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, hired.Direction);
         Assert.Equal(150m, hired.Amount);
+        Assert.Equal(factoryId, hired.FactoryId);
         var fired = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.WorkersFired);
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, fired.Direction);
         Assert.Equal(60m, fired.Amount);
+        Assert.Equal(factoryId, fired.FactoryId);
     }
 
     [Fact]
@@ -224,6 +227,7 @@ public class FinanceHistoryCalculatorTests
         var rnd = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.RndInvested);
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, rnd.Direction);
         Assert.Equal(50m, rnd.Amount);
+        Assert.Equal(factoryId, rnd.FactoryId);
         // Раньше это событие вообще не попадало в историю финансов (см. GameSessionRndProgressionTests
         // и жалобу пользователя — «не вижу в истории списания R&D в целом по технологиям»).
         var generationResearch = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.GenerationResearchInvested);
@@ -276,6 +280,7 @@ public class FinanceHistoryCalculatorTests
         Assert.Equal(FinanceHistoryCalculator.OperationType.FactoryUpkeep, operation.Type);
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, operation.Direction);
         Assert.Equal(20m, operation.Amount);
+        Assert.Null(operation.FactoryId); // списано сразу по всем фабрикам, не про одну конкретную
     }
 
     [Fact]
@@ -307,6 +312,7 @@ public class FinanceHistoryCalculatorTests
 
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, operation.Direction);
         Assert.Equal(8m, operation.Amount);
+        Assert.Equal(factoryId, operation.FactoryId);
     }
 
     [Fact]

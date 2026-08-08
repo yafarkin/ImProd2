@@ -85,8 +85,14 @@ public static class FinanceHistoryCalculator
         Expense,
     }
 
-    /// <summary>Одна строка истории — точное время записи в журнал, ход, тип операции, направление, сумма и ставка, если у операции она есть (иначе <see langword="null"/>).</summary>
-    public sealed record FinanceOperation(DateTimeOffset Timestamp, int Turn, OperationType Type, MoneyDirection Direction, decimal Amount, decimal? Rate);
+    /// <summary>
+    /// Одна строка истории — точное время записи в журнал, ход, тип операции, направление, сумма и
+    /// ставка, если у операции она есть (иначе <see langword="null"/>). <see cref="FactoryId"/> —
+    /// какая именно фабрика вызвала расход/доход, если операция привязана к одной конкретной фабрике
+    /// (постройка, наём/увольнение, R&amp;D, переменные затраты на выпуск), иначе <see
+    /// langword="null"/> (например, содержание фабрик списывается сразу по всем сразу).
+    /// </summary>
+    public sealed record FinanceOperation(DateTimeOffset Timestamp, int Turn, OperationType Type, MoneyDirection Direction, decimal Amount, decimal? Rate, Ulid? FactoryId = null);
 
     /// <summary>Можно звать в любой момент сессии; для команды без единой денежной операции список выходит пустым.</summary>
     public static IReadOnlyList<FinanceOperation> Summarize(
@@ -120,19 +126,19 @@ public static class FinanceHistoryCalculator
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.VoluntaryRepayment, MoneyDirection.Expense, change.Amount, Rate: null));
                     break;
                 case FactoryBuilt change when change.TeamId == teamId && change.Cost > 0:
-                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryBuilt, MoneyDirection.Expense, change.Cost, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryBuilt, MoneyDirection.Expense, change.Cost, Rate: null, change.FactoryId));
                     break;
                 case WorkersHired change when change.TeamId == teamId && change.Cost > 0:
-                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.WorkersHired, MoneyDirection.Expense, change.Cost, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.WorkersHired, MoneyDirection.Expense, change.Cost, Rate: null, change.FactoryId));
                     break;
                 case WorkersFired change when change.TeamId == teamId && change.Cost > 0:
-                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.WorkersFired, MoneyDirection.Expense, change.Cost, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.WorkersFired, MoneyDirection.Expense, change.Cost, Rate: null, change.FactoryId));
                     break;
                 case SalariesPaid change when change.TeamId == teamId && change.Amount > 0:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.SalariesPaid, MoneyDirection.Expense, change.Amount, Rate: null));
                     break;
                 case RndInvested change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.RndInvested, MoneyDirection.Expense, change.Amount, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.RndInvested, MoneyDirection.Expense, change.Amount, Rate: null, change.FactoryId));
                     break;
                 case GenerationResearchInvested change when change.TeamId == teamId:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.GenerationResearchInvested, MoneyDirection.Expense, change.Amount, Rate: null));
@@ -150,7 +156,7 @@ public static class FinanceHistoryCalculator
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryUpkeep, MoneyDirection.Expense, change.Amount, Rate: null));
                     break;
                 case FactoryProduced change when change.TeamId == teamId && change.OverheadCost > 0:
-                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryOverhead, MoneyDirection.Expense, change.OverheadCost, Rate: null));
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryOverhead, MoneyDirection.Expense, change.OverheadCost, Rate: null, change.FactoryId));
                     break;
                 case GrantIssued change when change.TeamId == teamId:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.GrantReceived, MoneyDirection.Income, change.Amount, Rate: null));

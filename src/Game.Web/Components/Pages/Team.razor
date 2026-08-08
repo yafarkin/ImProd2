@@ -836,6 +836,7 @@ else
                         <th>Время</th>
                         <th>Ход</th>
                         <th>Операция</th>
+                        <th>Фабрика</th>
                         <th>Сумма</th>
                         <th>Ставка</th>
                     </tr>
@@ -848,6 +849,7 @@ else
                             <td>@operation.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
                             <td>@operation.Turn</td>
                             <td>@DashboardDisplay.FinanceOperationLabel(operation.Type)</td>
+                            <td>@(operation.FactoryId is { } factoryId ? _factoryDisplayNamesById.GetValueOrDefault(factoryId, "—") : "—")</td>
                             <td class="@(isIncome ? "text-success" : "text-danger")">@(isIncome ? "+" : "−")@DashboardDisplay.FormatMoney(operation.Amount)</td>
                             <td>@(operation.Rate is { } rate ? DashboardDisplay.FormatRate(rate) : "—")</td>
                         </tr>
@@ -1069,6 +1071,8 @@ else
     private FactoryHistoryCalculator.TeamFactoryHistory? _history;
     private int _historyEntryCount = -1;
     private Ulid? _selectedFactoryId;
+    /// <summary>Отображаемое имя фабрики по Id — для истории операций (какая фабрика вызвала расход/доход), см. её построение в <see cref="RefreshDashboard"/>.</summary>
+    private IReadOnlyDictionary<Ulid, string> _factoryDisplayNamesById = new Dictionary<Ulid, string>();
     private FactoryRow? _selectedFactory => _factories.FirstOrDefault(f => f.FactoryId == _selectedFactoryId);
     private string _activeFactoryTab = "workers";
     private decimal _hireCostPerWorker;
@@ -1293,8 +1297,10 @@ else
             // экземплярах одного типа это раньше давало неразличимые подписи (например, «Сейчас это
             // потребляют: Обогатительная фабрика, Обогатительная фабрика» — запрос пользователя).
             // Нумеруем так же, как уже нумерует карточки список фабрик (FactoryOverviewList) — по
-            // порядку Id внутри типа, «№2» и далее со второго экземпляра.
-            var factoryDisplayNames = team.Factories
+            // порядку Id внутри типа, «№2» и далее со второго экземпляра. Сохраняем в поле, а не
+            // локальную переменную — та же нумерация нужна и истории операций (см. «Фабрика» в
+            // таблице ниже), не только карточкам фабрик.
+            _factoryDisplayNamesById = team.Factories
                 .GroupBy(f => f.Definition.Id)
                 .SelectMany(group => group
                     .OrderBy(f => f.Id)
@@ -1329,7 +1335,7 @@ else
                 // отдельного получателя задать нельзя, всё решает общий склад).
                 var consumingFactoryNames = team.Factories
                     .Where(other => other.Id != factory.Id && other.SelectedRecipe.Inputs.Any(i => i.Material == factory.SelectedRecipe.Output))
-                    .Select(other => factoryDisplayNames[other.Id])
+                    .Select(other => _factoryDisplayNamesById[other.Id])
                     .ToList();
 
                 var capacityBreakdown = ProductionCalculator.CalculateCapacityBreakdown(
@@ -1349,7 +1355,7 @@ else
                     output.OutputQuantity)).ToList();
 
                 return new FactoryRow(
-                    factory.Id, factoryDisplayNames[factory.Id], factory.Level, factory.Workers, factory.DesiredWorkers,
+                    factory.Id, _factoryDisplayNamesById[factory.Id], factory.Level, factory.Workers, factory.DesiredWorkers,
                     factory.SelectedRecipe.Output, factory.SelectedRecipe.Output.Name,
                     factory.Definition.Recipes.Select(r => (r.Id, r.Output.Name)).ToList(),
                     factory.SelectedRecipe.Inputs,
