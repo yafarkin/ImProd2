@@ -1,0 +1,171 @@
+@page "/admin/price-ladder"
+@attribute [Authorize(Roles = "Administrator")]
+@rendermode InteractiveServer
+@inject GameSessionHost Host
+@using Game.Config.Economy
+@using Game.Config.Loading
+@using Game.Domain
+
+<PageTitle>Лестница цен продажи системе</PageTitle>
+
+<p><a href="/admin">← Назад к администратору</a></p>
+
+<h1>Пересчёт лестницы цен продажи системе</h1>
+
+@if (_sessionStarted)
+{
+    <div class="alert alert-info">Сессия уже начата — конфиг здесь больше не редактируется.</div>
+}
+else
+{
+    <p class="text-muted">
+        <em>
+            Ёмкость рынка (сколько система выкупит по полной цене за ход) падает ровно в 10 раз на
+            каждом следующем переделе — так задано рецептами. Если цена не растёт хотя бы настолько
+            же по цепочке, выгоднее осесть на раннем переделе (сырьё, первый металл) и не
+            перерабатывать дальше — именно так был найден баг-репорт: доход от продажи сырой руды
+            системе оказался в разы выше дохода от честной переработки до конца цепочки. Инструмент
+            ниже пересчитывает цену вниз по выбранной цепочке так, чтобы доход при полной выборке
+            ёмкости рос ровно в <code>growthPerLevel</code> раз на каждом следующем переделе — не
+            трогая саму ёмкость и наценку уровня передела. Материалы вне отмеченных корневых цепочек
+            не меняются.
+        </em>
+    </p>
+
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <label for="growthPerLevel">Рост дохода за передел (growthPerLevel):</label>
+        <input id="growthPerLevel" type="number" step="0.05" min="1.01" class="form-control d-inline-block" style="width:8em" @bind="_growthPerLevel" />
+        <button type="button" class="btn btn-secondary" @onclick="Recalculate">Пересчитать</button>
+    </div>
+
+    <h4>Корневые материалы (уровень 0) — отметьте, какие цепочки пересчитывать</h4>
+    <div class="table-responsive mb-3">
+        <table class="table table-sm align-middle" style="max-width:36em">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Материал</th>
+                    <th>Цена-якорь</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var root in _roots)
+                {
+                    <tr>
+                        <td><input type="checkbox" @bind="_selectedRoots[root.Id]" /></td>
+                        <td>@root.Name</td>
+                        <td><input type="number" step="0.01" min="0" class="form-control form-control-sm" style="width:8em" @bind="_anchorPrices[root.Id]" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (_preview is not null)
+    {
+        <h4 class="mt-4">Предпросмотр</h4>
+        <div class="table-responsive">
+            <table class="table table-striped table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Материал</th>
+                        <th>Уровень</th>
+                        <th>Ёмкость</th>
+                        <th>Наценка</th>
+                        <th>Цена было</th>
+                        <th>Цена станет</th>
+                        <th>Доход было*</th>
+                        <th>Доход станет*</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _preview)
+                    {
+                        <tr class="@(row.IsRepriced ? "table-warning" : "")">
+                            <td>@row.MaterialName</td>
+                            <td>@row.Level</td>
+                            <td>@row.Capacity.ToString("0.####")</td>
+                            <td>@row.MarginMultiplier.ToString("0.##")</td>
+                            <td>@row.OldPrice.ToString("0.####")</td>
+                            <td>@row.NewPrice.ToString("0.####")</td>
+                            <td>@row.OldFullCapacityRevenue.ToString("0")</td>
+                            <td>@row.NewFullCapacityRevenue.ToString("0")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="text-muted small">
+            * доход за ход при полной выборке ёмкости по полной цене (<code>Ёмкость × Цена ×
+            Наценка</code>), без учёта перелива сверх ёмкости (та же формула, что и в самой продаже
+            системе, — см. <code>MarketSaleCalculator</code>) — ориентир для сравнения переделов
+            между собой, не прогноз итоговой выручки конкретной команды.
+        </p>
+
+        <p class="text-muted small">
+            <em>
+                Применение обновит черновой конфиг сессии тем же способом, что и смена конфига на
+                странице администратора, — состав команд в черновике сбрасывается (как при любой
+                смене конфига); если он уже был набран, соберите его заново после применения.
+            </em>
+        </p>
+        <button type="button" class="btn btn-primary" @onclick="Apply">Применить к черновому конфигу</button>
+    }
+}
+
+@code {
+    private bool _sessionStarted;
+    private decimal _growthPerLevel = 1.5m;
+    private IReadOnlyList<Material> _roots = Array.Empty<Material>();
+    private readonly Dictionary<string, bool> _selectedRoots = new();
+    private readonly Dictionary<string, decimal> _anchorPrices = new();
+    private IReadOnlyList<SystemSalePriceLadderCalculator.MaterialLadderRow>? _preview;
+
+    protected override void OnInitialized()
+    {
+        lock (Host.SyncRoot)
+        {
+            _sessionStarted = Host.Session is not null;
+            if (_sessionStarted)
+            {
+                return;
+            }
+
+            var marketMaterialIds = Host.DraftConfig.Raw.Economy.BaseMarketPerMaterial
+                .Select(m => m.MaterialId)
+                .ToHashSet();
+            _roots = Host.DraftConfig.Materials.Values
+                .Where(m => m.IsRawMaterial && marketMaterialIds.Contains(m.Id))
+                .OrderBy(m => m.Id, StringComparer.Ordinal)
+                .ToList();
+            foreach (var root in _roots)
+            {
+                _selectedRoots[root.Id] = false;
+                _anchorPrices[root.Id] = Host.DraftConfig.Raw.Economy.BaseMarketPerMaterial
+                    .Single(m => m.MaterialId == root.Id).BasePrice;
+            }
+        }
+    }
+
+    private void Recalculate()
+    {
+        var anchors = _selectedRoots
+            .Where(kv => kv.Value)
+            .ToDictionary(kv => kv.Key, kv => _anchorPrices[kv.Key]);
+
+        _preview = SystemSalePriceLadderCalculator.Calculate(Host.DraftConfig, _growthPerLevel, anchors);
+    }
+
+    private void Apply()
+    {
+        if (_preview is null)
+        {
+            return;
+        }
+
+        var updatedRaw = SystemSalePriceLadderCalculator.Apply(Host.DraftConfig.Raw, _preview);
+        var updated = GameConfigLoader.Load(GameConfigWriter.Save(updatedRaw));
+        Host.SetDraftConfig(updated);
+        _preview = null;
+    }
+}
