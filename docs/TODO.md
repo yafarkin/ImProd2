@@ -130,3 +130,18 @@
 на каждый посекундный тик), нужно будет само исправление и снятие временной диагностики. Прямая
 предпосылка для пункта 5 — «не бороться с интерфейсом с телефона» касается и подвисаний, не только
 навигации.
+
+**Как убирать диагностику, когда решим, что она больше не нужна** (коммиты `ad48048`, `dfd65e7`,
+`fd2fd4d` — не трогать, пока пользователь явно не попросит):
+- Удалить `src/Game.Web/wwwroot/js/diagnostics.js` и `src/Game.Web/wwwroot/js/reconnection.js`.
+- `src/Game.Web/Components/App.razor` — убрать `autostart="false"` у `blazor.web.js` (вернуть
+  автостарт) и обе строки `<script src="js/...">` на эти файлы.
+- `src/Game.Web/GameSessionHost.cs` — убрать `EnterSyncRootTimed`/`LockScope`/`SlowLockThreshold`,
+  если решение подтвердит, что contention не в этом (если проблему это и вскрыло — вместо удаления
+  превратить в постоянный, но менее шумный лог, а не выкидывать совсем).
+- `src/Game.Web/PhaseTimerBackgroundService.cs` и все 10 страниц-таймеров (`BigScreen`, `Team`,
+  `Negotiate`, `SessionControl`, `Facilitator`, `Needs`, `AdminParticipants`, `Admin`, `AdminTeams`,
+  `Operator`) — вернуть `using (Host.EnterSyncRootTimed(...))`/`lock (_host.SyncRoot)` на обычный
+  `lock (Host.SyncRoot)` без обёртки.
+- `src/Game.Web/Program.cs` — убрать стартовую строку `[diag] Диагностика подвисаний активна...`.
+- Прогнать `dotnet test` по всему решению и живой прогон `/screen` + `/team` перед коммитом удаления.
