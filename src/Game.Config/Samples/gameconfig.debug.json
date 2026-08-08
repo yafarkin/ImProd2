@@ -391,7 +391,7 @@
     "BaseMarketPerMaterial": [
       {
         "MaterialId": "rock",
-        "BasePrice": 0.1,
+        "BasePrice": 0.02,
         "BaseCapacity": 5000
       },
       {

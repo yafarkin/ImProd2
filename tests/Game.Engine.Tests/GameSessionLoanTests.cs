@@ -152,6 +152,32 @@ public class GameSessionLoanTests
     }
 
     [Fact]
+    public void RepayLoan_Settles_Even_When_A_Mandatory_Payment_Runs_Earlier_In_The_Same_Tick()
+    {
+        // Баг-репорт пользователя: с ненулевым MandatoryRepaymentRatePerTurn (как в бою, но не в
+        // TestGameConfig.Resolved по умолчанию) заявка на добровольное погашение молча пропадала.
+        // Причина: MandatoryLoanRepaymentCharged списывается в начале того же хода тем же
+        // Team.RepayLoan, что и добровольное погашение в конце — тот раньше как побочный эффект
+        // сбрасывал PendingLoanRepayAmount, и VoluntaryLoanStep заявку уже не видел.
+        var config = TestGameConfig.BuildWithMandatoryRepayment(0.05m);
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(startingLoan: 0m, config: config);
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
+        session.TakeLoan(teamId, 500m);
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
+        session.RunTick(new Random(1)); // заём зачислён, Debt=500
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
+        session.RepayLoan(teamId, 200m);
+
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 3 — тут же и обязательный платёж
+        var appended = session.RunTick(new Random(1));
+
+        Assert.Contains(appended, e => e.Change is MandatoryLoanRepaymentCharged);
+        var loanRepaid = Assert.IsType<LoanRepaid>(Assert.Single(appended, e => e.Change is LoanRepaid).Change);
+        Assert.Equal(200m, loanRepaid.Amount); // добровольное погашение не потерялось
+        Assert.Equal(0m, session.State.Teams[teamId].PendingLoanRepayAmount);
+    }
+
+    [Fact]
     public void RepayLoan_Clamps_An_Amount_Above_The_Actual_Debt_At_Settlement_Time_Instead_Of_Throwing()
     {
         // Баг-репорт пользователя (сохранён из немедленной версии): UI округляет долг для отображения

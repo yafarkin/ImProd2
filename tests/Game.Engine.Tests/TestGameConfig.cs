@@ -101,10 +101,10 @@ internal static class TestGameConfig
     /// ровно в фазе расчёта первого хода, как и раньше), чтобы реплей-калькуляторы
     /// (<see cref="TurnHistoryCalculator"/>, экспорт журнала) видели его как обычную сделку.
     /// </summary>
-    public static (GameSession Session, Ulid TeamId) StartGameSessionWithOneTeam(decimal startingLoan = 100_000m)
+    public static (GameSession Session, Ulid TeamId) StartGameSessionWithOneTeam(decimal startingLoan = 100_000m, ResolvedGameConfig? config = null)
     {
         var teamId = Ulid.NewUlid();
-        var log = new EventLog<GameSessionState>(new GameSessionState(Resolved));
+        var log = new EventLog<GameSessionState>(new GameSessionState(config ?? Resolved));
         var session = GameSession.StartWithEndTurn(
             log,
             "test",
@@ -218,6 +218,15 @@ internal static class TestGameConfig
     public static ResolvedGameConfig BuildWithEmergencyPurchasePressure(decimal pressureMultiplierPerUnit) =>
         Build(emergencyPurchasePressureMultiplierPerUnit: pressureMultiplierPerUnit);
 
+    /// <summary>
+    /// Собирает вариант базового конфига с ненулевым обязательным платежом по телу долга (<see
+    /// cref="StartingConditionsConfig.MandatoryRepaymentRatePerTurn"/>) — для тестов на
+    /// взаимодействие обязательного и добровольного погашения (<see cref="Resolved"/> держит его
+    /// нулевым, чтобы не менять ожидания у остальных тестов этого файла, не про кредит).
+    /// </summary>
+    public static ResolvedGameConfig BuildWithMandatoryRepayment(decimal mandatoryRepaymentRatePerTurn) =>
+        Build(mandatoryRepaymentRatePerTurn: mandatoryRepaymentRatePerTurn);
+
     private static ResolvedGameConfig Build(
         IReadOnlyList<NewsItemConfig>? news = null,
         IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null,
@@ -228,7 +237,8 @@ internal static class TestGameConfig
         decimal electricityConsumptionPerOutputUnit = 0m,
         bool addThirdLevelFactory = false,
         GenerationResearchConfig? generationResearch = null,
-        decimal emergencyPurchasePressureMultiplierPerUnit = 0m)
+        decimal emergencyPurchasePressureMultiplierPerUnit = 0m,
+        decimal mandatoryRepaymentRatePerTurn = 0m)
     {
         // Третий передел («катанка» из «листов», уровень 2) — только для BuildWithGenerationResearch,
         // остальные тесты этого файла его не видят вообще (Concat с пустым массивом — no-op).
@@ -322,7 +332,7 @@ internal static class TestGameConfig
                 LoanInterestRateGrowthPerUnitBorrowed = 0m,
                 ForcedLoanPenaltyRatePerOccurrence = 0.1m,
                 MaxReputationRatePenalty = 0.1m,
-                MandatoryRepaymentRatePerTurn = 0m,
+                MandatoryRepaymentRatePerTurn = mandatoryRepaymentRatePerTurn,
                 // Огромный — этот общий тестовый конфиг не про потолок долга, существующие тесты не
                 // должны неожиданно словить недостачу принудительного займа.
                 MaxTotalDebt = 1_000_000_000m,

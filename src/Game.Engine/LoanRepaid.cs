@@ -32,9 +32,10 @@ public sealed record LoanRepaid : Change<GameSessionState>
             team.Debit(Amount);
             team.RepayLoan(Amount);
         }
-        else
-        {
-            team.ClearPendingLoanRepayRequest();
-        }
+
+        // Заявка снимается в любом случае — и когда реально погасили, и когда Amount урезался до 0
+        // (см. doc-comment Amount выше). RepayLoan сама этого больше не делает (см. её doc-comment) —
+        // она общая с обязательным платежом, который заявку трогать не должен.
+        team.ClearPendingLoanRepayRequest();
     }
 }

@@ -187,7 +187,14 @@ public sealed class Team
     /// баланса делает вызывающее событие отдельным вызовом <see cref="Debit"/> (тот же приём
     /// разделения «стоимость» / «сам факт», что и в <c>FactoryBuilt.Apply</c>, который отдельно
     /// зовёт <c>BuildFactory</c> и <see cref="Debit"/>). Нельзя погасить больше, чем реально должны —
-    /// долг не уходит в минус.
+    /// долг не уходит в минус. Используется и обязательным платежом (<see
+    /// cref="Game.Engine.MandatoryLoanRepaymentCharged"/>), и добровольным (<see
+    /// cref="Game.Engine.LoanRepaid"/>) — поэтому сама не трогает <see
+    /// cref="PendingLoanRepayAmount"/>: обязательный платёж случается в начале каждого хода, а
+    /// заявка на добровольное погашение разрешается только в конце того же хода (<see
+    /// cref="Game.Engine.VoluntaryLoanStep"/>); если бы этот метод её сбрасывал, обязательный платёж
+    /// молча стирал бы ещё не рассмотренную заявку. Снятие заявки — забота вызывающей стороны (см.
+    /// <see cref="Game.Engine.LoanRepaid.Apply"/>).
     /// </summary>
     public void RepayLoan(decimal amount)
     {
@@ -201,7 +208,6 @@ public sealed class Team
         }
 
         Debt -= amount;
-        PendingLoanRepayAmount = 0;
     }
 
     /// <summary>
