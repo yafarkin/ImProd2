@@ -118,7 +118,7 @@ else
 
     private void RefreshBoard()
     {
-        lock (Host.SyncRoot)
+        using (Host.EnterSyncRootTimed(nameof(Needs) + "." + nameof(RefreshBoard)))
         {
             if (Host.Session is null)
             {

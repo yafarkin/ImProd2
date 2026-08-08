@@ -103,7 +103,7 @@ else
 
     private void Refresh()
     {
-        lock (Host.SyncRoot)
+        using (Host.EnterSyncRootTimed(nameof(BigScreen) + "." + nameof(Refresh)))
         {
             if (Host.Session is null)
             {

@@ -115,7 +115,7 @@ else
 
     private void RefreshPanel()
     {
-        lock (Host.SyncRoot)
+        using (Host.EnterSyncRootTimed(nameof(Negotiate) + "." + nameof(RefreshPanel)))
         {
             if (Host.Session is null)
             {

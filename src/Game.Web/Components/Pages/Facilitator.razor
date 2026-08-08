@@ -213,7 +213,7 @@ else
 
     private void RefreshStatus()
     {
-        lock (Host.SyncRoot)
+        using (Host.EnterSyncRootTimed(nameof(Facilitator) + "." + nameof(RefreshStatus)))
         {
             if (Host.Session is null)
             {

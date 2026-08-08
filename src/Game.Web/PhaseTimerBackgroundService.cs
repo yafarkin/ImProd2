@@ -35,7 +35,7 @@ public sealed class PhaseTimerBackgroundService : BackgroundService
             TurnPhase phaseAfter;
             int turnAfter;
 
-            lock (_host.SyncRoot)
+            using (_host.EnterSyncRootTimed(nameof(PhaseTimerBackgroundService)))
             {
                 if (_host.Session is null)
                 {

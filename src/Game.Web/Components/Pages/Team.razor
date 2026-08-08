@@ -1159,7 +1159,7 @@ else
 
     private void RefreshDashboard()
     {
-        lock (Host.SyncRoot)
+        using (Host.EnterSyncRootTimed(nameof(Team) + "." + nameof(RefreshDashboard)))
         {
             if (Host.Session is null)
             {

@@ -193,6 +193,62 @@ public sealed class GameSessionHost
     /// </summary>
     public object SyncRoot { get; } = new();
 
+    /// <summary>Порог для предупреждений <see cref="EnterSyncRootTimed"/> — см. doc-comment там же.</summary>
+    private static readonly TimeSpan SlowLockThreshold = TimeSpan.FromMilliseconds(300);
+
+    /// <summary>
+    /// Временная диагностика подвисания интерфейса (запрос пользователя, 2026-08-08): по поведению
+    /// идентична голому <c>lock (SyncRoot)</c>, но меряет секундомером и ожидание лока, и время
+    /// работы под ним, предупреждая в лог сервера, если то или другое дольше
+    /// <see cref="SlowLockThreshold"/> — чтобы поймать, какой именно вызов держит общий
+    /// <see cref="SyncRoot"/> надолго (подозрение — тяжёлый <c>RunTick</c> или полный replay журнала
+    /// на посекундном обновлении страниц) и на сколько именно. Не постоянная часть приложения — когда
+    /// причина найдена, вызовы стоит вернуть на обычный <c>lock</c>.
+    /// </summary>
+    public LockScope EnterSyncRootTimed(string caller)
+    {
+        ArgumentNullException.ThrowIfNull(caller);
+
+        var waitStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        Monitor.Enter(SyncRoot);
+        var waited = waitStopwatch.Elapsed;
+        if (waited > SlowLockThreshold)
+        {
+            _logger.LogWarning("[diag] {Caller}: ждал лок {WaitedMs} мс.", caller, waited.TotalMilliseconds);
+        }
+
+        return new LockScope(this, caller, waited);
+    }
+
+    /// <summary>Держатель лока, взятого через <see cref="EnterSyncRootTimed"/> — отпускает его и логирует время удержания при <see cref="Dispose"/>.</summary>
+    public readonly struct LockScope : IDisposable
+    {
+        private readonly GameSessionHost _host;
+        private readonly string _caller;
+        private readonly TimeSpan _waited;
+        private readonly System.Diagnostics.Stopwatch _holdStopwatch;
+
+        internal LockScope(GameSessionHost host, string caller, TimeSpan waited)
+        {
+            _host = host;
+            _caller = caller;
+            _waited = waited;
+            _holdStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        }
+
+        public void Dispose()
+        {
+            var held = _holdStopwatch.Elapsed;
+            Monitor.Exit(_host.SyncRoot);
+            if (held > SlowLockThreshold)
+            {
+                _host._logger.LogWarning(
+                    "[diag] {Caller}: держал лок {HeldMs} мс (перед этим ждал {WaitedMs} мс).",
+                    _caller, held.TotalMilliseconds, _waited.TotalMilliseconds);
+            }
+        }
+    }
+
     /// <summary>Конфиг по умолчанию (SPEC-заглушка пилота) — предложен на экране администратора, может быть заменён загрузкой своего файла.</summary>
     public ResolvedGameConfig DefaultConfig { get; }
 

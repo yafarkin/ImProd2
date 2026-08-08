@@ -128,7 +128,7 @@ else
 
     private void Refresh()
     {
-        lock (Host.SyncRoot)
+        using (Host.EnterSyncRootTimed(nameof(AdminParticipants) + "." + nameof(Refresh)))
         {
             _sessionStarted = Host.Session is not null;
             if (!_sessionStarted)

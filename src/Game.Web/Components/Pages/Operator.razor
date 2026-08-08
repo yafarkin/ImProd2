@@ -140,7 +140,7 @@ else
 
     private void RefreshPhaseStatus()
     {
-        lock (Host.SyncRoot)
+        using (Host.EnterSyncRootTimed(nameof(Operator) + "." + nameof(RefreshPhaseStatus)))
         {
             if (Host.Session is null)
             {
