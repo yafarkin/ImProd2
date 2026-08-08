@@ -611,6 +611,32 @@ public sealed class GameSession
     }
 
     /// <summary>
+    /// Продаёт (ликвидирует) построенную фабрику команды — мгновенно и необратимо, симметрично <see
+    /// cref="BuildFactory"/> (SPEC §5.6/§5.11, запрос пользователя). Выручка —
+    /// <c>BuildCost * LiquidationValueCoefficient</c> той же конфигурации фабрики, что и итоговый
+    /// счёт в конце игры (<see cref="FinalScoreCalculator"/>) — команда видит эту цену заранее, до
+    /// продажи (UI берёт то же значение). Требует фазы решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> SellFactory(Ulid teamId, Ulid factoryId)
+    {
+        EnsureDecisionsAllowed();
+
+        var team = GetTeam(teamId);
+        var factory = GetFactory(team, factoryId);
+        var definition = State.Config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id);
+        var amount = definition.BuildCost * definition.LiquidationValueCoefficient;
+
+        return _log.Append(new FactorySold
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            FactoryId = factoryId,
+            FactoryDefinitionId = factory.Definition.Id,
+            Amount = amount,
+        });
+    }
+
+    /// <summary>
     /// Меняет желаемую численность рабочих фабрики на ближайший расчёт (SPEC §5.6, запрос
     /// пользователя: сколько бы раз команда ни передумала за ход, списать деньги только один раз) —
     /// само объявление бесплатно и мгновенно, тем же приёмом, что и <see cref="SetRndCommitment"/>:

@@ -153,6 +153,40 @@ public class GameSessionFactoryTests
     }
 
     [Fact]
+    public void SellFactory_Removes_The_Factory_And_Credits_The_Liquidation_Value()
+    {
+        var (session, teamId) = StartInDecisionPhase();
+        var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
+        var balanceAfterBuild = session.State.Teams[teamId].Balance;
+
+        var entry = session.SellFactory(teamId, built.FactoryId);
+
+        var sold = Assert.IsType<FactorySold>(entry.Change);
+        Assert.Equal(TestGameConfig.Mine.Id, sold.FactoryDefinitionId);
+        Assert.Equal(50m, sold.Amount); // TestGameConfig: BuildCost=100, LiquidationValueCoefficient=0.5
+        Assert.Empty(session.State.Teams[teamId].Factories);
+        Assert.Equal(balanceAfterBuild + 50m, session.State.Teams[teamId].Balance);
+    }
+
+    [Fact]
+    public void SellFactory_Throws_For_An_Unknown_Factory()
+    {
+        var (session, teamId) = StartInDecisionPhase();
+
+        Assert.Throws<ArgumentException>(() => session.SellFactory(teamId, Ulid.NewUlid()));
+    }
+
+    [Fact]
+    public void SellFactory_Throws_Outside_The_Decision_Phase()
+    {
+        var (session, teamId) = StartInDecisionPhase();
+        var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement
+
+        Assert.Throws<InvalidOperationException>(() => session.SellFactory(teamId, built.FactoryId));
+    }
+
+    [Fact]
     public void A_Built_And_Staffed_Factory_Produces_Starting_From_The_Next_Tick()
     {
         var (session, teamId) = StartInDecisionPhase();

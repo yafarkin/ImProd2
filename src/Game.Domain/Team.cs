@@ -125,6 +125,23 @@ public sealed class Team
         return factory;
     }
 
+    /// <summary>
+    /// Убирает проданную (ликвидированную) фабрику из списка команды — симметрично <see
+    /// cref="BuildFactory"/> (см. <see cref="Game.Engine.FactorySold"/>). Рабочие фабрики перестают
+    /// числиться вместе с ней, без отдельного события увольнения — то же упрощение, что и у самой
+    /// постройки.
+    /// </summary>
+    public void RemoveFactory(Ulid factoryId)
+    {
+        var factory = _factories.FirstOrDefault(f => f.Id == factoryId);
+        if (factory is null)
+        {
+            throw new ArgumentException($"Team '{Id}' has no factory '{factoryId}'.", nameof(factoryId));
+        }
+
+        _factories.Remove(factory);
+    }
+
     /// <summary>Начисляет деньги на баланс (выручка, полученный заём и т.п.).</summary>
     public void Credit(decimal amount)
     {

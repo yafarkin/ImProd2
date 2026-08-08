@@ -35,6 +35,9 @@ public static class FinanceHistoryCalculator
         /// <summary>Постройка фабрики (<see cref="FactoryBuilt"/>).</summary>
         FactoryBuilt,
 
+        /// <summary>Продажа (ликвидация) фабрики (<see cref="FactorySold"/>).</summary>
+        FactorySold,
+
         /// <summary>Разовая плата за наём рабочих (<see cref="WorkersHired"/>).</summary>
         WorkersHired,
 
@@ -127,6 +130,9 @@ public static class FinanceHistoryCalculator
                     break;
                 case FactoryBuilt change when change.TeamId == teamId && change.Cost > 0:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryBuilt, MoneyDirection.Expense, change.Cost, Rate: null, change.FactoryId));
+                    break;
+                case FactorySold change when change.TeamId == teamId && change.Amount > 0:
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactorySold, MoneyDirection.Income, change.Amount, Rate: null, change.FactoryId));
                     break;
                 case WorkersHired change when change.TeamId == teamId && change.Cost > 0:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.WorkersHired, MoneyDirection.Expense, change.Cost, Rate: null, change.FactoryId));

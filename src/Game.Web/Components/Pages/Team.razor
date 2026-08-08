@@ -255,7 +255,24 @@ else
         {
             <div class="card mb-3" id="@($"factory-card-{factory.FactoryId}")">
                 <div class="card-body">
-                    <p><strong>@factory.DefinitionName</strong> — уровень @factory.Level</p>
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                        <p class="mb-0"><strong>@factory.DefinitionName</strong> — уровень @factory.Level</p>
+                        @if (_canManage)
+                        {
+                            @if (_factoryPendingSaleId == factory.FactoryId)
+                            {
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="text-danger small">Точно продать? Это необратимо.</span>
+                                    <button type="button" class="btn btn-danger btn-sm" @onclick="() => SellFactory(factory.FactoryId)">Да, продать за @DashboardDisplay.FormatMoney(factory.LiquidationValue)</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => _factoryPendingSaleId = null">Отмена</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => _factoryPendingSaleId = factory.FactoryId">Продать за @DashboardDisplay.FormatMoney(factory.LiquidationValue)</button>
+                            }
+                        }
+                    </div>
 
                     <ul class="nav nav-pills flex-nowrap mb-3" style="overflow-x:auto; white-space:nowrap">
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("workers")" @onclick='() => _activeFactoryTab = "workers"'>Люди</button></li>
@@ -977,7 +994,8 @@ else
         IReadOnlyList<string> ConsumingFactoryNames,
         FactoryProfitabilityCalculator.FactoryProfitabilityEstimate? Profitability,
         ProductionCalculator.CapacityBreakdown CapacityBreakdown,
-        IReadOnlyList<FactoryActivityRow> ActivityHistory);
+        IReadOnlyList<FactoryActivityRow> ActivityHistory,
+        decimal LiquidationValue);
 
     /// <summary>Одна строка таблицы «История по ходам» — что фабрика потребила со склада и сколько произвела за тот же ход (оба значения из одного и того же события <see cref="FactoryProduced"/>).</summary>
     private sealed record FactoryActivityRow(int Turn, string ConsumedSummary, decimal OutputQuantity);
@@ -1326,9 +1344,14 @@ else
                 // бывает, если Condition < 1 (сама сессия следит, чтобы ступени покрывали весь диапазон
                 // до CriticalConditionThreshold, см. doc-comment WearConfig.OverhaulTiers).
                 var overhaulTier = factory.IsUnderRepair ? null : WearCalculator.SelectTier(factory.Condition, wearConfig.OverhaulTiers);
+                var factoryDefinitionConfig = state.Config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id);
                 var overhaulTierCost = overhaulTier is null
                     ? 0m
-                    : state.Config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id).BuildCost * overhaulTier.CostFraction;
+                    : factoryDefinitionConfig.BuildCost * overhaulTier.CostFraction;
+                // Та же формула, что и итоговый счёт в конце игры (см. FinalScoreCalculator) — команда
+                // видит цену продажи заранее, до самого действия (запрос пользователя: «продажа
+                // фабрики, как в реальном бизнесе»).
+                var liquidationValue = factoryDefinitionConfig.BuildCost * factoryDefinitionConfig.LiquidationValueCoefficient;
 
                 // Кто из своих же построенных фабрик заберёт этот выход как сырьё с общего склада —
                 // прямой ответ на вопрос «куда идёт продукция» (см. пояснение в карточке ниже:
@@ -1364,7 +1387,7 @@ else
                     upkeepPenaltyMultiplier, overhaulTier?.Name ?? string.Empty, overhaulTierCost,
                     overhaulTier?.DurationTurns ?? 0, overhaulTier?.OutputMultiplier ?? 0m,
                     consumingFactoryNames, profitabilityByFactoryId.GetValueOrDefault(factory.Id),
-                    capacityBreakdown, activityHistory);
+                    capacityBreakdown, activityHistory, liquidationValue);
             }).ToList();
             if (_selectedFactoryId is null || _factories.All(f => f.FactoryId != _selectedFactoryId))
             {
@@ -1445,6 +1468,20 @@ else
         }
 
         RunAction(() => Host.Session!.BuildFactory(_teamId, _selectedFactoryDefinitionId));
+    }
+
+    /// <summary>
+    /// Фабрика, для которой на карточке сейчас показан вопрос «точно продать?» (Блок, запрос
+    /// пользователя) — двухшаговое подтверждение прямо в разметке, без нативного <c>confirm()</c>
+    /// (он блокирует поток выполнения браузера, что плохо сочетается с Blazor Server circuit).
+    /// <see langword="null"/> — вопрос сейчас не показан ни для одной фабрики.
+    /// </summary>
+    private Ulid? _factoryPendingSaleId;
+
+    private void SellFactory(Ulid factoryId)
+    {
+        _factoryPendingSaleId = null;
+        RunAction(() => Host.Session!.SellFactory(_teamId, factoryId));
     }
 
     /// <summary>Клик по узлу на диаграмме цепочки фабрик (построен он уже или нет — строить можно ещё) — тот же выбор, что и в форме «Построить фабрику» ниже, с прокруткой к ней.</summary>

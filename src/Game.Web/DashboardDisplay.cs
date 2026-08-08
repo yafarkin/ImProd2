@@ -93,6 +93,7 @@ public static class DashboardDisplay
         FinanceHistoryCalculator.OperationType.MandatoryRepayment => "Обязательный платёж по телу долга",
         FinanceHistoryCalculator.OperationType.VoluntaryRepayment => "Досрочное погашение",
         FinanceHistoryCalculator.OperationType.FactoryBuilt => "Постройка фабрики",
+        FinanceHistoryCalculator.OperationType.FactorySold => "Продажа фабрики",
         FinanceHistoryCalculator.OperationType.WorkersHired => "Наём рабочих",
         FinanceHistoryCalculator.OperationType.WorkersFired => "Увольнение рабочих",
         FinanceHistoryCalculator.OperationType.SalariesPaid => "Зарплата рабочих",
