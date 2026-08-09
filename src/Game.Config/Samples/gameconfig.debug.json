@@ -83,10 +83,64 @@
       "Level": 0
     },
     {
-      "Id": "plastic",
-      "Name": "Пластик",
+      "Id": "polyethylene",
+      "Name": "Полиэтилен",
       "SectorId": "B",
       "Level": 1
+    },
+    {
+      "Id": "synthetic-rubber",
+      "Name": "Синтетический каучук",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "pvc-film",
+      "Name": "ПВХ-плёнка",
+      "SectorId": "B",
+      "Level": 2
+    },
+    {
+      "Id": "rubber-compound",
+      "Name": "Резиновая смесь",
+      "SectorId": "B",
+      "Level": 2
+    },
+    {
+      "Id": "pvc-profile",
+      "Name": "Профиль ПВХ",
+      "SectorId": "B",
+      "Level": 3
+    },
+    {
+      "Id": "tire-cord",
+      "Name": "Шинный корд",
+      "SectorId": "B",
+      "Level": 3
+    },
+    {
+      "Id": "window-frame",
+      "Name": "Оконные рамы ПВХ",
+      "SectorId": "B",
+      "Level": 4
+    },
+    {
+      "Id": "tire-carcass",
+      "Name": "Заготовки шин",
+      "SectorId": "B",
+      "Level": 4
+    },
+    {
+      "Id": "pvc-windows",
+      "Name": "Готовые окна ПВХ",
+      "SectorId": "B",
+      "Level": 5
+    },
+    {
+      "Id": "tires",
+      "Name": "Готовые шины",
+      "SectorId": "B",
+      "Level": 5
     }
   ],
   "Recipes": [
@@ -105,6 +159,10 @@
         {
           "MaterialId": "rock",
           "Quantity": 10
+        },
+        {
+          "MaterialId": "oil",
+          "Quantity": 5
         }
       ],
       "ProductionRate": 100
@@ -117,6 +175,10 @@
         {
           "MaterialId": "rock",
           "Quantity": 20
+        },
+        {
+          "MaterialId": "oil",
+          "Quantity": 10
         }
       ],
       "ProductionRate": 50
@@ -225,8 +287,8 @@
       "ProductionRate": 1
     },
     {
-      "Id": "plastic-from-oil",
-      "OutputMaterialId": "plastic",
+      "Id": "polyethylene-from-oil",
+      "OutputMaterialId": "polyethylene",
       "OutputQuantity": 1,
       "Inputs": [
         {
@@ -235,6 +297,134 @@
         }
       ],
       "ProductionRate": 1
+    },
+    {
+      "Id": "synthetic-rubber-from-oil",
+      "OutputMaterialId": "synthetic-rubber",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "oil",
+          "Quantity": 4
+        }
+      ],
+      "ProductionRate": 0.5
+    },
+    {
+      "Id": "pvc-film-from-polyethylene",
+      "OutputMaterialId": "pvc-film",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "polyethylene",
+          "Quantity": 10
+        },
+        {
+          "MaterialId": "synthetic-rubber",
+          "Quantity": 5
+        }
+      ],
+      "ProductionRate": 0.1
+    },
+    {
+      "Id": "rubber-compound-from-synthetic-rubber",
+      "OutputMaterialId": "rubber-compound",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "synthetic-rubber",
+          "Quantity": 10
+        },
+        {
+          "MaterialId": "polyethylene",
+          "Quantity": 5
+        }
+      ],
+      "ProductionRate": 0.05
+    },
+    {
+      "Id": "pvc-profile-from-pvc-film",
+      "OutputMaterialId": "pvc-profile",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pvc-film",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 0.01
+    },
+    {
+      "Id": "tire-cord-from-rubber-compound",
+      "OutputMaterialId": "tire-cord",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "rubber-compound",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 0.005
+    },
+    {
+      "Id": "window-frame-from-pvc-profile",
+      "OutputMaterialId": "window-frame",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pvc-profile",
+          "Quantity": 10
+        },
+        {
+          "MaterialId": "tire-cord",
+          "Quantity": 5
+        }
+      ],
+      "ProductionRate": 0.001
+    },
+    {
+      "Id": "tire-carcass-from-tire-cord",
+      "OutputMaterialId": "tire-carcass",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "tire-cord",
+          "Quantity": 10
+        },
+        {
+          "MaterialId": "pvc-profile",
+          "Quantity": 5
+        },
+        {
+          "MaterialId": "copper-wire",
+          "Quantity": 5
+        }
+      ],
+      "ProductionRate": 0.0005
+    },
+    {
+      "Id": "pvc-windows-from-window-frame",
+      "OutputMaterialId": "pvc-windows",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "window-frame",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 0.0001
+    },
+    {
+      "Id": "tires-from-tire-carcass",
+      "OutputMaterialId": "tires",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "tire-carcass",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 0.00005
     }
   ],
   "FactoryDefinitions": [
@@ -355,11 +545,90 @@
       "Name": "Нефтехимический завод",
       "SectorId": "B",
       "RecipeIds": [
-        "plastic-from-oil"
+        "polyethylene-from-oil",
+        "synthetic-rubber-from-oil"
       ],
       "BuildCost": 1500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 30
+    },
+    {
+      "Id": "polymer-processing-plant",
+      "Name": "Завод переработки полимеров",
+      "SectorId": "B",
+      "RecipeIds": [
+        "pvc-film-from-polyethylene",
+        "rubber-compound-from-synthetic-rubber"
+      ],
+      "BuildCost": 2600,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 52
+    },
+    {
+      "Id": "pvc-profile-plant",
+      "Name": "Завод профиля ПВХ",
+      "SectorId": "B",
+      "RecipeIds": [
+        "pvc-profile-from-pvc-film"
+      ],
+      "BuildCost": 4500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 90
+    },
+    {
+      "Id": "tire-cord-plant",
+      "Name": "Кордная фабрика",
+      "SectorId": "B",
+      "RecipeIds": [
+        "tire-cord-from-rubber-compound"
+      ],
+      "BuildCost": 4500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 90
+    },
+    {
+      "Id": "window-frame-plant",
+      "Name": "Завод оконных рам",
+      "SectorId": "B",
+      "RecipeIds": [
+        "window-frame-from-pvc-profile"
+      ],
+      "BuildCost": 7000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 140
+    },
+    {
+      "Id": "tire-carcass-plant",
+      "Name": "Завод шинных заготовок",
+      "SectorId": "B",
+      "RecipeIds": [
+        "tire-carcass-from-tire-cord"
+      ],
+      "BuildCost": 7000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 140
+    },
+    {
+      "Id": "pvc-windows-plant",
+      "Name": "Завод готовых пластиковых окон",
+      "SectorId": "B",
+      "RecipeIds": [
+        "pvc-windows-from-window-frame"
+      ],
+      "BuildCost": 10500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 210
+    },
+    {
+      "Id": "tire-plant",
+      "Name": "Шинный завод",
+      "SectorId": "B",
+      "RecipeIds": [
+        "tires-from-tire-carcass"
+      ],
+      "BuildCost": 10500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 210
     }
   ],
   "StartingConditions": {
@@ -450,9 +719,54 @@
         "BaseCapacity": 150
       },
       {
-        "MaterialId": "plastic",
+        "MaterialId": "polyethylene",
         "BasePrice": 28,
         "BaseCapacity": 100
+      },
+      {
+        "MaterialId": "synthetic-rubber",
+        "BasePrice": 75,
+        "BaseCapacity": 50
+      },
+      {
+        "MaterialId": "pvc-film",
+        "BasePrice": 75,
+        "BaseCapacity": 10
+      },
+      {
+        "MaterialId": "rubber-compound",
+        "BasePrice": 170,
+        "BaseCapacity": 5
+      },
+      {
+        "MaterialId": "pvc-profile",
+        "BasePrice": 280,
+        "BaseCapacity": 1
+      },
+      {
+        "MaterialId": "tire-cord",
+        "BasePrice": 560,
+        "BaseCapacity": 0.5
+      },
+      {
+        "MaterialId": "window-frame",
+        "BasePrice": 1120,
+        "BaseCapacity": 0.1
+      },
+      {
+        "MaterialId": "tire-carcass",
+        "BasePrice": 2240,
+        "BaseCapacity": 0.05
+      },
+      {
+        "MaterialId": "pvc-windows",
+        "BasePrice": 5600,
+        "BaseCapacity": 0.01
+      },
+      {
+        "MaterialId": "tires",
+        "BasePrice": 11200,
+        "BaseCapacity": 0.005
       }
     ],
     "MarginMultiplierByProcessingLevel": [

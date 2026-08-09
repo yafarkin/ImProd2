@@ -10,7 +10,12 @@ namespace Game.Web;
 /// <see cref="DashboardDisplay"/>. Материалы раскладываются по столбцам согласно
 /// <see cref="Material.Level"/> (сырьё слева, готовая продукция справа — граф гарантированно без
 /// циклов, см. doc-comment <see cref="RecipeBook"/> и валидатор конфига), внутри столбца
-/// группируются по сектору.
+/// группируются по сектору. Внутри сектора строка материала наследуется от строки его основного
+/// (по наибольшему количеству во входах рецепта) предшественника — так каждая производственная линия
+/// идёт по столбцам горизонтально, а не «прыгает» по алфавиту названия. Это принципиально там, где у
+/// рецепта два входа из разных линий (запрос пользователя «пересечения между ветками» — Block 9.5):
+/// побочный вход с меньшим количеством должен остаться заметной диагональю, а не быть перепутан с
+/// основной линией из-за случайного алфавитного порядка — иначе на картинке пересечения не видно.
 /// </summary>
 public static class MaterialChainDiagram
 {
@@ -53,6 +58,7 @@ public static class MaterialChainDiagram
             var x = Margin + levelGroup.Key * ColumnWidth;
             var ordered = levelGroup
                 .OrderBy(material => sectorOrder.GetValueOrDefault(material.Sector.Id))
+                .ThenBy(material => PrimaryPredecessorY(material, config, nodeByMaterialId) ?? double.MaxValue)
                 .ThenBy(material => material.Name, StringComparer.Ordinal)
                 .ToList();
 
@@ -136,4 +142,28 @@ public static class MaterialChainDiagram
     }
 
     private static string FormatRatio(decimal ratioPerUnit) => "×" + ratioPerUnit.ToString("0.##");
+
+    /// <summary>
+    /// Y уже размещённого узла материала, который вносит наибольший вклад (по количеству во входе)
+    /// в рецепт данного материала — «своя» производственная линия, а не побочный/кросс-вход. Null для
+    /// сырья (нет рецепта) и для случаев, когда предшественник почему-то ещё не размещён (в норме не
+    /// бывает — уровни обрабатываются по возрастанию, а вход рецепта всегда более низкого уровня).
+    /// </summary>
+    private static double? PrimaryPredecessorY(
+        Material material, ResolvedGameConfig config, IReadOnlyDictionary<string, Node> nodeByMaterialId)
+    {
+        var recipe = config.RecipeBook.TryGetRecipe(material);
+        if (recipe is null || recipe.Inputs.Count == 0)
+        {
+            return null;
+        }
+
+        // OrderByDescending стабилен: при равном количестве побеждает вход, объявленный в рецепте
+        // первым (по конвенции конфига — это и есть «свой» ингредиент, см. gameconfig.debug.json).
+        var primaryInput = recipe.Inputs.OrderByDescending(input => input.Quantity).First();
+
+        return nodeByMaterialId.TryGetValue(primaryInput.Material.Id, out var predecessorNode)
+            ? predecessorNode.Y
+            : null;
+    }
 }

@@ -14,6 +14,13 @@ public class MaterialChainDiagramTests
         return host.DefaultConfig;
     }
 
+    private static Game.Config.Loading.ResolvedGameConfig DebugConfig()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        return host.DebugConfig;
+    }
+
     [Fact]
     public void Build_Places_Every_Material_As_A_Node_And_Every_Recipe_Input_As_An_Edge()
     {
@@ -76,6 +83,83 @@ public class MaterialChainDiagramTests
         // "sheet" has exactly one recipe input (ore), so the edge landing on its Y-center is unique.
         var edge = layout.Edges.Single(e => e.X2 == sheetNode.X && e.Y2 == targetY);
         Assert.Equal(expectedLabel, edge.Label);
+    }
+
+    /// <summary>
+    /// Регрессия на баг из ревью пользователя: на debug-конфиге узел наследовал строку от основного
+    /// (наибольшего по количеству) входа своего рецепта, а не от алфавитного порядка названия — иначе
+    /// «своя» линия ветки скачет по строкам и её не отличить на глаз от настоящей кросс-связи между
+    /// ветками нефтехимии (Block 9.5). Проверяем, что обе ветки нефтехимии держат свою строку по всем
+    /// 5 уровням (Y не меняется вдоль основной цепочки), а сами кросс-связи (второй, меньший вход
+    /// рецепта из соседней ветки) остаются видимой диагональю.
+    /// </summary>
+    [Fact]
+    public void Build_Keeps_Each_Petrochemical_Branch_On_Its_Own_Row_So_Cross_Branch_Inputs_Stand_Out_As_Diagonals()
+    {
+        var config = DebugConfig();
+        var layout = MaterialChainDiagram.Build(config);
+
+        double RowOf(string materialId) => layout.Nodes.Single(n => n.Material.Id == materialId).Y;
+
+        var windowsBranch = new[] { "polyethylene", "pvc-film", "pvc-profile", "window-frame", "pvc-windows" };
+        var tiresBranch = new[] { "synthetic-rubber", "rubber-compound", "tire-cord", "tire-carcass", "tires" };
+
+        Assert.Single(windowsBranch.Select(RowOf).Distinct());
+        Assert.Single(tiresBranch.Select(RowOf).Distinct());
+        Assert.NotEqual(RowOf(windowsBranch[0]), RowOf(tiresBranch[0]));
+
+        // Второй (кросс-ветковый) вход rubber-from-oil-ветки в pvc-профиле и наоборот — их источник
+        // лежит в другой строке, значит ребро не горизонтальное.
+        foreach (var (materialId, crossInputId) in new[]
+                 {
+                     ("pvc-film", "synthetic-rubber"),
+                     ("rubber-compound", "polyethylene"),
+                     ("window-frame", "tire-cord"),
+                     ("tire-carcass", "pvc-profile"),
+                 })
+        {
+            var target = layout.Nodes.Single(n => n.Material.Id == materialId);
+            var source = layout.Nodes.Single(n => n.Material.Id == crossInputId);
+            var edge = layout.Edges.Single(e =>
+                e.X1 == source.X + source.Width && e.Y1 == source.Y + source.Height / 2 &&
+                e.X2 == target.X && e.Y2 == target.Y + target.Height / 2);
+
+            Assert.NotEqual(edge.Y1, edge.Y2);
+        }
+    }
+
+    /// <summary>
+    /// Связь между секторами «Металлургия» и «Нефтегазохимия» (запрос пользователя «где у нас идёт
+    /// связь металлургов и нефтехимией», Block 9.5): добыча железа/меди берёт нефть как топливо, а
+    /// заготовки шин — медную проволоку как металлокорд. Обе стороны — рёбра между узлами разных
+    /// секторов, которые в раскладке лежат в разных вертикальных блоках, поэтому такое ребро всегда
+    /// заметная длинная диагональ, а не короткая линия внутри одной ветки.
+    /// </summary>
+    [Fact]
+    public void Build_Draws_Cross_Sector_Links_Between_Metallurgy_And_Petrochemistry()
+    {
+        var config = DebugConfig();
+        var layout = MaterialChainDiagram.Build(config);
+
+        foreach (var (sourceId, targetId, quantity) in new[]
+                 {
+                     ("oil", "iron", 5m),
+                     ("oil", "copper", 10m),
+                     ("copper-wire", "tire-carcass", 5m),
+                 })
+        {
+            var source = layout.Nodes.Single(n => n.Material.Id == sourceId);
+            var target = layout.Nodes.Single(n => n.Material.Id == targetId);
+            Assert.NotEqual(source.Material.Sector.Id, target.Material.Sector.Id);
+
+            var edge = layout.Edges.Single(e =>
+                e.X1 == source.X + source.Width && e.Y1 == source.Y + source.Height / 2 &&
+                e.X2 == target.X && e.Y2 == target.Y + target.Height / 2);
+
+            Assert.NotEqual(edge.Y1, edge.Y2);
+            var recipe = config.RecipeBook.GetRecipe(target.Material);
+            Assert.Equal(quantity, recipe.Inputs.Single(input => input.Material.Id == sourceId).Quantity);
+        }
     }
 
     [Fact]
