@@ -17,7 +17,7 @@ public class ReputationCalculatorTests
         var contract = new Contract(Ulid.NewUlid(), buyerId, sellerId, terms, confirmationCode: "TEST01");
 
         log.Append(new ContractSigned { Id = Ulid.NewUlid(), Contract = ContractSpec.From(contract) });
-        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = contract.Id });
+        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = contract.Id, ConfirmingTeamId = buyerId });
 
         return contract.Id;
     }

@@ -31,7 +31,7 @@ public sealed record ContractRevisionResolved : Change<GameSessionState>
         state.Contracts[ContractId].Terminate(ContractTerminationReason.Mutual);
 
         var replacement = ReplacementContract!.ToContract(state);
-        replacement.Confirm(TeamRole.Manager); // обе стороны уже согласились самим принятием предложения
+        replacement.ConfirmAutomatically(); // обе стороны уже согласились самим принятием предложения
         state.AddContract(replacement);
     }
 }

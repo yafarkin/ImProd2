@@ -348,7 +348,7 @@ public class FinanceHistoryCalculatorTests
         log.Append(new EmergencyPurchased { Id = Ulid.NewUlid(), Turn = 1, TeamId = seller.Id, MaterialId = TestGameConfig.Sheet.Id, Volume = 10m, UnitPrice = 0m, TotalCost = 0m });
         var spec = SheetSpot(buyer.Id, seller.Id, volume: 10m, unitPrice: 20m);
         log.Append(new ContractSigned { Id = Ulid.NewUlid(), Contract = spec });
-        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId });
+        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId, ConfirmingTeamId = buyer.Id });
         log.Append(new ContractDelivered { Id = Ulid.NewUlid(), ContractId = spec.ContractId, Turn = 1 });
 
         var buyerOperation = Assert.Single(FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, buyer.Id));
@@ -368,7 +368,7 @@ public class FinanceHistoryCalculatorTests
         var (log, buyer, seller) = TestGameConfig.StartSessionWithTwoTeams();
         var spec = SheetSpot(buyer.Id, seller.Id, volume: 10m, unitPrice: 20m, penaltyRate: 0.1m);
         log.Append(new ContractSigned { Id = Ulid.NewUlid(), Contract = spec });
-        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId });
+        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId, ConfirmingTeamId = buyer.Id });
         log.Append(new DeliveryMissed { Id = Ulid.NewUlid(), ContractId = spec.ContractId, Turn = 1, ShortfallVolume = 10m, PenaltyAmount = 20m });
 
         var sellerOperation = Assert.Single(FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, seller.Id));
@@ -388,7 +388,7 @@ public class FinanceHistoryCalculatorTests
         var (log, buyer, seller) = TestGameConfig.StartSessionWithTwoTeams();
         var spec = SheetSpot(buyer.Id, seller.Id, volume: 10m, unitPrice: 20m);
         log.Append(new ContractSigned { Id = Ulid.NewUlid(), Contract = spec });
-        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId });
+        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId, ConfirmingTeamId = buyer.Id });
         log.Append(new ContractTerminated
         {
             Id = Ulid.NewUlid(), ContractId = spec.ContractId, Turn = 1,

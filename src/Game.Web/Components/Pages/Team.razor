@@ -925,7 +925,7 @@ else
                             <td>
                                 @if (_isDecisionPhase)
                                 {
-                                    @if (contract.Status == ContractStatus.PendingConfirmation && Role == "Manager")
+                                    @if (contract.Status == ContractStatus.PendingConfirmation && Role == "Manager" && !contract.WeAreTheProposer)
                                     {
                                         <button type="button" class="btn btn-secondary btn-sm" @onclick="() => ConfirmContract(contract.ContractId)">Подтвердить</button>
                                     }
@@ -1008,7 +1008,8 @@ else
         ContractStatus Status, string StatusLabel, string ConfirmationCode,
         int EffectiveTurn, int? SpotDeliveryTurn, int? RecurringEndTurn,
         bool HasPendingRevision, bool PendingRevisionIsMine,
-        decimal? PendingVolume, decimal? PendingUnitPrice, decimal? PendingPenaltyRate, int? PendingRecurringEndTurn);
+        decimal? PendingVolume, decimal? PendingUnitPrice, decimal? PendingPenaltyRate, int? PendingRecurringEndTurn,
+        bool WeAreTheProposer);
 
     private sealed record StockRow(string MaterialId, string MaterialName, Material Material, decimal Quantity);
 
@@ -1434,6 +1435,10 @@ else
                     var counterpartyId = c.BuyerTeamId == _teamId ? c.SellerTeamId : c.BuyerTeamId;
                     var counterpartyName = state.Teams.TryGetValue(counterpartyId, out var counterparty) ? counterparty.Name : "?";
                     var pending = Host.Session!.GetPendingContractRevision(c.Id);
+                    var weAreTheProposer = c.ProposedByTeamId == _teamId;
+                    var statusLabel = c.Status == ContractStatus.PendingConfirmation
+                        ? (weAreTheProposer ? "Ждёт подтверждения контрагента" : "Ждёт вашего подтверждения")
+                        : DashboardDisplay.ContractStatusLabel(c.Status);
 
                     _revisionVolumes.TryAdd(c.Id, c.Terms.Volume);
                     _revisionUnitPrices.TryAdd(c.Id, c.Terms.UnitPrice);
@@ -1443,10 +1448,11 @@ else
                     return new ContractRow(
                         c.Id, c.BuyerTeamId == _teamId ? "Покупатель" : "Продавец", counterpartyName, c.Terms.Material.Name,
                         c.Terms.Type, c.Terms.Volume, c.Terms.UnitPrice, c.Terms.PenaltyRate,
-                        c.Status, DashboardDisplay.ContractStatusLabel(c.Status), c.ConfirmationCode,
+                        c.Status, statusLabel, c.ConfirmationCode,
                         c.Terms.EffectiveTurn, c.Terms.SpotDeliveryTurn, c.Terms.RecurringEndTurn,
                         pending is not null, pending?.ProposingTeamId == _teamId,
-                        pending?.Volume, pending?.UnitPrice, pending?.PenaltyRate, pending?.RecurringEndTurn);
+                        pending?.Volume, pending?.UnitPrice, pending?.PenaltyRate, pending?.RecurringEndTurn,
+                        weAreTheProposer);
                 })
                 .ToList();
         }
@@ -1676,7 +1682,7 @@ else
     }
 
     private void ConfirmContract(Ulid contractId) =>
-        RunAction(() => Host.Session!.ConfirmContract(contractId, TeamRole.Manager));
+        RunAction(() => Host.Session!.ConfirmContract(contractId, TeamRole.Manager, _teamId));
 
     private void TerminateMutual(Ulid contractId) =>
         RunAction(() => Host.Session!.TerminateContract(contractId, ContractTerminationReason.Mutual, terminatingTeamId: null));

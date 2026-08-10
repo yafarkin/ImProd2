@@ -21,7 +21,7 @@ public class ContractEventsTests
         var spec = SheetSpot(buyer.Id, seller.Id, volume, unitPrice, penaltyRate);
 
         log.Append(new ContractSigned { Id = Ulid.NewUlid(), Contract = spec });
-        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId });
+        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId, ConfirmingTeamId = buyer.Id });
 
         return (log, buyer, seller, spec);
     }

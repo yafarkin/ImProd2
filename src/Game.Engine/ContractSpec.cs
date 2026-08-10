@@ -48,6 +48,9 @@ public sealed record ContractSpec
     /// <summary>Контракт, взамен которого заведён этот (Блок 9.3) — <c>null</c> для обычного заключения.</summary>
     public Ulid? SupersedesContractId { get; init; }
 
+    /// <summary>Команда-инициатор — см. <see cref="Contract.ProposedByTeamId"/>.</summary>
+    public Ulid? ProposedByTeamId { get; init; }
+
     /// <summary>Снимок условий уже созданного контракта — для записи в журнал.</summary>
     public static ContractSpec From(Contract contract)
     {
@@ -69,6 +72,7 @@ public sealed record ContractSpec
             SpotDeliveryTurn = terms.SpotDeliveryTurn,
             RecurringEndTurn = terms.RecurringEndTurn,
             SupersedesContractId = contract.SupersedesContractId,
+            ProposedByTeamId = contract.ProposedByTeamId,
         };
     }
 
@@ -80,6 +84,7 @@ public sealed record ContractSpec
         var terms = new ContractTerms(
             Type, material, Volume, UnitPrice, PenaltyRate, EffectiveTurn, SpotDeliveryTurn, RecurringEndTurn);
 
-        return new Contract(ContractId, BuyerTeamId, SellerTeamId, terms, ConfirmationCode, SupersedesContractId);
+        return new Contract(
+            ContractId, BuyerTeamId, SellerTeamId, terms, ConfirmationCode, SupersedesContractId, ProposedByTeamId);
     }
 }

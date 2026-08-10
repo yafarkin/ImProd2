@@ -9,7 +9,7 @@ public class ContractExecutionTests
         var terms = new ContractTerms(
             ContractType.Spot, TestGameConfig.Sheet, 10m, 20m, 0.1m, effectiveTurn, deliveryTurn, recurringEndTurn: null);
         var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), terms, "ABC123");
-        contract.Confirm(TeamRole.Manager);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
         return contract;
     }
 
@@ -18,7 +18,7 @@ public class ContractExecutionTests
         var terms = new ContractTerms(
             ContractType.Recurring, TestGameConfig.Sheet, 10m, 20m, 0.1m, effectiveTurn, spotDeliveryTurn: null, recurringEndTurn: endTurn);
         var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), terms, "ABC123");
-        contract.Confirm(TeamRole.Manager);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
         return contract;
     }
 

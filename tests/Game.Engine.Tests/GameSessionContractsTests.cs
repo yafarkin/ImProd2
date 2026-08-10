@@ -22,7 +22,7 @@ public class GameSessionContractsTests
         var (buyerProposal, sellerProposal) = TestGameConfig.MatchingSheetSpotProposals(buyerId, sellerId);
         var result = session.SubmitContractProposals(buyerProposal, sellerProposal, new Random(1));
         var contractId = result.Contract!.Id;
-        session.ConfirmContract(contractId, TeamRole.Manager);
+        session.ConfirmContract(contractId, TeamRole.Manager, sellerId);
         return contractId;
     }
 
@@ -61,7 +61,7 @@ public class GameSessionContractsTests
         var (buyerProposal, sellerProposal) = TestGameConfig.MatchingSheetSpotProposals(buyerId, sellerId);
         var result = session.SubmitContractProposals(buyerProposal, sellerProposal, new Random(1));
 
-        Assert.Throws<InvalidOperationException>(() => session.ConfirmContract(result.Contract!.Id, TeamRole.Negotiator));
+        Assert.Throws<InvalidOperationException>(() => session.ConfirmContract(result.Contract!.Id, TeamRole.Negotiator, sellerId));
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public class GameSessionContractsTests
         var buyerProposal = new ContractProposal(buyerId, sellerId, buyerId, terms);
         var sellerProposal = new ContractProposal(buyerId, sellerId, sellerId, terms);
         var result = session.SubmitContractProposals(buyerProposal, sellerProposal, new Random(1));
-        session.ConfirmContract(result.Contract!.Id, TeamRole.Manager);
+        session.ConfirmContract(result.Contract!.Id, TeamRole.Manager, sellerId);
         var contractId = result.Contract!.Id;
 
         // ход 2: продавец обеспечен -> поставка

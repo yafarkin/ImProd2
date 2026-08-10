@@ -18,7 +18,7 @@ public class GameSessionContractRevisionTests
         var buyerProposal = new ContractProposal(buyerId, sellerId, buyerId, terms);
         var sellerProposal = new ContractProposal(buyerId, sellerId, sellerId, terms);
         var result = session.SubmitContractProposals(buyerProposal, sellerProposal, new Random(1));
-        session.ConfirmContract(result.Contract!.Id, TeamRole.Manager);
+        session.ConfirmContract(result.Contract!.Id, TeamRole.Manager, sellerId);
 
         return (session, buyerId, sellerId, result.Contract!.Id);
     }
@@ -29,7 +29,7 @@ public class GameSessionContractRevisionTests
         ToDecisionPhase(session);
         var (buyerProposal, sellerProposal) = TestGameConfig.MatchingSheetSpotProposals(buyerId, sellerId);
         var result = session.SubmitContractProposals(buyerProposal, sellerProposal, new Random(1));
-        session.ConfirmContract(result.Contract!.Id, TeamRole.Manager);
+        session.ConfirmContract(result.Contract!.Id, TeamRole.Manager, sellerId);
 
         return (session, buyerId, sellerId, result.Contract!.Id);
     }

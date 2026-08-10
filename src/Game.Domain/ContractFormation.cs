@@ -11,7 +11,9 @@ public static class ContractFormation
     /// Сверяет две заявки. Совпадают, только если обе стороны сделки одинаковы, заявки поданы
     /// разными командами и условия идентичны — тогда создаётся новый контракт со свежим кодом
     /// подтверждения в статусе <see cref="ContractStatus.PendingConfirmation"/>. Иначе — конфликт
-    /// со списком того, что именно разошлось.
+    /// со списком того, что именно разошлось. <paramref name="proposalA"/> считается инициатором
+    /// (<see cref="Contract.ProposedByTeamId"/>) — именно её команда не сможет дать финальное
+    /// подтверждение сама себе, см. <see cref="Contract.Confirm"/>.
     /// </summary>
     public static ContractFormationResult TryMatch(
         ContractProposal proposalA, ContractProposal proposalB, Ulid contractId, Random random)
@@ -40,7 +42,9 @@ public static class ContractFormation
         }
 
         var code = ContractConfirmationCode.Generate(random);
-        var contract = new Contract(contractId, proposalA.BuyerTeamId, proposalA.SellerTeamId, proposalA.Terms, code);
+        var contract = new Contract(
+            contractId, proposalA.BuyerTeamId, proposalA.SellerTeamId, proposalA.Terms, code,
+            proposedByTeamId: proposalA.SubmittedByTeamId);
 
         return ContractFormationResult.Matched(contract);
     }

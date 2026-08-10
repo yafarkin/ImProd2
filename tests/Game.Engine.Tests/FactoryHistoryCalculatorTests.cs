@@ -60,7 +60,7 @@ public class FactoryHistoryCalculatorTests
         var contract = new Contract(Ulid.NewUlid(), buyer.Id, seller.Id, terms, "ABC123");
         var spec = ContractSpec.From(contract);
         log.Append(new ContractSigned { Id = Ulid.NewUlid(), Contract = spec });
-        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId });
+        log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = spec.ContractId, ConfirmingTeamId = buyer.Id });
 
         // 8 переходов фаз с хода 1 (Расчёт) доводят до хода 5 (Расчёт) — та же арифметика фаз, что и в движке.
         for (var i = 0; i < 8; i++)

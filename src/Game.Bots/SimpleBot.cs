@@ -209,7 +209,8 @@ public sealed class SimpleBot
         var result = session.SubmitContractProposals(sellerProposal, buyerProposal, confirmationCodeRandom);
         if (result.IsMatched)
         {
-            session.ConfirmContract(result.Contract!.Id, TeamRole.Manager);
+            // sellerProposal подана как proposalA -> продавец инициатор, подтверждает покупатель.
+            session.ConfirmContract(result.Contract!.Id, TeamRole.Manager, buyer.TeamId);
         }
     }
 }

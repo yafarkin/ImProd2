@@ -33,7 +33,7 @@ public class ContractTests
     {
         var contract = NewPendingContract();
 
-        contract.Confirm(TeamRole.Manager);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
 
         Assert.Equal(ContractStatus.Active, contract.Status);
     }
@@ -43,25 +43,69 @@ public class ContractTests
     {
         var contract = NewPendingContract();
 
-        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Negotiator));
+        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Negotiator, contract.BuyerTeamId));
 
         Assert.Equal(ContractStatus.PendingConfirmation, contract.Status);
+    }
+
+    [Fact]
+    public void Confirm_By_A_Team_Not_Party_To_The_Contract_Throws()
+    {
+        var contract = NewPendingContract();
+
+        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Manager, Ulid.NewUlid()));
+
+        Assert.Equal(ContractStatus.PendingConfirmation, contract.Status);
+    }
+
+    [Fact]
+    public void Confirm_By_The_Proposing_Team_Throws_Only_The_Counterparty_Can_Confirm()
+    {
+        var buyerId = Ulid.NewUlid();
+        var sellerId = Ulid.NewUlid();
+        var contract = new Contract(Ulid.NewUlid(), buyerId, sellerId, Terms, "ABC123", proposedByTeamId: buyerId);
+
+        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Manager, buyerId));
+
+        Assert.Equal(ContractStatus.PendingConfirmation, contract.Status);
+    }
+
+    [Fact]
+    public void Confirm_By_The_Counterparty_Of_The_Proposing_Team_Activates_The_Contract()
+    {
+        var buyerId = Ulid.NewUlid();
+        var sellerId = Ulid.NewUlid();
+        var contract = new Contract(Ulid.NewUlid(), buyerId, sellerId, Terms, "ABC123", proposedByTeamId: buyerId);
+
+        contract.Confirm(TeamRole.Manager, sellerId);
+
+        Assert.Equal(ContractStatus.Active, contract.Status);
     }
 
     [Fact]
     public void Confirm_Throws_When_The_Contract_Is_Already_Active()
     {
         var contract = NewPendingContract();
-        contract.Confirm(TeamRole.Manager);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
 
-        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Manager));
+        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Manager, contract.SellerTeamId));
+    }
+
+    [Fact]
+    public void ConfirmAutomatically_Activates_The_Contract_Without_Checking_Sides()
+    {
+        var contract = NewPendingContract();
+
+        contract.ConfirmAutomatically();
+
+        Assert.Equal(ContractStatus.Active, contract.Status);
     }
 
     [Fact]
     public void Terminate_An_Active_Contract_Records_The_Reason()
     {
         var contract = NewPendingContract();
-        contract.Confirm(TeamRole.Manager);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
 
         contract.Terminate(ContractTerminationReason.Mutual);
 
@@ -81,7 +125,7 @@ public class ContractTests
     public void Terminate_Throws_When_The_Contract_Is_Already_Terminated()
     {
         var contract = NewPendingContract();
-        contract.Confirm(TeamRole.Manager);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
         contract.Terminate(ContractTerminationReason.Mutual);
 
         Assert.Throws<InvalidOperationException>(() => contract.Terminate(ContractTerminationReason.Voluntary));
@@ -91,7 +135,7 @@ public class ContractTests
     public void Complete_Moves_An_Active_Spot_Contract_To_Completed()
     {
         var contract = NewPendingContract(); // Terms — spot
-        contract.Confirm(TeamRole.Manager);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
 
         contract.Complete();
 
@@ -104,7 +148,7 @@ public class ContractTests
         var recurringTerms = new ContractTerms(
             ContractType.Recurring, Sheet, 10m, 20m, 0.1m, effectiveTurn: 3, spotDeliveryTurn: null, recurringEndTurn: 15);
         var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), recurringTerms, "ABC123");
-        contract.Confirm(TeamRole.Manager);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
 
         Assert.Throws<InvalidOperationException>(() => contract.Complete());
     }

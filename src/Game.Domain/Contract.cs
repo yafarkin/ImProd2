@@ -43,9 +43,17 @@ public sealed class Contract
     /// </summary>
     public Ulid? SupersedesContractId { get; }
 
+    /// <summary>
+    /// Команда, чья заявка легла в основу контракта (<c>proposalA</c> у <see cref="ContractFormation.TryMatch"/>) —
+    /// именно она не вправе дать финальное подтверждение сама себе, см. <see cref="Confirm"/>.
+    /// <c>null</c> для контрактов, у которых понятия «инициатор» нет (например, замена при
+    /// пересмотре условий — там согласие уже дано самим принятием предложения).
+    /// </summary>
+    public Ulid? ProposedByTeamId { get; }
+
     public Contract(
         Ulid id, Ulid buyerTeamId, Ulid sellerTeamId, ContractTerms terms, string confirmationCode,
-        Ulid? supersedesContractId = null)
+        Ulid? supersedesContractId = null, Ulid? proposedByTeamId = null)
     {
         if (id == Ulid.Empty)
         {
@@ -76,18 +84,45 @@ public sealed class Contract
         ConfirmationCode = confirmationCode;
         Status = ContractStatus.PendingConfirmation;
         SupersedesContractId = supersedesContractId;
+        ProposedByTeamId = proposedByTeamId;
     }
 
     /// <summary>
     /// Финальное подтверждение сделки — только управляющий (SPEC §3: «финальное подтверждение
-    /// сделок» — право управляющего, не переговорщика).
+    /// сделок» — право управляющего, не переговорщика), и только со стороны контрагента: команда,
+    /// подавшая заявку (<see cref="ProposedByTeamId"/>), не может сама себе подтвердить сделку —
+    /// иначе вторая сторона вообще не участвует в заключении контракта (это и была первоначальная
+    /// причина завести <see cref="ProposedByTeamId"/>).
     /// </summary>
-    public void Confirm(TeamRole confirmingRole)
+    public void Confirm(TeamRole confirmingRole, Ulid confirmingTeamId)
     {
         if (confirmingRole != TeamRole.Manager)
         {
             throw new InvalidOperationException("Only a team manager can give the final confirmation of a contract.");
         }
+        if (confirmingTeamId != BuyerTeamId && confirmingTeamId != SellerTeamId)
+        {
+            throw new InvalidOperationException("Only a party to the contract can confirm it.");
+        }
+        if (ProposedByTeamId is { } proposer && confirmingTeamId == proposer)
+        {
+            throw new InvalidOperationException("The team that proposed the contract cannot also give its final confirmation — only the counterparty can.");
+        }
+        if (Status != ContractStatus.PendingConfirmation)
+        {
+            throw new InvalidOperationException($"Cannot confirm a contract in status '{Status}'.");
+        }
+
+        Status = ContractStatus.Active;
+    }
+
+    /// <summary>
+    /// Подтверждение без проверки сторон — для случаев, где согласие обеих сторон уже дано иначе
+    /// (Блок 9.3: замена контракта при принятом пересмотре условий — само принятие уже и есть
+    /// согласие обеих сторон, см. <c>ContractRevisionResolved</c>).
+    /// </summary>
+    public void ConfirmAutomatically()
+    {
         if (Status != ContractStatus.PendingConfirmation)
         {
             throw new InvalidOperationException($"Cannot confirm a contract in status '{Status}'.");

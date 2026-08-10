@@ -188,8 +188,12 @@ public sealed class GameSession
         return result;
     }
 
-    /// <summary>Финальное подтверждение сделки управляющим (SPEC §3, §6). Только в фазе решений.</summary>
-    public EventLogEntry<GameSessionState> ConfirmContract(Ulid contractId, TeamRole confirmingRole)
+    /// <summary>
+    /// Финальное подтверждение сделки управляющим (SPEC §3, §6) — только со стороны контрагента:
+    /// команда, подавшая заявку, не может подтвердить сама себе (иначе вторая сторона вообще не
+    /// участвует в заключении контракта). Только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> ConfirmContract(Ulid contractId, TeamRole confirmingRole, Ulid confirmingTeamId)
     {
         EnsureDecisionsAllowed();
 
@@ -199,12 +203,20 @@ public sealed class GameSession
         }
 
         var contract = GetContract(contractId);
+        if (confirmingTeamId != contract.BuyerTeamId && confirmingTeamId != contract.SellerTeamId)
+        {
+            throw new ArgumentException("Only a party to the contract can confirm it.", nameof(confirmingTeamId));
+        }
+        if (contract.ProposedByTeamId == confirmingTeamId)
+        {
+            throw new InvalidOperationException("The team that proposed the contract cannot also give its final confirmation — only the counterparty can.");
+        }
         if (contract.Status != ContractStatus.PendingConfirmation)
         {
             throw new InvalidOperationException($"Cannot confirm a contract in status '{contract.Status}'.");
         }
 
-        return _log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = contractId });
+        return _log.Append(new ContractConfirmed { Id = Ulid.NewUlid(), ContractId = contractId, ConfirmingTeamId = confirmingTeamId });
     }
 
     /// <summary>

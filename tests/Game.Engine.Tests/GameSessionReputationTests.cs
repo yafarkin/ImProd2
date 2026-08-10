@@ -27,7 +27,7 @@ public class GameSessionReputationTests
         ToDecisionPhase(session);
         var (buyerProposal, sellerProposal) = TestGameConfig.MatchingSheetSpotProposals(buyerId, sellerId, deliveryTurn: 2, effectiveTurn: 2);
         var result = session.SubmitContractProposals(buyerProposal, sellerProposal, new Random(1));
-        session.ConfirmContract(result.Contract!.Id, TeamRole.Manager);
+        session.ConfirmContract(result.Contract!.Id, TeamRole.Manager, sellerId);
         session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
 
         ToNextSettlement(session); // ход 2
@@ -48,7 +48,7 @@ public class GameSessionReputationTests
         ToDecisionPhase(session);
         var (buyerProposal, sellerProposal) = TestGameConfig.MatchingSheetSpotProposals(buyerId, sellerId, deliveryTurn: 4, effectiveTurn: 1);
         var result = session.SubmitContractProposals(buyerProposal, sellerProposal, new Random(1));
-        session.ConfirmContract(result.Contract!.Id, TeamRole.Manager);
+        session.ConfirmContract(result.Contract!.Id, TeamRole.Manager, sellerId);
         // продавцу нечем поставить — на ходу 4 (уже после «пристрелочных» ходов 1-3) будет Delivery Miss
 
         LoanInterestCharged? RunTurnAndGetSellerInterest()
