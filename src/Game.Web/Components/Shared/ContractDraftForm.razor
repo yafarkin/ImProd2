@@ -30,7 +30,7 @@ else
 
         <div>
             <label class="form-label mb-0">Наша роль</label>
-            <select class="form-select" @bind="_role">
+            <select class="form-select" @bind="_role" @bind:after="RecomputeMaterials">
                 <option value="buyer">Покупатель</option>
                 <option value="seller">Продавец</option>
             </select>
@@ -40,12 +40,23 @@ else
     <div class="row row-cols-auto g-3 align-items-end mb-2">
         <div>
             <label class="form-label mb-0">Материал</label>
-            <select class="form-select" @bind="_materialId">
-                @foreach (var material in _materials)
-                {
-                    <option value="@material.Id">@material.Name</option>
-                }
-            </select>
+            @if (_materials.Count == 0)
+            {
+                <div class="form-text text-danger" style="max-width:16em">
+                    @(_role == "seller"
+                        ? "Нечего продавать — нет построенной фабрики с таким продуктом."
+                        : "Нечего покупать — нет построенной фабрики с такой потребностью.")
+                </div>
+            }
+            else
+            {
+                <select class="form-select" @bind="_materialId">
+                    @foreach (var material in _materials)
+                    {
+                        <option value="@material.Id">@material.Name</option>
+                    }
+                </select>
+            }
         </div>
 
         <div>
@@ -104,6 +115,7 @@ else
     public EventCallback OnChanged { get; set; }
 
     private IReadOnlyList<(Ulid Id, string Name)> _counterparties = Array.Empty<(Ulid, string)>();
+    private IReadOnlyList<Factory> _ourFactories = Array.Empty<Factory>();
     private IReadOnlyList<(string Id, string Name)> _materials = Array.Empty<(string, string)>();
 
     private Ulid? _counterpartyTeamId;
@@ -139,25 +151,46 @@ else
                 .Select(t => (t.Id, t.Name))
                 .OrderBy(t => t.Name, StringComparer.Ordinal)
                 .ToList();
-            _materials = state.Config.Materials.Values
-                .Select(m => (m.Id, m.Name))
-                .OrderBy(m => m.Name, StringComparer.Ordinal)
-                .ToList();
+            _ourFactories = state.Teams.TryGetValue(TeamId, out var ourTeam)
+                ? ourTeam.Factories
+                : Array.Empty<Factory>();
         }
+
+        RecomputeMaterials();
 
         if (_counterpartyTeamId is null || _counterparties.All(c => c.Id != _counterpartyTeamId))
         {
             _counterpartyTeamId = _counterparties.Count > 0 ? _counterparties[0].Id : null;
-        }
-        if (_materialId is null || _materials.All(m => m.Id != _materialId))
-        {
-            _materialId = _materials.Count > 0 ? _materials[0].Id : null;
         }
         if (_effectiveTurn < currentTurn)
         {
             _effectiveTurn = currentTurn;
             _spotDeliveryTurn = currentTurn;
             _recurringEndTurn = currentTurn;
+        }
+    }
+
+    /// <summary>
+    /// Список «Материал» ограничен ролью и реально построенными фабриками команды (запрос
+    /// пользователя) — весь каталог материалов сессии тут ни при чём: в роли продавца предлагаем
+    /// только то, что фабрики команды производят сейчас (<see cref="Recipe.Output"/> выбранного
+    /// рецепта каждой фабрики), в роли покупателя — только то, что им нужно на входе (<see
+    /// cref="Recipe.Inputs"/>). Склад и текущий дефицит/профицит не учитываем — контракт, особенно
+    /// регулярный, про будущую поставку, а не про то, что лежит на складе прямо сейчас.
+    /// </summary>
+    private void RecomputeMaterials()
+    {
+        _materials = (_role == "seller"
+                ? _ourFactories.Select(f => f.SelectedRecipe.Output)
+                : _ourFactories.SelectMany(f => f.SelectedRecipe.Inputs.Select(i => i.Material)))
+            .DistinctBy(m => m.Id)
+            .Select(m => (m.Id, m.Name))
+            .OrderBy(m => m.Name, StringComparer.Ordinal)
+            .ToList();
+
+        if (_materialId is null || _materials.All(m => m.Id != _materialId))
+        {
+            _materialId = _materials.Count > 0 ? _materials[0].Id : null;
         }
     }
 
