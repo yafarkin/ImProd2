@@ -20,7 +20,7 @@ else
     <div class="row row-cols-auto g-3 align-items-end mb-2">
         <div>
             <label class="form-label mb-0">Контрагент</label>
-            <select class="form-select" @bind="_counterpartyTeamId">
+            <select class="form-select" @bind="_counterpartyTeamId" @bind:after="Refresh">
                 @foreach (var team in _counterparties)
                 {
                     <option value="@team.Id">@team.Name</option>
@@ -45,7 +45,7 @@ else
                 <div class="form-text text-danger" style="max-width:16em">
                     @(_role == "seller"
                         ? "Нечего продавать — нет построенной фабрики с таким продуктом."
-                        : "Нечего покупать — нет построенной фабрики с такой потребностью.")
+                        : "Контрагент ничего не производит — нет построенных фабрик, готовых это продать.")
                 </div>
             }
             else
@@ -116,6 +116,7 @@ else
 
     private IReadOnlyList<(Ulid Id, string Name)> _counterparties = Array.Empty<(Ulid, string)>();
     private IReadOnlyList<Factory> _ourFactories = Array.Empty<Factory>();
+    private IReadOnlyList<Factory> _counterpartyFactories = Array.Empty<Factory>();
     private IReadOnlyList<(string Id, string Name)> _materials = Array.Empty<(string, string)>();
 
     private Ulid? _counterpartyTeamId;
@@ -154,14 +155,18 @@ else
             _ourFactories = state.Teams.TryGetValue(TeamId, out var ourTeam)
                 ? ourTeam.Factories
                 : Array.Empty<Factory>();
+
+            if (_counterpartyTeamId is null || _counterparties.All(c => c.Id != _counterpartyTeamId))
+            {
+                _counterpartyTeamId = _counterparties.Count > 0 ? _counterparties[0].Id : null;
+            }
+            _counterpartyFactories = _counterpartyTeamId is { } counterpartyId && state.Teams.TryGetValue(counterpartyId, out var counterpartyTeam)
+                ? counterpartyTeam.Factories
+                : Array.Empty<Factory>();
         }
 
         RecomputeMaterials();
 
-        if (_counterpartyTeamId is null || _counterparties.All(c => c.Id != _counterpartyTeamId))
-        {
-            _counterpartyTeamId = _counterparties.Count > 0 ? _counterparties[0].Id : null;
-        }
         if (_effectiveTurn < currentTurn)
         {
             _effectiveTurn = currentTurn;
@@ -171,18 +176,20 @@ else
     }
 
     /// <summary>
-    /// Список «Материал» ограничен ролью и реально построенными фабриками команды (запрос
-    /// пользователя) — весь каталог материалов сессии тут ни при чём: в роли продавца предлагаем
-    /// только то, что фабрики команды производят сейчас (<see cref="Recipe.Output"/> выбранного
-    /// рецепта каждой фабрики), в роли покупателя — только то, что им нужно на входе (<see
-    /// cref="Recipe.Inputs"/>). Склад и текущий дефицит/профицит не учитываем — контракт, особенно
-    /// регулярный, про будущую поставку, а не про то, что лежит на складе прямо сейчас.
+    /// Список «Материал» определяется тем, кто в сделке продавец (запрос пользователя, уточнение по
+    /// живому логу: сектор металлургии предлагал купить нефть только потому, что она нужна его
+    /// собственным фабрикам на входе — независимо от того, добывает ли её вообще выбранный
+    /// контрагент) — материал обязан быть тем, что продавец реально производит: <see
+    /// cref="Recipe.Output"/> выбранного рецепта каждой его фабрики. Продавец — это мы (<see
+    /// cref="_ourFactories"/>), если <see cref="_role"/> = seller, иначе выбранный контрагент (<see
+    /// cref="_counterpartyFactories"/>) — собственные потребности покупателя тут больше не при чём,
+    /// только то, чем реально может торговать другая сторона сделки.
     /// </summary>
     private void RecomputeMaterials()
     {
-        _materials = (_role == "seller"
-                ? _ourFactories.Select(f => f.SelectedRecipe.Output)
-                : _ourFactories.SelectMany(f => f.SelectedRecipe.Inputs.Select(i => i.Material)))
+        var sellerFactories = _role == "seller" ? _ourFactories : _counterpartyFactories;
+        _materials = sellerFactories
+            .Select(f => f.SelectedRecipe.Output)
             .DistinctBy(m => m.Id)
             .Select(m => (m.Id, m.Name))
             .OrderBy(m => m.Name, StringComparer.Ordinal)

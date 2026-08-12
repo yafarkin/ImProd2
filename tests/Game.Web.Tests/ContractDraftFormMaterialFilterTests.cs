@@ -7,17 +7,20 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Game.Web.Tests;
 
 /// <summary>
-/// «Материал» в черновике сделки (<see cref="Game.Web.Components.Shared.ContractDraftForm"/>, запрос
-/// пользователя) — не весь каталог материалов сессии, а только то, что реально относится к
-/// построенным фабрикам команды: в роли покупателя — входы выбранных рецептов, в роли продавца — их
-/// выход. Тот же приём изоляции, что и у <see cref="TeamPageFactoryOverviewTests"/> (см. её
-/// doc-comment и <see cref="AssemblyFixture"/>): своя фабрика приложения + <see
-/// cref="GameSessionHost.HardReset"/> до и после.
+/// «Материал» в черновике сделки (<see cref="Game.Web.Components.Shared.ContractDraftForm"/>) —
+/// ограничен тем, кто в сделке продавец, и тем, что реально производят его построенные фабрики
+/// (запрос пользователя). Уточнение по живому логу: изначальная версия в роли покупателя брала
+/// собственные потребности команды, не глядя на выбранного контрагента — металлургия с фабрикой
+/// «концентрационный завод» (рецепт нуждается в нефти, отладочный конфиг, коммит про кросс-секторные
+/// связи с нефтехимией) предлагала купить нефть даже у контрагента, который её вообще не добывает.
+/// Тот же приём изоляции, что и у <see cref="TeamPageFactoryOverviewTests"/> (см. её doc-comment и
+/// <see cref="AssemblyFixture"/>): своя фабрика приложения + <see cref="GameSessionHost.HardReset"/>
+/// до и после, отладочный конфиг — единственный сэмпл с межсекторными входами, нужными для сценария.
 /// </summary>
 public class ContractDraftFormMaterialFilterTests
 {
     [Fact]
-    public async Task Negotiate_Page_Hides_The_Buyer_Material_Picker_When_The_Only_Built_Factory_Needs_No_Inputs()
+    public async Task Negotiate_Page_Does_Not_Offer_To_Buy_A_Material_The_Counterparty_Cannot_Produce()
     {
         using var factory = new WebApplicationFactory<Program>();
         var host = factory.Services.GetRequiredService<GameSessionHost>();
@@ -25,25 +28,26 @@ public class ContractDraftFormMaterialFilterTests
 
         try
         {
-            // Второй, ничем не занятой команды хватает — форма прячет весь выбор материала за
-            // «Нет других команд для сделки», пока контрагентов вообще нет.
-            var sectorId = host.DefaultConfig.Sectors.First().Id;
-            host.AddStagedTeam("Дзета", sectorId);
-            host.AddStagedTeam("Эта", sectorId);
+            host.SetDraftConfig(host.DebugConfig);
+
+            var sectorA = host.DraftConfig.Sectors.Single(s => s.Id == "A").Id; // металлургия
+            var sectorB = host.DraftConfig.Sectors.Single(s => s.Id == "B").Id; // нефтехимия
+            host.AddStagedTeam("Дзета", sectorA);
+            host.AddStagedTeam("Эта", sectorB);
             var team = host.StagedTeams.First(t => t.Name == "Дзета");
-            var otherTeam = host.StagedTeams.First(t => t.Name == "Эта");
+            var counterpartyTeam = host.StagedTeams.First(t => t.Name == "Эта");
             var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Дзета");
-            host.AddStagedParticipant(ParticipantRole.Manager, otherTeam.Id, "Управляющий Эта");
-            var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
+            host.AddStagedParticipant(ParticipantRole.Manager, counterpartyTeam.Id, "Управляющий Эта");
+            var preset = host.DraftConfig.Raw.SessionPresets.Single();
 
             host.StartSessionFromDraft(preset);
             host.Session!.AdvancePhase(PhaseTransitionTrigger.Facilitator); // Settlement -> Decision
 
-            // Рудник (уровень 0) добывает руду без сырьевых входов — команде с одним таким рудником
-            // нечего покупать: раньше форма всё равно предлагала весь каталог материалов сессии.
-            var mineDefinitionId = host.Session!.State.Config.FactoryDefinitions
-                .Single(d => d.Sector.Id == sectorId && d.Recipes.Single().Output.Level == 0).Id;
-            host.Session!.BuildFactory(team.Id, mineDefinitionId);
+            // Концентрационный завод плавит железо из породы И нефти (отладочный конфиг, кросс-
+            // секторная связь металлургии с нефтехимией) — у команды появляется реальная потребность
+            // в нефти. Контрагент («Эта», сектор нефтехимии) при этом ничего не строит — оборот нефти
+            // ей формально доступен по сектору, но фабрики нет, значит продать нечего.
+            host.Session!.BuildFactory(team.Id, "concentration-plant");
 
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
@@ -52,8 +56,51 @@ public class ContractDraftFormMaterialFilterTests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
-            // Форма открывается в роли «Покупатель» по умолчанию — рудник без входов даёт пустой список.
-            Assert.Contains("Нечего покупать", html);
+            // Форма открывается в роли «Покупатель», единственный контрагент выбран по умолчанию.
+            Assert.Contains("Контрагент ничего не производит", html);
+            Assert.DoesNotContain("value=\"oil\"", html);
+        }
+        finally
+        {
+            host.HardReset();
+        }
+    }
+
+    [Fact]
+    public async Task Negotiate_Page_Offers_To_Buy_A_Material_The_Counterparty_Actually_Produces()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
+        try
+        {
+            host.SetDraftConfig(host.DebugConfig);
+
+            var sectorA = host.DraftConfig.Sectors.Single(s => s.Id == "A").Id;
+            var sectorB = host.DraftConfig.Sectors.Single(s => s.Id == "B").Id;
+            host.AddStagedTeam("Тета", sectorA);
+            host.AddStagedTeam("Йота", sectorB);
+            var team = host.StagedTeams.First(t => t.Name == "Тета");
+            var counterpartyTeam = host.StagedTeams.First(t => t.Name == "Йота");
+            var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Тета");
+            host.AddStagedParticipant(ParticipantRole.Manager, counterpartyTeam.Id, "Управляющий Йота");
+            var preset = host.DraftConfig.Raw.SessionPresets.Single();
+
+            host.StartSessionFromDraft(preset);
+            host.Session!.AdvancePhase(PhaseTransitionTrigger.Facilitator); // Settlement -> Decision
+
+            host.Session!.BuildFactory(team.Id, "concentration-plant"); // нужны порода и нефть
+            host.Session!.BuildFactory(counterpartyTeam.Id, "oil-well"); // контрагент реально добывает нефть
+
+            var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
+
+            var response = await client.GetAsync("/team/negotiate");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
+
+            Assert.Contains("value=\"oil\"", html);
         }
         finally
         {
