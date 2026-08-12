@@ -355,11 +355,17 @@ public class FinanceHistoryCalculatorTests
         Assert.Equal(FinanceHistoryCalculator.OperationType.ContractDelivery, buyerOperation.Type);
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, buyerOperation.Direction);
         Assert.Equal(200m, buyerOperation.Amount);
+        Assert.Equal(TestGameConfig.Sheet.Name, buyerOperation.MaterialName);
+        Assert.Equal(10m, buyerOperation.Volume);
+        Assert.Equal(seller.Name, buyerOperation.CounterpartyName);
 
         var sellerOperation = Assert.Single(FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, seller.Id));
         Assert.Equal(FinanceHistoryCalculator.OperationType.ContractDelivery, sellerOperation.Type);
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Income, sellerOperation.Direction);
         Assert.Equal(200m, sellerOperation.Amount);
+        Assert.Equal(TestGameConfig.Sheet.Name, sellerOperation.MaterialName);
+        Assert.Equal(10m, sellerOperation.Volume);
+        Assert.Equal(buyer.Name, sellerOperation.CounterpartyName);
     }
 
     [Fact]
@@ -375,11 +381,17 @@ public class FinanceHistoryCalculatorTests
         Assert.Equal(FinanceHistoryCalculator.OperationType.DeliveryMissPenalty, sellerOperation.Type);
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, sellerOperation.Direction);
         Assert.Equal(20m, sellerOperation.Amount);
+        Assert.Equal(TestGameConfig.Sheet.Name, sellerOperation.MaterialName);
+        Assert.Equal(10m, sellerOperation.Volume);
+        Assert.Equal(buyer.Name, sellerOperation.CounterpartyName);
 
         var buyerOperation = Assert.Single(FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, buyer.Id));
         Assert.Equal(FinanceHistoryCalculator.OperationType.DeliveryMissPenalty, buyerOperation.Type);
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Income, buyerOperation.Direction);
         Assert.Equal(20m, buyerOperation.Amount);
+        Assert.Equal(TestGameConfig.Sheet.Name, buyerOperation.MaterialName);
+        Assert.Equal(10m, buyerOperation.Volume);
+        Assert.Equal(seller.Name, buyerOperation.CounterpartyName);
     }
 
     [Fact]

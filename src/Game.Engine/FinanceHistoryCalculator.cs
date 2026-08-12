@@ -94,8 +94,15 @@ public static class FinanceHistoryCalculator
     /// какая именно фабрика вызвала расход/доход, если операция привязана к одной конкретной фабрике
     /// (постройка, наём/увольнение, R&amp;D, переменные затраты на выпуск), иначе <see
     /// langword="null"/> (например, содержание фабрик списывается сразу по всем сразу).
+    /// <see cref="MaterialName"/>/<see cref="Volume"/>/<see cref="CounterpartyName"/> заполнены
+    /// только у <see cref="OperationType.ContractDelivery"/> и <see
+    /// cref="OperationType.DeliveryMissPenalty"/> (запрос пользователя: живой лог с успешной
+    /// поставкой нефти давал только «Поставка по контракту, сумма», без ответа на «поставлено чего,
+    /// сколько и кем/кому») — у остальных видов операций своя достаточная деталь (например, фабрика).
     /// </summary>
-    public sealed record FinanceOperation(DateTimeOffset Timestamp, int Turn, OperationType Type, MoneyDirection Direction, decimal Amount, decimal? Rate, Ulid? FactoryId = null);
+    public sealed record FinanceOperation(
+        DateTimeOffset Timestamp, int Turn, OperationType Type, MoneyDirection Direction, decimal Amount, decimal? Rate,
+        Ulid? FactoryId = null, string? MaterialName = null, decimal? Volume = null, string? CounterpartyName = null);
 
     /// <summary>Можно звать в любой момент сессии; для команды без единой денежной операции список выходит пустым.</summary>
     public static IReadOnlyList<FinanceOperation> Summarize(
@@ -171,26 +178,41 @@ public static class FinanceHistoryCalculator
                 {
                     var contract = scratch.Contracts[change.ContractId];
                     var sum = contract.Terms.Volume * contract.Terms.UnitPrice;
+                    var materialName = contract.Terms.Material.Name;
+                    var volume = contract.Terms.Volume;
                     if (sum > 0 && contract.BuyerTeamId == teamId)
                     {
-                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.ContractDelivery, MoneyDirection.Expense, sum, Rate: null));
+                        var counterpartyName = scratch.Teams[contract.SellerTeamId].Name;
+                        operations.Add(new FinanceOperation(
+                            entry.Timestamp, scratch.CurrentTurn, OperationType.ContractDelivery, MoneyDirection.Expense, sum, Rate: null,
+                            MaterialName: materialName, Volume: volume, CounterpartyName: counterpartyName));
                     }
                     else if (sum > 0 && contract.SellerTeamId == teamId)
                     {
-                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.ContractDelivery, MoneyDirection.Income, sum, Rate: null));
+                        var counterpartyName = scratch.Teams[contract.BuyerTeamId].Name;
+                        operations.Add(new FinanceOperation(
+                            entry.Timestamp, scratch.CurrentTurn, OperationType.ContractDelivery, MoneyDirection.Income, sum, Rate: null,
+                            MaterialName: materialName, Volume: volume, CounterpartyName: counterpartyName));
                     }
                     break;
                 }
                 case DeliveryMissed change when change.PenaltyAmount > 0:
                 {
                     var contract = scratch.Contracts[change.ContractId];
+                    var materialName = contract.Terms.Material.Name;
                     if (contract.SellerTeamId == teamId)
                     {
-                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.DeliveryMissPenalty, MoneyDirection.Expense, change.PenaltyAmount, Rate: null));
+                        var counterpartyName = scratch.Teams[contract.BuyerTeamId].Name;
+                        operations.Add(new FinanceOperation(
+                            entry.Timestamp, scratch.CurrentTurn, OperationType.DeliveryMissPenalty, MoneyDirection.Expense, change.PenaltyAmount, Rate: null,
+                            MaterialName: materialName, Volume: change.ShortfallVolume, CounterpartyName: counterpartyName));
                     }
                     else if (contract.BuyerTeamId == teamId)
                     {
-                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.DeliveryMissPenalty, MoneyDirection.Income, change.PenaltyAmount, Rate: null));
+                        var counterpartyName = scratch.Teams[contract.SellerTeamId].Name;
+                        operations.Add(new FinanceOperation(
+                            entry.Timestamp, scratch.CurrentTurn, OperationType.DeliveryMissPenalty, MoneyDirection.Income, change.PenaltyAmount, Rate: null,
+                            MaterialName: materialName, Volume: change.ShortfallVolume, CounterpartyName: counterpartyName));
                     }
                     break;
                 }

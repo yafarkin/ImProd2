@@ -865,7 +865,13 @@ else
                         <tr>
                             <td>@operation.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
                             <td>@operation.Turn</td>
-                            <td>@DashboardDisplay.FinanceOperationLabel(operation.Type)</td>
+                            <td>
+                                @DashboardDisplay.FinanceOperationLabel(operation.Type)
+                                @if (DashboardDisplay.FinanceOperationDetail(operation) is { } detail)
+                                {
+                                    <br /><span class="text-muted small">@detail</span>
+                                }
+                            </td>
                             <td>@(operation.FactoryId is { } factoryId ? _factoryDisplayNamesById.GetValueOrDefault(factoryId, "—") : "—")</td>
                             <td class="@(isIncome ? "text-success" : "text-danger")">@(isIncome ? "+" : "−")@DashboardDisplay.FormatMoney(operation.Amount)</td>
                             <td>@(operation.Rate is { } rate ? DashboardDisplay.FormatRate(rate) : "—")</td>

@@ -111,6 +111,17 @@ public static class DashboardDisplay
         _ => type.ToString()
     };
 
+    /// <summary>
+    /// Уточнение к строке «Поставка по контракту»/«Штраф за срыв поставки» в истории операций
+    /// (Блок 9.2, запрос пользователя) — какой материал, сколько и с кем. <see langword="null"/> у
+    /// операций, для которых <see cref="FinanceHistoryCalculator.FinanceOperation.MaterialName"/> не
+    /// заполнен (не про контракт).
+    /// </summary>
+    public static string? FinanceOperationDetail(FinanceHistoryCalculator.FinanceOperation operation) =>
+        operation.MaterialName is null
+            ? null
+            : $"{operation.MaterialName}, {operation.Volume!.Value.ToString("0.##")} ед. — {operation.CounterpartyName}";
+
     /// <summary>Русская подпись причины несовпадения черновиков сделки (Блок 9.3, SPEC §6).</summary>
     public static string ContractMismatchLabel(ContractMismatchReason reason) => reason switch
     {
