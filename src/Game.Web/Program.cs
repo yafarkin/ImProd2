@@ -36,6 +36,10 @@ builder.Services
 builder.Services.AddSingleton<GameSessionHost>();
 builder.Services.AddHostedService<PhaseTimerBackgroundService>();
 
+// Отладочный режим (см. doc-comment DebugModeState) — читается один раз при старте, как и остальная
+// конфигурация; переключение требует перезапуска процесса, отдельного эндпоинта на него нет.
+builder.Services.AddSingleton(new DebugModeState(builder.Configuration.GetValue<bool>("DebugMode")));
+
 var app = builder.Build();
 
 // Форсируем создание сразу при старте — код администратора (до старта сессии) или коды резюмированной
@@ -46,6 +50,11 @@ app.Services.GetRequiredService<GameSessionHost>();
 // безусловно при каждом старте, чтобы по логу сразу было видно, что запущен билд с диагностикой
 // (EnterSyncRootTimed), а не более старый процесс, ещё не подобравший последние изменения.
 app.Logger.LogInformation("[diag] Диагностика подвисаний активна: лок Host.SyncRoot дольше 300мс будет отмечен предупреждением \"[diag] ...\".");
+
+if (app.Services.GetRequiredService<DebugModeState>().Enabled)
+{
+    app.Logger.LogWarning("[debug] DebugMode включён (appsettings) — отладочная полоса и переключатель на любого участника видны на всех страницах. Не для реального мероприятия.");
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

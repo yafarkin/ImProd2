@@ -1,0 +1,54 @@
+@* Отладочная полоса (DebugModeState) — видна сверху на каждой странице (MainLayout), пока в
+   appsettings.json включён DebugMode. Переключатель на любого известного участника отправляет тот же
+   код, который вводится вручную на /login, тем же обычным POST-эндпоинтом /auth/login — никакого
+   отдельного обхода авторизации не заводим, только список кодов, чтобы не искать их вручную. *@
+@inject GameSessionHost Host
+@inject DebugModeState DebugMode
+
+@if (DebugMode.Enabled)
+{
+    <div class="debug-mode-banner">
+        <span>⚠ РЕЖИМ ОТЛАДКИ — не для реального мероприятия</span>
+        <form method="post" action="/auth/login" class="d-inline-flex align-items-center gap-2 ms-3">
+            <select name="code" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+                <option value="">Переключиться на участника…</option>
+                @foreach (var user in _users)
+                {
+                    <option value="@user.Code">@user.Label</option>
+                }
+            </select>
+        </form>
+    </div>
+}
+
+@code {
+    private sealed record DebugUser(string Code, string Label);
+
+    private IReadOnlyList<DebugUser> _users = Array.Empty<DebugUser>();
+
+    protected override void OnInitialized()
+    {
+        if (!DebugMode.Enabled)
+        {
+            return;
+        }
+
+        using (Host.EnterSyncRootTimed(nameof(DebugBanner) + "." + nameof(OnInitialized)))
+        {
+            _users = Host.Session is { } session
+                ? session.State.Participants.Values
+                    .Select(p => new DebugUser(p.Code, Label(p.Role, p.DisplayName, p.TeamId is { } teamId ? session.State.Teams[teamId].Name : null)))
+                    .OrderBy(u => u.Label, StringComparer.Ordinal)
+                    .ToList()
+                : Host.StagedParticipants
+                    .Select(p => new DebugUser(p.Code, Label(p.Role, p.DisplayName, p.TeamId is { } teamId ? Host.StagedTeams.First(t => t.Id == teamId).Name : null)))
+                    .OrderBy(u => u.Label, StringComparer.Ordinal)
+                    .ToList();
+        }
+    }
+
+    private static string Label(ParticipantRole role, string displayName, string? teamName) =>
+        teamName is null
+            ? $"{RoleDisplay.Name(role)}: {displayName}"
+            : $"{RoleDisplay.Name(role)}: {displayName} ({teamName})";
+}
