@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 @implements IDisposable
 @inject GameSessionHost Host
+@using Game.Config.Loading
 @using Game.Config.Session
 
 <PageTitle>Сессия</PageTitle>
@@ -18,12 +19,58 @@
 {
     <p>
         В черновике: команд — @Host.StagedTeams.Count, конфиг — @Host.DraftConfig.Raw.Sectors.Count
-        секторов, @Host.DraftConfig.Raw.Materials.Count материалов. Сама настройка — на
-        <a href="/admin">странице администратора</a>.
+        секторов, @Host.DraftConfig.Raw.Materials.Count материалов (хеш @(Host.DraftConfig.ContentHash[..8])).
+        Состав команд и персонала набирается на <a href="/admin">странице администратора</a>.
     </p>
 
     @if (_isAdministrator)
     {
+        <h2 class="mt-3">Конфигурация игры</h2>
+        <p class="text-muted">
+            <em>
+                Загружать файл обычно не нужно — рабочий конфиг по умолчанию уже подключён (секторы,
+                материалы, рецепты, экономика и т.д., см. счётчики выше). Свой файл имеет смысл
+                загружать, только если заранее подготовлен другой набор правил под конкретное
+                мероприятие — в том же JSON-формате. «Тренировочный» и «Отладочный» ниже — уже готовые
+                альтернативы: короче по ходам и быстрее по времени фазы, для разминки и для отладки
+                интерфейса, готовить файл руками для них не нужно.
+            </em>
+        </p>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <InputFile OnChange="OnConfigFileSelected" class="form-control d-inline-block w-auto" />
+            <button type="button" class="btn btn-secondary" @onclick="UseTrainingConfig">Тренировочный конфиг (короткие ходы, ~8-10)</button>
+            <button type="button" class="btn btn-secondary" @onclick="UseDebugConfig">Отладочный конфиг (30 сек/ход, 300 ходов)</button>
+            <a href="/admin/price-ladder" class="btn btn-secondary">Пересчитать цены продажи системе</a>
+        </div>
+
+        <h2 class="mt-4">Длительность фаз</h2>
+        <p class="text-muted">
+            <em>
+                Тайминг из загруженного конфига — здесь его можно быстро подправить отдельно, не
+                трогая остальные данные. Сейчас это чисто отладочная ручка: увеличьте, если нужно
+                успеть прожать сценарий руками в интерфейсе, уменьшите — чтобы быстро прогнать много
+                ходов подряд. Как и любая правка конфига, применение сбрасывает набранный состав
+                команд в черновике (см. чек-лист ниже) — меняйте тайминг до набора команд либо
+                наберите их заново после.
+            </em>
+        </p>
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <label for="decisionSeconds">Фаза решений, сек:</label>
+            <input id="decisionSeconds" type="number" min="1" class="form-control d-inline-block" style="width:7em" @bind="_decisionSeconds" />
+            <label for="settlementSeconds">Фаза расчёта, сек:</label>
+            <input id="settlementSeconds" type="number" min="1" class="form-control d-inline-block" style="width:7em" @bind="_settlementSeconds" />
+            <button type="button" class="btn btn-secondary" @onclick="ApplyPhaseTiming">Применить</button>
+        </div>
+
+        <h2 class="mt-4">Чек-лист готовности</h2>
+        <ul class="list-unstyled">
+            <li>Команд в черновике: @Host.StagedTeams.Count</li>
+            <li>Секторы охвачены: @(Host.StagedTeams.Count == 0 ? "—" : string.Join(", ", Host.StagedTeams.Select(t => SectorName(t.SectorId)).Distinct()))</li>
+            <li>Команд без управляющего: @_teamsWithoutManagerCount</li>
+            <li>Операторов в черновике: @_stagedOperatorCount</li>
+            <li>Ведущих в черновике: @_stagedFacilitatorCount</li>
+        </ul>
+
         <h2 class="mt-3">Начать сессию</h2>
         <select class="form-select w-auto mb-3" @bind="_selectedPresetId">
             @foreach (var preset in Host.DraftConfig.Raw.SessionPresets)
@@ -135,6 +182,9 @@ else
     private string? _resetPresetId;
     private string? _errorMessage;
 
+    private int _decisionSeconds;
+    private int _settlementSeconds;
+
     private bool _sessionStarted;
     private bool _isPaused;
     private int _currentTurn;
@@ -144,6 +194,10 @@ else
     private string _countdown = string.Empty;
     private string? _lastNewsHeadline;
     private int _extendSeconds = 30;
+
+    private int _teamsWithoutManagerCount;
+    private int _stagedOperatorCount;
+    private int _stagedFacilitatorCount;
 
     private IReadOnlyList<TeamChecklistRow> _teamChecklist = Array.Empty<TeamChecklistRow>();
     private bool _hasOperator;
@@ -159,6 +213,7 @@ else
 
         _selectedPresetId = Host.DraftConfig.Raw.SessionPresets.Count > 0 ? Host.DraftConfig.Raw.SessionPresets[0].Id : null;
         _resetPresetId = Host.DefaultConfig.Raw.SessionPresets.Count > 0 ? Host.DefaultConfig.Raw.SessionPresets[0].Id : null;
+        SyncPhaseTimingFields();
 
         Refresh();
 
@@ -176,6 +231,14 @@ else
             _sessionStarted = Host.Session is not null;
             if (!_sessionStarted)
             {
+                var stagedParticipants = Host.StagedParticipants;
+                var teamIdsWithManager = stagedParticipants
+                    .Where(p => p.Role == ParticipantRole.Manager)
+                    .Select(p => p.TeamId)
+                    .ToHashSet();
+                _teamsWithoutManagerCount = Host.StagedTeams.Count(t => !teamIdsWithManager.Contains(t.Id));
+                _stagedOperatorCount = stagedParticipants.Count(p => p.Role == ParticipantRole.Operator);
+                _stagedFacilitatorCount = stagedParticipants.Count(p => p.Role == ParticipantRole.Facilitator);
                 return;
             }
 
@@ -202,6 +265,74 @@ else
             _hasFacilitator = participants.Any(p => p.Role == ParticipantRole.Facilitator);
 
             _history = SessionHistoryCalculator.Build(session.Entries).Reverse().ToList();
+        }
+    }
+
+    private string SectorName(string sectorId) => Host.DraftConfig.Sectors.First(s => s.Id == sectorId).Name;
+
+    private void SyncPhaseTimingFields()
+    {
+        _decisionSeconds = Host.DraftConfig.Raw.PhaseTiming.DecisionPhaseSeconds;
+        _settlementSeconds = Host.DraftConfig.Raw.PhaseTiming.SettlementPhaseSeconds;
+    }
+
+    private void UseTrainingConfig()
+    {
+        _errorMessage = null;
+        Host.SetDraftConfig(Host.TrainingConfig);
+        SyncPhaseTimingFields();
+    }
+
+    private void UseDebugConfig()
+    {
+        _errorMessage = null;
+        Host.SetDraftConfig(Host.DebugConfig);
+        SyncPhaseTimingFields();
+    }
+
+    private async Task OnConfigFileSelected(InputFileChangeEventArgs e)
+    {
+        _errorMessage = null;
+        try
+        {
+            using var reader = new StreamReader(e.File.OpenReadStream());
+            var json = await reader.ReadToEndAsync();
+            var config = GameConfigLoader.Load(json);
+            Host.SetDraftConfig(config);
+            SyncPhaseTimingFields();
+        }
+        catch (GameConfigValidationException ex)
+        {
+            _errorMessage = ex.Message;
+        }
+    }
+
+    private void ApplyPhaseTiming()
+    {
+        _errorMessage = null;
+        if (_decisionSeconds < 1 || _settlementSeconds < 1)
+        {
+            _errorMessage = "Длительность фазы должна быть не меньше 1 секунды.";
+            return;
+        }
+
+        try
+        {
+            var updatedRaw = Host.DraftConfig.Raw with
+            {
+                PhaseTiming = new PhaseTimingConfig
+                {
+                    DecisionPhaseSeconds = _decisionSeconds,
+                    SettlementPhaseSeconds = _settlementSeconds,
+                },
+            };
+            var updated = GameConfigLoader.Load(GameConfigWriter.Save(updatedRaw));
+            Host.SetDraftConfig(updated);
+            SyncPhaseTimingFields();
+        }
+        catch (GameConfigValidationException ex)
+        {
+            _errorMessage = ex.Message;
         }
     }
 

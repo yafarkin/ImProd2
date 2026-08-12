@@ -3,8 +3,6 @@
 @rendermode InteractiveServer
 @implements IDisposable
 @inject GameSessionHost Host
-@using Game.Config.Loading
-@using Game.Config.Session
 
 <PageTitle>Администратор</PageTitle>
 
@@ -27,11 +25,6 @@
 
 <p class="text-muted">Ваш код администратора: <code>@Host.AdminCode</code> — постоянный, не меняется до полного сброса.</p>
 
-@if (_errorMessage is not null)
-{
-    <div class="alert alert-danger">@_errorMessage</div>
-}
-
 <details class="mb-4">
     <summary class="text-danger">Полный сброс в начальное состояние</summary>
     <p class="text-muted mt-2">
@@ -51,8 +44,8 @@
 @if (_sessionStarted)
 {
     <div class="alert alert-info">
-        Сессия уже начата — команды, конфиг и пресет здесь больше не редактируются. Управление ей
-        (пауза, фазы, сброс, экспорт истории) — на <a href="/session">странице сессии</a>.
+        Сессия уже начата — команды и персонал здесь больше не редактируются. Конфигурация игры и
+        управление сессией (пауза, фазы, сброс, экспорт истории) — на <a href="/session">странице сессии</a>.
     </div>
 }
 else
@@ -63,37 +56,15 @@ else
         (на проектор или отдельный экран), чтобы открыть сайт на телефоне без ввода адреса вручную.
     </p>
 
-    <h2 class="mt-4">Конфигурация</h2>
-    <p>
-        Загружен: @Host.DraftConfig.Raw.Sectors.Count секторов, @Host.DraftConfig.Raw.Materials.Count материалов
-        (хеш @(Host.DraftConfig.ContentHash[..8])).
-    </p>
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <InputFile OnChange="OnConfigFileSelected" class="form-control d-inline-block w-auto" />
-        <button type="button" class="btn btn-secondary" @onclick="UseTrainingConfig">Тренировочный конфиг (короткие ходы, ~8-10)</button>
-        <button type="button" class="btn btn-secondary" @onclick="UseDebugConfig">Отладочный конфиг (30 сек/ход, 300 ходов)</button>
-        <a href="/admin/price-ladder" class="btn btn-secondary">Пересчитать цены продажи системе</a>
-    </div>
-
     <h2 class="mt-4">Персонал и команды</h2>
     <p>
         <a href="/admin/teams" class="btn btn-secondary">Команды</a>
         <a href="/admin/participants" class="btn btn-secondary">Персонал</a>
     </p>
 
-    <h2 class="mt-4">Чек-лист готовности</h2>
-    <ul class="list-unstyled">
-        <li>Конфиг загружен: ✓</li>
-        <li>Команд в черновике: @Host.StagedTeams.Count</li>
-        <li>Секторы охвачены: @(Host.StagedTeams.Count == 0 ? "—" : string.Join(", ", Host.StagedTeams.Select(t => SectorName(t.SectorId)).Distinct()))</li>
-        <li>Команд без управляющего: @_teamsWithoutManagerCount</li>
-        <li>Операторов в черновике: @_stagedOperatorCount</li>
-        <li>Ведущих в черновике: @_stagedFacilitatorCount</li>
-    </ul>
-
     <p>
-        Когда состав готов — пресет длительности и кнопка «Начать сессию» на
-        <a href="/session" class="btn btn-primary">странице сессии</a>.
+        Конфигурация игры (какой файл загружен, длительность фаз), чек-лист готовности и кнопка
+        «Начать сессию» — на <a href="/session" class="btn btn-primary">странице сессии</a>.
     </p>
 }
 
@@ -102,12 +73,6 @@ else
     public string? WelcomeParam { get; set; }
 
     private bool _showWelcome;
-    private string? _errorMessage;
-
-    private int _teamsWithoutManagerCount;
-    private int _stagedOperatorCount;
-    private int _stagedFacilitatorCount;
-
     private bool _sessionStarted;
 
     private Timer? _tickTimer;
@@ -130,49 +95,6 @@ else
         using (Host.EnterSyncRootTimed(nameof(Admin) + "." + nameof(Refresh)))
         {
             _sessionStarted = Host.Session is not null;
-            if (_sessionStarted)
-            {
-                return;
-            }
-
-            var stagedParticipants = Host.StagedParticipants;
-            var teamIdsWithManager = stagedParticipants
-                .Where(p => p.Role == ParticipantRole.Manager)
-                .Select(p => p.TeamId)
-                .ToHashSet();
-            _teamsWithoutManagerCount = Host.StagedTeams.Count(t => !teamIdsWithManager.Contains(t.Id));
-            _stagedOperatorCount = stagedParticipants.Count(p => p.Role == ParticipantRole.Operator);
-            _stagedFacilitatorCount = stagedParticipants.Count(p => p.Role == ParticipantRole.Facilitator);
-        }
-    }
-
-    private string SectorName(string sectorId) => Host.DraftConfig.Sectors.First(s => s.Id == sectorId).Name;
-
-    private void UseTrainingConfig()
-    {
-        _errorMessage = null;
-        Host.SetDraftConfig(Host.TrainingConfig);
-    }
-
-    private void UseDebugConfig()
-    {
-        _errorMessage = null;
-        Host.SetDraftConfig(Host.DebugConfig);
-    }
-
-    private async Task OnConfigFileSelected(InputFileChangeEventArgs e)
-    {
-        _errorMessage = null;
-        try
-        {
-            using var reader = new StreamReader(e.File.OpenReadStream());
-            var json = await reader.ReadToEndAsync();
-            var config = GameConfigLoader.Load(json);
-            Host.SetDraftConfig(config);
-        }
-        catch (GameConfigValidationException ex)
-        {
-            _errorMessage = ex.Message;
         }
     }
 
