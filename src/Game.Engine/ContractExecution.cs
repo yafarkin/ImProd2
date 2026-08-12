@@ -12,7 +12,9 @@ public static class ContractExecution
     /// <summary>
     /// Положена ли контракту поставка на ходу <paramref name="currentTurn"/>: только действующему
     /// контракту, spot — ровно на своём ходу поставки, recurring — на каждом ходу диапазона
-    /// [вступление в силу, конец].
+    /// [вступление в силу, конец], либо без верхней границы вовсе, если <see
+    /// cref="ContractTerms.RecurringEndTurn"/> не задан (бессрочный контракт — идёт, пока не
+    /// расторгнут).
     /// </summary>
     public static bool IsDeliveryDue(Contract contract, int currentTurn)
     {
@@ -27,7 +29,8 @@ public static class ContractExecution
         return terms.Type switch
         {
             ContractType.Spot => currentTurn == terms.SpotDeliveryTurn,
-            ContractType.Recurring => currentTurn >= terms.EffectiveTurn && currentTurn <= terms.RecurringEndTurn,
+            ContractType.Recurring => currentTurn >= terms.EffectiveTurn
+                && (terms.RecurringEndTurn is null || currentTurn <= terms.RecurringEndTurn),
             _ => false,
         };
     }

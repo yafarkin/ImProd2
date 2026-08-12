@@ -46,10 +46,20 @@ public class ContractTermsTests
             new ContractTerms(ContractType.Spot, Sheet, 10m, 20m, 0.1m, 3, spotDeliveryTurn: 5, recurringEndTurn: 8));
     }
 
+    /// <summary>Отсутствие конечного хода — не ошибка, а осознанный «бессрочный» recurring (до расторжения одной из сторон), запрос пользователя.</summary>
     [Fact]
-    public void Construction_Throws_When_A_Recurring_Contract_Has_No_End_Turn()
+    public void Construction_Succeeds_For_An_Indefinite_Recurring_Contract_With_No_End_Turn()
     {
-        Assert.Throws<ArgumentException>(() => Recurring(endTurn: null));
+        var terms = Recurring(endTurn: null);
+
+        Assert.Equal(ContractType.Recurring, terms.Type);
+        Assert.Null(terms.RecurringEndTurn);
+    }
+
+    [Fact]
+    public void Construction_Throws_When_A_Recurring_Contract_Has_A_Non_Positive_End_Turn()
+    {
+        Assert.Throws<ArgumentException>(() => Recurring(endTurn: 0));
     }
 
     [Fact]

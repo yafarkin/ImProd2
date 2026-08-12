@@ -95,7 +95,14 @@ else
         {
             <div>
                 <label class="form-label mb-0">Длительность, ходов</label>
-                <input type="number" min="1" class="form-control" style="width:6em" @bind="_recurringDurationTurns" />
+                <div class="form-check mb-1">
+                    <input type="checkbox" class="form-check-input" id="recurringIndefinite" @bind="_recurringIndefinite" />
+                    <label class="form-check-label" for="recurringIndefinite">Бессрочно — до расторжения</label>
+                </div>
+                @if (!_recurringIndefinite)
+                {
+                    <input type="number" min="1" class="form-control" style="width:6em" @bind="_recurringDurationTurns" />
+                }
                 <div class="form-text">Начнётся с хода, на котором контрагент подтвердит сделку.</div>
             </div>
         }
@@ -124,6 +131,7 @@ else
     private decimal _unitPrice = 10m;
     private decimal _penaltyRate = 0.1m;
     private int _spotDeliveryTurn = 1;
+    private bool _recurringIndefinite;
     private int _recurringDurationTurns = 10;
 
     private string? _errorMessage;
@@ -229,12 +237,13 @@ else
                     // подтверждении, см. Contract.ResolveTermsForActivation. Recurring передаёт
                     // длительность через тот же RecurringEndTurn (от заглушки 1 разница как раз и
                     // даёт длительность минус один ход) — так делать можно, потому что при активации
-                    // используется только разность двух полей, не их абсолютное значение.
+                    // используется только разность двух полей, не их абсолютное значение. Бессрочный
+                    // (_recurringIndefinite) — null и остаётся null через всю активацию.
                     const int effectiveTurnPlaceholder = 1;
                     var terms = new ContractTerms(
                         _type, material, _volume, _unitPrice, _penaltyRate, effectiveTurnPlaceholder,
                         _type == ContractType.Spot ? _spotDeliveryTurn : null,
-                        _type == ContractType.Recurring ? effectiveTurnPlaceholder + _recurringDurationTurns - 1 : null);
+                        _type == ContractType.Recurring && !_recurringIndefinite ? effectiveTurnPlaceholder + _recurringDurationTurns - 1 : null);
 
                     var ourProposal = new ContractProposal(buyerId, sellerId, TeamId, terms);
                     var theirProposal = new ContractProposal(buyerId, sellerId, counterpartyId, terms);

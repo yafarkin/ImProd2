@@ -237,4 +237,42 @@ public class GameSessionContractsTests
         Assert.Equal(10m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet));
         Assert.Equal(ContractStatus.Active, session.State.Contracts[contractId].Status); // recurring не завершается сам — просто больше не due за пределами окна
     }
+
+    /// <summary>Бессрочный recurring (запрос пользователя: «может быть контракт до отмены?») доставляет каждый ход без ограничения сверху, пока одна из сторон его не расторгнет — после чего поставки прекращаются.</summary>
+    [Fact]
+    public void RunTick_Delivers_An_Indefinite_Recurring_Contract_Every_Turn_Until_Terminated()
+    {
+        var (session, buyerId, sellerId) = TestGameConfig.StartGameSessionWithTwoTeams();
+        ToDecisionPhase(session);
+        var terms = new ContractTerms(
+            ContractType.Recurring, TestGameConfig.Sheet, 10m, 20m, 0.1m,
+            effectiveTurn: 1, spotDeliveryTurn: null, recurringEndTurn: null); // бессрочно
+        var buyerProposal = new ContractProposal(buyerId, sellerId, buyerId, terms);
+        var sellerProposal = new ContractProposal(buyerId, sellerId, sellerId, terms);
+        var result = session.SubmitContractProposals(buyerProposal, sellerProposal, new Random(1));
+        var contractId = result.Contract!.Id;
+        session.ConfirmContract(contractId, TeamRole.Manager, sellerId);
+        Assert.Null(session.State.Contracts[contractId].Terms.RecurringEndTurn);
+
+        // Три хода подряд поставка идёт как обычно — никакого предела не видно.
+        for (var i = 0; i < 3; i++)
+        {
+            session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
+            ToNextSettlement(session);
+            session.RunTick(new Random(1));
+        }
+        Assert.Equal(30m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet));
+        Assert.Equal(ContractStatus.Active, session.State.Contracts[contractId].Status);
+
+        // Расторжение по согласию останавливает поставки немедленно — «до отмены» и означало именно это.
+        ToDecisionPhase(session);
+        session.TerminateContract(contractId, ContractTerminationReason.Mutual, terminatingTeamId: null);
+        Assert.Equal(ContractStatus.Terminated, session.State.Contracts[contractId].Status);
+
+        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
+        ToNextSettlement(session);
+        session.RunTick(new Random(1));
+
+        Assert.Equal(30m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet)); // без изменений — контракт расторгнут
+    }
 }

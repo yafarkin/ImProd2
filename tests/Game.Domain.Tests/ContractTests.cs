@@ -197,6 +197,20 @@ public class ContractTests
         Assert.Equal(25, contract.Terms.RecurringEndTurn); // 5 ходов, начиная с 21-го: 21..25
     }
 
+    /// <summary>Бессрочный recurring (нет RecurringEndTurn — не заглушка, а осознанный выбор, запрос пользователя) остаётся без верхней границы и после разрешения хода вступления в силу.</summary>
+    [Fact]
+    public void Confirm_Leaves_An_Indefinite_Recurring_Contract_Without_An_End_Turn()
+    {
+        var terms = new ContractTerms(
+            ContractType.Recurring, Sheet, 10m, 20m, 0.1m, effectiveTurn: 1, spotDeliveryTurn: null, recurringEndTurn: null);
+        var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), terms, "ABC123");
+
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, currentTurn: 20);
+
+        Assert.Equal(21, contract.Terms.EffectiveTurn);
+        Assert.Null(contract.Terms.RecurringEndTurn);
+    }
+
     /// <summary>Ход поставки spot-контракта, если он ещё не наступил к моменту подтверждения, остаётся как согласовали — подтверждение его не трогает.</summary>
     [Fact]
     public void Confirm_Leaves_A_Future_Spot_Delivery_Turn_Untouched()

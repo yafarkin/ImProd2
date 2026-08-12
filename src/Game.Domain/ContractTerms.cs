@@ -35,7 +35,11 @@ public sealed record ContractTerms
     /// <summary>Ход поставки — только для <see cref="ContractType.Spot"/>.</summary>
     public int? SpotDeliveryTurn { get; }
 
-    /// <summary>Последний ход действия регулярных поставок — только для <see cref="ContractType.Recurring"/>.</summary>
+    /// <summary>
+    /// Последний ход действия регулярных поставок — только для <see cref="ContractType.Recurring"/>.
+    /// <see langword="null"/> — контракт бессрочный: поставки идут каждый ход, пока одна из сторон
+    /// не расторгнет (<see cref="Contract.Terminate"/>) или не закончится сама сессия.
+    /// </summary>
     public int? RecurringEndTurn { get; }
 
     public ContractTerms(
@@ -83,9 +87,9 @@ public sealed record ContractTerms
         }
         else
         {
-            if (recurringEndTurn is null or <= 0)
+            if (recurringEndTurn is <= 0)
             {
-                throw new ArgumentException("Recurring contracts require a positive end turn.", nameof(recurringEndTurn));
+                throw new ArgumentException("Recurring end turn, when given, must be positive; omit it (null) for an indefinite contract.", nameof(recurringEndTurn));
             }
             if (spotDeliveryTurn is not null)
             {

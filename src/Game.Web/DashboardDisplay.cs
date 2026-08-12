@@ -132,13 +132,14 @@ public static class DashboardDisplay
     };
 
     /// <summary>
-    /// Срок действия контракта для отображения — ход поставки (spot) или диапазон (recurring) (Блок
-    /// 9.3). Пока recurring-контракт ещё не активирован (<paramref name="status"/> — <see
-    /// cref="ContractStatus.PendingConfirmation"/>), <paramref name="effectiveTurn"/>/<paramref
-    /// name="recurringEndTurn"/> — заглушка (см. <see cref="Contract.ResolveTermsForActivation"/>):
-    /// показываем только согласованную длительность, не выдуманные номера ходов. У spot заглушки нет
-    /// — <see cref="ContractTerms.SpotDeliveryTurn"/> с самой заявки настоящий, только может
-    /// сдвинуться вперёд при активации, если исходный ход к тому моменту уже прошёл.
+    /// Срок действия контракта для отображения — ход поставки (spot) или диапазон/бессрочно
+    /// (recurring) (Блок 9.3). Пока recurring-контракт ещё не активирован (<paramref name="status"/>
+    /// — <see cref="ContractStatus.PendingConfirmation"/>), <paramref name="effectiveTurn"/>/<paramref
+    /// name="recurringEndTurn"/> (если задан) — заглушка (см. <see
+    /// cref="Contract.ResolveTermsForActivation"/>): показываем только согласованную длительность, не
+    /// выдуманные номера ходов. У spot заглушки нет — <see cref="ContractTerms.SpotDeliveryTurn"/> с
+    /// самой заявки настоящий, только может сдвинуться вперёд при активации, если исходный ход к
+    /// тому моменту уже прошёл.
     /// </summary>
     public static string FormatTurnRange(ContractType type, ContractStatus status, int effectiveTurn, int? spotDeliveryTurn, int? recurringEndTurn)
     {
@@ -149,11 +150,18 @@ public static class DashboardDisplay
 
         if (status == ContractStatus.PendingConfirmation)
         {
-            var duration = recurringEndTurn!.Value - effectiveTurn + 1;
+            if (recurringEndTurn is null)
+            {
+                return "бессрочно, с момента подтверждения";
+            }
+
+            var duration = recurringEndTurn.Value - effectiveTurn + 1;
             return $"{duration} ходов с момента подтверждения";
         }
 
-        return $"с хода {effectiveTurn} по {recurringEndTurn}";
+        return recurringEndTurn is null
+            ? $"с хода {effectiveTurn}, бессрочно"
+            : $"с хода {effectiveTurn} по {recurringEndTurn}";
     }
 
     /// <summary>

@@ -191,6 +191,10 @@ public sealed class Contract
     /// EnsureDecisionsAllowed"/>), то есть расчёт текущего хода уже прошёл (порядок фаз — расчёт,
     /// потом решения того же хода) и повторно не наступит; первая реально достижимая поставка —
     /// на следующем.
+    /// <para/>
+    /// Бессрочный recurring (<see cref="ContractTerms.RecurringEndTurn"/> изначально не задан — не
+    /// заглушка, а осознанный выбор «до отмены») так и остаётся без верхней границы: разрешается
+    /// только начало, длительность разрешать не из чего.
     /// </summary>
     private void ResolveTermsForActivation(int currentTurn)
     {
@@ -198,7 +202,8 @@ public sealed class Contract
         Terms = Terms.Type == ContractType.Recurring
             ? new ContractTerms(
                 Terms.Type, Terms.Material, Terms.Volume, Terms.UnitPrice, Terms.PenaltyRate,
-                nextSettlementTurn, spotDeliveryTurn: null, nextSettlementTurn + (Terms.RecurringEndTurn!.Value - Terms.EffectiveTurn))
+                nextSettlementTurn, spotDeliveryTurn: null,
+                Terms.RecurringEndTurn is null ? null : nextSettlementTurn + (Terms.RecurringEndTurn.Value - Terms.EffectiveTurn))
             : new ContractTerms(
                 Terms.Type, Terms.Material, Terms.Volume, Terms.UnitPrice, Terms.PenaltyRate,
                 nextSettlementTurn, Math.Max(Terms.SpotDeliveryTurn!.Value, nextSettlementTurn), recurringEndTurn: null);

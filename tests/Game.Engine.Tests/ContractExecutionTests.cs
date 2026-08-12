@@ -17,7 +17,7 @@ public class ContractExecutionTests
         return contract;
     }
 
-    private static Contract RecurringContract(int effectiveTurn, int endTurn)
+    private static Contract RecurringContract(int effectiveTurn, int? endTurn)
     {
         var terms = new ContractTerms(
             ContractType.Recurring, TestGameConfig.Sheet, 10m, 20m, 0.1m, effectiveTurn, spotDeliveryTurn: null, recurringEndTurn: endTurn);
@@ -46,6 +46,18 @@ public class ContractExecutionTests
         Assert.True(ContractExecution.IsDeliveryDue(contract, 3));
         Assert.True(ContractExecution.IsDeliveryDue(contract, 4));
         Assert.False(ContractExecution.IsDeliveryDue(contract, 5));
+    }
+
+    /// <summary>Бессрочный recurring (нет RecurringEndTurn, запрос пользователя) — поставка due на каждом ходу с момента вступления в силу, без верхней границы.</summary>
+    [Fact]
+    public void Indefinite_Recurring_Delivery_Is_Due_On_Every_Turn_From_Effective_Turn_Onward()
+    {
+        var contract = RecurringContract(effectiveTurn: 2, endTurn: null);
+
+        Assert.False(ContractExecution.IsDeliveryDue(contract, 1));
+        Assert.True(ContractExecution.IsDeliveryDue(contract, 2));
+        Assert.True(ContractExecution.IsDeliveryDue(contract, 3));
+        Assert.True(ContractExecution.IsDeliveryDue(contract, 1000)); // сколько угодно далеко — верхней границы нет
     }
 
     [Fact]
