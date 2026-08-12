@@ -23,22 +23,21 @@ a, .btn-link {
 .debug-mode-banner {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.4rem 1rem;
-    background: repeating-linear-gradient(45deg, #ffcc00, #ffcc00 12px, #1a1a1a 12px, #1a1a1a 24px);
-    color: #1a1a1a;
+    padding: 0.5rem 1rem;
+    background: #d90000;
+    color: #fff;
     font-weight: bold;
+    text-align: center;
     position: sticky;
     top: 0;
     z-index: 1050;
 }
 
 .debug-mode-banner span {
-    background: #1a1a1a;
-    color: #ffcc00;
-    padding: 0.15rem 0.6rem;
-    border-radius: 0.25rem;
+    letter-spacing: 0.02em;
 }
 
 h1:focus {
