@@ -189,4 +189,52 @@ public class GameSessionContractsTests
         session.RunTick(new Random(1));
         Assert.Equal(20m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet));
     }
+
+    /// <summary>
+    /// Живой лог пользователя: recurring-контракт заключён на одном ходу с окном ровно в 1 ход, но
+    /// контрагент подтвердил его через несколько ходов после того, как то самое окно уже прошло бы
+    /// при старой семантике («ход вступления в силу» — то, что стороны заявляют заранее и что
+    /// остаётся неизменным). Раньше контракт становился Active с уже просроченным окном и не
+    /// доставлял ничего, никогда, без единого сигнала (ни поставки, ни срыва). Теперь окно
+    /// пересчитывается от хода подтверждения — контракт с той же согласованной длительностью (1 ход)
+    /// исполняется на ближайшем реально достижимом ходу.
+    /// </summary>
+    [Fact]
+    public void RunTick_Delivers_A_Recurring_Contract_Even_When_Confirmation_Comes_Several_Turns_After_The_Originally_Proposed_Window()
+    {
+        var (session, buyerId, sellerId) = TestGameConfig.StartGameSessionWithTwoTeams();
+        ToDecisionPhase(session); // ход 1, решения
+        var terms = new ContractTerms(
+            ContractType.Recurring, TestGameConfig.Sheet, 10m, 20m, 0.1m,
+            effectiveTurn: 2, spotDeliveryTurn: null, recurringEndTurn: 2); // окно в 1 ход, как в живом логе
+        var buyerProposal = new ContractProposal(buyerId, sellerId, buyerId, terms);
+        var sellerProposal = new ContractProposal(buyerId, sellerId, sellerId, terms);
+        var result = session.SubmitContractProposals(buyerProposal, sellerProposal, new Random(1));
+        var contractId = result.Contract!.Id;
+
+        // Контрагент тянет с подтверждением несколько ходов — старое окно [2, 2] давно прошло
+        // к этому моменту, контракт всё ещё PendingConfirmation.
+        for (var i = 0; i < 3; i++)
+        {
+            ToNextSettlement(session);
+            session.RunTick(new Random(1));
+            ToDecisionPhase(session);
+        }
+        Assert.Equal(ContractStatus.PendingConfirmation, session.State.Contracts[contractId].Status);
+        var turnAtConfirmation = session.State.CurrentTurn;
+
+        session.ConfirmContract(contractId, TeamRole.Manager, sellerId);
+
+        Assert.Equal(ContractStatus.Active, session.State.Contracts[contractId].Status);
+        var confirmedTerms = session.State.Contracts[contractId].Terms;
+        Assert.Equal(turnAtConfirmation + 1, confirmedTerms.EffectiveTurn);
+        Assert.Equal(turnAtConfirmation + 1, confirmedTerms.RecurringEndTurn); // та же длительность — 1 ход
+
+        session.State.Teams[sellerId].Warehouse.Add(TestGameConfig.Sheet, 10m, 0m);
+        ToNextSettlement(session);
+        session.RunTick(new Random(1));
+
+        Assert.Equal(10m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Sheet));
+        Assert.Equal(ContractStatus.Active, session.State.Contracts[contractId].Status); // recurring не завершается сам — просто больше не due за пределами окна
+    }
 }

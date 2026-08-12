@@ -19,6 +19,6 @@ public sealed record ContractConfirmed : Change<GameSessionState>
 
     public override void Apply(GameSessionState state)
     {
-        state.Contracts[ContractId].Confirm(TeamRole.Manager, ConfirmingTeamId);
+        state.Contracts[ContractId].Confirm(TeamRole.Manager, ConfirmingTeamId, state.CurrentTurn);
     }
 }

@@ -10,5 +10,5 @@ public sealed record ContractConfirmedByOperator : Change<GameSessionState>
     /// <summary>Идентификатор подтверждаемого контракта.</summary>
     public required Ulid ContractId { get; init; }
 
-    public override void Apply(GameSessionState state) => state.Contracts[ContractId].ConfirmByOperator();
+    public override void Apply(GameSessionState state) => state.Contracts[ContractId].ConfirmByOperator(state.CurrentTurn);
 }

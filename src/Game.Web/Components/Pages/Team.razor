@@ -925,7 +925,7 @@ else
                             <td>@contract.Volume.ToString("0.##")</td>
                             <td>@DashboardDisplay.FormatMoney(contract.UnitPrice)</td>
                             <td>@DashboardDisplay.FormatRate(contract.PenaltyRate)</td>
-                            <td>@DashboardDisplay.FormatTurnRange(contract.Type, contract.EffectiveTurn, contract.SpotDeliveryTurn, contract.RecurringEndTurn)</td>
+                            <td>@DashboardDisplay.FormatTurnRange(contract.Type, contract.Status, contract.EffectiveTurn, contract.SpotDeliveryTurn, contract.RecurringEndTurn)</td>
                             <td>@contract.ConfirmationCode</td>
                             <td>@contract.StatusLabel</td>
                             <td>

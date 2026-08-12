@@ -33,7 +33,7 @@ public class ContractTests
     {
         var contract = NewPendingContract();
 
-        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, 5);
 
         Assert.Equal(ContractStatus.Active, contract.Status);
     }
@@ -43,7 +43,7 @@ public class ContractTests
     {
         var contract = NewPendingContract();
 
-        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Negotiator, contract.BuyerTeamId));
+        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Negotiator, contract.BuyerTeamId, 5));
 
         Assert.Equal(ContractStatus.PendingConfirmation, contract.Status);
     }
@@ -53,7 +53,7 @@ public class ContractTests
     {
         var contract = NewPendingContract();
 
-        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Manager, Ulid.NewUlid()));
+        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Manager, Ulid.NewUlid(), 5));
 
         Assert.Equal(ContractStatus.PendingConfirmation, contract.Status);
     }
@@ -65,7 +65,7 @@ public class ContractTests
         var sellerId = Ulid.NewUlid();
         var contract = new Contract(Ulid.NewUlid(), buyerId, sellerId, Terms, "ABC123", proposedByTeamId: buyerId);
 
-        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Manager, buyerId));
+        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Manager, buyerId, 5));
 
         Assert.Equal(ContractStatus.PendingConfirmation, contract.Status);
     }
@@ -77,7 +77,7 @@ public class ContractTests
         var sellerId = Ulid.NewUlid();
         var contract = new Contract(Ulid.NewUlid(), buyerId, sellerId, Terms, "ABC123", proposedByTeamId: buyerId);
 
-        contract.Confirm(TeamRole.Manager, sellerId);
+        contract.Confirm(TeamRole.Manager, sellerId, 5);
 
         Assert.Equal(ContractStatus.Active, contract.Status);
     }
@@ -86,9 +86,9 @@ public class ContractTests
     public void Confirm_Throws_When_The_Contract_Is_Already_Active()
     {
         var contract = NewPendingContract();
-        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, 5);
 
-        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Manager, contract.SellerTeamId));
+        Assert.Throws<InvalidOperationException>(() => contract.Confirm(TeamRole.Manager, contract.SellerTeamId, 5));
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public class ContractTests
     public void Terminate_An_Active_Contract_Records_The_Reason()
     {
         var contract = NewPendingContract();
-        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, 5);
 
         contract.Terminate(ContractTerminationReason.Mutual);
 
@@ -125,7 +125,7 @@ public class ContractTests
     public void Terminate_Throws_When_The_Contract_Is_Already_Terminated()
     {
         var contract = NewPendingContract();
-        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, 5);
         contract.Terminate(ContractTerminationReason.Mutual);
 
         Assert.Throws<InvalidOperationException>(() => contract.Terminate(ContractTerminationReason.Voluntary));
@@ -135,7 +135,7 @@ public class ContractTests
     public void Complete_Moves_An_Active_Spot_Contract_To_Completed()
     {
         var contract = NewPendingContract(); // Terms — spot
-        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, 5);
 
         contract.Complete();
 
@@ -148,7 +148,7 @@ public class ContractTests
         var recurringTerms = new ContractTerms(
             ContractType.Recurring, Sheet, 10m, 20m, 0.1m, effectiveTurn: 3, spotDeliveryTurn: null, recurringEndTurn: 15);
         var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), recurringTerms, "ABC123");
-        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, 5);
 
         Assert.Throws<InvalidOperationException>(() => contract.Complete());
     }
@@ -159,5 +159,67 @@ public class ContractTests
         var contract = NewPendingContract();
 
         Assert.Throws<InvalidOperationException>(() => contract.Complete());
+    }
+
+    /// <summary>
+    /// Живой лог: recurring-контракт заключён с EffectiveTurn=8, RecurringEndTurn=8 (окно в один
+    /// ход) — управляющий контрагента подтвердил его только на ходу 10, когда исходное окно давно
+    /// прошло. Раньше контракт становился Active с тем же EffectiveTurn=8, и <see
+    /// cref="Game.Engine.ContractExecution.IsDeliveryDue"/> для него навсегда возвращал false — ни
+    /// поставки, ни срыва, ни малейшего сигнала в интерфейсе. Теперь окно пересчитывается от
+    /// ближайшего реально достижимого хода после подтверждения, сохраняя исходную длительность
+    /// (тут — 1 ход).
+    /// </summary>
+    [Fact]
+    public void Confirm_Resolves_A_Recurring_Contracts_Window_From_The_Confirmation_Turn_Not_The_Proposal_Turn()
+    {
+        var terms = new ContractTerms(
+            ContractType.Recurring, Sheet, 10m, 20m, 0.1m, effectiveTurn: 8, spotDeliveryTurn: null, recurringEndTurn: 8);
+        var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), terms, "ABC123");
+
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, currentTurn: 10);
+
+        Assert.Equal(11, contract.Terms.EffectiveTurn); // подтверждение — в фазе решений хода 10, расчёт хода 10 уже прошёл, ближайший достижимый — 11
+        Assert.Equal(11, contract.Terms.RecurringEndTurn); // та же длительность (1 ход)
+    }
+
+    /// <summary>Длительность (не только сам факт «окно не пустое») переживает разрешение — 5 ходов, предложенных при заявке, остаются 5 ходами, отсчитанными от ближайшего достижимого хода после подтверждения.</summary>
+    [Fact]
+    public void Confirm_Preserves_The_Originally_Negotiated_Recurring_Duration()
+    {
+        var terms = new ContractTerms(
+            ContractType.Recurring, Sheet, 10m, 20m, 0.1m, effectiveTurn: 1, spotDeliveryTurn: null, recurringEndTurn: 5); // 5 ходов
+        var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), terms, "ABC123");
+
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, currentTurn: 20);
+
+        Assert.Equal(21, contract.Terms.EffectiveTurn);
+        Assert.Equal(25, contract.Terms.RecurringEndTurn); // 5 ходов, начиная с 21-го: 21..25
+    }
+
+    /// <summary>Ход поставки spot-контракта, если он ещё не наступил к моменту подтверждения, остаётся как согласовали — подтверждение его не трогает.</summary>
+    [Fact]
+    public void Confirm_Leaves_A_Future_Spot_Delivery_Turn_Untouched()
+    {
+        var terms = new ContractTerms(
+            ContractType.Spot, Sheet, 10m, 20m, 0.1m, effectiveTurn: 1, spotDeliveryTurn: 15, recurringEndTurn: null);
+        var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), terms, "ABC123");
+
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, currentTurn: 10);
+
+        Assert.Equal(15, contract.Terms.SpotDeliveryTurn);
+    }
+
+    /// <summary>Симметричный случай для spot: если согласованный ход поставки уже прошёл к моменту подтверждения, поставка сдвигается на ближайший реально достижимый ход — не остаётся недостижимой навсегда.</summary>
+    [Fact]
+    public void Confirm_Moves_An_Already_Elapsed_Spot_Delivery_Turn_Forward_To_The_Next_Reachable_Turn()
+    {
+        var terms = new ContractTerms(
+            ContractType.Spot, Sheet, 10m, 20m, 0.1m, effectiveTurn: 1, spotDeliveryTurn: 5, recurringEndTurn: null);
+        var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), terms, "ABC123");
+
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, currentTurn: 10);
+
+        Assert.Equal(11, contract.Terms.SpotDeliveryTurn); // расчёт хода 10 уже прошёл — ближайший достижимый 11
     }
 }

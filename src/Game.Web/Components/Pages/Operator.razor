@@ -169,7 +169,7 @@ else
                         c.Terms.Material.Name,
                         DashboardDisplay.ContractTypeLabel(c.Terms.Type),
                         c.Terms.Volume, c.Terms.UnitPrice, c.ConfirmationCode,
-                        DashboardDisplay.FormatTurnRange(c.Terms.Type, c.Terms.EffectiveTurn, c.Terms.SpotDeliveryTurn, c.Terms.RecurringEndTurn));
+                        DashboardDisplay.FormatTurnRange(c.Terms.Type, c.Status, c.Terms.EffectiveTurn, c.Terms.SpotDeliveryTurn, c.Terms.RecurringEndTurn));
                 })
                 .ToList();
         }

@@ -2,11 +2,15 @@ namespace Game.Domain;
 
 /// <summary>
 /// Сделка между двумя командами на уровне команды и типа продукции, не конкретной фабрики
-/// (SPEC §6). Условия (<see cref="Terms"/>) неизменяемы после создания — меняется только
-/// <see cref="Status"/>. В реальном потоке возникает через <see cref="ContractFormation.TryMatch"/>,
-/// когда независимо поданные заявки обеих сторон совпали; конструктор публичный — как и у
-/// остальных сущностей домена (<see cref="Team"/>, <see cref="Factory"/>), чтобы оставаться
-/// тестируемым напрямую.
+/// (SPEC §6). Условия (<see cref="Terms"/>) неизменяемы после создания с единственным исключением:
+/// <see cref="ResolveTermsForActivation"/> разрешает «ход вступления в силу» в реальный номер хода
+/// один раз, при активации (см. её doc-comment — запрос пользователя по живому логу: заранее
+/// выбранный ход вступления в силу успевал пройти, пока контрагент решался подтвердить). Кроме
+/// этого разового разрешения условия так и остаются неизменны — новые условия по-прежнему
+/// оформляются как новый контракт взамен расторгнутого (пересмотр, Блок 9.3). В реальном потоке
+/// контракт возникает через <see cref="ContractFormation.TryMatch"/>, когда независимо поданные
+/// заявки обеих сторон совпали; конструктор публичный — как и у остальных сущностей домена
+/// (<see cref="Team"/>, <see cref="Factory"/>), чтобы оставаться тестируемым напрямую.
 /// </summary>
 public sealed class Contract
 {
@@ -19,8 +23,11 @@ public sealed class Contract
     /// <summary>Команда-продавец.</summary>
     public Ulid SellerTeamId { get; }
 
-    /// <summary>Условия сделки — неизменяемы на всём протяжении жизни контракта.</summary>
-    public ContractTerms Terms { get; }
+    /// <summary>
+    /// Условия сделки. Неизменяемы, кроме одного разового разрешения при активации — см. <see
+    /// cref="ResolveTermsForActivation"/>.
+    /// </summary>
+    public ContractTerms Terms { get; private set; }
 
     /// <summary>
     /// Короткий код, который команды переносят на бумажный бланк вместе с условиями — оператор
@@ -92,9 +99,10 @@ public sealed class Contract
     /// сделок» — право управляющего, не переговорщика), и только со стороны контрагента: команда,
     /// подавшая заявку (<see cref="ProposedByTeamId"/>), не может сама себе подтвердить сделку —
     /// иначе вторая сторона вообще не участвует в заключении контракта (это и была первоначальная
-    /// причина завести <see cref="ProposedByTeamId"/>).
+    /// причина завести <see cref="ProposedByTeamId"/>). <paramref name="currentTurn"/> — см. <see
+    /// cref="ResolveTermsForActivation"/>.
     /// </summary>
-    public void Confirm(TeamRole confirmingRole, Ulid confirmingTeamId)
+    public void Confirm(TeamRole confirmingRole, Ulid confirmingTeamId, int currentTurn)
     {
         if (confirmingRole != TeamRole.Manager)
         {
@@ -113,13 +121,17 @@ public sealed class Contract
             throw new InvalidOperationException($"Cannot confirm a contract in status '{Status}'.");
         }
 
+        ResolveTermsForActivation(currentTurn);
         Status = ContractStatus.Active;
     }
 
     /// <summary>
     /// Подтверждение без проверки сторон — для случаев, где согласие обеих сторон уже дано иначе
     /// (Блок 9.3: замена контракта при принятом пересмотре условий — само принятие уже и есть
-    /// согласие обеих сторон, см. <c>ContractRevisionResolved</c>).
+    /// согласие обеих сторон, см. <c>ContractRevisionResolved</c>). В отличие от <see cref="Confirm"/>
+    /// не трогает <see cref="Terms"/> — у контракта-замены при пересмотре в них уже настоящие, не
+    /// заглушечные номера ходов (пересмотреть можно только уже действующий контракт, у него ход
+    /// вступления в силу давно разрешён, см. <see cref="ResolveTermsForActivation"/>).
     /// </summary>
     public void ConfirmAutomatically()
     {
@@ -135,16 +147,61 @@ public sealed class Contract
     /// Подтверждение оператором по коду (Блок 9.5, SPEC §6, §9.4) — второй, равноправный путь к
     /// тому же результату, что и <see cref="Confirm"/>: без роли, потому что это не командное
     /// действие, а действие оператора (сама возможность вызвать метод — и есть авторизация, как у
-    /// действий ведущего).
+    /// действий ведущего). <paramref name="currentTurn"/> — см. <see cref="ResolveTermsForActivation"/>.
     /// </summary>
-    public void ConfirmByOperator()
+    public void ConfirmByOperator(int currentTurn)
     {
         if (Status != ContractStatus.PendingConfirmation)
         {
             throw new InvalidOperationException($"Cannot confirm a contract in status '{Status}'.");
         }
 
+        ResolveTermsForActivation(currentTurn);
         Status = ContractStatus.Active;
+    }
+
+    /// <summary>
+    /// Разрешает «ход вступления в силу» (и для recurring — «последний ход действия») в реальные
+    /// номера ходов на момент активации, а не на момент заявки (запрос пользователя, живой лог:
+    /// контракт заключён на одном ходу, а подтверждён контрагентом много позже — заранее выбранный
+    /// ход вступления в силу к тому моменту уже прошёл, окно поставки закрылось прежде, чем контракт
+    /// вообще стал действующим, и он навсегда замер «действующим» без единой поставки и без штрафа:
+    /// <see cref="Game.Engine.ContractExecution.IsDeliveryDue"/> для recurring требует не только
+    /// подходящего хода, но и статуса <see cref="ContractStatus.Active"/> — пока контракт висел
+    /// «Ожидает подтверждения», расчёт его окно попросту не заметил).
+    /// <para/>
+    /// Решение: «ход вступления в силу» вообще перестаёт быть условием, которое команды заранее
+    /// заявляют и обязаны совпасть в заявках (<see cref="ContractFormation.TryMatch"/> сравнивает
+    /// заглушку — см. заполнение при заявке в <c>ContractDraftForm</c>) — реальный старт настаёт
+    /// ровно тогда, когда сделка реально стала действующей. Для recurring это сдвигает всё окно
+    /// целиком на настоящий ход активации, сохраняя исходно согласованную длительность (<c>Terms.
+    /// RecurringEndTurn − Terms.EffectiveTurn</c> у ещё не разрешённых условий и есть эта
+    /// длительность минус один ход, независимо от того, какая заглушка использована для
+    /// «вступления в силу» — вычисление разностное, не завязано на её конкретное значение). Для spot
+    /// «ход вступления в силу» ни на что не влияет (<see
+    /// cref="Game.Engine.ContractExecution.IsDeliveryDue"/> использует только <see
+    /// cref="ContractTerms.SpotDeliveryTurn"/>), но если сам заранее выбранный ход поставки уже
+    /// прошёл к моменту активации — не оставляем контракт с недостижимой целью навсегда, а сдвигаем
+    /// поставку на ближайший возможный ход, той же логикой, что и любой пропущенный срок: не отказ,
+    /// а «получилось, просто позже» — отказ в подтверждении здесь злил бы игроков сильнее, чем
+    /// задержка на несколько ходов.
+    /// <para/>
+    /// «Ближайший возможный ход» — не сам <paramref name="currentTurn"/>, а следующий за ним:
+    /// подтверждение проходит только в фазе решений (<see cref="Game.Engine.GameSession.
+    /// EnsureDecisionsAllowed"/>), то есть расчёт текущего хода уже прошёл (порядок фаз — расчёт,
+    /// потом решения того же хода) и повторно не наступит; первая реально достижимая поставка —
+    /// на следующем.
+    /// </summary>
+    private void ResolveTermsForActivation(int currentTurn)
+    {
+        var nextSettlementTurn = currentTurn + 1;
+        Terms = Terms.Type == ContractType.Recurring
+            ? new ContractTerms(
+                Terms.Type, Terms.Material, Terms.Volume, Terms.UnitPrice, Terms.PenaltyRate,
+                nextSettlementTurn, spotDeliveryTurn: null, nextSettlementTurn + (Terms.RecurringEndTurn!.Value - Terms.EffectiveTurn))
+            : new ContractTerms(
+                Terms.Type, Terms.Material, Terms.Volume, Terms.UnitPrice, Terms.PenaltyRate,
+                nextSettlementTurn, Math.Max(Terms.SpotDeliveryTurn!.Value, nextSettlementTurn), recurringEndTurn: null);
     }
 
     /// <summary>

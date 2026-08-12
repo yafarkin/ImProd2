@@ -4,12 +4,16 @@ namespace Game.Engine.Tests;
 
 public class ContractExecutionTests
 {
+    // Подтверждаем на effectiveTurn-1 — Contract.ResolveTermsForActivation переносит настоящий
+    // EffectiveTurn на currentTurn+1 (подтверждение только в фазе решений, расчёт currentTurn уже
+    // прошёл), так что итоговые EffectiveTurn/DeliveryTurn/EndTurn контракта в точности совпадают с
+    // тем, что передал вызывающий тест.
     private static Contract SpotContract(int effectiveTurn, int deliveryTurn)
     {
         var terms = new ContractTerms(
             ContractType.Spot, TestGameConfig.Sheet, 10m, 20m, 0.1m, effectiveTurn, deliveryTurn, recurringEndTurn: null);
         var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), terms, "ABC123");
-        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, effectiveTurn - 1);
         return contract;
     }
 
@@ -18,7 +22,7 @@ public class ContractExecutionTests
         var terms = new ContractTerms(
             ContractType.Recurring, TestGameConfig.Sheet, 10m, 20m, 0.1m, effectiveTurn, spotDeliveryTurn: null, recurringEndTurn: endTurn);
         var contract = new Contract(Ulid.NewUlid(), Ulid.NewUlid(), Ulid.NewUlid(), terms, "ABC123");
-        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId);
+        contract.Confirm(TeamRole.Manager, contract.BuyerTeamId, effectiveTurn - 1);
         return contract;
     }
 

@@ -23,7 +23,13 @@ public sealed record ContractTerms
     /// <summary>Штраф за срыв поставки (доля от суммы поставки, 0..1).</summary>
     public decimal PenaltyRate { get; }
 
-    /// <summary>Ход, с которого контракт вступает в силу.</summary>
+    /// <summary>
+    /// Ход, с которого контракт вступает в силу. У ещё не активированного контракта (статус <see
+    /// cref="ContractStatus.PendingConfirmation"/>) — заглушка, не настоящий номер хода: обе стороны
+    /// больше не заявляют его независимо (единственное, что тут важно на этом этапе, — чтобы заявки
+    /// совпали структурно), реальное значение подставляется один раз при активации, см. <see
+    /// cref="Contract.ResolveTermsForActivation"/>.
+    /// </summary>
     public int EffectiveTurn { get; }
 
     /// <summary>Ход поставки — только для <see cref="ContractType.Spot"/>.</summary>
