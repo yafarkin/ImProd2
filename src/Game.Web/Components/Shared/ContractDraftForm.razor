@@ -50,12 +50,16 @@ else
             }
             else
             {
-                <select class="form-select" @bind="_materialId">
+                <select class="form-select" @bind="_materialId" @bind:after="RecomputePriceHint">
                     @foreach (var material in _materials)
                     {
                         <option value="@material.Id">@material.Name</option>
                     }
                 </select>
+                @if (_role == "seller" && _sellerStockQuantity is { } stockQuantity)
+                {
+                    <div class="form-text">На складе: @stockQuantity.ToString("0.##") ед.</div>
+                }
             }
         </div>
 
@@ -76,12 +80,53 @@ else
         <div>
             <label class="form-label mb-0">Цена за единицу</label>
             <input type="number" min="0.01" step="0.01" class="form-control" style="width:7em" @bind="_unitPrice" />
+            @if (_role == "seller")
+            {
+                @if (_sellerUnitCost is { } sellerUnitCost)
+                {
+                    <div class="form-text">
+                        Себестоимость@(_sellerUnitCostIsEstimate ? " (оценка по рецепту)" : ""): @DashboardDisplay.FormatUnitCost(sellerUnitCost)
+                    </div>
+                }
+                else
+                {
+                    <div class="form-text text-muted">Себестоимость неизвестна</div>
+                }
+            }
+            else
+            {
+                @if (_buyerMarketPrice is { } buyerMarketPrice)
+                {
+                    <div class="form-text">Рыночная цена: @DashboardDisplay.FormatUnitCost(buyerMarketPrice)</div>
+                }
+                else
+                {
+                    <div class="form-text text-muted">Нет рыночной котировки</div>
+                }
+            }
         </div>
         <div>
             <label class="form-label mb-0">Ставка штрафа за срыв</label>
             <input type="number" min="0" max="1" step="0.01" class="form-control" style="width:6em" @bind="_penaltyRate" />
         </div>
     </div>
+
+    @if (_role == "seller")
+    {
+        var revenue = _volume * _unitPrice;
+        <div class="row row-cols-auto g-3 align-items-end mb-2">
+            <div>
+                <div class="form-text">Доход @DeliveryPeriodLabel: @DashboardDisplay.FormatMoney(revenue)</div>
+                @if (_sellerUnitCost is { } sellerUnitCostForProfit)
+                {
+                    var profit = revenue - sellerUnitCostForProfit * _volume;
+                    <div class="form-text @(profit >= 0 ? "text-success" : "text-danger")">
+                        Прибыль @DeliveryPeriodLabel: @DashboardDisplay.FormatMoney(profit)
+                    </div>
+                }
+            </div>
+        </div>
+    }
 
     <div class="row row-cols-auto g-3 align-items-end mb-3">
         @if (_type == ContractType.Spot)
@@ -129,6 +174,10 @@ else
     private ContractType _type = ContractType.Spot;
     private decimal _volume = 10m;
     private decimal _unitPrice = 10m;
+    private decimal? _sellerUnitCost;
+    private bool _sellerUnitCostIsEstimate;
+    private decimal? _sellerStockQuantity;
+    private decimal? _buyerMarketPrice;
     private decimal _penaltyRate = 0.1m;
     private int _spotDeliveryTurn = 1;
     private bool _recurringIndefinite;
@@ -136,6 +185,11 @@ else
 
     private string? _errorMessage;
     private string? _successMessage;
+
+    /// <summary>Подпись периода для дохода/прибыли (запрос пользователя: «я знаю, сколько буду каждый
+    /// ход или разово поставлять») — разовая сделка приносит доход один раз, регулярная — на каждом
+    /// ходу действия контракта.</summary>
+    private string DeliveryPeriodLabel => _type == ContractType.Spot ? "разово" : "за ход";
 
     protected override void OnParametersSet() => Refresh();
 
@@ -203,6 +257,72 @@ else
         if (_materialId is null || _materials.All(m => m.Id != _materialId))
         {
             _materialId = _materials.Count > 0 ? _materials[0].Id : null;
+        }
+
+        RecomputePriceHint();
+    }
+
+    /// <summary>
+    /// Подсказки рядом с «Материал»/«Цена за единицу» (запрос пользователя: при заключении сделки
+    /// сразу видеть, не продаём/не покупаем ли мы себе в убыток, и сколько товара вообще есть в
+    /// наличии для продажи) — для продавца это остаток на складе (<see
+    /// cref="Warehouse.QuantityOf"/>) и реальная себестоимость товара (<see
+    /// cref="Warehouse.AverageCostOf"/>, тот же приём, что и в <see
+    /// cref="FactoryProfitabilityCalculator"/>), с запасным вариантом для себестоимости —
+    /// теоретическая оценка по рецепту «с нуля» (<see cref="DashboardDisplay.TryCalculateUnitCost"/>),
+    /// если этот материал ещё ни разу не производился и на складе взять нечего; для покупателя —
+    /// просто текущая рыночная котировка. Пересчитывается при смене роли и материала (см. вызовы у
+    /// соответствующих select).
+    /// </summary>
+    private void RecomputePriceHint()
+    {
+        _sellerUnitCost = null;
+        _sellerUnitCostIsEstimate = false;
+        _sellerStockQuantity = null;
+        _buyerMarketPrice = null;
+
+        if (_materialId is null)
+        {
+            return;
+        }
+
+        lock (Host.SyncRoot)
+        {
+            if (Host.Session is null)
+            {
+                return;
+            }
+
+            var state = Host.Session.State;
+            if (!state.Config.Materials.TryGetValue(_materialId, out var material))
+            {
+                return;
+            }
+
+            if (_role == "seller")
+            {
+                if (!state.Teams.TryGetValue(TeamId, out var ourTeam))
+                {
+                    return;
+                }
+
+                _sellerStockQuantity = ourTeam.Warehouse.QuantityOf(material);
+
+                var realCost = ourTeam.Warehouse.AverageCostOf(material);
+                if (realCost > 0m)
+                {
+                    _sellerUnitCost = realCost;
+                }
+                else if (DashboardDisplay.TryCalculateUnitCost(material, state, out var estimatedCost))
+                {
+                    _sellerUnitCost = estimatedCost;
+                    _sellerUnitCostIsEstimate = true;
+                }
+            }
+            else if (state.Market.HasQuote(_materialId))
+            {
+                _buyerMarketPrice = state.Market.QuoteOf(_materialId).Price;
+            }
         }
     }
 
