@@ -61,6 +61,12 @@
       "Level": 3
     },
     {
+      "Id": "cast-iron",
+      "Name": "Литейный чугун (переплав для литья)",
+      "SectorId": "A",
+      "Level": 3
+    },
+    {
       "Id": "billet",
       "Name": "Сортовая заготовка",
       "SectorId": "A",
@@ -69,6 +75,12 @@
     {
       "Id": "slab",
       "Name": "Стальной сляб",
+      "SectorId": "A",
+      "Level": 4
+    },
+    {
+      "Id": "engine-block-castings",
+      "Name": "Литые заготовки блока цилиндров",
       "SectorId": "A",
       "Level": 4
     },
@@ -85,6 +97,12 @@
       "Level": 5
     },
     {
+      "Id": "heat-treated-castings",
+      "Name": "Термообработанные отливки блока",
+      "SectorId": "A",
+      "Level": 5
+    },
+    {
       "Id": "forged-blanks",
       "Name": "Кованые заготовки",
       "SectorId": "A",
@@ -97,14 +115,26 @@
       "Level": 6
     },
     {
+      "Id": "rough-machined-block",
+      "Name": "Блок цилиндров после черновой расточки",
+      "SectorId": "A",
+      "Level": 6
+    },
+    {
       "Id": "machined-parts",
-      "Name": "Детали механической обработки (шестерни, валы)",
+      "Name": "Детали механической обработки (шестерни, валы, шатуны, клапаны)",
       "SectorId": "A",
       "Level": 7
     },
     {
       "Id": "stamped-panels",
       "Name": "Штампованные кузовные панели",
+      "SectorId": "A",
+      "Level": 7
+    },
+    {
+      "Id": "engine-block-finished",
+      "Name": "Блок цилиндров, чистовая обработка",
       "SectorId": "A",
       "Level": 7
     },
@@ -117,6 +147,12 @@
     {
       "Id": "welded-body",
       "Name": "Сварной кузов",
+      "SectorId": "A",
+      "Level": 8
+    },
+    {
+      "Id": "engine",
+      "Name": "Двигатель в сборе",
       "SectorId": "A",
       "Level": 8
     },
@@ -225,6 +261,18 @@
       "ProductionRate": 90
     },
     {
+      "Id": "cast-iron-from-pig-iron",
+      "OutputMaterialId": "cast-iron",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pig-iron",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 90
+    },
+    {
       "Id": "billet-from-crude-steel",
       "OutputMaterialId": "billet",
       "OutputQuantity": 1,
@@ -247,6 +295,18 @@
         }
       ],
       "ProductionRate": 55
+    },
+    {
+      "Id": "engine-block-castings-from-cast-iron",
+      "OutputMaterialId": "engine-block-castings",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "cast-iron",
+          "Quantity": 1.2
+        }
+      ],
+      "ProductionRate": 50
     },
     {
       "Id": "forging-bar-from-billet",
@@ -273,6 +333,18 @@
       "ProductionRate": 35
     },
     {
+      "Id": "heat-treated-castings-from-castings",
+      "OutputMaterialId": "heat-treated-castings",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "engine-block-castings",
+          "Quantity": 1.05
+        }
+      ],
+      "ProductionRate": 32
+    },
+    {
       "Id": "forged-blanks-from-forging-bar",
       "OutputMaterialId": "forged-blanks",
       "OutputQuantity": 1,
@@ -297,6 +369,18 @@
       "ProductionRate": 20
     },
     {
+      "Id": "rough-machined-block-from-castings",
+      "OutputMaterialId": "rough-machined-block",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "heat-treated-castings",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 18
+    },
+    {
       "Id": "machined-parts-from-forged-blanks",
       "OutputMaterialId": "machined-parts",
       "OutputQuantity": 1,
@@ -319,6 +403,18 @@
         }
       ],
       "ProductionRate": 12
+    },
+    {
+      "Id": "engine-block-finished-from-rough-machined",
+      "OutputMaterialId": "engine-block-finished",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "rough-machined-block",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 10
     },
     {
       "Id": "gearbox-assembly-from-parts",
@@ -353,6 +449,26 @@
       "ProductionRate": 6
     },
     {
+      "Id": "engine-from-parts",
+      "OutputMaterialId": "engine",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "engine-block-finished",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "machined-parts",
+          "Quantity": 6
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 60
+        }
+      ],
+      "ProductionRate": 5
+    },
+    {
       "Id": "automobile-assembly",
       "OutputMaterialId": "automobile",
       "OutputQuantity": 1,
@@ -366,8 +482,12 @@
           "Quantity": 1
         },
         {
+          "MaterialId": "engine",
+          "Quantity": 1
+        },
+        {
           "MaterialId": "fasteners",
-          "Quantity": 40
+          "Quantity": 60
         }
       ],
       "ProductionRate": 2
@@ -474,6 +594,17 @@
       "FixedCostPerTurn": 64
     },
     {
+      "Id": "foundry-cupola",
+      "Name": "Литейный цех (вагранка)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "cast-iron-from-pig-iron"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64
+    },
+    {
       "Id": "billet-caster",
       "Name": "Машина непрерывного литья заготовок (сорт)",
       "SectorId": "A",
@@ -490,6 +621,17 @@
       "SectorId": "A",
       "RecipeIds": [
         "slab-from-crude-steel"
+      ],
+      "BuildCost": 4200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 84
+    },
+    {
+      "Id": "engine-block-foundry",
+      "Name": "Литейный участок блоков цилиндров",
+      "SectorId": "A",
+      "RecipeIds": [
+        "engine-block-castings-from-cast-iron"
       ],
       "BuildCost": 4200,
       "LiquidationValueCoefficient": 0.5,
@@ -518,6 +660,17 @@
       "FixedCostPerTurn": 104
     },
     {
+      "Id": "stress-relief-shop",
+      "Name": "Цех термообработки отливок",
+      "SectorId": "A",
+      "RecipeIds": [
+        "heat-treated-castings-from-castings"
+      ],
+      "BuildCost": 5200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 104
+    },
+    {
       "Id": "forge-shop",
       "Name": "Кузнечный цех",
       "SectorId": "A",
@@ -534,6 +687,17 @@
       "SectorId": "A",
       "RecipeIds": [
         "cold-rolled-sheet-from-hot-rolled-sheet"
+      ],
+      "BuildCost": 6800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 136
+    },
+    {
+      "Id": "rough-machining-shop",
+      "Name": "Цех черновой расточки блоков",
+      "SectorId": "A",
+      "RecipeIds": [
+        "rough-machined-block-from-castings"
       ],
       "BuildCost": 6800,
       "LiquidationValueCoefficient": 0.5,
@@ -562,6 +726,17 @@
       "FixedCostPerTurn": 180
     },
     {
+      "Id": "precision-machining-shop",
+      "Name": "Цех чистовой обработки блоков цилиндров",
+      "SectorId": "A",
+      "RecipeIds": [
+        "engine-block-finished-from-rough-machined"
+      ],
+      "BuildCost": 9000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 180
+    },
+    {
       "Id": "gearbox-plant",
       "Name": "Завод коробок передач",
       "SectorId": "A",
@@ -578,6 +753,17 @@
       "SectorId": "A",
       "RecipeIds": [
         "welded-body-from-panels"
+      ],
+      "BuildCost": 14000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 280
+    },
+    {
+      "Id": "engine-assembly-plant",
+      "Name": "Моторный завод (сборка двигателей)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "engine-from-parts"
       ],
       "BuildCost": 14000,
       "LiquidationValueCoefficient": 0.5,
@@ -642,12 +828,22 @@
       "BaseCapacity": 400
     },
     {
+      "MaterialId": "cast-iron",
+      "BasePrice": 14,
+      "BaseCapacity": 400
+    },
+    {
       "MaterialId": "billet",
       "BasePrice": 22,
       "BaseCapacity": 220
     },
     {
       "MaterialId": "slab",
+      "BasePrice": 22,
+      "BaseCapacity": 220
+    },
+    {
+      "MaterialId": "engine-block-castings",
       "BasePrice": 22,
       "BaseCapacity": 220
     },
@@ -662,12 +858,22 @@
       "BaseCapacity": 120
     },
     {
+      "MaterialId": "heat-treated-castings",
+      "BasePrice": 34,
+      "BaseCapacity": 120
+    },
+    {
       "MaterialId": "forged-blanks",
       "BasePrice": 55,
       "BaseCapacity": 60
     },
     {
       "MaterialId": "cold-rolled-sheet",
+      "BasePrice": 55,
+      "BaseCapacity": 60
+    },
+    {
+      "MaterialId": "rough-machined-block",
       "BasePrice": 55,
       "BaseCapacity": 60
     },
@@ -682,6 +888,11 @@
       "BaseCapacity": 28
     },
     {
+      "MaterialId": "engine-block-finished",
+      "BasePrice": 95,
+      "BaseCapacity": 28
+    },
+    {
       "MaterialId": "gearbox-assembly",
       "BasePrice": 900,
       "BaseCapacity": 5
@@ -692,9 +903,14 @@
       "BaseCapacity": 5
     },
     {
+      "MaterialId": "engine",
+      "BasePrice": 1200,
+      "BaseCapacity": 4
+    },
+    {
       "MaterialId": "automobile",
-      "BasePrice": 4200,
-      "BaseCapacity": 1.2
+      "BasePrice": 4800,
+      "BaseCapacity": 1
     }
   ],
   "GenerationResearch": {
