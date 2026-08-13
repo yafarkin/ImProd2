@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Game.Config.Loading;
+using Game.Config.ProductionModel;
 using Game.Config.Session;
 using Game.Domain;
 using Game.Engine;
@@ -252,15 +253,30 @@ public sealed class GameSessionHost
     /// <summary>Конфиг по умолчанию (SPEC-заглушка пилота) — предложен на экране администратора, может быть заменён загрузкой своего файла.</summary>
     public ResolvedGameConfig DefaultConfig { get; }
 
-    /// <summary>Тренировочный конфиг (Блок 10.2, SPEC §10) — те же секторы/материалы, что и <see cref="DefaultConfig"/>, но короткий пресет (8–10 ходов), суммарно ~50–60 минут на сессию.</summary>
+    /// <summary>Тренировочный конфиг (Блок 10.2, SPEC §10) — та же производственная модель, что и <see cref="DefaultConfig"/>, но короткий пресет (8–10 ходов), суммарно ~50–60 минут на сессию.</summary>
     public ResolvedGameConfig TrainingConfig { get; }
 
     /// <summary>
-    /// Отладочный конфиг — те же секторы/материалы, что и <see cref="DefaultConfig"/>, но очень
-    /// короткий ход (30 секунд суммарно на фазы) и длинная сессия (300 ходов), чтобы наблюдать в
-    /// динамике, как меняются цифры и графики, не дожидаясь реальной игры.
+    /// Отладочный конфиг — отладочная производственная модель (крупнее <see cref="DefaultConfig"/>,
+    /// чтобы было на чём смотреть длинные цепочки) и очень короткий ход (30 секунд суммарно на фазы),
+    /// 300 ходов подряд, чтобы наблюдать в динамике, как меняются цифры и графики, не дожидаясь
+    /// реальной игры.
     /// </summary>
     public ResolvedGameConfig DebugConfig { get; }
+
+    /// <summary>
+    /// Производственные модели (каталог секторов/материалов/рецептов/фабрик), из которых
+    /// администратор выбирает одну перед стартом сессии — независимо от сессионных параметров (см.
+    /// <see cref="SessionConfigs"/>). Ключ — имя файла без расширения (<c>Samples/production-models</c>).
+    /// </summary>
+    public IReadOnlyDictionary<string, ProductionModelConfig> ProductionModels { get; }
+
+    /// <summary>
+    /// Сессионные параметры (длительность, тайминг, сложность, включённые механики), из которых
+    /// администратор выбирает один перед стартом сессии — независимо от производственной модели (см.
+    /// <see cref="ProductionModels"/>). Ключ — имя файла без расширения (<c>Samples/sessions</c>).
+    /// </summary>
+    public IReadOnlyDictionary<string, SessionConfig> SessionConfigs { get; }
 
     /// <summary>
     /// Код входа первого администратора — обычная запись с ролью
@@ -280,14 +296,17 @@ public sealed class GameSessionHost
         ArgumentNullException.ThrowIfNull(logger);
         _logger = logger;
 
-        var defaultConfigPath = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
-        DefaultConfig = GameConfigLoader.LoadFromFile(defaultConfigPath);
+        var productionModelsDirectory = Path.Combine(AppContext.BaseDirectory, "Samples", "production-models");
+        ProductionModels = Directory.EnumerateFiles(productionModelsDirectory, "*.json")
+            .ToDictionary(path => Path.GetFileNameWithoutExtension(path)!, GameConfigLoader.LoadProductionModelFromFile);
 
-        var trainingConfigPath = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.training.json");
-        TrainingConfig = GameConfigLoader.LoadFromFile(trainingConfigPath);
+        var sessionsDirectory = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions");
+        SessionConfigs = Directory.EnumerateFiles(sessionsDirectory, "*.json")
+            .ToDictionary(path => Path.GetFileNameWithoutExtension(path)!, GameConfigLoader.LoadSessionFromFile);
 
-        var debugConfigPath = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.debug.json");
-        DebugConfig = GameConfigLoader.LoadFromFile(debugConfigPath);
+        DefaultConfig = GameConfigLoader.Load(ProductionModels["standard"], SessionConfigs["pilot"]);
+        TrainingConfig = GameConfigLoader.Load(ProductionModels["standard"], SessionConfigs["training"]);
+        DebugConfig = GameConfigLoader.Load(ProductionModels["debug"], SessionConfigs["debug"]);
 
         _sessionDirectory = Path.Combine(AppContext.BaseDirectory, "App_Data", "session");
         Directory.CreateDirectory(_sessionDirectory);

@@ -8,24 +8,50 @@ public class GameConfigLoaderTests
     private static string SampleConfigPath =>
         Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
 
+    private static string ProductionModelPath(string fileName) =>
+        Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", fileName);
+
+    private static string SessionPath(string fileName) =>
+        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", fileName);
+
     /// <summary>
-    /// Все три конфига, которые реально раздаёт `GameSessionHost` (админка «Полный»/«Отладочный»/
-    /// «Тренировочный»), должны проходить полную валидацию ссылочной целостности — не только pilot,
-    /// который проверяют остальные тесты этого файла подробно. Ловит опечатки в каталоге (например,
-    /// RecipeId, оставшийся от удалённого при слиянии типа фабрики), которые деsериализация сама по
-    /// себе не заметит.
+    /// Все производственные модели, которые реально раздаёт `GameSessionHost`, должны сочетаться с
+    /// любым сессионным набором и в любой комбинации проходить полную валидацию ссылочной
+    /// целостности — это и есть смысл разреза модель/сессия (Block, запрос пользователя): их можно
+    /// свободно комбинировать, а не только использовать в предустановленных парах. Ловит опечатки в
+    /// каталоге (например, RecipeId, оставшийся от удалённого при слиянии типа фабрики), которые
+    /// десериализация сама по себе не заметит.
     /// </summary>
     [Theory]
-    [InlineData("gameconfig.pilot.json")]
-    [InlineData("gameconfig.debug.json")]
-    [InlineData("gameconfig.training.json")]
-    public void LoadFromFile_Resolves_Every_Deployed_Sample_Config_Without_Validation_Errors(string fileName)
+    [InlineData("standard.json", "pilot.json")]
+    [InlineData("standard.json", "training.json")]
+    [InlineData("standard.json", "debug.json")]
+    [InlineData("debug.json", "pilot.json")]
+    [InlineData("debug.json", "training.json")]
+    [InlineData("debug.json", "debug.json")]
+    public void LoadFromFiles_Resolves_Every_Model_Session_Combination_Without_Validation_Errors(
+        string productionModelFileName, string sessionFileName)
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Samples", fileName);
-
-        var resolved = GameConfigLoader.LoadFromFile(path);
+        var resolved = GameConfigLoader.LoadFromFiles(
+            ProductionModelPath(productionModelFileName), SessionPath(sessionFileName));
 
         Assert.NotEmpty(resolved.FactoryDefinitions);
+    }
+
+    /// <summary>
+    /// Разрез на модель+сессию (см. <see cref="GameConfigComposer"/>) не должен терять или менять ни
+    /// одного значения по сравнению со старым единым файлом: `standard.json` + `pilot.json` —
+    /// это ровно тот же каталог/экономика/сессия, что и раньше был в одном `gameconfig.pilot.json`.
+    /// </summary>
+    [Fact]
+    public void LoadFromFiles_Of_Standard_And_Pilot_Reproduces_Legacy_Combined_Sample()
+    {
+        var fromSplitFiles = GameConfigLoader.LoadFromFiles(ProductionModelPath("standard.json"), SessionPath("pilot.json"));
+        var fromCombinedFile = GameConfigLoader.LoadFromFile(SampleConfigPath);
+
+        Assert.Equal(
+            System.Text.Json.JsonSerializer.Serialize(fromCombinedFile.Raw),
+            System.Text.Json.JsonSerializer.Serialize(fromSplitFiles.Raw));
     }
 
     [Fact]

@@ -25,10 +25,10 @@
     <None Include="..\..\src\Game.Config\Samples\gameconfig.pilot.json" Link="Samples\gameconfig.pilot.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\src\Game.Config\Samples\gameconfig.training.json" Link="Samples\gameconfig.training.json">
+    <None Include="..\..\src\Game.Config\Samples\production-models\**\*.json" Link="Samples\production-models\%(RecursiveDir)%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\src\Game.Config\Samples\gameconfig.debug.json" Link="Samples\gameconfig.debug.json">
+    <None Include="..\..\src\Game.Config\Samples\sessions\**\*.json" Link="Samples\sessions\%(RecursiveDir)%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

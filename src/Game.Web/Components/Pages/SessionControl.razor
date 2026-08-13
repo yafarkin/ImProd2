@@ -4,6 +4,7 @@
 @implements IDisposable
 @inject GameSessionHost Host
 @using Game.Config.Loading
+@using Game.Config.ProductionModel
 @using Game.Config.Session
 
 <PageTitle>Сессия</PageTitle>
@@ -28,18 +29,36 @@
         <h2 class="mt-3">Конфигурация игры</h2>
         <p class="text-muted">
             <em>
-                Загружать файл обычно не нужно — рабочий конфиг по умолчанию уже подключён (секторы,
-                материалы, рецепты, экономика и т.д., см. счётчики выше). Свой файл имеет смысл
-                загружать, только если заранее подготовлен другой набор правил под конкретное
-                мероприятие — в том же JSON-формате. «Тренировочный» и «Отладочный» ниже — уже готовые
-                альтернативы: короче по ходам и быстрее по времени фазы, для разминки и для отладки
-                интерфейса, готовить файл руками для них не нужно.
+                Производственная модель (секторы, материалы, рецепты, фабрики, цены) и сессионные
+                параметры (длительность, тайминг, сложность, включённые механики) выбираются
+                независимо друг от друга — любая модель сочетается с любым сессионным набором.
+                Загружать свой файл целиком имеет смысл, только если заранее подготовлен другой набор
+                правил под конкретное мероприятие — в том же JSON-формате.
             </em>
         </p>
+        <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+            <div>
+                <label for="productionModelSelect" class="form-label d-block">Производственная модель</label>
+                <select id="productionModelSelect" class="form-select" @bind="_selectedProductionModelId">
+                    @foreach (var (id, model) in Host.ProductionModels)
+                    {
+                        <option value="@id">@ProductionModelLabel(id, model)</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label for="sessionConfigSelect" class="form-label d-block">Сессионные параметры</label>
+                <select id="sessionConfigSelect" class="form-select" @bind="_selectedSessionConfigId">
+                    @foreach (var (id, session) in Host.SessionConfigs)
+                    {
+                        <option value="@id">@SessionConfigLabel(id, session)</option>
+                    }
+                </select>
+            </div>
+            <button type="button" class="btn btn-secondary" @onclick="ApplyProductionModelAndSession">Применить</button>
+        </div>
         <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
             <InputFile OnChange="OnConfigFileSelected" class="form-control d-inline-block w-auto" />
-            <button type="button" class="btn btn-secondary" @onclick="UseTrainingConfig">Тренировочный конфиг (короткие ходы, ~8-10)</button>
-            <button type="button" class="btn btn-secondary" @onclick="UseDebugConfig">Отладочный конфиг (30 сек/ход, 300 ходов)</button>
             <a href="/admin/price-ladder" class="btn btn-secondary">Пересчитать цены продажи системе</a>
         </div>
 
@@ -178,6 +197,8 @@ else
 
     private bool _isAdministrator;
 
+    private string? _selectedProductionModelId;
+    private string? _selectedSessionConfigId;
     private string? _selectedPresetId;
     private string? _resetPresetId;
     private string? _errorMessage;
@@ -213,6 +234,8 @@ else
 
         _selectedPresetId = Host.DraftConfig.Raw.SessionPresets.Count > 0 ? Host.DraftConfig.Raw.SessionPresets[0].Id : null;
         _resetPresetId = Host.DefaultConfig.Raw.SessionPresets.Count > 0 ? Host.DefaultConfig.Raw.SessionPresets[0].Id : null;
+        _selectedProductionModelId = Host.ProductionModels.ContainsKey("standard") ? "standard" : Host.ProductionModels.Keys.FirstOrDefault();
+        _selectedSessionConfigId = Host.SessionConfigs.ContainsKey("pilot") ? "pilot" : Host.SessionConfigs.Keys.FirstOrDefault();
         SyncPhaseTimingFields();
 
         Refresh();
@@ -276,18 +299,60 @@ else
         _settlementSeconds = Host.DraftConfig.Raw.PhaseTiming.SettlementPhaseSeconds;
     }
 
-    private void UseTrainingConfig()
+    // Человекочитаемые названия — только для подписи в списке; неизвестный id (новый файл сэмпла,
+    // ещё не описанный здесь) просто показывается как есть, ничего не ломает.
+    private static readonly IReadOnlyDictionary<string, string> ProductionModelNames = new Dictionary<string, string>
     {
-        _errorMessage = null;
-        Host.SetDraftConfig(Host.TrainingConfig);
-        SyncPhaseTimingFields();
+        ["standard"] = "Стандартная",
+        ["debug"] = "Отладочная (расширенный каталог)",
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> SessionConfigNames = new Dictionary<string, string>
+    {
+        ["pilot"] = "Пилот",
+        ["training"] = "Тренировочная (короткие ходы, ~8-10)",
+        ["debug"] = "Отладочная (30 сек/ход, 300 ходов)",
+    };
+
+    private static string ProductionModelLabel(string id, ProductionModelConfig model)
+    {
+        var name = ProductionModelNames.TryGetValue(id, out var known) ? known : id;
+        return $"{name} — {model.Materials.Count} материалов, {model.Sectors.Count} секторов";
     }
 
-    private void UseDebugConfig()
+    private static string SessionConfigLabel(string id, SessionConfig session)
+    {
+        var name = SessionConfigNames.TryGetValue(id, out var known) ? known : id;
+        return session.SessionPresets.Count == 1
+            ? $"{name} ({session.SessionPresets[0].MinTurns}-{session.SessionPresets[0].MaxTurns} ходов)"
+            : $"{name} ({session.SessionPresets.Count} пресетов длительности)";
+    }
+
+    private void ApplyProductionModelAndSession()
     {
         _errorMessage = null;
-        Host.SetDraftConfig(Host.DebugConfig);
-        SyncPhaseTimingFields();
+
+        if (_selectedProductionModelId is null || !Host.ProductionModels.TryGetValue(_selectedProductionModelId, out var model))
+        {
+            _errorMessage = "Выберите производственную модель.";
+            return;
+        }
+
+        if (_selectedSessionConfigId is null || !Host.SessionConfigs.TryGetValue(_selectedSessionConfigId, out var session))
+        {
+            _errorMessage = "Выберите сессионные параметры.";
+            return;
+        }
+
+        try
+        {
+            Host.SetDraftConfig(GameConfigLoader.Load(model, session));
+            SyncPhaseTimingFields();
+        }
+        catch (GameConfigValidationException ex)
+        {
+            _errorMessage = ex.Message;
+        }
     }
 
     private async Task OnConfigFileSelected(InputFileChangeEventArgs e)

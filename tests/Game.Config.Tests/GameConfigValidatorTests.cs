@@ -235,4 +235,34 @@ public class GameConfigValidatorTests
 
         Assert.Contains(errors, error => error.Contains("Circular production dependency"));
     }
+
+    /// <summary>
+    /// Все проверки этого класса целиком внутри производственной модели (Sectors/Materials/Recipes/
+    /// FactoryDefinitions) — <see cref="GameConfigValidator.ValidateProductionModel"/> должен находить
+    /// те же проблемы, что и <see cref="GameConfigValidator.Validate"/> на уже собранном конфиге, не
+    /// дожидаясь выбора сессионных параметров.
+    /// </summary>
+    [Fact]
+    public void ValidateProductionModel_Reports_The_Same_Problems_As_Validate_On_The_Composed_Config()
+    {
+        var productionModel = new Game.Config.ProductionModel.ProductionModelConfig
+        {
+            Sectors = new[] { SectorA },
+            Materials = new[] { Ore with { SectorId = "Z" } },
+            Recipes = Array.Empty<RecipeConfig>(),
+            FactoryDefinitions = Array.Empty<FactoryDefinitionConfig>(),
+            BaseMarketPerMaterial = Array.Empty<Game.Config.Economy.MaterialMarketConfig>(),
+            GenerationResearch = new Game.Config.Economy.GenerationResearchConfig
+            {
+                StartingGeneration = 1,
+                ResearchPointThresholdsByGeneration = Array.Empty<decimal>(),
+                DiminishingReturnsExponent = 0.5m,
+                MaxCommitmentPerTurn = 100m,
+            },
+        };
+
+        var errors = GameConfigValidator.ValidateProductionModel(productionModel);
+
+        Assert.Contains(errors, error => error.Contains("unknown sector 'Z'"));
+    }
 }

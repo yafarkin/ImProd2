@@ -159,7 +159,7 @@ public static class MaterialChainDiagram
         }
 
         // OrderByDescending стабилен: при равном количестве побеждает вход, объявленный в рецепте
-        // первым (по конвенции конфига — это и есть «свой» ингредиент, см. gameconfig.debug.json).
+        // первым (по конвенции конфига — это и есть «свой» ингредиент, см. Samples/production-models/debug.json).
         var primaryInput = recipe.Inputs.OrderByDescending(input => input.Quantity).First();
 
         return nodeByMaterialId.TryGetValue(primaryInput.Material.Id, out var predecessorNode)

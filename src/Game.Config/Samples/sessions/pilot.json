@@ -1,0 +1,219 @@
+{
+  "StartingConditions": {
+    "MaxStartingLoanAmount": 10000,
+    "BaseLoanInterestRate": 0.005,
+    "LoanInterestRateGrowthPerUnitBorrowed": 1e-07,
+    "ForcedLoanPenaltyRatePerOccurrence": 0.05,
+    "MaxReputationRatePenalty": 0.1,
+    "MandatoryRepaymentRatePerTurn": 0.005,
+    "MaxTotalDebt": 10000000
+  },
+  "SessionPresets": [
+    {
+      "Id": "short",
+      "Name": "Короткая",
+      "MinTurns": 15,
+      "MaxTurns": 20,
+      "TurnDurationMinutes": 7
+    },
+    {
+      "Id": "medium",
+      "Name": "Средняя",
+      "MinTurns": 25,
+      "MaxTurns": 35,
+      "TurnDurationMinutes": 8
+    },
+    {
+      "Id": "full",
+      "Name": "Полная",
+      "MinTurns": 40,
+      "MaxTurns": 60,
+      "TurnDurationMinutes": 10
+    }
+  ],
+  "PhaseTiming": {
+    "SettlementPhaseSeconds": 20,
+    "DecisionPhaseSeconds": 300
+  },
+  "Economy": {
+    "EmergencyPurchaseBaseMultiplier": 1.5,
+    "EmergencyPurchasePressureMultiplierPerUnit": 0.05,
+    "EmergencyPurchasePressureHalfLifeTurns": 3,
+    "MarginMultiplierByProcessingLevel": [
+      {
+        "Level": 1,
+        "MarginMultiplier": 1.0
+      },
+      {
+        "Level": 2,
+        "MarginMultiplier": 1.15
+      },
+      {
+        "Level": 3,
+        "MarginMultiplier": 1.3
+      },
+      {
+        "Level": 4,
+        "MarginMultiplier": 1.5
+      }
+    ],
+    "MarketCapacityOverflowDiscount": 0.5,
+    "ElectricityBasePrice": 2.0,
+    "ElectricityConsumptionPerOutputUnit": 0.01,
+    "TrendScenario": [
+      {
+        "Trend": "Stable",
+        "StartTurn": 1,
+        "EndTurn": 10,
+        "PriceChangePerTurn": 0,
+        "CapacityChangePerTurn": 0
+      },
+      {
+        "Trend": "Up",
+        "StartTurn": 11,
+        "EndTurn": 25,
+        "PriceChangePerTurn": 0.5,
+        "CapacityChangePerTurn": 2
+      },
+      {
+        "Trend": "Down",
+        "StartTurn": 26,
+        "EndTurn": 35,
+        "PriceChangePerTurn": -0.5,
+        "CapacityChangePerTurn": -2
+      }
+    ],
+    "WarehouseLiquidationRate": 0.5
+  },
+  "WorkerProductivity": {
+    "BaseWorkerCount": 10,
+    "DiminishingReturnsFactor": 0.5,
+    "HireCostPerWorker": 50,
+    "FireCostPerWorker": 30,
+    "SalaryPerWorkerPerTurn": 5,
+    "TeamSalaryBaseWorkerCount": 30,
+    "SalaryEscalationFactor": 1.5
+  },
+  "Rnd": {
+    "ResearchPointThresholdsByLevel": [
+      32,
+      55,
+      77
+    ],
+    "DiminishingReturnsExponent": 0.5,
+    "ProductionRateBonusPerLevel": 0.1,
+    "MaxCommitmentPerTurn": 200
+  },
+  "Wear": {
+    "GracePeriodTurns": 8,
+    "BaseWearRatePerTurn": 0.01,
+    "AccelerationFactorPerTurn": 0.004,
+    "MaxUpkeepPenaltyMultiplier": 0.5,
+    "OverhaulTiers": [
+      {
+        "Id": "prevention",
+        "Name": "Профилактика",
+        "MinCondition": 0.9,
+        "CostFraction": 0.02,
+        "DurationTurns": 1,
+        "OutputMultiplier": 0.97,
+        "SalaryRate": 1.0,
+        "UpkeepRate": 1.0
+      },
+      {
+        "Id": "scheduled",
+        "Name": "Плановое обслуживание",
+        "MinCondition": 0.75,
+        "CostFraction": 0.06,
+        "DurationTurns": 1,
+        "OutputMultiplier": 0.85,
+        "SalaryRate": 1.0,
+        "UpkeepRate": 1.0
+      },
+      {
+        "Id": "major",
+        "Name": "Капремонт",
+        "MinCondition": 0.55,
+        "CostFraction": 0.15,
+        "DurationTurns": 2,
+        "OutputMultiplier": 0.75,
+        "SalaryRate": 0.66,
+        "UpkeepRate": 0.5
+      },
+      {
+        "Id": "heavy",
+        "Name": "Серьёзный ремонт",
+        "MinCondition": 0.35,
+        "CostFraction": 0.25,
+        "DurationTurns": 3,
+        "OutputMultiplier": 0.6,
+        "SalaryRate": 0.66,
+        "UpkeepRate": 0.5
+      },
+      {
+        "Id": "reconstruction",
+        "Name": "Полная реконструкция",
+        "MinCondition": 0.2,
+        "CostFraction": 0.4,
+        "DurationTurns": 5,
+        "OutputMultiplier": 0.4,
+        "SalaryRate": 0.66,
+        "UpkeepRate": 0.5
+      }
+    ],
+    "CriticalConditionThreshold": 0.2,
+    "ForcedRepairDurationTurns": 8,
+    "ForcedRepairSalaryRate": 0.66,
+    "ForcedRepairUpkeepRate": 0.5,
+    "PostForcedRepairCondition": 0.85
+  },
+  "Warehouse": {
+    "FreeCapacity": 500,
+    "OverageFeePerUnit": 0.1
+  },
+  "Reputation": {
+    "HalfLifeTurns": 10,
+    "WarmupTurns": 3,
+    "TerminationSeverityMultiplier": 3
+  },
+  "Contracts": {
+    "DeliveryMissPenaltyRate": 0.1,
+    "TerminationPenaltyRate": 0.5,
+    "VoluntaryTerminationFee": 1000,
+    "MaxActiveContractsPerTeam": null
+  },
+  "Taxes": {
+    "PropertyTaxRatePerTurn": 0.01,
+    "SalesTaxRate": 0.05
+  },
+  "Deposits": {
+    "InterestRatePerTurn": 0.01
+  },
+  "News": [
+    {
+      "Id": "news-up-1",
+      "Trend": "Up",
+      "Headline": "Спрос на металл растёт третий ход подряд"
+    },
+    {
+      "Id": "news-stable-1",
+      "Trend": "Stable",
+      "Headline": "Рынок замер в ожидании новостей"
+    },
+    {
+      "Id": "news-down-1",
+      "Trend": "Down",
+      "Headline": "Цены на сырьё пошли вниз"
+    },
+    {
+      "Id": "news-down-2",
+      "Trend": "Down",
+      "Headline": "Аналитики прогнозируют дальнейшее падение спроса"
+    }
+  ],
+  "FeatureFlags": {
+    "TaxesEnabled": false,
+    "DepositsEnabled": false,
+    "EmergencyPurchaseEnabled": true
+  }
+}

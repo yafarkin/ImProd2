@@ -1,28 +1,56 @@
 using Game.Config.Catalog;
+using Game.Config.ProductionModel;
 
 namespace Game.Config.Loading;
 
 /// <summary>
-/// Проверяет ссылочную целостность GameConfig до попытки построить из него доменный граф:
-/// материалы принадлежат существующим секторам, рецепты ссылаются на существующие материалы,
-/// у каждого материала — включая сырьё уровня 0, которое добывается фабрикой-добытчиком, а не
-/// покупается у системы — ровно один производитель (SPEC §5.2 — иначе он, включая флагманы,
-/// недостижим в цепочке), рецепт сырья не имеет входов (добывается, а не строится из других
-/// материалов), фабрики предлагают рецепты своего сектора, в графе рецептов нет циклов.
-/// Возвращает все найденные проблемы разом, а не только первую.
+/// Проверяет ссылочную целостность конфига до попытки построить из него доменный граф: материалы
+/// принадлежат существующим секторам, рецепты ссылаются на существующие материалы, у каждого
+/// материала — включая сырьё уровня 0, которое добывается фабрикой-добытчиком, а не покупается у
+/// системы — ровно один производитель (SPEC §5.2 — иначе он, включая флагманы, недостижим в
+/// цепочке), рецепт сырья не имеет входов (добывается, а не строится из других материалов), фабрики
+/// предлагают рецепты своего сектора, в графе рецептов нет циклов. Возвращает все найденные проблемы
+/// разом, а не только первую.
+///
+/// Все эти проверки целиком лежат внутри производственной модели (<see cref="ProductionModelConfig"/>)
+/// — ни одна не пересекает границу модель/сессия, поэтому <see cref="ValidateProductionModel"/>
+/// доступен как самостоятельная точка входа (например, для проверки модели до выбора сессионных
+/// параметров), а <see cref="Validate"/> для уже собранного <see cref="GameConfig"/> — тонкая
+/// обёртка над той же логикой.
 /// </summary>
 public static class GameConfigValidator
 {
+    /// <summary>Проверяет уже собранный <see cref="GameConfig"/> (используется <see cref="GameConfigLoader"/>).</summary>
     public static IReadOnlyList<string> Validate(GameConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        return ValidateCore(config.Sectors, config.Materials, config.Recipes, config.FactoryDefinitions);
+    }
+
+    /// <summary>Проверяет производственную модель саму по себе, независимо от сессионных параметров.</summary>
+    public static IReadOnlyList<string> ValidateProductionModel(ProductionModelConfig productionModel)
+    {
+        ArgumentNullException.ThrowIfNull(productionModel);
+
+        return ValidateCore(
+            productionModel.Sectors, productionModel.Materials, productionModel.Recipes, productionModel.FactoryDefinitions);
+    }
+
+    private static IReadOnlyList<string> ValidateCore(
+        IReadOnlyList<SectorConfig> sectors,
+        IReadOnlyList<MaterialConfig> materials,
+        IReadOnlyList<RecipeConfig> recipes,
+        IReadOnlyList<FactoryDefinitionConfig> factoryDefinitions)
     {
         var errors = new List<string>();
 
-        var sectorIds = CollectUniqueIds(config.Sectors.Select(sector => sector.Id), "Sector", errors);
-        var materialIds = CollectUniqueIds(config.Materials.Select(material => material.Id), "Material", errors);
-        var recipeIds = CollectUniqueIds(config.Recipes.Select(recipe => recipe.Id), "Recipe", errors);
-        CollectUniqueIds(config.FactoryDefinitions.Select(factory => factory.Id), "FactoryDefinition", errors);
+        var sectorIds = CollectUniqueIds(sectors.Select(sector => sector.Id), "Sector", errors);
+        var materialIds = CollectUniqueIds(materials.Select(material => material.Id), "Material", errors);
+        var recipeIds = CollectUniqueIds(recipes.Select(recipe => recipe.Id), "Recipe", errors);
+        CollectUniqueIds(factoryDefinitions.Select(factory => factory.Id), "FactoryDefinition", errors);
 
-        foreach (var material in config.Materials)
+        foreach (var material in materials)
         {
             if (!sectorIds.Contains(material.SectorId))
             {
@@ -30,26 +58,26 @@ public static class GameConfigValidator
             }
         }
 
-        var producersByMaterialId = ValidateRecipes(config, materialIds, errors);
-        ValidateProducerCardinality(config, producersByMaterialId, errors);
-        ValidateFactoryDefinitions(config, sectorIds, recipeIds, errors);
+        var producersByMaterialId = ValidateRecipes(materials, recipes, materialIds, errors);
+        ValidateProducerCardinality(materials, producersByMaterialId, errors);
+        ValidateFactoryDefinitions(factoryDefinitions, recipes, materials, sectorIds, recipeIds, errors);
 
         // Поиск циклов предполагает, что все ссылки уже разрешимы; на битом графе он выдал бы
         // запутанные побочные ошибки поверх настоящей проблемы.
         if (errors.Count == 0)
         {
-            DetectCycles(config, errors);
+            DetectCycles(materials, recipes, errors);
         }
 
         return errors;
     }
 
     private static Dictionary<string, List<string>> ValidateRecipes(
-        GameConfig config, HashSet<string> materialIds, List<string> errors)
+        IReadOnlyList<MaterialConfig> materials, IReadOnlyList<RecipeConfig> recipes, HashSet<string> materialIds, List<string> errors)
     {
         var producersByMaterialId = new Dictionary<string, List<string>>();
 
-        foreach (var recipe in config.Recipes)
+        foreach (var recipe in recipes)
         {
             if (!materialIds.Contains(recipe.OutputMaterialId))
             {
@@ -57,7 +85,7 @@ public static class GameConfigValidator
             }
             else
             {
-                var outputMaterial = config.Materials.First(material => material.Id == recipe.OutputMaterialId);
+                var outputMaterial = materials.First(material => material.Id == recipe.OutputMaterialId);
                 if (outputMaterial.Level == 0 && recipe.Inputs.Count > 0)
                 {
                     errors.Add(
@@ -96,9 +124,9 @@ public static class GameConfigValidator
     }
 
     private static void ValidateProducerCardinality(
-        GameConfig config, Dictionary<string, List<string>> producersByMaterialId, List<string> errors)
+        IReadOnlyList<MaterialConfig> materials, Dictionary<string, List<string>> producersByMaterialId, List<string> errors)
     {
-        foreach (var material in config.Materials)
+        foreach (var material in materials)
         {
             if (!producersByMaterialId.TryGetValue(material.Id, out var producers))
             {
@@ -119,9 +147,14 @@ public static class GameConfigValidator
     }
 
     private static void ValidateFactoryDefinitions(
-        GameConfig config, HashSet<string> sectorIds, HashSet<string> recipeIds, List<string> errors)
+        IReadOnlyList<FactoryDefinitionConfig> factoryDefinitions,
+        IReadOnlyList<RecipeConfig> recipes,
+        IReadOnlyList<MaterialConfig> materials,
+        HashSet<string> sectorIds,
+        HashSet<string> recipeIds,
+        List<string> errors)
     {
-        foreach (var factory in config.FactoryDefinitions)
+        foreach (var factory in factoryDefinitions)
         {
             if (!sectorIds.Contains(factory.SectorId))
             {
@@ -141,8 +174,8 @@ public static class GameConfigValidator
                     continue;
                 }
 
-                var recipe = config.Recipes.First(candidate => candidate.Id == recipeId);
-                var outputMaterial = config.Materials.FirstOrDefault(material => material.Id == recipe.OutputMaterialId);
+                var recipe = recipes.First(candidate => candidate.Id == recipeId);
+                var outputMaterial = materials.FirstOrDefault(material => material.Id == recipe.OutputMaterialId);
                 if (outputMaterial is not null && outputMaterial.SectorId != factory.SectorId)
                 {
                     errors.Add(
@@ -167,15 +200,15 @@ public static class GameConfigValidator
         return seen;
     }
 
-    private static void DetectCycles(GameConfig config, List<string> errors)
+    private static void DetectCycles(IReadOnlyList<MaterialConfig> materials, IReadOnlyList<RecipeConfig> recipes, List<string> errors)
     {
-        var recipeByOutputMaterialId = config.Recipes.ToDictionary(recipe => recipe.OutputMaterialId);
+        var recipeByOutputMaterialId = recipes.ToDictionary(recipe => recipe.OutputMaterialId);
         var state = new Dictionary<string, int>();
         var path = new List<string>();
 
         // Перебираем в порядке объявления в JSON (не в порядке словаря/hashset), чтобы вывод ошибок
         // был детерминирован (AGENTS §2, правило 6), хотя это влияет лишь на порядок сообщений.
-        foreach (var material in config.Materials)
+        foreach (var material in materials)
         {
             if (!state.ContainsKey(material.Id))
             {
