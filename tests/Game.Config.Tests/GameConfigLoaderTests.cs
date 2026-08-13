@@ -29,6 +29,9 @@ public class GameConfigLoaderTests
     [InlineData("debug.json", "pilot.json")]
     [InlineData("debug.json", "training.json")]
     [InlineData("debug.json", "debug.json")]
+    [InlineData("metallurgy.json", "pilot.json")]
+    [InlineData("metallurgy.json", "training.json")]
+    [InlineData("metallurgy.json", "debug.json")]
     public void LoadFromFiles_Resolves_Every_Model_Session_Combination_Without_Validation_Errors(
         string productionModelFileName, string sessionFileName)
     {
