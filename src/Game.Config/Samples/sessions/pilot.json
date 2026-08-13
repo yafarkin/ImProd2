@@ -55,6 +55,26 @@
       {
         "Level": 4,
         "MarginMultiplier": 1.5
+      },
+      {
+        "Level": 5,
+        "MarginMultiplier": 1.75
+      },
+      {
+        "Level": 6,
+        "MarginMultiplier": 2.05
+      },
+      {
+        "Level": 7,
+        "MarginMultiplier": 2.4
+      },
+      {
+        "Level": 8,
+        "MarginMultiplier": 2.8
+      },
+      {
+        "Level": 9,
+        "MarginMultiplier": 3.3
       }
     ],
     "MarketCapacityOverflowDiscount": 0.5,
