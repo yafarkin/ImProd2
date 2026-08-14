@@ -90,6 +90,31 @@ public class MaterialOnStockTests
         Assert.Equal(5m, stock.Quantity);
     }
 
+    [Fact]
+    public void Remove_Clamps_A_Negligible_Rounding_Excess_Instead_Of_Throwing()
+    {
+        // Блок 7.3.3: реальный прогон на metallurgy-petrochemistry.json ловил ровно это — два
+        // математически эквивалентных, но по-разному упорядоченных умножения (выход производства и
+        // расход сырья на него) разошлись в последнем знаке decimal (~1e-26). Тут — тот же класс
+        // расхождения на более крупном, ещё представимом decimal-литералом масштабе (5e-11).
+        var stock = new MaterialOnStock(Sheet, 1m, 10m);
+
+        var removedCost = stock.Remove(1.00000000005m);
+
+        Assert.Equal(0m, stock.Quantity);
+        Assert.Equal(0m, stock.TotalCostBasis); // защита от дрейфа на нулевом остатке
+        Assert.Equal(10m, removedCost);
+    }
+
+    [Fact]
+    public void Remove_Still_Throws_When_The_Excess_Is_Not_Negligible()
+    {
+        var stock = new MaterialOnStock(Sheet, 1m);
+
+        Assert.Throws<InvalidOperationException>(() => stock.Remove(1.0000000002m)); // избыток заметно больше допуска округления
+        Assert.Equal(1m, stock.Quantity);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]

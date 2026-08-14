@@ -1,43 +1,46 @@
 using System.Globalization;
+using Game.Balancing;
 using Game.Bots;
-using Game.Config.Loading;
 using Game.Domain;
 using Game.Engine;
 
-// Блок 7.3.2 (BUILD_PLAN, docs/balancing-bots.md §2): прогоняет сетку leverage×profile, не одну
-// фиксированную стратегию — сетка целиком заменяет прежний однократный прогон (SimpleBot по
-// умолчанию, leverage=1/profile=0, — теперь просто одна из её ячеек, doc-comment SimpleBot).
-var configPath = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
-var sessionsPerCell = args.Length > 1 ? int.Parse(args[1], CultureInfo.InvariantCulture) : 5;
-var csvPath = args.Length > 2 ? args[2] : "strategy-grid.csv";
-var presetId = args.Length > 3 ? args[3] : "short";
-var maintainFactories = args.Length > 4 ? bool.Parse(args[4]) : true;
-var gridSteps = args.Length > 5 ? int.Parse(args[5], CultureInfo.InvariantCulture) : 5;
+// Блок 7.3.3 (BUILD_PLAN, docs/TODO.md №13): один вызов — одна production-model цепочка целиком (все
+// секторы, которые в ней описаны, в одной партии), выбранная через --config или короткий
+// интерактивный список (ConfigSelector) — без хардкода секторов A/Б прежних блоков. Блок 7.3.2
+// (docs/balancing-bots.md §2): по-прежнему прогоняет сетку leverage×profile, не одну стратегию.
+var cliArguments = CliArguments.Parse(args);
+var config = ConfigSelector.Load(cliArguments);
+var preset = config.Raw.SessionPresets.Single(p => p.Id == cliArguments.PresetId);
 
-var config = GameConfigLoader.LoadFromFile(configPath);
-var preset = config.Raw.SessionPresets.Single(p => p.Id == presetId);
-var sectorA = config.Sectors.Single(s => s.Id == "A");
-var sectorB = config.Sectors.Single(s => s.Id == "B");
+if (cliArguments.TeamsPerSector <= 0)
+{
+    throw new ArgumentException("'--teams-per-sector' must be positive.", nameof(cliArguments));
+}
 
-var leverageLevels = StrategyGridRunner.UniformLevels(gridSteps);
-var profileLevels = StrategyGridRunner.UniformLevels(gridSteps);
+var sectorNames = string.Join(", ", config.Sectors.Select(s => $"{s.Id} ({s.Name})"));
+Console.WriteLine($"Секторов в цепочке: {config.Sectors.Count} [{sectorNames}], команд на сектор: {cliArguments.TeamsPerSector}.");
+
+var leverageLevels = StrategyGridRunner.UniformLevels(cliArguments.GridSteps);
+var profileLevels = StrategyGridRunner.UniformLevels(cliArguments.GridSteps);
 var totalCells = leverageLevels.Count * profileLevels.Count;
 
-Console.WriteLine($"Сетка стратегий: {leverageLevels.Count}×{profileLevels.Count} = {totalCells} ячеек, по {sessionsPerCell} партий на ячейку.");
+Console.WriteLine($"Сетка стратегий: {leverageLevels.Count}×{profileLevels.Count} = {totalCells} ячеек, по {cliArguments.SessionsPerCell} партий на ячейку.");
 Console.WriteLine("Ход занимает часы без вмешательства — ниже периодический heartbeat, не полный лог.");
 Console.WriteLine();
 
 var lastHeartbeatAt = TimeSpan.Zero;
-var results = StrategyGridRunner.Run(leverageLevels, profileLevels, sessionsPerCell, (leverage, profile, sessionIndex) =>
+var results = StrategyGridRunner.Run(leverageLevels, profileLevels, cliArguments.SessionsPerCell, (leverage, profile, sessionIndex) =>
 {
     var teams = new List<TeamSpec>();
     var bots = new List<SimpleBot>();
-    for (var t = 0; t < 8; t++)
+    foreach (var sector in config.Sectors)
     {
-        var sector = t % 2 == 0 ? sectorA : sectorB;
-        var teamId = Ulid.NewUlid();
-        teams.Add(new TeamSpec { Id = teamId, Name = $"Бот {t}", SectorId = sector.Id });
-        bots.Add(new SimpleBot(teamId, sector, config, maintainFactories, leverage, profile));
+        for (var t = 0; t < cliArguments.TeamsPerSector; t++)
+        {
+            var teamId = Ulid.NewUlid();
+            teams.Add(new TeamSpec { Id = teamId, Name = $"{sector.Id}-{t}", SectorId = sector.Id });
+            bots.Add(new SimpleBot(teamId, sector, config, cliArguments.MaintainFactories, leverage, profile));
+        }
     }
 
     // Зерно жеребьёвки хода окончания и решений ботов зависит и от ячейки, и от номера партии внутри
@@ -69,7 +72,7 @@ foreach (var cell in results)
         $"{cell.Report.ForcedRepairEventShare,18:P1} {cell.Report.AverageFinalScoreSpread,26:N0}");
 }
 
-await using (var writer = new StreamWriter(csvPath))
+await using (var writer = new StreamWriter(cliArguments.OutPath))
 {
     await writer.WriteLineAsync("Leverage,Profile,SessionCount,ForcedLoanShare,ForcedRepairEventShare,AverageFinalScoreSpread");
     foreach (var cell in results)
@@ -85,4 +88,4 @@ await using (var writer = new StreamWriter(csvPath))
 }
 
 Console.WriteLine();
-Console.WriteLine($"CSV сводки по сетке записан: {Path.GetFullPath(csvPath)}");
+Console.WriteLine($"CSV сводки по сетке записан: {Path.GetFullPath(cliArguments.OutPath)}");
