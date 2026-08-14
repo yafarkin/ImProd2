@@ -60,4 +60,33 @@ public class StrategyGridRunnerTests
         Assert.Equal(Enumerable.Repeat(new[] { 1, 2 }, leverageLevels.Length * profileLevels.Length).SelectMany(x => x),
             progressCalls.Select(p => p.SessionIndex));
     }
+
+    [Fact]
+    public void Run_Threads_The_Ideal_Hall_Into_Every_Cells_Convergence_Metrics()
+    {
+        // Один и тот же идеальный зал (Блок 7.3.5) на все ячейки сетки — X(t) зависит только от
+        // конфига, не от leverage/profile (doc-comment StrategyGridRunner.Run).
+        var config = PilotBotSession.LoadConfig();
+        var sectorA = config.Sectors.Single(s => s.Id == "A");
+        var sectorB = config.Sectors.Single(s => s.Id == "B");
+        var idealHall = IdealHallCalculator.Calculate(config, maxTurns: 20);
+
+        var results = StrategyGridRunner.Run(new[] { 0m, 1m }, new[] { 0m }, sessionsPerCell: 1, (leverage, profile, sessionIndex) =>
+        {
+            var teams = new List<TeamSpec>();
+            var bots = new List<SimpleBot>();
+            for (var t = 0; t < 4; t++)
+            {
+                var sector = t % 2 == 0 ? sectorA : sectorB;
+                var teamId = Ulid.NewUlid();
+                teams.Add(new TeamSpec { Id = teamId, Name = $"Бот {t}", SectorId = sector.Id });
+                bots.Add(new SimpleBot(teamId, sector, config, leverage: leverage, profile: profile));
+            }
+
+            var session = GameSession.StartWithEndTurn(config, "short", endTurn: 15, teams);
+            return (session, (IReadOnlyList<SimpleBot>)bots, new Random(sessionIndex + 1));
+        }, idealHall: idealHall);
+
+        Assert.All(results, cell => Assert.NotNull(cell.Report.OverallAverageFinalConvergence));
+    }
 }

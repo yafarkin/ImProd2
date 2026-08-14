@@ -3,7 +3,9 @@ namespace Game.Bots;
 /// <summary>
 /// Сводка по прогону N партий (Блок 7.2, BUILD_PLAN «Харнесс балансировки»): денежная масса и
 /// throughput по ходам (усреднённые по партиям — для графика роста), доля дефолтов (принудительных
-/// займов на команду-ход) и средний разброс итоговых счётов между командами одной партии.
+/// займов на команду-ход) и средний разброс итоговых счётов между командами одной партии. Плюс
+/// сходимость к идеальному залу (Блок 7.3.5, <c>docs/balancing-bots.md</c> §3) — если он был передан
+/// на вход прогона.
 /// </summary>
 public sealed record BalancingReport
 {
@@ -26,6 +28,30 @@ public sealed record BalancingReport
     /// </summary>
     public required decimal ForcedRepairEventShare { get; init; }
 
+    /// <summary>
+    /// Сходимость к идеальному залу на конец партии (Блок 7.3.5), по сектору, усреднённая по всем
+    /// партиям сводки, — показывает, какая именно ветка систематически отстаёт в этой ячейке сетки
+    /// («Готово когда» блока 7.3.5). Пусто, если ни одна партия сводки не запускалась с идеальным
+    /// залом на входе.
+    /// </summary>
+    public required IReadOnlyDictionary<string, decimal> AverageFinalConvergenceBySector { get; init; }
+
+    /// <summary>
+    /// Средний по партиям разброс (максимум минус минимум) сходимости Score(T)/X(T) между секторами
+    /// одной партии (<c>docs/balancing-bots.md</c> §3, «Итоговая сходимость между ветками») — должен
+    /// быть узким у откалиброванной цепочки. <c>null</c>, если ни у одной партии не было хотя бы двух
+    /// секторов со сходимостью (нечего сравнивать) или идеального зала на входе вовсе.
+    /// </summary>
+    public decimal? AverageFinalConvergenceSpread { get; init; }
+
+    /// <summary>
+    /// Сходимость к идеальному залу, усреднённая по всем командам и всем партиям сводки сразу, без
+    /// разбивки по сектору, — одно число на ячейку сетки для тепловой карты <c>leverage×profile</c>
+    /// (<c>docs/balancing-bots.md</c> §3, «Тепловая карта по сетке»). <c>null</c> на тех же условиях,
+    /// что <see cref="AverageFinalConvergenceSpread"/>.
+    /// </summary>
+    public decimal? OverallAverageFinalConvergence { get; init; }
+
     public static BalancingReport Summarize(IReadOnlyList<SessionMetrics> sessions)
     {
         ArgumentNullException.ThrowIfNull(sessions);
@@ -46,6 +72,8 @@ public sealed record BalancingReport
                 continue;
             }
 
+            var convergenceValues = atThisTurn.Where(t => t.AverageConvergence.HasValue).Select(t => t.AverageConvergence!.Value).ToList();
+
             turnsByIndex.Add(new AggregatedTurnMetrics
             {
                 Turn = turn,
@@ -54,6 +82,7 @@ public sealed record BalancingReport
                 SessionCount = atThisTurn.Count,
                 AverageFactoryCondition = atThisTurn.Average(t => t.AverageFactoryCondition),
                 AverageFactoriesUnderRepairCount = atThisTurn.Average(t => (decimal)t.FactoriesUnderRepairCount),
+                AverageConvergence = convergenceValues.Count > 0 ? convergenceValues.Average() : null,
             });
         }
 
@@ -70,6 +99,20 @@ public sealed record BalancingReport
             return scores.Count > 0 ? scores.Max() - scores.Min() : 0m;
         });
 
+        var averageFinalConvergenceBySector = sessions
+            .SelectMany(session => session.FinalConvergenceBySector)
+            .GroupBy(entry => entry.Key)
+            .ToDictionary(group => group.Key, group => group.Average(entry => entry.Value));
+
+        var spreadsPerSession = sessions
+            .Where(session => session.FinalConvergenceBySector.Count >= 2)
+            .Select(session => session.FinalConvergenceBySector.Values.Max() - session.FinalConvergenceBySector.Values.Min())
+            .ToList();
+        var averageFinalConvergenceSpread = spreadsPerSession.Count > 0 ? spreadsPerSession.Average() : (decimal?)null;
+
+        var allConvergenceValues = sessions.SelectMany(session => session.FinalConvergenceBySector.Values).ToList();
+        var overallAverageFinalConvergence = allConvergenceValues.Count > 0 ? allConvergenceValues.Average() : (decimal?)null;
+
         return new BalancingReport
         {
             SessionCount = sessions.Count,
@@ -77,6 +120,9 @@ public sealed record BalancingReport
             ForcedLoanShare = forcedLoanShare,
             AverageFinalScoreSpread = averageFinalScoreSpread,
             ForcedRepairEventShare = forcedRepairEventShare,
+            AverageFinalConvergenceBySector = averageFinalConvergenceBySector,
+            AverageFinalConvergenceSpread = averageFinalConvergenceSpread,
+            OverallAverageFinalConvergence = overallAverageFinalConvergence,
         };
     }
 }

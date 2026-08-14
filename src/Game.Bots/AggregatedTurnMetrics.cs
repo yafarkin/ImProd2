@@ -20,4 +20,11 @@ public sealed record AggregatedTurnMetrics
 
     /// <summary>Среднее по партиям число фабрик на вынужденном простое на этот ход.</summary>
     public required decimal AverageFactoriesUnderRepairCount { get; init; }
+
+    /// <summary>
+    /// Средняя по партиям сходимость к идеальному залу на этот ход (Блок 7.3.5) — временной ряд
+    /// Score(t)/X(t) для дебрифа (<c>docs/balancing-bots.md</c> §3, «Траектория по времени»).
+    /// <c>null</c>, если ни у одной партии не было идеального зала на входе.
+    /// </summary>
+    public decimal? AverageConvergence { get; init; }
 }

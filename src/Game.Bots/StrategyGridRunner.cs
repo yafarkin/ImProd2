@@ -19,14 +19,18 @@ public static class StrategyGridRunner
     /// — необязательный heartbeat-колбэк (<see cref="StrategyGridProgress"/>), вызывается после каждой
     /// отдельной партии, а не только по ячейке целиком, — сетка рассчитана на часы работы, вызывающий
     /// код (обычно консоль) сам решает, как часто из этих отметок печатать строку (см.
-    /// <c>Game.Balancing/Program.cs</c>).
+    /// <c>Game.Balancing/Program.cs</c>). <paramref name="idealHall"/> — необязательный идеальный зал
+    /// (Блок 7.3.5) для сходимости <c>Score(t)/X(t)</c>: одна и та же ссылка передаётся в каждую
+    /// партию каждой ячейки — X(t) зависит только от конфига, не от <c>leverage</c>/<c>profile</c>,
+    /// пересчитывать его на ячейку незачем (вызывающий код должен посчитать его один раз заранее).
     /// </summary>
     public static IReadOnlyList<StrategyGridCellResult> Run(
         IReadOnlyList<decimal> leverageLevels,
         IReadOnlyList<decimal> profileLevels,
         int sessionsPerCell,
         Func<decimal, decimal, int, (GameSession Session, IReadOnlyList<SimpleBot> Bots, Random Random)> sessionFactory,
-        Action<StrategyGridProgress>? onSessionCompleted = null)
+        Action<StrategyGridProgress>? onSessionCompleted = null,
+        IdealHallResult? idealHall = null)
     {
         ArgumentNullException.ThrowIfNull(leverageLevels);
         ArgumentNullException.ThrowIfNull(profileLevels);
@@ -54,7 +58,7 @@ public static class StrategyGridRunner
                 for (var sessionIndex = 0; sessionIndex < sessionsPerCell; sessionIndex++)
                 {
                     var (session, bots, random) = sessionFactory(leverage, profile, sessionIndex);
-                    sessions.Add(BalancingHarness.RunSession(session, bots, random));
+                    sessions.Add(BalancingHarness.RunSession(session, bots, random, idealHall));
 
                     onSessionCompleted?.Invoke(new StrategyGridProgress
                     {

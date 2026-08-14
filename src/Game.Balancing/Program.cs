@@ -21,9 +21,14 @@ if (cliArguments.TeamsPerSector <= 0)
 var sectorNames = string.Join(", ", config.Sectors.Select(s => $"{s.Id} ({s.Name})"));
 Console.WriteLine($"Секторов в цепочке: {config.Sectors.Count} [{sectorNames}], команд на сектор: {cliArguments.TeamsPerSector}.");
 
+// Блок 7.3.5 (docs/balancing-bots.md §3): X(t) зависит только от конфига, не от leverage/profile —
+// считается один раз и используется и как самостоятельный режим (--mode ideal-hall), и как опорная
+// линия сходимости Score(t)/X(t) для сетки ботовых стратегий ниже.
+var idealHall = IdealHallCalculator.Calculate(config, preset.MaxTurns);
+
 if (cliArguments.Mode == RunMode.IdealHall)
 {
-    await RunIdealHallAsync(config, preset.MaxTurns, cliArguments.OutPath);
+    await WriteIdealHallAsync(idealHall, preset.MaxTurns, cliArguments.OutPath);
     return;
 }
 
@@ -68,20 +73,26 @@ var results = StrategyGridRunner.Run(leverageLevels, profileLevels, cliArguments
         $"[{progress.Elapsed:hh\\:mm\\:ss}] ячейка {progress.CellIndex}/{progress.TotalCells} " +
         $"(leverage={progress.Leverage:0.00}, profile={progress.Profile:0.00}) — " +
         $"партия {progress.SessionIndex}/{progress.SessionsPerCell}");
-});
+}, idealHall);
 
+// Тепловая карта по сетке (Блок 7.3.5, docs/balancing-bots.md §3): одно число на ячейку — средняя
+// сходимость Score(T)/X(T) по всем секторам и партиям ячейки; клетки заметно ниже соседних — мёртвая
+// зона стратегии, заметно выше — доминирующая.
 Console.WriteLine();
-Console.WriteLine("Leverage Profile  Доля дефолтов  Доля вын.ремонтов  Ср.разброс итоговых счетов");
+Console.WriteLine("Leverage Profile  Доля дефолтов  Доля вын.ремонтов  Ср.разброс итоговых счетов  Ср.сходимость  Разброс сходимости");
 foreach (var cell in results)
 {
     Console.WriteLine(
         $"{cell.Leverage,8:0.00} {cell.Profile,7:0.00} {cell.Report.ForcedLoanShare,14:P1} " +
-        $"{cell.Report.ForcedRepairEventShare,18:P1} {cell.Report.AverageFinalScoreSpread,26:N0}");
+        $"{cell.Report.ForcedRepairEventShare,18:P1} {cell.Report.AverageFinalScoreSpread,26:N0} " +
+        $"{FormatNullable(cell.Report.OverallAverageFinalConvergence, "P1"),14} {FormatNullable(cell.Report.AverageFinalConvergenceSpread, "P1"),19}");
 }
 
 await using (var writer = new StreamWriter(cliArguments.OutPath))
 {
-    await writer.WriteLineAsync("Leverage,Profile,SessionCount,ForcedLoanShare,ForcedRepairEventShare,AverageFinalScoreSpread");
+    await writer.WriteLineAsync(
+        "Leverage,Profile,SessionCount,ForcedLoanShare,ForcedRepairEventShare,AverageFinalScoreSpread," +
+        "OverallAverageFinalConvergence,AverageFinalConvergenceSpread");
     foreach (var cell in results)
     {
         await writer.WriteLineAsync(string.Join(',',
@@ -90,25 +101,29 @@ await using (var writer = new StreamWriter(cliArguments.OutPath))
             cell.Report.SessionCount.ToString(CultureInfo.InvariantCulture),
             cell.Report.ForcedLoanShare.ToString(CultureInfo.InvariantCulture),
             cell.Report.ForcedRepairEventShare.ToString(CultureInfo.InvariantCulture),
-            cell.Report.AverageFinalScoreSpread.ToString(CultureInfo.InvariantCulture)));
+            cell.Report.AverageFinalScoreSpread.ToString(CultureInfo.InvariantCulture),
+            cell.Report.OverallAverageFinalConvergence?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+            cell.Report.AverageFinalConvergenceSpread?.ToString(CultureInfo.InvariantCulture) ?? string.Empty));
     }
 }
 
 Console.WriteLine();
 Console.WriteLine($"CSV сводки по сетке записан: {Path.GetFullPath(cliArguments.OutPath)}");
 
+static string FormatNullable(decimal? value, string format) =>
+    value.HasValue ? value.Value.ToString(format, CultureInfo.InvariantCulture) : "—";
+
 /// <summary>
 /// Режим --mode ideal-hall (Блок 7.3.4, docs/production-balance.md §4): X(t) по каждому сектору
-/// цепочки, детерминированный расчёт, без ботов и без сетки — консольная таблица + CSV с рядом по
-/// ходам на каждую ветку (тот же формат «Turn,SectorA,SectorB,...», что и прежний per-turn CSV блока
-/// 7.2, только на секторы, а не на усреднённые метрики партий).
+/// цепочки — консольная таблица + CSV с рядом по ходам на каждую ветку (тот же формат
+/// «Turn,SectorA,SectorB,...», что и прежний per-turn CSV блока 7.2, только на секторы, а не на
+/// усреднённые метрики партий). Расчёт (<see cref="IdealHallCalculator.Calculate"/>) уже готов на
+/// входе — этот же результат используется и как опорная линия сходимости сетки (Блок 7.3.5).
 /// </summary>
-static async Task RunIdealHallAsync(ResolvedGameConfig config, int maxTurns, string outPath)
+static async Task WriteIdealHallAsync(IdealHallResult result, int maxTurns, string outPath)
 {
     Console.WriteLine($"Идеальный зал: {maxTurns} ходов (MaxTurns пресета — публично известная верхняя граница, не тайный EndTurn).");
     Console.WriteLine();
-
-    var result = IdealHallCalculator.Calculate(config, maxTurns);
 
     var header = "Ход " + string.Join(' ', result.Branches.Select(b => $"{b.SectorId,14}"));
     Console.WriteLine(header);

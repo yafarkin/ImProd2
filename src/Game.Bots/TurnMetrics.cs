@@ -23,4 +23,12 @@ public sealed record TurnMetrics
 
     /// <summary>Сколько фабрик всех команд пересекло критический порог и ушло в простой именно на этом ходу.</summary>
     public required int ForcedRepairEventsCount { get; init; }
+
+    /// <summary>
+    /// Средняя по командам сходимость к идеальному залу на этот ход — Score(t)/X(t), где X(t) взят из
+    /// заранее прогнанного <see cref="Game.Engine.IdealHallCalculator"/> той же ветки команды (Блок
+    /// 7.3.5, <c>docs/balancing-bots.md</c> §3). <c>null</c>, если харнесс запущен без идеального зала
+    /// (X(t) не передан) — не то же самое, что 0.
+    /// </summary>
+    public decimal? AverageConvergence { get; init; }
 }
