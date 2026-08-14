@@ -2,7 +2,7 @@
   "StartingConditions": {
     "MaxStartingLoanAmount": 10000,
     "BaseLoanInterestRate": 0.005,
-    "LoanInterestRateGrowthPerUnitBorrowed": 1e-07,
+    "LoanInterestRateGrowthPerUnitBorrowed": 3e-06,
     "ForcedLoanPenaltyRatePerOccurrence": 0.05,
     "MaxReputationRatePenalty": 0.1,
     "MandatoryRepaymentRatePerTurn": 0.005,
