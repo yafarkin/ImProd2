@@ -58,14 +58,21 @@ public sealed class SimpleBot
 
 
     /// <summary>
-    /// Во сколько «циклов» одной варки рецепта бот целится держать буфер закупаемого извне сырья
-    /// (Блок 7.3.1) — заявка на покупку восполняет разницу между этим буфером и фактическим остатком.
-    /// Намеренно грубая эвристика v1, не динамическая оптимизация (тот же уровень грубости, что и
-    /// остальной идеальный зал, <c>docs/production-balance.md</c> §4).
+    /// На сколько ходов вперёд (не варок рецепта — поправлено тем же приёмом, что и <see
+    /// cref="IdealHallCalculator"/>: настоящая желаемая потребность фабрики, <see
+    /// cref="ComputeDesiredInputQuantity"/>, не плоское количество входа одной варки) бот целится
+    /// держать буфер закупаемого извне сырья — заявка на покупку восполняет разницу между этим
+    /// буфером и фактическим остатком. Намеренно грубая эвристика v1, не динамическая оптимизация.
     /// </summary>
     private const decimal BuyBufferCycles = 3m;
 
-    /// <summary>Симметричный буфер для собственного потребления материала, который бот и производит, и продаёт на сторону (Блок 7.3.1) — не оголяет свою же цепочку ради продажи.</summary>
+    /// <summary>
+    /// Симметричный буфер на столько же ходов вперёд для собственного потребления материала, который
+    /// бот и производит, и мог бы продать на сторону — не оголяет свою же цепочку ради продажи:
+    /// правильно посчитанная потребность (см. <see cref="BuyBufferCycles"/>) сама расставляет
+    /// приоритет в пользу более глубокого, маржинального передела (запрос пользователя — «на чём бот
+    /// больше заработает»), не нужен отдельный явный расчёт «что выгоднее продать».
+    /// </summary>
     private const decimal OwnUseBufferCycles = 2m;
 
     /// <summary>Надбавка сверх расчётной себестоимости, которую бот готов заплатить на закупке (Блок 7.3.1) — потолок цены заявки на покупку.</summary>
@@ -301,21 +308,35 @@ public sealed class SimpleBot
         }
     }
 
-    /// <summary>Продаёт системе остаток финального продукта сверх объёма, уже обещанного действующими контрактами продажи.</summary>
+    /// <summary>
+    /// Продаёт системе излишек КАЖДОГО материала, который команда производит сама — не только вершину
+    /// цепочки (FinalMaterial), как раньше. Найдено первым калибровочным прогоном `metallurgy.json`
+    /// (запрос пользователя): при глубокой цепочке и без контрагента на бирже для промежуточной
+    /// продукции (в партии из одинаковых самодостаточных ботов покупать её просто некому) у команды
+    /// не было вообще никакого дохода, пока не достроен весь путь до флагмана — десятки ходов на
+    /// нулевой выручке, реального шанса не было в принципе. Тот же излишек, что уже посчитан для
+    /// биржевого стакана (<see cref="ComputeSurplus"/>) — настоящий свободный остаток сверх
+    /// законтрактованного и сверх настоящей потребности собственных более глубоких переделов (<see
+    /// cref="ComputeOwnUseBuffer"/>, не плоская эвристика), поэтому приоритет между «продать сейчас
+    /// подешевле» и «переработать дальше подороже» не нужно считать отдельно (запрос пользователя —
+    /// «на чём бот больше заработает»): правильно посчитанный буфер сам удерживает сырьё для
+    /// собственного следующего передела, пока тот в нём действительно нуждается, и распродаже
+    /// подлежит только то, что избыточно для ЛЮБОГО уровня своей же цепочки. Вызывать после сведения
+    /// биржевого стакана (<see cref="OrderBook.Match"/>) — оставшееся после сделок с другими ботами
+    /// уходит системе, не наоборот.
+    /// </summary>
     public void SellSurplusToSystem(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var stock = team.Warehouse.QuantityOf(FinalMaterial);
-        var reserved = session.State.Contracts.Values
-            .Where(c => c.SellerTeamId == TeamId && c.Status == ContractStatus.Active && c.Terms.Material == FinalMaterial)
-            .Sum(c => c.Terms.Volume);
-
-        var sellable = stock - reserved;
-        if (sellable > 0)
+        foreach (var material in team.Factories.Select(f => f.SelectedRecipe.Output).Distinct())
         {
-            session.SellToSystem(TeamId, FinalMaterial.Id, sellable);
+            var sellable = ComputeSurplus(session, team, material);
+            if (sellable > 0)
+            {
+                session.SellToSystem(TeamId, material.Id, sellable);
+            }
         }
     }
 
@@ -413,11 +434,10 @@ public sealed class SimpleBot
 
     /// <summary>
     /// Заявки на продажу для биржевого стакана (Блок 7.3.1, <see cref="OrderBook"/>) — по каждому
-    /// материалу, который команда сама производит: остаток на складе за вычетом того, что уже
-    /// обещано действующими контрактами продажи, и буфера на собственное потребление, если материал
-    /// — ещё и вход одного из своих же рецептов (см. <see cref="OwnUseBufferCycles"/>, не оголяет
-    /// свою цепочку ради продажи на сторону). Цена — себестоимость плюс минимальная маржа (<see
-    /// cref="MinSellMarginRate"/>).
+    /// материалу, который команда сама производит: настоящий свободный остаток сверх
+    /// законтрактованного и сверх собственной потребности (<see cref="ComputeSurplus"/> — тот же
+    /// расчёт, что и у <see cref="SellSurplusToSystem"/>, не оголяет свою цепочку ради продажи на
+    /// сторону). Цена — себестоимость плюс минимальная маржа (<see cref="MinSellMarginRate"/>).
     /// </summary>
     public IReadOnlyList<TradeOrder> ComputeSellOrders(GameSession session)
     {
@@ -430,16 +450,7 @@ public sealed class SimpleBot
         var orders = new List<TradeOrder>();
         foreach (var material in team.Factories.Select(f => f.SelectedRecipe.Output).Distinct())
         {
-            var stock = team.Warehouse.QuantityOf(material);
-            var reservedByContracts = session.State.Contracts.Values
-                .Where(c => c.SellerTeamId == TeamId && c.Status == ContractStatus.Active && c.Terms.Material == material)
-                .Sum(c => c.Terms.Volume);
-            var ownUseBuffer = team.Factories
-                .SelectMany(f => f.SelectedRecipe.Inputs)
-                .Where(input => input.Material == material)
-                .Sum(input => input.Quantity * OwnUseBufferCycles);
-
-            var sellable = stock - reservedByContracts - ownUseBuffer;
+            var sellable = ComputeSurplus(session, team, material);
             if (sellable < MinOrderVolume || !TryCalculateUnitCost(material, recipeBook, rawMaterialCosts, out var unitCost))
             {
                 continue;
@@ -462,8 +473,10 @@ public sealed class SimpleBot
     /// материалу, который нужен одному из построенных рецептов команды, но не производится ею самой
     /// (то, что физически может дать только другой сектор — свои сырьё и переделы уже закрыты
     /// строительством всей цепочки сектора, см. <see cref="BuildNewlyUnlockedFactories"/>). Целится в
-    /// буфер на <see cref="BuyBufferCycles"/> варок рецепта; заявка — только на нехватку до этого
-    /// буфера. Цена — себестоимость плюс потолок надбавки (<see cref="MaxBuyPremiumRate"/>).
+    /// буфер на <see cref="BuyBufferCycles"/> ходов настоящей потребности (<see
+    /// cref="ComputeDesiredInputQuantity"/>, не плоское количество входа одной варки); заявка —
+    /// только на нехватку до этого буфера. Цена — себестоимость плюс потолок надбавки (<see
+    /// cref="MaxBuyPremiumRate"/>).
     /// </summary>
     public IReadOnlyList<TradeOrder> ComputeBuyOrders(GameSession session)
     {
@@ -474,16 +487,16 @@ public sealed class SimpleBot
         var rawMaterialCosts = RawMaterialCosts(session);
         var ownProducedMaterials = team.Factories.Select(f => f.SelectedRecipe.Output).ToHashSet();
 
-        var neededPerCycle = team.Factories
-            .SelectMany(f => f.SelectedRecipe.Inputs)
-            .Where(input => !ownProducedMaterials.Contains(input.Material))
-            .GroupBy(input => input.Material)
-            .ToDictionary(g => g.Key, g => g.Sum(input => input.Quantity));
+        var neededMaterials = team.Factories
+            .SelectMany(f => f.SelectedRecipe.Inputs.Select(input => input.Material))
+            .Where(material => !ownProducedMaterials.Contains(material))
+            .Distinct();
 
         var orders = new List<TradeOrder>();
-        foreach (var (material, perCycle) in neededPerCycle)
+        foreach (var material in neededMaterials)
         {
-            var targetBuffer = perCycle * BuyBufferCycles;
+            var desiredPerTurn = team.Factories.Sum(factory => ComputeDesiredInputQuantity(session, factory, material));
+            var targetBuffer = desiredPerTurn * BuyBufferCycles;
             var deficit = targetBuffer - team.Warehouse.QuantityOf(material);
             if (deficit < MinOrderVolume || !TryCalculateUnitCost(material, recipeBook, rawMaterialCosts, out var unitCost))
             {
@@ -500,6 +513,56 @@ public sealed class SimpleBot
         }
 
         return orders;
+    }
+
+    /// <summary>
+    /// Настоящий свободный остаток материала команды сверх уже обещанного действующими контрактами
+    /// продажи и сверх буфера на собственное потребление (<see cref="ComputeOwnUseBuffer"/>) — общий
+    /// расчёт для биржевого стакана (<see cref="ComputeSellOrders"/>) и системной продажи (<see
+    /// cref="SellSurplusToSystem"/>), один и тот же излишек, разные покупатели.
+    /// </summary>
+    private decimal ComputeSurplus(GameSession session, Team team, Material material)
+    {
+        var reservedByContracts = session.State.Contracts.Values
+            .Where(c => c.SellerTeamId == TeamId && c.Status == ContractStatus.Active && c.Terms.Material == material)
+            .Sum(c => c.Terms.Volume);
+
+        return team.Warehouse.QuantityOf(material) - reservedByContracts - ComputeOwnUseBuffer(session, team, material);
+    }
+
+    /// <summary>
+    /// Буфер на <see cref="OwnUseBufferCycles"/> ходов настоящей суммарной потребности всех фабрик
+    /// команды, использующих <paramref name="material"/> как вход (<see
+    /// cref="ComputeDesiredInputQuantity"/>) — материал, который нужен собственному более глубокому
+    /// переделу, туда и идёт в первую очередь, а не на сторону.
+    /// </summary>
+    private static decimal ComputeOwnUseBuffer(GameSession session, Team team, Material material) =>
+        team.Factories.Sum(factory => ComputeDesiredInputQuantity(session, factory, material)) * OwnUseBufferCycles;
+
+    /// <summary>
+    /// Сколько <paramref name="material"/> желала бы потребить за один ход конкретная <paramref
+    /// name="factory"/>, если бы сырья хватало сколько угодно, — теоретический потолок выпуска (<see
+    /// cref="ProductionCalculator.CalculateCapacityBreakdown"/>) делится на выход рецепта за варку и
+    /// умножается на количество входа за варку. Тот же приём, что уже применяется в идеальном зале
+    /// (Блок 7.3.4, <c>IdealHallCalculator</c>) — раньше здесь (и в <see cref="ComputeSellOrders"/>/
+    /// <see cref="ComputeBuyOrders"/>) была плоская эвристика на количество входа одной варки рецепта
+    /// без учёта реальной мощности фабрики, из-за чего буфер на собственное потребление мог оказаться
+    /// заметно меньше настоящей потребности и бот распродавал сырьё, которое на самом деле было нужно
+    /// его же более глубокому переделу. 0, если <paramref name="material"/> вообще не вход рецепта
+    /// этой фабрики.
+    /// </summary>
+    private static decimal ComputeDesiredInputQuantity(GameSession session, Factory factory, Material material)
+    {
+        var input = factory.SelectedRecipe.Inputs.FirstOrDefault(i => i.Material == material);
+        if (input is null)
+        {
+            return 0m;
+        }
+
+        var breakdown = ProductionCalculator.CalculateCapacityBreakdown(
+            factory, session.State.Config.Raw.WorkerProductivity, session.State.Config.Raw.Rnd);
+        var desiredBatches = breakdown.TheoreticalMaxOutput / factory.SelectedRecipe.OutputQuantity;
+        return desiredBatches * input.Quantity;
     }
 
     /// <summary>Котировки текущего рынка на всё сырьё, у которого уже есть котировка, — вход для <see cref="CostCalculator.CalculateUnitCost"/> (тот же приём, что <c>DashboardDisplay.TryCalculateUnitCost</c> в Game.Web).</summary>
