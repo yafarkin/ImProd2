@@ -22,8 +22,14 @@ public static class MaterialChainDiagram
     /// <summary>Один узел диаграммы — материал и его геометрия/цвет.</summary>
     public sealed record Node(Material Material, double X, double Y, double Width, double Height, string Color);
 
-    /// <summary>Одна связь «вход рецепта» — координаты для кривой и подпись с нормированным количеством (на 1 единицу выхода).</summary>
-    public sealed record Edge(double X1, double Y1, double X2, double Y2, string Label);
+    /// <summary>
+    /// Одна связь «вход рецепта» — координаты для кривой, подпись с нормированным количеством (на 1
+    /// единицу выхода) и коды обоих концов (<see cref="SourceMaterialId"/>/<see
+    /// cref="TargetMaterialId"/>) — нужны странице, чтобы при клике на материал скрыть все рёбра,
+    /// кроме связанных с ним (запрос пользователя: на глубоких цепочках со сквозными рёбрами через
+    /// много уровней полный граф превращается в паутину из пересекающихся линий и подписей).
+    /// </summary>
+    public sealed record Edge(double X1, double Y1, double X2, double Y2, string Label, string SourceMaterialId, string TargetMaterialId);
 
     /// <summary>Итоговая раскладка целиком — узлы, связи и размер холста.</summary>
     public sealed record Layout(IReadOnlyList<Node> Nodes, IReadOnlyList<Edge> Edges, double Width, double Height);
@@ -99,7 +105,8 @@ public static class MaterialChainDiagram
                 edges.Add(new Edge(
                     source.X + source.Width, source.Y + source.Height / 2,
                     target.X, target.Y + target.Height / 2,
-                    FormatRatio(ratioPerUnit)));
+                    FormatRatio(ratioPerUnit),
+                    input.Material.Id, material.Id));
             }
         }
 

@@ -162,6 +162,27 @@ public class MaterialChainDiagramTests
         }
     }
 
+    /// <summary>
+    /// Запрос пользователя: на глубоких цепочках со сквозными рёбрами (материал N-го уровня как вход
+    /// рецепта на уровне N+7 и глубже) полный граф превращается в паутину — странице нужно уметь
+    /// показать только рёбра выбранного материала. Для этого <see cref="MaterialChainDiagram.Edge"/>
+    /// обязан нести коды обоих концов ребра, а не только геометрию.
+    /// </summary>
+    [Fact]
+    public void Build_Labels_Each_Edge_With_The_Material_Ids_Of_Both_Ends()
+    {
+        var config = PilotConfig();
+        var sheet = config.Materials["sheet"];
+        var recipe = config.RecipeBook.GetRecipe(sheet);
+        var oreInput = recipe.Inputs.Single();
+
+        var layout = MaterialChainDiagram.Build(config);
+
+        var edge = layout.Edges.Single(e => e.TargetMaterialId == "sheet");
+        Assert.Equal(oreInput.Material.Id, edge.SourceMaterialId);
+        Assert.Equal("sheet", edge.TargetMaterialId);
+    }
+
     [Fact]
     public void AggregateRawMaterials_Sums_Quantities_Across_The_Whole_Pyramid()
     {
