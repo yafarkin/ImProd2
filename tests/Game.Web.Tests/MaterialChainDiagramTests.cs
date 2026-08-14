@@ -33,6 +33,19 @@ public class MaterialChainDiagramTests
         return Game.Config.Loading.GameConfigLoader.Load(host.ProductionModels["metallurgy"], host.SessionConfigs["pilot"]);
     }
 
+    /// <summary>
+    /// metallurgy-petrochemistry.json — стадия 2 плана раскрытия секторов (`docs/production-staging.md`):
+    /// у каждой отрасли своя заготовка большого продукта (автомобиль/катер), обе тянут материалы у
+    /// соседней отрасли — взаимно, а не односторонне.
+    /// </summary>
+    private static Game.Config.Loading.ResolvedGameConfig MetallurgyPetrochemistryConfig()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        return Game.Config.Loading.GameConfigLoader.Load(
+            host.ProductionModels["metallurgy-petrochemistry"], host.SessionConfigs["pilot"]);
+    }
+
     [Fact]
     public void Build_Places_Every_Material_As_A_Node_And_Every_Recipe_Input_As_An_Edge()
     {
@@ -220,6 +233,61 @@ public class MaterialChainDiagramTests
 
         var adjacentEdge = layout.Edges.Single(e => e.SourceMaterialId == "forged-blanks" && e.TargetMaterialId == "machined-parts");
         Assert.Equal(1, adjacentEdge.LevelSpan); // level 6 -> level 7.
+    }
+
+    /// <summary>
+    /// Стадия 2 плана (`docs/production-staging.md`): рычаг должен идти в обе стороны, не
+    /// односторонне (запрос пользователя — обсуждение риска «сектор держит всех за яйца»). Автомобиль
+    /// (сектор А) тянет шины/эмаль/бензин у Б, катер (сектор Б) тянет двигатель/крепёж у А — оба
+    /// флагмана зависят от чужого сектора, ни один не самодостаточен.
+    /// </summary>
+    [Fact]
+    public void Build_Draws_Metallurgy_Petrochemistry_Flagships_As_Mutually_Dependent_On_Both_Sectors()
+    {
+        var config = MetallurgyPetrochemistryConfig();
+        var layout = MaterialChainDiagram.Build(config);
+
+        var automobile = config.Materials["automobile"];
+        var automobileRecipe = config.RecipeBook.GetRecipe(automobile);
+        Assert.Equal("A", automobile.Sector.Id);
+        foreach (var petrochemicalInput in new[] { "tires", "paint", "gasoline" })
+        {
+            Assert.Contains(automobileRecipe.Inputs, input => input.Material.Id == petrochemicalInput);
+        }
+
+        var boat = config.Materials["boat"];
+        var boatRecipe = config.RecipeBook.GetRecipe(boat);
+        Assert.Equal("B", boat.Sector.Id);
+        foreach (var metallurgyInput in new[] { "engine", "fasteners" })
+        {
+            Assert.Contains(boatRecipe.Inputs, input => input.Material.Id == metallurgyInput);
+        }
+
+        // Оба перекрёстных ребра — между разными столбцами секторов, значит заметная диагональ, не короткая линия.
+        foreach (var (sourceId, targetId) in new[] { ("tires", "automobile"), ("engine", "boat") })
+        {
+            var source = layout.Nodes.Single(n => n.Material.Id == sourceId);
+            var target = layout.Nodes.Single(n => n.Material.Id == targetId);
+            Assert.NotEqual(source.Material.Sector.Id, target.Material.Sector.Id);
+        }
+    }
+
+    /// <summary>
+    /// Ещё один вариант той же идеи: сквозные рёбра теперь идут и МЕЖДУ секторами, не только внутри
+    /// одного — бензин (Б, уровень 1) и эмаль (Б, уровень 2) идут напрямую в автомобиль (А, уровень 7),
+    /// минуя все промежуточные переделы обеих отраслей.
+    /// </summary>
+    [Fact]
+    public void Build_Marks_Cross_Sector_Skip_Level_Edges_Into_The_Automobile()
+    {
+        var config = MetallurgyPetrochemistryConfig();
+        var layout = MaterialChainDiagram.Build(config);
+
+        var gasolineSkip = layout.Edges.Single(e => e.SourceMaterialId == "gasoline" && e.TargetMaterialId == "automobile");
+        Assert.Equal(6, gasolineSkip.LevelSpan); // level 1 -> level 7.
+
+        var paintSkip = layout.Edges.Single(e => e.SourceMaterialId == "paint" && e.TargetMaterialId == "automobile");
+        Assert.Equal(5, paintSkip.LevelSpan); // level 2 -> level 7.
     }
 
     [Fact]
