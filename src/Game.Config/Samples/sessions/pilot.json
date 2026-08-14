@@ -27,7 +27,7 @@
       "Id": "full",
       "Name": "Полная",
       "MinTurns": 40,
-      "MaxTurns": 60,
+      "MaxTurns": 90,
       "TurnDurationMinutes": 10
     }
   ],

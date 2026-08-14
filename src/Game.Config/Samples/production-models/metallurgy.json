@@ -926,6 +926,6 @@
       320
     ],
     "DiminishingReturnsExponent": 0.5,
-    "MaxCommitmentPerTurn": 300
+    "MaxCommitmentPerTurn": 1140
   }
 }
