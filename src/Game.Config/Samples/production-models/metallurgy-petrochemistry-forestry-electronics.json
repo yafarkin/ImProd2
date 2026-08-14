@@ -45,7 +45,7 @@
     {
       "Id": "rare-metal-ore",
       "Name": "Руда редких металлов",
-      "SectorId": "A",
+      "SectorId": "D",
       "Level": 0
     },
     {
@@ -99,7 +99,7 @@
     {
       "Id": "rare-metal-concentrate",
       "Name": "Обогащённые редкие металлы",
-      "SectorId": "A",
+      "SectorId": "D",
       "Level": 1
     },
     {
@@ -283,6 +283,24 @@
       "Level": 4
     },
     {
+      "Id": "car-multimedia",
+      "Name": "Мультимедиасистема",
+      "SectorId": "D",
+      "Level": 4
+    },
+    {
+      "Id": "home-media-complex",
+      "Name": "Медиакомплекс",
+      "SectorId": "D",
+      "Level": 4
+    },
+    {
+      "Id": "boat-navigation",
+      "Name": "Навигационное оборудование",
+      "SectorId": "D",
+      "Level": 4
+    },
+    {
       "Id": "automobile",
       "Name": "Автомобиль",
       "SectorId": "A",
@@ -307,14 +325,14 @@
       "OutputMaterialId": "iron-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 703
+      "ProductionRate": 728
     },
     {
       "Id": "coking-coal-mining",
       "OutputMaterialId": "coking-coal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 514
+      "ProductionRate": 533
     },
     {
       "Id": "limestone-quarrying",
@@ -328,21 +346,21 @@
       "OutputMaterialId": "scrap-metal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 947
+      "ProductionRate": 1455
     },
     {
       "Id": "rare-metal-mining",
       "OutputMaterialId": "rare-metal-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 351
+      "ProductionRate": 636
     },
     {
       "Id": "oil-drilling",
       "OutputMaterialId": "oil",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 6830
+      "ProductionRate": 9724
     },
     {
       "Id": "natural-gas-drilling",
@@ -363,14 +381,14 @@
       "OutputMaterialId": "raw-cotton",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 2090
+      "ProductionRate": 3506
     },
     {
       "Id": "silicon-smelting",
       "OutputMaterialId": "silicon",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 312
+      "ProductionRate": 595
     },
     {
       "Id": "coke-from-coal",
@@ -382,7 +400,7 @@
           "Quantity": 1.5
         }
       ],
-      "ProductionRate": 264
+      "ProductionRate": 273
     },
     {
       "Id": "wire-rod-from-scrap",
@@ -406,7 +424,7 @@
           "Quantity": 2.5
         }
       ],
-      "ProductionRate": 171
+      "ProductionRate": 328
     },
     {
       "Id": "rare-metal-concentrate-from-ore",
@@ -418,7 +436,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 90
+      "ProductionRate": 163
     },
     {
       "Id": "gasoline-from-oil",
@@ -442,7 +460,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 1578
+      "ProductionRate": 2668
     },
     {
       "Id": "synthetic-rubber-from-oil",
@@ -454,7 +472,7 @@
           "Quantity": 2.5
         }
       ],
-      "ProductionRate": 445
+      "ProductionRate": 456
     },
     {
       "Id": "methanol-from-gas",
@@ -478,7 +496,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 357
+      "ProductionRate": 367
     },
     {
       "Id": "lumber-from-timber",
@@ -502,7 +520,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 804
+      "ProductionRate": 1349
     },
     {
       "Id": "semiconductor-wafer-from-silicon",
@@ -514,7 +532,7 @@
           "Quantity": 1.4
         }
       ],
-      "ProductionRate": 171
+      "ProductionRate": 327
     },
     {
       "Id": "pig-iron-from-ore",
@@ -534,7 +552,7 @@
           "Quantity": 0.3
         }
       ],
-      "ProductionRate": 338
+      "ProductionRate": 350
     },
     {
       "Id": "fasteners-from-wire-rod",
@@ -546,7 +564,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1322
+      "ProductionRate": 1384
     },
     {
       "Id": "paint-from-ethylene",
@@ -602,7 +620,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 228
+      "ProductionRate": 437
     },
     {
       "Id": "wood-frame-from-lumber",
@@ -654,7 +672,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 66
+      "ProductionRate": 125
     },
     {
       "Id": "steel-stock-from-pig-iron",
@@ -666,7 +684,7 @@
           "Quantity": 1.4
         }
       ],
-      "ProductionRate": 186
+      "ProductionRate": 192
     },
     {
       "Id": "composite-material-from-pvc-and-rubber",
@@ -698,7 +716,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 44
+      "ProductionRate": 84
     },
     {
       "Id": "wall-panel-from-frame-and-fabric",
@@ -838,7 +856,7 @@
           "Quantity": 5
         },
         {
-          "MaterialId": "electronic-module",
+          "MaterialId": "home-media-complex",
           "Quantity": 1
         }
       ],
@@ -858,7 +876,43 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 17
+      "ProductionRate": 32
+    },
+    {
+      "Id": "car-multimedia-from-module",
+      "OutputMaterialId": "car-multimedia",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "electronic-module",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 6
+    },
+    {
+      "Id": "home-media-from-module",
+      "OutputMaterialId": "home-media-complex",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "electronic-module",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 6
+    },
+    {
+      "Id": "boat-navigation-from-module",
+      "OutputMaterialId": "boat-navigation",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "electronic-module",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 6
     },
     {
       "Id": "automobile-assembly",
@@ -898,7 +952,7 @@
           "Quantity": 6
         },
         {
-          "MaterialId": "electronic-module",
+          "MaterialId": "car-multimedia",
           "Quantity": 1
         }
       ],
@@ -934,7 +988,7 @@
           "Quantity": 4
         },
         {
-          "MaterialId": "electronic-module",
+          "MaterialId": "boat-navigation",
           "Quantity": 1
         }
       ],
@@ -1005,7 +1059,7 @@
     {
       "Id": "rare-metal-mine",
       "Name": "Рудник редких металлов",
-      "SectorId": "A",
+      "SectorId": "D",
       "RecipeIds": [
         "rare-metal-mining"
       ],
@@ -1104,7 +1158,7 @@
     {
       "Id": "concentration-plant",
       "Name": "Обогатительная фабрика",
-      "SectorId": "A",
+      "SectorId": "D",
       "RecipeIds": [
         "rare-metal-concentrate-from-ore"
       ],
@@ -1443,6 +1497,39 @@
       "FixedCostPerTurn": 64.0
     },
     {
+      "Id": "multimedia-plant",
+      "Name": "Завод автомобильных мультимедиасистем",
+      "SectorId": "D",
+      "RecipeIds": [
+        "car-multimedia-from-module"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64.0
+    },
+    {
+      "Id": "media-complex-plant",
+      "Name": "Завод медиакомплексов",
+      "SectorId": "D",
+      "RecipeIds": [
+        "home-media-from-module"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64.0
+    },
+    {
+      "Id": "navigation-plant",
+      "Name": "Завод навигационного оборудования",
+      "SectorId": "D",
+      "RecipeIds": [
+        "boat-navigation-from-module"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64.0
+    },
+    {
       "Id": "car-assembly-plant",
       "Name": "Автосборочный завод",
       "SectorId": "A",
@@ -1696,6 +1783,21 @@
       "MaterialId": "electronic-module",
       "BasePrice": 260,
       "BaseCapacity": 30
+    },
+    {
+      "MaterialId": "car-multimedia",
+      "BasePrice": 320,
+      "BaseCapacity": 20
+    },
+    {
+      "MaterialId": "home-media-complex",
+      "BasePrice": 320,
+      "BaseCapacity": 20
+    },
+    {
+      "MaterialId": "boat-navigation",
+      "BasePrice": 320,
+      "BaseCapacity": 20
     },
     {
       "MaterialId": "automobile",

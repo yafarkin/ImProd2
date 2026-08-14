@@ -373,24 +373,45 @@ public class MaterialChainDiagramTests
     /// <summary>
     /// Стадия 4 — последняя: впервые каждый сектор доходит до настоящего готового продукта (не
     /// «базовая комплектация»), потому что электроника (Д) закрывает последний штрих у всех трёх
-    /// чужих флагманов разом. Проверяем, что Д действительно универсальный поставщик (во все три), а
-    /// не привязан к одному, и что у самой Д тоже есть флагман, а не только экспорт наружу.
+    /// чужих флагманов разом. Не единым безликим «электронным модулем» на все три (сессия
+    /// 2026-08-14 — так электроника оказывалась единственным поставщиком одного и того же входа
+    /// сразу трём чужим флагманам, что и создавало несоразмерный перекос в её пользу, см.
+    /// docs/production-staging.md), а тремя разными профильными изделиями — своя электроника
+    /// под машину, дом и катер, — каждое из которых мультимедиасистема, медиакомплекс, навигация
+    /// собирается из общего электронного модуля отдельным переделом. Проверяем, что Д действительно
+    /// универсальный поставщик (во все три, просто не одним и тем же материалом), и что у самой Д
+    /// тоже есть флагман, а не только экспорт наружу.
     /// </summary>
     [Fact]
     public void Build_Draws_Electronics_As_A_Universal_Finishing_Supplier_To_All_Three_Flagships()
     {
         var config = MetallurgyPetrochemistryForestryElectronicsConfig();
 
-        foreach (var flagshipId in new[] { "automobile", "boat", "house" })
+        var specializedElectronicsByFlagship = new Dictionary<string, string>
+        {
+            ["automobile"] = "car-multimedia",
+            ["boat"] = "boat-navigation",
+            ["house"] = "home-media-complex",
+        };
+
+        foreach (var (flagshipId, electronicsMaterialId) in specializedElectronicsByFlagship)
         {
             var recipe = config.RecipeBook.GetRecipe(config.Materials[flagshipId]);
-            Assert.Contains(recipe.Inputs, i => i.Material.Id == "electronic-module");
+            Assert.Contains(recipe.Inputs, i => i.Material.Id == electronicsMaterialId);
+
+            var electronicsMaterial = config.Materials[electronicsMaterialId];
+            Assert.Equal("D", electronicsMaterial.Sector.Id);
+
+            // Все три профильных изделия сами собираются из общего электронного модуля — Д не
+            // размножает независимые ветки на каждый флагман, а специализирует один и тот же узел.
+            var electronicsRecipe = config.RecipeBook.GetRecipe(electronicsMaterial);
+            Assert.Contains(electronicsRecipe.Inputs, i => i.Material.Id == "electronic-module");
         }
 
         var computingComplex = config.Materials["computing-complex"];
         Assert.Equal("D", computingComplex.Sector.Id);
         var computingComplexRecipe = config.RecipeBook.GetRecipe(computingComplex);
-        Assert.Contains(computingComplexRecipe.Inputs, i => i.Material.Id == "electronic-module");
+        Assert.Contains(computingComplexRecipe.Inputs, i => i.Material.Id == "electronic-module"); // свой флагман — модуль напрямую, без профильной надстройки.
         Assert.Contains(computingComplexRecipe.Inputs, i => i.Material.Id == "radiator"); // D <- A, own flagship too.
     }
 
