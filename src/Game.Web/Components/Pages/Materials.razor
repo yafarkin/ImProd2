@@ -10,10 +10,12 @@
 <h1>Цепочка материалов</h1>
 <p class="text-muted">
     Вся цепочка производства — от сырья до готовой продукции. Цвет узла — сектор, подпись на стрелке
-    — сколько материала предыдущего уровня нужно на 1 единицу следующего. Кликните по материалу,
-    чтобы увидеть расчёт с самого начала и оставить на диаграмме только его связи — на глубоких
-    цепочках рёбер слишком много, чтобы читать их все разом. Клик по тому же материалу снова
-    показывает полный граф.
+    — сколько материала предыдущего уровня нужно на 1 единицу следующего. Бледные пунктирные линии —
+    сквозные связи через несколько уровней (например, крепёж в сборке через много переделов), без
+    подписи, чтобы не забивать общий вид. Кликните по материалу, чтобы увидеть расчёт с самого начала
+    и оставить на диаграмме только его связи, включая сквозные, в полную силу — на глубоких цепочках
+    рёбер слишком много, чтобы читать их все разом. Клик по тому же материалу снова показывает полный
+    граф.
 </p>
 
 <svg width="@N(_layout.Width)" height="@N(_layout.Height)" viewBox="@($"0 0 {N(_layout.Width)} {N(_layout.Height)}")" style="max-width: 100%; height: auto; border: 1px solid #e1e0d9;">
@@ -25,8 +27,14 @@
 
     @foreach (var edge in _layout.Edges.Where(IsEdgeVisible))
     {
-        <path d="@CurvePath(edge.X1, edge.Y1, edge.X2, edge.Y2)" fill="none" stroke="#898781" stroke-width="1.5" marker-end="url(#chain-arrow)" />
-        @Text((edge.X1 + edge.X2) / 2, (edge.Y1 + edge.Y2) / 2 - 4, "text-anchor:middle;font-size:11px;fill:#52514e", edge.Label)
+        var isDimmedSkip = edge.LevelSpan > DirectLevelSpan && _selectedMaterial is null;
+        <path d="@CurvePath(edge.X1, edge.Y1, edge.X2, edge.Y2)" fill="none" stroke="#898781"
+              stroke-width="@(isDimmedSkip ? "1" : "1.5")" stroke-opacity="@(isDimmedSkip ? "0.35" : "1")"
+              stroke-dasharray="@(isDimmedSkip ? "4 3" : null)" marker-end="url(#chain-arrow)" />
+        @if (!isDimmedSkip)
+        {
+            @Text((edge.X1 + edge.X2) / 2, (edge.Y1 + edge.Y2) / 2 - 4, "text-anchor:middle;font-size:11px;fill:#52514e", edge.Label)
+        }
     }
 
     @foreach (var node in _layout.Nodes)
@@ -65,6 +73,13 @@
 }
 
 @code {
+    /// <summary>
+    /// Разница уровней входа и выхода ребра, при которой оно ещё считается «соседним» (обычный шаг
+    /// цепочки) и рисуется в полную силу без фильтра. Больше — «сквозное» ребро, приглушается, пока
+    /// его материал не выбран явно (см. <see cref="IsEdgeVisible"/> и разметку выше).
+    /// </summary>
+    private const int DirectLevelSpan = 1;
+
     private ResolvedGameConfig _config = null!;
     private MaterialChainDiagram.Layout _layout = null!;
     private Material? _selectedMaterial;

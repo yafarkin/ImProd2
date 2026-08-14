@@ -21,6 +21,18 @@ public class MaterialChainDiagramTests
         return host.DebugConfig;
     }
 
+    /// <summary>
+    /// metallurgy.json — production-модель с сознательными сквозными рёбрами (крепёж уровня 2 как
+    /// прямой вход сборок уровня 8-9), нужна отдельно от <see cref="DefaultConfig"/>/<see
+    /// cref="DebugConfig"/> для проверки <see cref="MaterialChainDiagram.Edge.LevelSpan"/>.
+    /// </summary>
+    private static Game.Config.Loading.ResolvedGameConfig MetallurgyConfig()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        return Game.Config.Loading.GameConfigLoader.Load(host.ProductionModels["metallurgy"], host.SessionConfigs["pilot"]);
+    }
+
     [Fact]
     public void Build_Places_Every_Material_As_A_Node_And_Every_Recipe_Input_As_An_Edge()
     {
@@ -181,6 +193,26 @@ public class MaterialChainDiagramTests
         var edge = layout.Edges.Single(e => e.TargetMaterialId == "sheet");
         Assert.Equal(oreInput.Material.Id, edge.SourceMaterialId);
         Assert.Equal("sheet", edge.TargetMaterialId);
+        Assert.Equal(1, edge.LevelSpan); // ore (level 0) -> sheet (level 1), an ordinary adjacent-level step.
+    }
+
+    /// <summary>
+    /// Тот же запрос пользователя, дальше: <see cref="MaterialChainDiagram.Edge.LevelSpan"/> должен
+    /// отличать «сквозные» рёбра от обычных «соседних» — на нём страница решает, приглушать ли ребро
+    /// по умолчанию. Проверяем на реальном сквозном ребре (крепёж уровня 2 — прямой вход сборки
+    /// коробки передач уровня 8 в metallurgy.json, минуя все промежуточные переделы).
+    /// </summary>
+    [Fact]
+    public void Build_Marks_Skip_Level_Edges_With_A_LevelSpan_Greater_Than_One()
+    {
+        var config = MetallurgyConfig();
+        var layout = MaterialChainDiagram.Build(config);
+
+        var fastenerSkipEdge = layout.Edges.Single(e => e.SourceMaterialId == "fasteners" && e.TargetMaterialId == "gearbox-assembly");
+        Assert.Equal(6, fastenerSkipEdge.LevelSpan); // level 2 -> level 8.
+
+        var adjacentEdge = layout.Edges.Single(e => e.SourceMaterialId == "forged-blanks" && e.TargetMaterialId == "machined-parts");
+        Assert.Equal(1, adjacentEdge.LevelSpan); // level 6 -> level 7.
     }
 
     [Fact]

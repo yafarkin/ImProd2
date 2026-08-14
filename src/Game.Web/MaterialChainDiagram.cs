@@ -24,12 +24,16 @@ public static class MaterialChainDiagram
 
     /// <summary>
     /// Одна связь «вход рецепта» — координаты для кривой, подпись с нормированным количеством (на 1
-    /// единицу выхода) и коды обоих концов (<see cref="SourceMaterialId"/>/<see
+    /// единицу выхода), коды обоих концов (<see cref="SourceMaterialId"/>/<see
     /// cref="TargetMaterialId"/>) — нужны странице, чтобы при клике на материал скрыть все рёбра,
     /// кроме связанных с ним (запрос пользователя: на глубоких цепочках со сквозными рёбрами через
-    /// много уровней полный граф превращается в паутину из пересекающихся линий и подписей).
+    /// много уровней полный граф превращается в паутину из пересекающихся линий и подписей) — и
+    /// <see cref="LevelSpan"/>, чтобы отличить «сквозные» рёбра (вход на несколько уровней раньше
+    /// прямого предшественника — например, крепёж уровня 2 во входах сборки уровня 8-9) от обычных
+    /// «соседних», которые и образуют основную читаемую линию цепочки.
     /// </summary>
-    public sealed record Edge(double X1, double Y1, double X2, double Y2, string Label, string SourceMaterialId, string TargetMaterialId);
+    public sealed record Edge(
+        double X1, double Y1, double X2, double Y2, string Label, string SourceMaterialId, string TargetMaterialId, int LevelSpan);
 
     /// <summary>Итоговая раскладка целиком — узлы, связи и размер холста.</summary>
     public sealed record Layout(IReadOnlyList<Node> Nodes, IReadOnlyList<Edge> Edges, double Width, double Height);
@@ -106,7 +110,8 @@ public static class MaterialChainDiagram
                     source.X + source.Width, source.Y + source.Height / 2,
                     target.X, target.Y + target.Height / 2,
                     FormatRatio(ratioPerUnit),
-                    input.Material.Id, material.Id));
+                    input.Material.Id, material.Id,
+                    material.Level - input.Material.Level));
             }
         }
 
