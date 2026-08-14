@@ -98,54 +98,41 @@ public class MaterialChainDiagramTests
     }
 
     /// <summary>
-    /// Регрессия на баг из ревью пользователя: на debug-конфиге узел наследовал строку от основного
-    /// (наибольшего по количеству) входа своего рецепта, а не от алфавитного порядка названия — иначе
-    /// «своя» линия ветки скачет по строкам и её не отличить на глаз от настоящей кросс-связи между
-    /// ветками нефтехимии (Block 9.5). Проверяем, что обе ветки нефтехимии держат свою строку по всем
-    /// 5 уровням (Y не меняется вдоль основной цепочки), а сами кросс-связи (второй, меньший вход
-    /// рецепта из соседней ветки) остаются видимой диагональю.
+    /// Ревизия нефтехимии (запрос пользователя: ПВХ реально не делают из полиэтилена, шинный корд не
+    /// имеет отношения к оконным рамам — обе связи в старой версии debug.json существовали только
+    /// ради диагонали на диаграмме, не по химии). Настоящая конвергенция двух веток нефтехимии
+    /// (пластиковой и резиновой) теперь — «Композитные материалы» (SPEC production-chains.md: «из
+    /// Пластика + Резины»). ПВХ-профиль и шинный корд — разные материалы одного уровня, у каждого
+    /// материала внутри уровня своя строка (см. doc-comment <see cref="MaterialChainDiagram"/>), а
+    /// «Композитные материалы» — один узел с одной Y — значит хотя бы один из двух входов физически не
+    /// может лечь горизонтально и обязан остаться видимой диагональю, какой бы из двух рецепт ни
+    /// выбрал «своим» при сортировке строк.
     /// </summary>
     [Fact]
-    public void Build_Keeps_Each_Petrochemical_Branch_On_Its_Own_Row_So_Cross_Branch_Inputs_Stand_Out_As_Diagonals()
+    public void Build_Draws_Composite_Material_As_A_Convergence_Of_Both_Petrochemical_Branches()
     {
         var config = DebugConfig();
         var layout = MaterialChainDiagram.Build(config);
 
-        double RowOf(string materialId) => layout.Nodes.Single(n => n.Material.Id == materialId).Y;
+        var pvcProfile = layout.Nodes.Single(n => n.Material.Id == "pvc-profile");
+        var tireCord = layout.Nodes.Single(n => n.Material.Id == "tire-cord");
+        Assert.NotEqual(pvcProfile.Y, tireCord.Y); // разные ветки — разные строки.
 
-        var windowsBranch = new[] { "polyethylene", "pvc-film", "pvc-profile", "window-frame", "pvc-windows" };
-        var tiresBranch = new[] { "synthetic-rubber", "rubber-compound", "tire-cord", "tire-carcass", "tires" };
-
-        Assert.Single(windowsBranch.Select(RowOf).Distinct());
-        Assert.Single(tiresBranch.Select(RowOf).Distinct());
-        Assert.NotEqual(RowOf(windowsBranch[0]), RowOf(tiresBranch[0]));
-
-        // Второй (кросс-ветковый) вход rubber-from-oil-ветки в pvc-профиле и наоборот — их источник
-        // лежит в другой строке, значит ребро не горизонтальное.
-        foreach (var (materialId, crossInputId) in new[]
-                 {
-                     ("pvc-film", "synthetic-rubber"),
-                     ("rubber-compound", "polyethylene"),
-                     ("window-frame", "tire-cord"),
-                     ("tire-carcass", "pvc-profile"),
-                 })
-        {
-            var target = layout.Nodes.Single(n => n.Material.Id == materialId);
-            var source = layout.Nodes.Single(n => n.Material.Id == crossInputId);
-            var edge = layout.Edges.Single(e =>
-                e.X1 == source.X + source.Width && e.Y1 == source.Y + source.Height / 2 &&
-                e.X2 == target.X && e.Y2 == target.Y + target.Height / 2);
-
-            Assert.NotEqual(edge.Y1, edge.Y2);
-        }
+        var fromPvcProfile = layout.Edges.Single(e => e.SourceMaterialId == "pvc-profile" && e.TargetMaterialId == "composite-material");
+        var fromTireCord = layout.Edges.Single(e => e.SourceMaterialId == "tire-cord" && e.TargetMaterialId == "composite-material");
+        Assert.True(
+            fromPvcProfile.Y1 != fromPvcProfile.Y2 || fromTireCord.Y1 != fromTireCord.Y2,
+            "At least one of the two inputs into composite-material must render as a diagonal cross-branch edge.");
     }
 
     /// <summary>
     /// Связь между секторами «Металлургия» и «Нефтегазохимия» (запрос пользователя «где у нас идёт
-    /// связь металлургов и нефтехимией», Block 9.5): добыча железа/меди берёт нефть как топливо, а
-    /// заготовки шин — медную проволоку как металлокорд. Обе стороны — рёбра между узлами разных
-    /// секторов, которые в раскладке лежат в разных вертикальных блоках, поэтому такое ребро всегда
-    /// заметная длинная диагональ, а не короткая линия внутри одной ветки.
+    /// связь металлургов и нефтехимией», Block 9.5, ревизия — запрос пользователя: у шин настоящий
+    /// корд стальной, не медный): добыча железа/меди берёт нефть как топливо, заготовки шин — стальную
+    /// проволоку как металлокорд, а корпус судна — металлоконструкции как балласт/такелажную оснастку.
+    /// Все три — рёбра между узлами разных секторов, которые в раскладке лежат в разных вертикальных
+    /// блоках, поэтому такое ребро всегда заметная длинная диагональ, а не короткая линия внутри одной
+    /// ветки.
     /// </summary>
     [Fact]
     public void Build_Draws_Cross_Sector_Links_Between_Metallurgy_And_Petrochemistry()
@@ -157,7 +144,8 @@ public class MaterialChainDiagramTests
                  {
                      ("oil", "iron", 5m),
                      ("oil", "copper", 10m),
-                     ("copper-wire", "tire-carcass", 5m),
+                     ("steel-wire", "tire-carcass", 2m),
+                     ("steel-structures", "hull", 2m),
                  })
         {
             var source = layout.Nodes.Single(n => n.Material.Id == sourceId);
@@ -172,6 +160,25 @@ public class MaterialChainDiagramTests
             var recipe = config.RecipeBook.GetRecipe(target.Material);
             Assert.Equal(quantity, recipe.Inputs.Single(input => input.Material.Id == sourceId).Quantity);
         }
+    }
+
+    /// <summary>
+    /// Запрос пользователя: сделать в самой нефтехимии связь «фабрика N берёт материал не с
+    /// предыдущего уровня, а издалека», по образцу крепежа в metallurgy.json. Технический углерод
+    /// (сажа, уровень 1) и клеевой состав из метанола (уровень 2) — оба реалистичные шинные
+    /// добавки — идут напрямую в заготовки шин (уровень 4), минуя уровни между ними.
+    /// </summary>
+    [Fact]
+    public void Build_Marks_Petrochemical_Skip_Level_Edges_With_LevelSpan_Greater_Than_One()
+    {
+        var config = DebugConfig();
+        var layout = MaterialChainDiagram.Build(config);
+
+        var carbonBlackSkip = layout.Edges.Single(e => e.SourceMaterialId == "carbon-black" && e.TargetMaterialId == "tire-carcass");
+        Assert.Equal(3, carbonBlackSkip.LevelSpan); // carbon-black (level 1) -> tire-carcass (level 4).
+
+        var adhesiveSkip = layout.Edges.Single(e => e.SourceMaterialId == "cord-adhesive" && e.TargetMaterialId == "tire-carcass");
+        Assert.Equal(2, adhesiveSkip.LevelSpan); // cord-adhesive (level 2) -> tire-carcass (level 4).
     }
 
     /// <summary>

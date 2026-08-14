@@ -53,6 +53,12 @@
       "Level": 3
     },
     {
+      "Id": "steel-wire",
+      "Name": "Стальная проволока",
+      "SectorId": "A",
+      "Level": 3
+    },
+    {
       "Id": "steel-structures",
       "Name": "Металлоконструкции",
       "SectorId": "A",
@@ -83,8 +89,14 @@
       "Level": 0
     },
     {
-      "Id": "polyethylene",
-      "Name": "Полиэтилен",
+      "Id": "natural-gas",
+      "Name": "Природный газ",
+      "SectorId": "B",
+      "Level": 0
+    },
+    {
+      "Id": "ethylene",
+      "Name": "Этилен",
       "SectorId": "B",
       "Level": 1
     },
@@ -95,14 +107,38 @@
       "Level": 1
     },
     {
-      "Id": "pvc-film",
-      "Name": "ПВХ-плёнка",
+      "Id": "methanol",
+      "Name": "Метанол",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "carbon-black",
+      "Name": "Технический углерод (сажа)",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "polyethylene",
+      "Name": "Полиэтилен",
+      "SectorId": "B",
+      "Level": 2
+    },
+    {
+      "Id": "pvc-resin",
+      "Name": "ПВХ-смола",
       "SectorId": "B",
       "Level": 2
     },
     {
       "Id": "rubber-compound",
       "Name": "Резиновая смесь",
+      "SectorId": "B",
+      "Level": 2
+    },
+    {
+      "Id": "cord-adhesive",
+      "Name": "Адгезив для корда",
       "SectorId": "B",
       "Level": 2
     },
@@ -131,6 +167,12 @@
       "Level": 4
     },
     {
+      "Id": "composite-material",
+      "Name": "Композитные материалы",
+      "SectorId": "B",
+      "Level": 4
+    },
+    {
       "Id": "pvc-windows",
       "Name": "Готовые окна ПВХ",
       "SectorId": "B",
@@ -139,6 +181,12 @@
     {
       "Id": "tires",
       "Name": "Готовые шины",
+      "SectorId": "B",
+      "Level": 5
+    },
+    {
+      "Id": "hull",
+      "Name": "Корпус судна",
       "SectorId": "B",
       "Level": 5
     }
@@ -232,6 +280,18 @@
       "ProductionRate": 0.5
     },
     {
+      "Id": "steel-wire-from-iron-sheet",
+      "OutputMaterialId": "steel-wire",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "iron-sheet",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 0.5
+    },
+    {
       "Id": "steel-structures-from-rebar",
       "OutputMaterialId": "steel-structures",
       "OutputQuantity": 1,
@@ -287,8 +347,15 @@
       "ProductionRate": 1
     },
     {
-      "Id": "polyethylene-from-oil",
-      "OutputMaterialId": "polyethylene",
+      "Id": "natural-gas-drilling",
+      "OutputMaterialId": "natural-gas",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 1
+    },
+    {
+      "Id": "ethylene-from-oil",
+      "OutputMaterialId": "ethylene",
       "OutputQuantity": 1,
       "Inputs": [
         {
@@ -311,17 +378,49 @@
       "ProductionRate": 0.5
     },
     {
-      "Id": "pvc-film-from-polyethylene",
-      "OutputMaterialId": "pvc-film",
+      "Id": "methanol-from-gas",
+      "OutputMaterialId": "methanol",
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "polyethylene",
-          "Quantity": 10
-        },
+          "MaterialId": "natural-gas",
+          "Quantity": 3
+        }
+      ],
+      "ProductionRate": 0.5
+    },
+    {
+      "Id": "carbon-black-from-oil",
+      "OutputMaterialId": "carbon-black",
+      "OutputQuantity": 1,
+      "Inputs": [
         {
-          "MaterialId": "synthetic-rubber",
-          "Quantity": 5
+          "MaterialId": "oil",
+          "Quantity": 3
+        }
+      ],
+      "ProductionRate": 0.5
+    },
+    {
+      "Id": "polyethylene-from-ethylene",
+      "OutputMaterialId": "polyethylene",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "ethylene",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 1
+    },
+    {
+      "Id": "pvc-resin-from-ethylene",
+      "OutputMaterialId": "pvc-resin",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "ethylene",
+          "Quantity": 3
         }
       ],
       "ProductionRate": 0.1
@@ -336,19 +435,31 @@
           "Quantity": 10
         },
         {
-          "MaterialId": "polyethylene",
-          "Quantity": 5
+          "MaterialId": "carbon-black",
+          "Quantity": 3
         }
       ],
       "ProductionRate": 0.05
     },
     {
-      "Id": "pvc-profile-from-pvc-film",
+      "Id": "cord-adhesive-from-methanol",
+      "OutputMaterialId": "cord-adhesive",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "methanol",
+          "Quantity": 5
+        }
+      ],
+      "ProductionRate": 0.1
+    },
+    {
+      "Id": "pvc-profile-from-pvc-resin",
       "OutputMaterialId": "pvc-profile",
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "pvc-film",
+          "MaterialId": "pvc-resin",
           "Quantity": 10
         }
       ],
@@ -376,7 +487,7 @@
           "Quantity": 10
         },
         {
-          "MaterialId": "tire-cord",
+          "MaterialId": "rubber-compound",
           "Quantity": 5
         }
       ],
@@ -392,15 +503,35 @@
           "Quantity": 10
         },
         {
+          "MaterialId": "steel-wire",
+          "Quantity": 2
+        },
+        {
+          "MaterialId": "carbon-black",
+          "Quantity": 3
+        },
+        {
+          "MaterialId": "cord-adhesive",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 0.0005
+    },
+    {
+      "Id": "composite-material-from-pvc-and-cord",
+      "OutputMaterialId": "composite-material",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
           "MaterialId": "pvc-profile",
           "Quantity": 5
         },
         {
-          "MaterialId": "copper-wire",
+          "MaterialId": "tire-cord",
           "Quantity": 5
         }
       ],
-      "ProductionRate": 0.0005
+      "ProductionRate": 0.001
     },
     {
       "Id": "pvc-windows-from-window-frame",
@@ -425,6 +556,22 @@
         }
       ],
       "ProductionRate": 5e-05
+    },
+    {
+      "Id": "hull-from-composite-and-steel",
+      "OutputMaterialId": "hull",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "composite-material",
+          "Quantity": 10
+        },
+        {
+          "MaterialId": "steel-structures",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 0.0001
     }
   ],
   "FactoryDefinitions": [
@@ -479,11 +626,12 @@
       "Name": "Волочильный цех",
       "SectorId": "A",
       "RecipeIds": [
-        "copper-wire-from-copper-sheet"
+        "copper-wire-from-copper-sheet",
+        "steel-wire-from-iron-sheet"
       ],
-      "BuildCost": 2500,
+      "BuildCost": 3750,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 50
+      "FixedCostPerTurn": 75
     },
     {
       "Id": "steel-structure-plant",
@@ -541,12 +689,35 @@
       "FixedCostPerTurn": 10
     },
     {
+      "Id": "gas-well",
+      "Name": "Газовая скважина",
+      "SectorId": "B",
+      "RecipeIds": [
+        "natural-gas-drilling"
+      ],
+      "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
+    },
+    {
       "Id": "petrochemical-plant",
       "Name": "Нефтехимический завод",
       "SectorId": "B",
       "RecipeIds": [
-        "polyethylene-from-oil",
-        "synthetic-rubber-from-oil"
+        "ethylene-from-oil",
+        "synthetic-rubber-from-oil",
+        "carbon-black-from-oil"
+      ],
+      "BuildCost": 2250,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 45
+    },
+    {
+      "Id": "gas-processing-plant",
+      "Name": "Газоперерабатывающий завод",
+      "SectorId": "B",
+      "RecipeIds": [
+        "methanol-from-gas"
       ],
       "BuildCost": 1500,
       "LiquidationValueCoefficient": 0.5,
@@ -557,8 +728,20 @@
       "Name": "Завод переработки полимеров",
       "SectorId": "B",
       "RecipeIds": [
-        "pvc-film-from-polyethylene",
+        "polyethylene-from-ethylene",
+        "pvc-resin-from-ethylene",
         "rubber-compound-from-synthetic-rubber"
+      ],
+      "BuildCost": 3900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 78
+    },
+    {
+      "Id": "adhesive-plant",
+      "Name": "Завод клеевых составов",
+      "SectorId": "B",
+      "RecipeIds": [
+        "cord-adhesive-from-methanol"
       ],
       "BuildCost": 2600,
       "LiquidationValueCoefficient": 0.5,
@@ -569,7 +752,7 @@
       "Name": "Завод профиля ПВХ",
       "SectorId": "B",
       "RecipeIds": [
-        "pvc-profile-from-pvc-film"
+        "pvc-profile-from-pvc-resin"
       ],
       "BuildCost": 4500,
       "LiquidationValueCoefficient": 0.5,
@@ -609,6 +792,17 @@
       "FixedCostPerTurn": 140
     },
     {
+      "Id": "composite-plant",
+      "Name": "Завод композитных материалов",
+      "SectorId": "B",
+      "RecipeIds": [
+        "composite-material-from-pvc-and-cord"
+      ],
+      "BuildCost": 7000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 140
+    },
+    {
       "Id": "pvc-windows-plant",
       "Name": "Завод готовых пластиковых окон",
       "SectorId": "B",
@@ -625,6 +819,17 @@
       "SectorId": "B",
       "RecipeIds": [
         "tires-from-tire-carcass"
+      ],
+      "BuildCost": 10500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 210
+    },
+    {
+      "Id": "shipyard",
+      "Name": "Верфь (корпус)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "hull-from-composite-and-steel"
       ],
       "BuildCost": 10500,
       "LiquidationValueCoefficient": 0.5,
@@ -668,6 +873,11 @@
       "BaseCapacity": 2.5
     },
     {
+      "MaterialId": "steel-wire",
+      "BasePrice": 180,
+      "BaseCapacity": 4
+    },
+    {
       "MaterialId": "steel-structures",
       "BasePrice": 600,
       "BaseCapacity": 0.5
@@ -693,9 +903,14 @@
       "BaseCapacity": 150
     },
     {
-      "MaterialId": "polyethylene",
-      "BasePrice": 28,
-      "BaseCapacity": 100
+      "MaterialId": "natural-gas",
+      "BasePrice": 9,
+      "BaseCapacity": 180
+    },
+    {
+      "MaterialId": "ethylene",
+      "BasePrice": 20,
+      "BaseCapacity": 130
     },
     {
       "MaterialId": "synthetic-rubber",
@@ -703,7 +918,22 @@
       "BaseCapacity": 50
     },
     {
-      "MaterialId": "pvc-film",
+      "MaterialId": "methanol",
+      "BasePrice": 18,
+      "BaseCapacity": 110
+    },
+    {
+      "MaterialId": "carbon-black",
+      "BasePrice": 15,
+      "BaseCapacity": 200
+    },
+    {
+      "MaterialId": "polyethylene",
+      "BasePrice": 28,
+      "BaseCapacity": 100
+    },
+    {
+      "MaterialId": "pvc-resin",
       "BasePrice": 75,
       "BaseCapacity": 10
     },
@@ -711,6 +941,11 @@
       "MaterialId": "rubber-compound",
       "BasePrice": 170,
       "BaseCapacity": 5
+    },
+    {
+      "MaterialId": "cord-adhesive",
+      "BasePrice": 130,
+      "BaseCapacity": 8
     },
     {
       "MaterialId": "pvc-profile",
@@ -733,6 +968,11 @@
       "BaseCapacity": 0.05
     },
     {
+      "MaterialId": "composite-material",
+      "BasePrice": 1500,
+      "BaseCapacity": 0.08
+    },
+    {
       "MaterialId": "pvc-windows",
       "BasePrice": 5600,
       "BaseCapacity": 0.01
@@ -741,6 +981,11 @@
       "MaterialId": "tires",
       "BasePrice": 11200,
       "BaseCapacity": 0.005
+    },
+    {
+      "MaterialId": "hull",
+      "BasePrice": 9000,
+      "BaseCapacity": 0.008
     }
   ],
   "GenerationResearch": {
