@@ -38,6 +38,9 @@ public class GameConfigLoaderTests
     [InlineData("metallurgy-petrochemistry-forestry.json", "pilot.json")]
     [InlineData("metallurgy-petrochemistry-forestry.json", "training.json")]
     [InlineData("metallurgy-petrochemistry-forestry.json", "debug.json")]
+    [InlineData("metallurgy-petrochemistry-forestry-electronics.json", "pilot.json")]
+    [InlineData("metallurgy-petrochemistry-forestry-electronics.json", "training.json")]
+    [InlineData("metallurgy-petrochemistry-forestry-electronics.json", "debug.json")]
     public void LoadFromFiles_Resolves_Every_Model_Session_Combination_Without_Validation_Errors(
         string productionModelFileName, string sessionFileName)
     {

@@ -59,6 +59,20 @@ public class MaterialChainDiagramTests
             host.ProductionModels["metallurgy-petrochemistry-forestry"], host.SessionConfigs["pilot"]);
     }
 
+    /// <summary>
+    /// metallurgy-petrochemistry-forestry-electronics.json — стадия 4, последняя, плана
+    /// (`docs/production-staging.md`): четвёртый сектор (Д, Электроника) не самодостаточен даже на
+    /// первом переделе (собственное сырьё — только кремний) и поставляет электронный модуль во все
+    /// три чужих флагмана разом, впервые доводя их до настоящего готового продукта, а не заготовки.
+    /// </summary>
+    private static Game.Config.Loading.ResolvedGameConfig MetallurgyPetrochemistryForestryElectronicsConfig()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        return Game.Config.Loading.GameConfigLoader.Load(
+            host.ProductionModels["metallurgy-petrochemistry-forestry-electronics"], host.SessionConfigs["pilot"]);
+    }
+
     [Fact]
     public void Build_Places_Every_Material_As_A_Node_And_Every_Recipe_Input_As_An_Edge()
     {
@@ -354,6 +368,59 @@ public class MaterialChainDiagramTests
 
         var fastenersSkip = layout.Edges.Single(e => e.SourceMaterialId == "fasteners" && e.TargetMaterialId == "house");
         Assert.Equal(2, fastenersSkip.LevelSpan); // level 2 -> level 4.
+    }
+
+    /// <summary>
+    /// Стадия 4 — последняя: впервые каждый сектор доходит до настоящего готового продукта (не
+    /// «базовая комплектация»), потому что электроника (Д) закрывает последний штрих у всех трёх
+    /// чужих флагманов разом. Проверяем, что Д действительно универсальный поставщик (во все три), а
+    /// не привязан к одному, и что у самой Д тоже есть флагман, а не только экспорт наружу.
+    /// </summary>
+    [Fact]
+    public void Build_Draws_Electronics_As_A_Universal_Finishing_Supplier_To_All_Three_Flagships()
+    {
+        var config = MetallurgyPetrochemistryForestryElectronicsConfig();
+
+        foreach (var flagshipId in new[] { "automobile", "boat", "house" })
+        {
+            var recipe = config.RecipeBook.GetRecipe(config.Materials[flagshipId]);
+            Assert.Contains(recipe.Inputs, i => i.Material.Id == "electronic-module");
+        }
+
+        var computingComplex = config.Materials["computing-complex"];
+        Assert.Equal("D", computingComplex.Sector.Id);
+        var computingComplexRecipe = config.RecipeBook.GetRecipe(computingComplex);
+        Assert.Contains(computingComplexRecipe.Inputs, i => i.Material.Id == "electronic-module");
+        Assert.Contains(computingComplexRecipe.Inputs, i => i.Material.Id == "radiator"); // D <- A, own flagship too.
+    }
+
+    /// <summary>
+    /// Запрос пользователя ещё на моменте постановки задачи (до стадии 2): зависимость должна идти не
+    /// только напрямую, но и через разные циклы. Электроника — единственный сектор в этой лестнице,
+    /// который зависит от леса и агротекстиля (В) не напрямую, а транзитивно через нефтехимию (Б):
+    /// печатные платы делаются из текстолита (Б), а текстолит — из ткани (В). У Д нет собственного
+    /// прямого рецепта, потребляющего материал В.
+    /// </summary>
+    [Fact]
+    public void Build_Connects_Electronics_To_Forestry_Only_Transitively_Through_Petrochemistry()
+    {
+        var config = MetallurgyPetrochemistryForestryElectronicsConfig();
+
+        var vMaterialIds = config.Materials.Values.Where(m => m.Sector.Id == "V").Select(m => m.Id).ToHashSet();
+        var dRecipes = config.Materials.Values
+            .Where(m => m.Sector.Id == "D")
+            .Select(m => config.RecipeBook.TryGetRecipe(m))
+            .Where(recipe => recipe is not null);
+        Assert.All(dRecipes, recipe => Assert.DoesNotContain(recipe!.Inputs, i => vMaterialIds.Contains(i.Material.Id)));
+
+        var textolite = config.Materials["textolite"];
+        var textoliteRecipe = config.RecipeBook.GetRecipe(textolite);
+        Assert.Equal("B", textolite.Sector.Id);
+        Assert.Contains(textoliteRecipe.Inputs, i => i.Material.Id == "fabric"); // B <- V, one level before D touches it.
+
+        var circuitBoard = config.Materials["circuit-board"];
+        var circuitBoardRecipe = config.RecipeBook.GetRecipe(circuitBoard);
+        Assert.Contains(circuitBoardRecipe.Inputs, i => i.Material.Id == "textolite"); // D <- B, closing the transitive chain.
     }
 
     [Fact]
