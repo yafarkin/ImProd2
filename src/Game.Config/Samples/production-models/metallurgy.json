@@ -169,14 +169,14 @@
       "OutputMaterialId": "iron-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 400
+      "ProductionRate": 1654
     },
     {
       "Id": "coking-coal-mining",
       "OutputMaterialId": "coking-coal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 350
+      "ProductionRate": 1209
     },
     {
       "Id": "limestone-quarrying",
@@ -190,7 +190,7 @@
       "OutputMaterialId": "scrap-metal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 300
+      "ProductionRate": 390
     },
     {
       "Id": "coke-from-coal",
@@ -202,7 +202,7 @@
           "Quantity": 1.5
         }
       ],
-      "ProductionRate": 220
+      "ProductionRate": 620
     },
     {
       "Id": "wire-rod-from-scrap",
@@ -234,7 +234,7 @@
           "Quantity": 0.3
         }
       ],
-      "ProductionRate": 120
+      "ProductionRate": 795
     },
     {
       "Id": "fasteners-from-wire-rod",
@@ -246,7 +246,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 60
+      "ProductionRate": 1170
     },
     {
       "Id": "crude-steel-from-pig-iron",
@@ -258,7 +258,7 @@
           "Quantity": 1.1
         }
       ],
-      "ProductionRate": 90
+      "ProductionRate": 466
     },
     {
       "Id": "cast-iron-from-pig-iron",
@@ -282,7 +282,7 @@
           "Quantity": 1.05
         }
       ],
-      "ProductionRate": 55
+      "ProductionRate": 205
     },
     {
       "Id": "slab-from-crude-steel",
@@ -294,7 +294,7 @@
           "Quantity": 1.05
         }
       ],
-      "ProductionRate": 55
+      "ProductionRate": 137
     },
     {
       "Id": "engine-block-castings-from-cast-iron",
@@ -318,7 +318,7 @@
           "Quantity": 1.05
         }
       ],
-      "ProductionRate": 35
+      "ProductionRate": 150
     },
     {
       "Id": "hot-rolled-sheet-from-slab",
@@ -330,7 +330,7 @@
           "Quantity": 1.05
         }
       ],
-      "ProductionRate": 35
+      "ProductionRate": 100
     },
     {
       "Id": "heat-treated-castings-from-castings",
@@ -354,7 +354,7 @@
           "Quantity": 1.1
         }
       ],
-      "ProductionRate": 20
+      "ProductionRate": 105
     },
     {
       "Id": "cold-rolled-sheet-from-hot-rolled-sheet",
@@ -366,7 +366,7 @@
           "Quantity": 1.1
         }
       ],
-      "ProductionRate": 20
+      "ProductionRate": 70
     },
     {
       "Id": "rough-machined-block-from-castings",
@@ -390,7 +390,7 @@
           "Quantity": 1.15
         }
       ],
-      "ProductionRate": 12
+      "ProductionRate": 70
     },
     {
       "Id": "stamped-panels-from-cold-rolled-sheet",
@@ -402,7 +402,7 @@
           "Quantity": 1.15
         }
       ],
-      "ProductionRate": 12
+      "ProductionRate": 47
     },
     {
       "Id": "engine-block-finished-from-rough-machined",
@@ -926,6 +926,6 @@
       320
     ],
     "DiminishingReturnsExponent": 0.5,
-    "MaxCommitmentPerTurn": 1140
+    "MaxCommitmentPerTurn": 1575
   }
 }
