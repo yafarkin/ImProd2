@@ -5,6 +5,9 @@ namespace Game.Bots;
 /// <summary>
 /// Прогоняет игровую сессию силами набора простых ботов (Блок 7.1) от текущего состояния до конца
 /// — без какого-либо внешнего вмешательства, для автопрогонов и харнесса балансировки (Блок 7.2).
+/// Обмен материалами между ботами (в том числе между разными секторами, Блок 7.3.1) идёт через
+/// упрощённый биржевой стакан (<see cref="OrderBook"/>), не через жёстко заданные пары — не привязан
+/// к числу секторов конфига.
 /// </summary>
 public static class BotSessionRunner
 {
@@ -24,7 +27,6 @@ public static class BotSessionRunner
         ArgumentNullException.ThrowIfNull(bots);
         ArgumentNullException.ThrowIfNull(random);
 
-        var contractPairs = PairBySector(bots);
         var hasBuiltOut = false;
         var turnStartIndex = session.Entries.Count;
 
@@ -48,10 +50,6 @@ public static class BotSessionRunner
                         hasBuiltOut = true;
                     }
 
-                    foreach (var (seller, buyer) in contractPairs)
-                    {
-                        SimpleBot.TrySignSimpleContract(session, seller, buyer, random);
-                    }
                     foreach (var bot in bots)
                     {
                         // Идемпотентно: на ходу первой постройки ничего нового не найдёт (уже
@@ -59,6 +57,15 @@ public static class BotSessionRunner
                         // разблокировало исследование поколений.
                         bot.BuildNewlyUnlockedFactories(session);
                         bot.MaintainFactories(session);
+                        bot.RepayDebt(session);
+                    }
+
+                    var sellOrders = bots.SelectMany(bot => bot.ComputeSellOrders(session)).ToList();
+                    var buyOrders = bots.SelectMany(bot => bot.ComputeBuyOrders(session)).ToList();
+                    OrderBook.Match(session, sellOrders, buyOrders, random);
+
+                    foreach (var bot in bots)
+                    {
                         bot.SellSurplusToSystem(session);
                     }
 
@@ -67,21 +74,5 @@ public static class BotSessionRunner
                     break;
             }
         }
-    }
-
-    /// <summary>Внутри каждого сектора разбивает ботов на пары (продавец, покупатель) для <see cref="SimpleBot.TrySignSimpleContract"/>; лишний бот при нечётном числе — без пары.</summary>
-    private static IReadOnlyList<(SimpleBot Seller, SimpleBot Buyer)> PairBySector(IReadOnlyList<SimpleBot> bots)
-    {
-        var pairs = new List<(SimpleBot, SimpleBot)>();
-        foreach (var sectorBots in bots.GroupBy(bot => bot.Sector.Id).OrderBy(group => group.Key))
-        {
-            var ordered = sectorBots.OrderBy(bot => bot.TeamId).ToList();
-            for (var i = 0; i + 1 < ordered.Count; i += 2)
-            {
-                pairs.Add((ordered[i], ordered[i + 1]));
-            }
-        }
-
-        return pairs;
     }
 }

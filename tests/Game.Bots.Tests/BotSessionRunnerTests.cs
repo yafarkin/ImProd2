@@ -22,9 +22,12 @@ public class BotSessionRunnerTests
 
         var changes = session.Entries.Select(e => e.Change).ToList();
         Assert.Contains(changes, c => c is MaterialSoldToSystem); // "продают системе"
-        Assert.Contains(changes, c => c is ContractDelivered); // "простые контракты"
         Assert.Contains(changes, c => c is FactoryBuilt); // "строят добычу" (и весь передел за ней)
         Assert.DoesNotContain(changes, c => c is DeliveryMissed); // боты всегда успевают накопить объём к поставке
+        // Контракты стакана (Блок 7.3.1) здесь намеренно не проверяются: секторы A/Б этого конфига
+        // экономически независимы (ни один рецепт не требует материала другого сектора), а каждый бот
+        // и так строит себе полную вертикаль сектора — торговать друг с другом ботам искренне нечем.
+        // Обмен между секторами со взаимными зависимостями проверяет CrossSectorTradingTests.
 
         // Ни у одной команды партия не должна закончиться в глубоком минусе — экономика элементарно сходится.
         foreach (var bot in bots)

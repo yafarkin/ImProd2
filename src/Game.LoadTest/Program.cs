@@ -56,7 +56,6 @@ internal static class LoadTestRunner
                 bots.Add(new SimpleBot(teamId, sector, config));
             }
 
-            var contractPairs = PairBySector(bots);
             var session = GameSession.Start(config, preset, teams, new Random(i + 1));
             var random = new Random(i + 1_000_000);
             var hasBuiltOut = false;
@@ -82,10 +81,9 @@ internal static class LoadTestRunner
                             }
                             hasBuiltOut = true;
                         }
-                        foreach (var (seller, buyer) in contractPairs)
-                        {
-                            SimpleBot.TrySignSimpleContract(session, seller, buyer, random);
-                        }
+                        var sellOrders = bots.SelectMany(bot => bot.ComputeSellOrders(session)).ToList();
+                        var buyOrders = bots.SelectMany(bot => bot.ComputeBuyOrders(session)).ToList();
+                        OrderBook.Match(session, sellOrders, buyOrders, random);
                         foreach (var bot in bots)
                         {
                             bot.SellSurplusToSystem(session);
@@ -265,21 +263,6 @@ internal static class LoadTestRunner
 
             await Task.Delay(TimeSpan.FromSeconds(2));
         }
-    }
-
-    private static List<(SimpleBot Seller, SimpleBot Buyer)> PairBySector(IReadOnlyList<SimpleBot> bots)
-    {
-        var pairs = new List<(SimpleBot, SimpleBot)>();
-        foreach (var sectorBots in bots.GroupBy(bot => bot.Sector.Id).OrderBy(group => group.Key))
-        {
-            var ordered = sectorBots.OrderBy(bot => bot.TeamId).ToList();
-            for (var i = 0; i + 1 < ordered.Count; i += 2)
-            {
-                pairs.Add((ordered[i], ordered[i + 1]));
-            }
-        }
-
-        return pairs;
     }
 
     private static double Percentile(IReadOnlyList<double> ordered, double p) =>

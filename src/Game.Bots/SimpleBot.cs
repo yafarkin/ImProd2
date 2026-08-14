@@ -5,18 +5,38 @@ using Game.Engine;
 namespace Game.Bots;
 
 /// <summary>
-/// Простая ботовая стратегия команды (Блок 7.1, BUILD_PLAN «Фаза 7»): полная вертикальная
+/// Простая ботовая стратегия команды (Блок 7.1-7.3.1, BUILD_PLAN «Фаза 7»): полная вертикальная
 /// интеграция внутри своего сектора — строит все типы фабрик сектора и нанимает базовую
-/// численность рабочих один раз на первом ходу (SPEC §5.6), затем каждый ход продаёт системе
-/// излишек финального продукта сектора сверх уже законтрактованного объёма (SPEC §5.4). Простой
-/// spot-контракт с напарником по сектору (SPEC §6) заводится отдельно, статическим методом
-/// <see cref="TrySignSimpleContract"/>, — сам бот не ведёт переговоры, только строит, нанимает и
-/// продаёт; согласование пары ботов на контракт — забота вызывающего кода (<see cref="BotSessionRunner"/>).
+/// численность рабочих (SPEC §5.6), вкладывает в R&amp;D каждой построенной фабрики на потолок сразу
+/// при постройке (Блок 7.3.1, <see cref="BuildNewlyUnlockedFactories"/>), продаёт остаток либо
+/// контрагенту через биржевой стакан (<see cref="ComputeSellOrders"/>/<see cref="OrderBook"/>), либо
+/// системе (<see cref="SellSurplusToSystem"/>, SPEC §5.4), закупает то, что не производит сам сектор,
+/// тем же стаканом (<see cref="ComputeBuyOrders"/>), и гасит долг добровольно сверх обязательного
+/// платежа, как только свободного кэша хватает с запасом (<see cref="RepayDebt"/>). Бот не ведёт
+/// переговоры — сведение заявок стакана и согласование пары ботов на контракт целиком забота
+/// вызывающего кода (<see cref="BotSessionRunner"/>, <see cref="OrderBook.Match"/>).
 /// </summary>
 public sealed class SimpleBot
 {
-    private const int ContractIntervalTurns = 4;
-    private const decimal ContractVolume = 5m;
+    /// <summary>
+    /// Во сколько «циклов» одной варки рецепта бот целится держать буфер закупаемого извне сырья
+    /// (Блок 7.3.1) — заявка на покупку восполняет разницу между этим буфером и фактическим остатком.
+    /// Намеренно грубая эвристика v1, не динамическая оптимизация (тот же уровень грубости, что и
+    /// остальной идеальный зал, <c>docs/production-balance.md</c> §4).
+    /// </summary>
+    private const decimal BuyBufferCycles = 3m;
+
+    /// <summary>Симметричный буфер для собственного потребления материала, который бот и производит, и продаёт на сторону (Блок 7.3.1) — не оголяет свою же цепочку ради продажи.</summary>
+    private const decimal OwnUseBufferCycles = 2m;
+
+    /// <summary>Надбавка сверх расчётной себестоимости, которую бот готов заплатить на закупке (Блок 7.3.1) — потолок цены заявки на покупку.</summary>
+    private const decimal MaxBuyPremiumRate = 0.20m;
+
+    /// <summary>Минимальная маржа сверх расчётной себестоимости, ниже которой бот не продаёт (Блок 7.3.1) — пол цены заявки на продажу.</summary>
+    private const decimal MinSellMarginRate = 0.05m;
+
+    /// <summary>Заявки мельче этого объёма не подаются вовсе — не засорять стакан пылью (Блок 7.3.1).</summary>
+    private const decimal MinOrderVolume = 0.5m;
 
     /// <summary>Команда, за которую действует бот.</summary>
     public Ulid TeamId { get; }
@@ -82,8 +102,11 @@ public sealed class SimpleBot
     /// Достраивает те фабрики сектора, которые ещё не построены и уже разблокированы (Блок 9.2) —
     /// на первом ходу это подмножество, доступное сразу; на последующих — то, что только что
     /// открылось благодаря <see cref="GameSession.SetGenerationResearchCommitment"/>, объявленному в
-    /// <see cref="BuildOutSectorChain"/>. Вызывать каждый ход решений, идемпотентно (уже
-    /// построенные типы пропускаются).
+    /// <see cref="BuildOutSectorChain"/>. Каждой новой фабрике сразу же, один раз при постройке,
+    /// назначает R&amp;D-вложение на потолок (Блок 7.3.1, <see cref="GameSession.SetRndCommitment"/>) —
+    /// без этого уровень фабрики никогда не растёт, только сам факт разблокировки поколения
+    /// (`docs/balancing-bots.md` §1). Вызывать каждый ход решений, идемпотентно (уже построенные типы
+    /// пропускаются).
     /// </summary>
     public void BuildNewlyUnlockedFactories(GameSession session)
     {
@@ -92,6 +115,7 @@ public sealed class SimpleBot
         var team = session.State.Teams[TeamId];
         var builtDefinitionIds = team.Factories.Select(f => f.Definition.Id).ToHashSet();
         var baseWorkerCount = session.State.Config.Raw.WorkerProductivity.BaseWorkerCount;
+        var maxRndCommitmentPerTurn = session.State.Config.Raw.Rnd.MaxCommitmentPerTurn;
         foreach (var definition in _sectorFactories)
         {
             if (builtDefinitionIds.Contains(definition.Id) || definition.Recipes[0].Output.Level > team.UnlockedGeneration)
@@ -101,6 +125,7 @@ public sealed class SimpleBot
 
             var built = (FactoryBuilt)session.BuildFactory(TeamId, definition.Id).Change;
             session.SetWorkerCount(TeamId, built.FactoryId, baseWorkerCount);
+            session.SetRndCommitment(TeamId, built.FactoryId, maxRndCommitmentPerTurn);
         }
     }
 
@@ -170,47 +195,157 @@ public sealed class SimpleBot
     }
 
     /// <summary>
-    /// Раз в <see cref="ContractIntervalTurns"/> ходов заключает и сразу подтверждает простой
-    /// spot-контракт на поставку финального продукта партнёру по сектору (SPEC §6). Обе заявки
-    /// вычисляет сам вызывающий код — это не имитация переговоров двух независимых игроков, а
-    /// механическое упражнение контрактной машины движка при автопрогоне (Блок 7.2). Ничего не
-    /// подписывает, пока продавец ещё не построил фабрику финального продукта (Блок 9.2: она может
-    /// быть временно недоступна — ждёт исследования следующего поколения) — иначе бот обещал бы
-    /// поставку того, что физически не производит, и гарантированно сорвал бы её.
+    /// Добровольно гасит долг сверх обязательного платежа (Блок 7.3.1, <c>docs/balancing-bots.md</c>
+    /// §1) — без этого взятый кредит никогда не уменьшается, кроме фиксированной доли за ход
+    /// (<see cref="Game.Engine.FinanceCalculator.CalculateMandatoryRepayment"/>). Погашает весь
+    /// свободный остаток сверх буфера на ближайший ход (зарплата всех рабочих команды, содержание
+    /// фабрик, обязательный платёж, проценты, уже объявленные R&amp;D-вложения — свои и командные) —
+    /// то есть только то, что в любом случае спишется на ближайшем расчёте, не залезая в оборотные
+    /// деньги. Ничего не делает, если долга нет или буфер уже съедает весь баланс. Идемпотентно,
+    /// вызывать каждый ход решений.
     /// </summary>
-    public static void TrySignSimpleContract(GameSession session, SimpleBot seller, SimpleBot buyer, Random confirmationCodeRandom)
+    public void RepayDebt(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
-        ArgumentNullException.ThrowIfNull(seller);
-        ArgumentNullException.ThrowIfNull(buyer);
-        ArgumentNullException.ThrowIfNull(confirmationCodeRandom);
 
-        var turn = session.State.CurrentTurn;
-        if (turn % ContractIntervalTurns != 0)
+        var team = session.State.Teams[TeamId];
+        if (team.Debt <= 0m)
         {
             return;
         }
 
-        var sellerTeam = session.State.Teams[seller.TeamId];
-        if (!sellerTeam.Factories.Any(f => f.SelectedRecipe.Output == seller.FinalMaterial))
+        var config = session.State.Config.Raw;
+        var totalWorkers = team.Factories.Sum(f => f.Workers);
+        var reputationPercentage = session.GetReputation(TeamId).Percentage;
+
+        var buffer = FinanceCalculator.CalculateSalaries(totalWorkers, config.WorkerProductivity)
+                     + FinanceCalculator.CalculateFactoryUpkeep(team.Factories, config.FactoryDefinitions, config.Wear)
+                     + FinanceCalculator.CalculateMandatoryRepayment(team, config.StartingConditions)
+                     + FinanceCalculator.CalculateInterest(team, config.StartingConditions, reputationPercentage)
+                     + team.Factories.Sum(f => f.RndCommitmentPerTurn)
+                     + team.GenerationResearchCommitmentPerTurn;
+
+        var repayable = team.Balance - buffer;
+        if (repayable > 0m)
         {
-            return;
+            session.RepayLoan(TeamId, Math.Min(repayable, team.Debt));
+        }
+    }
+
+    /// <summary>
+    /// Заявки на продажу для биржевого стакана (Блок 7.3.1, <see cref="OrderBook"/>) — по каждому
+    /// материалу, который команда сама производит: остаток на складе за вычетом того, что уже
+    /// обещано действующими контрактами продажи, и буфера на собственное потребление, если материал
+    /// — ещё и вход одного из своих же рецептов (см. <see cref="OwnUseBufferCycles"/>, не оголяет
+    /// свою цепочку ради продажи на сторону). Цена — себестоимость плюс минимальная маржа (<see
+    /// cref="MinSellMarginRate"/>).
+    /// </summary>
+    public IReadOnlyList<TradeOrder> ComputeSellOrders(GameSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        var team = session.State.Teams[TeamId];
+        var recipeBook = session.State.Config.RecipeBook;
+        var rawMaterialCosts = RawMaterialCosts(session);
+
+        var orders = new List<TradeOrder>();
+        foreach (var material in team.Factories.Select(f => f.SelectedRecipe.Output).Distinct())
+        {
+            var stock = team.Warehouse.QuantityOf(material);
+            var reservedByContracts = session.State.Contracts.Values
+                .Where(c => c.SellerTeamId == TeamId && c.Status == ContractStatus.Active && c.Terms.Material == material)
+                .Sum(c => c.Terms.Volume);
+            var ownUseBuffer = team.Factories
+                .SelectMany(f => f.SelectedRecipe.Inputs)
+                .Where(input => input.Material == material)
+                .Sum(input => input.Quantity * OwnUseBufferCycles);
+
+            var sellable = stock - reservedByContracts - ownUseBuffer;
+            if (sellable < MinOrderVolume || !TryCalculateUnitCost(material, recipeBook, rawMaterialCosts, out var unitCost))
+            {
+                continue;
+            }
+
+            orders.Add(new TradeOrder
+            {
+                TeamId = TeamId,
+                Material = material,
+                Volume = sellable,
+                LimitPrice = unitCost * (1m + MinSellMarginRate),
+            });
         }
 
-        var quote = session.State.Market.QuoteOf(seller.FinalMaterial.Id);
-        var terms = new ContractTerms(
-            ContractType.Spot, seller.FinalMaterial, ContractVolume, quote.Price,
-            penaltyRate: session.State.Config.Raw.Contracts.DeliveryMissPenaltyRate,
-            effectiveTurn: turn, spotDeliveryTurn: turn + 1, recurringEndTurn: null);
+        return orders;
+    }
 
-        var sellerProposal = new ContractProposal(buyer.TeamId, seller.TeamId, seller.TeamId, terms);
-        var buyerProposal = new ContractProposal(buyer.TeamId, seller.TeamId, buyer.TeamId, terms);
+    /// <summary>
+    /// Заявки на покупку для биржевого стакана (Блок 7.3.1, <see cref="OrderBook"/>) — по каждому
+    /// материалу, который нужен одному из построенных рецептов команды, но не производится ею самой
+    /// (то, что физически может дать только другой сектор — свои сырьё и переделы уже закрыты
+    /// строительством всей цепочки сектора, см. <see cref="BuildNewlyUnlockedFactories"/>). Целится в
+    /// буфер на <see cref="BuyBufferCycles"/> варок рецепта; заявка — только на нехватку до этого
+    /// буфера. Цена — себестоимость плюс потолок надбавки (<see cref="MaxBuyPremiumRate"/>).
+    /// </summary>
+    public IReadOnlyList<TradeOrder> ComputeBuyOrders(GameSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
 
-        var result = session.SubmitContractProposals(sellerProposal, buyerProposal, confirmationCodeRandom);
-        if (result.IsMatched)
+        var team = session.State.Teams[TeamId];
+        var recipeBook = session.State.Config.RecipeBook;
+        var rawMaterialCosts = RawMaterialCosts(session);
+        var ownProducedMaterials = team.Factories.Select(f => f.SelectedRecipe.Output).ToHashSet();
+
+        var neededPerCycle = team.Factories
+            .SelectMany(f => f.SelectedRecipe.Inputs)
+            .Where(input => !ownProducedMaterials.Contains(input.Material))
+            .GroupBy(input => input.Material)
+            .ToDictionary(g => g.Key, g => g.Sum(input => input.Quantity));
+
+        var orders = new List<TradeOrder>();
+        foreach (var (material, perCycle) in neededPerCycle)
         {
-            // sellerProposal подана как proposalA -> продавец инициатор, подтверждает покупатель.
-            session.ConfirmContract(result.Contract!.Id, TeamRole.Manager, buyer.TeamId);
+            var targetBuffer = perCycle * BuyBufferCycles;
+            var deficit = targetBuffer - team.Warehouse.QuantityOf(material);
+            if (deficit < MinOrderVolume || !TryCalculateUnitCost(material, recipeBook, rawMaterialCosts, out var unitCost))
+            {
+                continue;
+            }
+
+            orders.Add(new TradeOrder
+            {
+                TeamId = TeamId,
+                Material = material,
+                Volume = deficit,
+                LimitPrice = unitCost * (1m + MaxBuyPremiumRate),
+            });
+        }
+
+        return orders;
+    }
+
+    /// <summary>Котировки текущего рынка на всё сырьё, у которого уже есть котировка, — вход для <see cref="CostCalculator.CalculateUnitCost"/> (тот же приём, что <c>DashboardDisplay.TryCalculateUnitCost</c> в Game.Web).</summary>
+    private static IReadOnlyDictionary<Material, decimal> RawMaterialCosts(GameSession session) =>
+        session.State.Config.Materials.Values
+            .Where(m => m.IsRawMaterial && session.State.Market.HasQuote(m.Id))
+            .ToDictionary(m => m, m => session.State.Market.QuoteOf(m.Id).Price);
+
+    /// <summary>
+    /// Обёртка над <see cref="CostCalculator.CalculateUnitCost"/>, не падающая, если по какому-то
+    /// сырью в цепочке ещё нет котировки (например, самый первый ход) — заявка в этом случае просто
+    /// не подаётся в этот раз, а не роняет весь прогон.
+    /// </summary>
+    private static bool TryCalculateUnitCost(
+        Material material, RecipeBook recipeBook, IReadOnlyDictionary<Material, decimal> rawMaterialCosts, out decimal unitCost)
+    {
+        try
+        {
+            unitCost = CostCalculator.CalculateUnitCost(material, recipeBook, rawMaterialCosts);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            unitCost = 0m;
+            return false;
         }
     }
 }
