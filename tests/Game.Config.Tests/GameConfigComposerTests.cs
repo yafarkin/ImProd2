@@ -147,4 +147,24 @@ public class GameConfigComposerTests
 
         Assert.Empty(errors);
     }
+
+    [Fact]
+    public void Compose_Applies_DifficultyScaler_Using_The_Session_DifficultyLevel()
+    {
+        var session = BuildSession() with { DifficultyLevel = 0.0 };
+
+        var config = GameConfigComposer.Compose(BuildProductionModel(), session);
+
+        // BuildCost-анкер уровня 0 — множитель 0.5 (docs/difficulty.md §3): 100m -> 50m.
+        Assert.Equal(50m, config.FactoryDefinitions.Single().BuildCost);
+    }
+
+    [Fact]
+    public void Compose_Leaves_Values_Unchanged_At_The_Default_DifficultyLevel()
+    {
+        var config = GameConfigComposer.Compose(BuildProductionModel(), BuildSession());
+
+        // BuildSession() не задаёт DifficultyLevel — дефолт 3.0, нейтральный уровень.
+        Assert.Equal(100m, config.FactoryDefinitions.Single().BuildCost);
+    }
 }

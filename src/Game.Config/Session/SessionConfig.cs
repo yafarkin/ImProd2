@@ -17,6 +17,15 @@ public sealed record SessionConfig
     /// <summary>Стартовые условия команды.</summary>
     public required StartingConditionsConfig StartingConditions { get; init; }
 
+    /// <summary>
+    /// Сложность сессии (<c>docs/difficulty.md</c>): непрерывное значение 0.0 (почти нельзя
+    /// проиграть) — 5.0 (нужна высокая точность решений), фиксируется один раз при создании сессии,
+    /// не меняется во время игры. Уровень 3.0 — нейтральный, совпадает с текущей откалиброванной
+    /// экономикой без изменений (см. <see cref="Economy.DifficultyScaler"/>), поэтому не <c>required</c>
+    /// — отсутствие в JSON эквивалентно нейтральному уровню, не ошибке конфигурации.
+    /// </summary>
+    public double DifficultyLevel { get; init; } = 3.0;
+
     /// <summary>Доступные пресеты длительности сессии.</summary>
     public required IReadOnlyList<SessionPresetConfig> SessionPresets { get; init; }
 

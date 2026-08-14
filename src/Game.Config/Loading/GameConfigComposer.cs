@@ -10,7 +10,9 @@ namespace Game.Config.Loading;
 /// весь остальной код (движок, резолвер, валидатор, хеш не знают о разрезе модель/сессия вообще).
 /// Разрез существует только для авторов конфига: выбрать одну из нескольких производственных
 /// моделей и один из нескольких сессионных наборов независимо друг от друга, не дублируя каталог
-/// под каждую комбинацию длительности/сложности.
+/// под каждую комбинацию длительности/сложности. После сборки, до валидации, применяет <see
+/// cref="DifficultyScaler"/> — так уже собранный <see cref="GameConfig"/> (например, из <c>Samples/gameconfig.*.json</c>,
+/// минующий этот путь) слайдер сложности не трогает вовсе.
 /// </summary>
 public static class GameConfigComposer
 {
@@ -20,7 +22,7 @@ public static class GameConfigComposer
         ArgumentNullException.ThrowIfNull(productionModel);
         ArgumentNullException.ThrowIfNull(session);
 
-        return new GameConfig
+        var composed = new GameConfig
         {
             Sectors = productionModel.Sectors,
             Materials = productionModel.Materials,
@@ -54,5 +56,7 @@ public static class GameConfigComposer
             News = session.News,
             FeatureFlags = session.FeatureFlags,
         };
+
+        return DifficultyScaler.Apply(composed, session.DifficultyLevel);
     }
 }
