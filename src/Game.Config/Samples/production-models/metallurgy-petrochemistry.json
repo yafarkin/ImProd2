@@ -746,6 +746,10 @@
         {
           "MaterialId": "paint",
           "Quantity": 4
+        },
+        {
+          "MaterialId": "tires",
+          "Quantity": 2
         }
       ],
       "ProductionRate": 2
