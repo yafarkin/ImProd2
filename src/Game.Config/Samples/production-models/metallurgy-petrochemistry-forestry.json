@@ -839,9 +839,9 @@
       "RecipeIds": [
         "iron-ore-mining"
       ],
-      "BuildCost": 500,
+      "BuildCost": 1750,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 10.0
+      "FixedCostPerTurn": 35.0
     },
     {
       "Id": "coal-mine",
@@ -850,9 +850,9 @@
       "RecipeIds": [
         "coking-coal-mining"
       ],
-      "BuildCost": 480,
+      "BuildCost": 1650,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 9.6
+      "FixedCostPerTurn": 33.0
     },
     {
       "Id": "limestone-quarry",
@@ -861,9 +861,9 @@
       "RecipeIds": [
         "limestone-quarrying"
       ],
-      "BuildCost": 420,
+      "BuildCost": 1450,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 8.4
+      "FixedCostPerTurn": 29.0
     },
     {
       "Id": "scrap-yard",
@@ -872,9 +872,9 @@
       "RecipeIds": [
         "scrap-collection"
       ],
-      "BuildCost": 350,
+      "BuildCost": 1200,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 7.0
+      "FixedCostPerTurn": 24.0
     },
     {
       "Id": "oil-well",
@@ -883,9 +883,9 @@
       "RecipeIds": [
         "oil-drilling"
       ],
-      "BuildCost": 500,
+      "BuildCost": 1750,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 10.0
+      "FixedCostPerTurn": 35.0
     },
     {
       "Id": "gas-well",
@@ -894,9 +894,9 @@
       "RecipeIds": [
         "natural-gas-drilling"
       ],
-      "BuildCost": 480,
+      "BuildCost": 1650,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 9.6
+      "FixedCostPerTurn": 33.0
     },
     {
       "Id": "logging-site",
@@ -905,9 +905,9 @@
       "RecipeIds": [
         "logging"
       ],
-      "BuildCost": 480,
+      "BuildCost": 1650,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 9.6
+      "FixedCostPerTurn": 33.0
     },
     {
       "Id": "cotton-plantation",
@@ -916,9 +916,9 @@
       "RecipeIds": [
         "cotton-picking"
       ],
-      "BuildCost": 420,
+      "BuildCost": 1450,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 8.4
+      "FixedCostPerTurn": 29.0
     },
     {
       "Id": "coking-plant",
@@ -927,9 +927,9 @@
       "RecipeIds": [
         "coke-from-coal"
       ],
-      "BuildCost": 900,
+      "BuildCost": 3100,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 18.0
+      "FixedCostPerTurn": 62.0
     },
     {
       "Id": "mini-mill",
@@ -938,9 +938,9 @@
       "RecipeIds": [
         "wire-rod-from-scrap"
       ],
-      "BuildCost": 1000,
+      "BuildCost": 3450,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 20.0
+      "FixedCostPerTurn": 69.0
     },
     {
       "Id": "refinery",
@@ -949,9 +949,9 @@
       "RecipeIds": [
         "gasoline-from-oil"
       ],
-      "BuildCost": 850,
+      "BuildCost": 2950,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 17.0
+      "FixedCostPerTurn": 59.0
     },
     {
       "Id": "petrochemical-plant",
@@ -960,9 +960,9 @@
       "RecipeIds": [
         "ethylene-from-oil"
       ],
-      "BuildCost": 900,
+      "BuildCost": 3100,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 18.0
+      "FixedCostPerTurn": 62.0
     },
     {
       "Id": "rubber-plant",
@@ -971,9 +971,9 @@
       "RecipeIds": [
         "synthetic-rubber-from-oil"
       ],
-      "BuildCost": 900,
+      "BuildCost": 3100,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 18.0
+      "FixedCostPerTurn": 62.0
     },
     {
       "Id": "gas-processing-plant",
@@ -982,9 +982,9 @@
       "RecipeIds": [
         "methanol-from-gas"
       ],
-      "BuildCost": 900,
+      "BuildCost": 3100,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 18.0
+      "FixedCostPerTurn": 62.0
     },
     {
       "Id": "carbon-black-plant",
@@ -993,9 +993,9 @@
       "RecipeIds": [
         "carbon-black-from-oil"
       ],
-      "BuildCost": 900,
+      "BuildCost": 3100,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 18.0
+      "FixedCostPerTurn": 62.0
     },
     {
       "Id": "sawmill",
@@ -1004,9 +1004,9 @@
       "RecipeIds": [
         "lumber-from-timber"
       ],
-      "BuildCost": 900,
+      "BuildCost": 3100,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 18.0
+      "FixedCostPerTurn": 62.0
     },
     {
       "Id": "spinning-mill",
@@ -1015,9 +1015,9 @@
       "RecipeIds": [
         "fabric-from-cotton"
       ],
-      "BuildCost": 850,
+      "BuildCost": 2950,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 17.0
+      "FixedCostPerTurn": 59.0
     },
     {
       "Id": "blast-furnace",
@@ -1026,9 +1026,9 @@
       "RecipeIds": [
         "pig-iron-from-ore"
       ],
-      "BuildCost": 1400,
+      "BuildCost": 4850,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 28.0
+      "FixedCostPerTurn": 97.0
     },
     {
       "Id": "fastener-plant",
@@ -1037,9 +1037,9 @@
       "RecipeIds": [
         "fasteners-from-wire-rod"
       ],
-      "BuildCost": 1400,
+      "BuildCost": 4850,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 28.0
+      "FixedCostPerTurn": 97.0
     },
     {
       "Id": "paint-plant",
@@ -1048,9 +1048,9 @@
       "RecipeIds": [
         "paint-from-ethylene"
       ],
-      "BuildCost": 1400,
+      "BuildCost": 4850,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 28.0
+      "FixedCostPerTurn": 97.0
     },
     {
       "Id": "pvc-plant",
@@ -1059,9 +1059,9 @@
       "RecipeIds": [
         "pvc-component-from-ethylene"
       ],
-      "BuildCost": 1400,
+      "BuildCost": 4850,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 28.0
+      "FixedCostPerTurn": 97.0
     },
     {
       "Id": "compounding-plant",
@@ -1070,9 +1070,9 @@
       "RecipeIds": [
         "rubber-compound-from-synthetic-rubber"
       ],
-      "BuildCost": 1400,
+      "BuildCost": 4850,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 28.0
+      "FixedCostPerTurn": 97.0
     },
     {
       "Id": "carpentry-shop",
@@ -1081,9 +1081,9 @@
       "RecipeIds": [
         "wood-frame-from-lumber"
       ],
-      "BuildCost": 1400,
+      "BuildCost": 4850,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 28.0
+      "FixedCostPerTurn": 97.0
     },
     {
       "Id": "technical-fabric-shop",
@@ -1092,9 +1092,9 @@
       "RecipeIds": [
         "technical-fabric-from-fabric"
       ],
-      "BuildCost": 1400,
+      "BuildCost": 4850,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 28.0
+      "FixedCostPerTurn": 97.0
     },
     {
       "Id": "upholstery-shop",
@@ -1103,9 +1103,9 @@
       "RecipeIds": [
         "upholstery-from-fabric"
       ],
-      "BuildCost": 1400,
+      "BuildCost": 4850,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 28.0
+      "FixedCostPerTurn": 97.0
     },
     {
       "Id": "casting-machining-shop",
@@ -1114,9 +1114,9 @@
       "RecipeIds": [
         "engine-parts-from-pig-iron"
       ],
-      "BuildCost": 2200,
+      "BuildCost": 7600,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 44.0
+      "FixedCostPerTurn": 152.0
     },
     {
       "Id": "rolling-mill",
@@ -1125,9 +1125,9 @@
       "RecipeIds": [
         "steel-stock-from-pig-iron"
       ],
-      "BuildCost": 2200,
+      "BuildCost": 7600,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 44.0
+      "FixedCostPerTurn": 152.0
     },
     {
       "Id": "tire-cord-plant",
@@ -1136,9 +1136,9 @@
       "RecipeIds": [
         "tire-cord-from-rubber-and-fabric"
       ],
-      "BuildCost": 2200,
+      "BuildCost": 7600,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 44.0
+      "FixedCostPerTurn": 152.0
     },
     {
       "Id": "house-frame-shop",
@@ -1147,9 +1147,9 @@
       "RecipeIds": [
         "house-frame-from-wood-and-fabric"
       ],
-      "BuildCost": 2200,
+      "BuildCost": 7600,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 44.0
+      "FixedCostPerTurn": 152.0
     },
     {
       "Id": "machining-shop",
@@ -1158,9 +1158,9 @@
       "RecipeIds": [
         "machined-parts-from-steel-stock"
       ],
-      "BuildCost": 3200,
+      "BuildCost": 11050,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 64.0
+      "FixedCostPerTurn": 221.0
     },
     {
       "Id": "stamping-shop",
@@ -1169,9 +1169,9 @@
       "RecipeIds": [
         "stamped-panels-from-steel-stock"
       ],
-      "BuildCost": 3200,
+      "BuildCost": 11050,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 64.0
+      "FixedCostPerTurn": 221.0
     },
     {
       "Id": "composite-plant",
@@ -1180,9 +1180,9 @@
       "RecipeIds": [
         "composite-material-from-pvc-and-cord"
       ],
-      "BuildCost": 3200,
+      "BuildCost": 11050,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 64.0
+      "FixedCostPerTurn": 221.0
     },
     {
       "Id": "tire-carcass-plant",
@@ -1191,9 +1191,9 @@
       "RecipeIds": [
         "tire-carcass-from-tire-cord"
       ],
-      "BuildCost": 3200,
+      "BuildCost": 11050,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 64.0
+      "FixedCostPerTurn": 221.0
     },
     {
       "Id": "house-builder",
@@ -1202,9 +1202,9 @@
       "RecipeIds": [
         "house-assembly"
       ],
-      "BuildCost": 3200,
+      "BuildCost": 11050,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 64.0
+      "FixedCostPerTurn": 221.0
     },
     {
       "Id": "gearbox-plant",
@@ -1213,9 +1213,9 @@
       "RecipeIds": [
         "gearbox-assembly-from-parts"
       ],
-      "BuildCost": 4800,
+      "BuildCost": 16600,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 96.0
+      "FixedCostPerTurn": 332.0
     },
     {
       "Id": "body-welding-shop",
@@ -1224,9 +1224,9 @@
       "RecipeIds": [
         "welded-body-from-panels"
       ],
-      "BuildCost": 4800,
+      "BuildCost": 16600,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 96.0
+      "FixedCostPerTurn": 332.0
     },
     {
       "Id": "engine-assembly-plant",
@@ -1235,9 +1235,9 @@
       "RecipeIds": [
         "engine-from-parts"
       ],
-      "BuildCost": 4800,
+      "BuildCost": 16600,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 96.0
+      "FixedCostPerTurn": 332.0
     },
     {
       "Id": "shipyard",
@@ -1246,9 +1246,9 @@
       "RecipeIds": [
         "hull-from-composite-and-steel"
       ],
-      "BuildCost": 4800,
+      "BuildCost": 16600,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 96.0
+      "FixedCostPerTurn": 332.0
     },
     {
       "Id": "tire-plant",
@@ -1257,9 +1257,9 @@
       "RecipeIds": [
         "tires-from-tire-carcass"
       ],
-      "BuildCost": 4800,
+      "BuildCost": 16600,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 96.0
+      "FixedCostPerTurn": 332.0
     },
     {
       "Id": "car-assembly-plant",
@@ -1268,9 +1268,9 @@
       "RecipeIds": [
         "automobile-assembly"
       ],
-      "BuildCost": 7500,
+      "BuildCost": 25950,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 150.0
+      "FixedCostPerTurn": 519.0
     },
     {
       "Id": "boat-assembly-plant",
@@ -1279,9 +1279,9 @@
       "RecipeIds": [
         "boat-assembly"
       ],
-      "BuildCost": 7500,
+      "BuildCost": 25950,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 150.0
+      "FixedCostPerTurn": 519.0
     }
   ],
   "BaseMarketPerMaterial": [
@@ -1494,11 +1494,11 @@
   "GenerationResearch": {
     "StartingGeneration": 1,
     "ResearchPointThresholdsByGeneration": [
-      25,
-      40,
-      60,
-      85,
-      115
+      90,
+      140,
+      210,
+      300,
+      405
     ],
     "DiminishingReturnsExponent": 0.5,
     "MaxCommitmentPerTurn": 300
