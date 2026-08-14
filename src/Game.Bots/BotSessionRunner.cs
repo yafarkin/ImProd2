@@ -56,6 +56,9 @@ public static class BotSessionRunner
                         // построено BuildOutSectorChain), на последующих — достраивает то, что
                         // разблокировало исследование поколений.
                         bot.BuildNewlyUnlockedFactories(session);
+                        // После достройки — чтобы у фабрик, построенных этим же ходом, темп
+                        // вложений уже был объявлен, не остался на ход без декларации (Блок 7.3.2).
+                        bot.UpdateInvestmentPace(session);
                         bot.MaintainFactories(session);
                         bot.RepayDebt(session);
                     }

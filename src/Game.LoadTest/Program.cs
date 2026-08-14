@@ -81,6 +81,12 @@ internal static class LoadTestRunner
                             }
                             hasBuiltOut = true;
                         }
+                        foreach (var bot in bots)
+                        {
+                            bot.BuildNewlyUnlockedFactories(session);
+                            bot.UpdateInvestmentPace(session);
+                            bot.RepayDebt(session);
+                        }
                         var sellOrders = bots.SelectMany(bot => bot.ComputeSellOrders(session)).ToList();
                         var buyOrders = bots.SelectMany(bot => bot.ComputeBuyOrders(session)).ToList();
                         OrderBook.Match(session, sellOrders, buyOrders, random);
