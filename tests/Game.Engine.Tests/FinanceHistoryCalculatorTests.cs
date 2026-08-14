@@ -328,6 +328,25 @@ public class FinanceHistoryCalculatorTests
         Assert.Equal(300m, operation.Amount);
     }
 
+    [Fact]
+    public void Summarize_Captures_GrantReceived_With_RepayDebtFirst_As_Income_Plus_Repayment()
+    {
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam(startingLoan: 200m);
+        log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 300m, RepayDebtFirst = true });
+
+        var operations = FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id)
+            .Where(o => o.Type is FinanceHistoryCalculator.OperationType.GrantReceived or FinanceHistoryCalculator.OperationType.VoluntaryRepayment)
+            .ToList();
+
+        var grant = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.GrantReceived);
+        Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Income, grant.Direction);
+        Assert.Equal(300m, grant.Amount);
+
+        var repayment = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.VoluntaryRepayment);
+        Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, repayment.Direction);
+        Assert.Equal(200m, repayment.Amount); // урезано до реального долга (300 гранта > 200 долга)
+    }
+
     private static ContractSpec SheetSpot(Ulid buyerId, Ulid sellerId, decimal volume = 10m, decimal unitPrice = 20m, decimal penaltyRate = 0.1m)
     {
         var terms = new ContractTerms(

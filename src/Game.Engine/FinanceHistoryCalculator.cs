@@ -116,6 +116,13 @@ public static class FinanceHistoryCalculator
 
         foreach (var entry in entries)
         {
+            // Долг команды до применения этого события — нужен только для GrantIssued с
+            // RepayDebtFirst (см. case ниже), чтобы показать реально погашенную сумму, а не
+            // пересчитывать её задним числом из уже применённого состояния.
+            var debtBeforeGrant = entry.Change is GrantIssued grant && grant.TeamId == teamId && scratch.Teams.ContainsKey(teamId)
+                ? scratch.Teams[teamId].Debt
+                : (decimal?)null;
+
             entry.Change.Apply(scratch);
 
             switch (entry.Change)
@@ -173,6 +180,11 @@ public static class FinanceHistoryCalculator
                     break;
                 case GrantIssued change when change.TeamId == teamId:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.GrantReceived, MoneyDirection.Income, change.Amount, Rate: null));
+                    if (change.RepayDebtFirst && debtBeforeGrant is > 0)
+                    {
+                        var repayment = Math.Min(change.Amount, debtBeforeGrant.Value);
+                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.VoluntaryRepayment, MoneyDirection.Expense, repayment, Rate: null));
+                    }
                     break;
                 case ContractDelivered change:
                 {

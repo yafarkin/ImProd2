@@ -57,6 +57,31 @@ public class GameSessionFacilitatorTests
     }
 
     [Fact]
+    public void GrantToTeam_With_RepayDebtFirst_Reduces_Debt_And_Credits_Only_The_Remainder()
+    {
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(); // startingLoan: 100_000m по умолчанию
+        var balanceBefore = session.State.Teams[teamId].Balance;
+
+        session.GrantToTeam(teamId, 100_500m, repayDebtFirst: true);
+
+        Assert.Equal(0m, session.State.Teams[teamId].Debt);
+        Assert.Equal(balanceBefore + 500m, session.State.Teams[teamId].Balance); // остаток сверх долга
+    }
+
+    [Fact]
+    public void GrantToTeam_With_RepayDebtFirst_Smaller_Than_Debt_Leaves_Balance_Unchanged()
+    {
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(); // startingLoan: 100_000m по умолчанию
+        var balanceBefore = session.State.Teams[teamId].Balance;
+        var debtBefore = session.State.Teams[teamId].Debt;
+
+        session.GrantToTeam(teamId, 500m, repayDebtFirst: true);
+
+        Assert.Equal(debtBefore - 500m, session.State.Teams[teamId].Debt);
+        Assert.Equal(balanceBefore, session.State.Teams[teamId].Balance); // грант целиком ушёл в погашение
+    }
+
+    [Fact]
     public void GrantToTeam_Throws_For_A_NonPositive_Amount()
     {
         var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();

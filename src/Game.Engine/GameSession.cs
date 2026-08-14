@@ -856,9 +856,10 @@ public sealed class GameSession
 
     /// <summary>
     /// Ведущий выдаёт безвозмездный грант отстающей команде (Блок 9.6, SPEC §9.5). Не привязано к
-    /// фазе решений — это действие ведущего, а не команды.
+    /// фазе решений — это действие ведущего, а не команды. <paramref name="repayDebtFirst"/> — см.
+    /// <see cref="GrantIssued.RepayDebtFirst"/>.
     /// </summary>
-    public EventLogEntry<GameSessionState> GrantToTeam(Ulid teamId, decimal amount)
+    public EventLogEntry<GameSessionState> GrantToTeam(Ulid teamId, decimal amount, bool repayDebtFirst = false)
     {
         if (amount <= 0)
         {
@@ -866,7 +867,7 @@ public sealed class GameSession
         }
         GetTeam(teamId);
 
-        return _log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
+        return _log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount, RepayDebtFirst = repayDebtFirst });
     }
 
     /// <summary>

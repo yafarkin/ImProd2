@@ -103,7 +103,7 @@ else
 </div>
 
 <h2 class="mt-4">Грант команде</h2>
-<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+<div class="d-flex flex-wrap align-items-center gap-2 mb-1">
     <select class="form-select w-auto" @bind="_grantTeamId">
         @foreach (var team in _teams)
         {
@@ -111,8 +111,20 @@ else
         }
     </select>
     <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_grantAmount" />
+    <div class="form-check">
+        <input type="checkbox" class="form-check-input" id="grantRepayDebtFirst" @bind="_grantRepayDebtFirst" />
+        <label class="form-check-label" for="grantRepayDebtFirst">Сначала на погашение долга</label>
+    </div>
     <button type="button" class="btn btn-secondary" @onclick="Grant">Выдать грант</button>
 </div>
+@if (SuggestedGrantAmount is { } suggested && suggested > 0)
+{
+    <p class="text-muted mb-3">
+        Подсказка: чтобы поднять баланс команды до @DashboardDisplay.FormatMoney(TargetPositiveBalance)@(_grantRepayDebtFirst ? " после погашения долга" : ""),
+        нужно <strong>@DashboardDisplay.FormatMoney(suggested)</strong>.
+        <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @onclick="() => _grantAmount = suggested">Подставить</button>
+    </p>
+}
 
 <h2 class="mt-4">Аварийная закупка</h2>
 <div class="d-flex align-items-center gap-2 mb-3">
@@ -189,8 +201,12 @@ else
     private IReadOnlyList<NewsOption> _availableNews = Array.Empty<NewsOption>();
     private IReadOnlyList<MaterialOption> _materials = Array.Empty<MaterialOption>();
 
+    /// <summary>Ориентир «небольшого положительного баланса» для подсказки суммы гранта (см. <see cref="SuggestedGrantAmount"/>).</summary>
+    private const decimal TargetPositiveBalance = 100m;
+
     private Ulid? _grantTeamId;
     private decimal _grantAmount = 100m;
+    private bool _grantRepayDebtFirst;
     private bool _emergencyPurchaseEnabled;
     private string? _newsItemId;
     private string? _priceMaterialId;
@@ -267,6 +283,31 @@ else
         }
     }
 
+    /// <summary>
+    /// Сумма гранта, которая выводит баланс выбранной команды к <see cref="TargetPositiveBalance"/>
+    /// — при включённом «сначала на погашение долга» сверху ещё добавляется весь текущий долг
+    /// команды (иначе после погашения долга на балансе снова осталось бы меньше цели). <see
+    /// langword="null"/>, если команда не выбрана.
+    /// </summary>
+    private decimal? SuggestedGrantAmount
+    {
+        get
+        {
+            if (_grantTeamId is not { } teamId)
+            {
+                return null;
+            }
+            var team = _teams.FirstOrDefault(t => t.TeamId == teamId);
+            if (team is null)
+            {
+                return null;
+            }
+
+            var topUp = Math.Max(0m, TargetPositiveBalance - team.Balance);
+            return _grantRepayDebtFirst ? topUp + team.Debt : topUp;
+        }
+    }
+
     private void Grant()
     {
         if (_grantTeamId is not { } teamId)
@@ -274,7 +315,7 @@ else
             return;
         }
 
-        RunAction(() => Host.Session!.GrantToTeam(teamId, _grantAmount));
+        RunAction(() => Host.Session!.GrantToTeam(teamId, _grantAmount, _grantRepayDebtFirst));
     }
 
     private void ToggleEmergencyPurchase() => RunAction(() => Host.Session!.SetEmergencyPurchaseEnabled(!_emergencyPurchaseEnabled));
