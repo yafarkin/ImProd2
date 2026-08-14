@@ -229,6 +229,12 @@
       "Level": 3
     },
     {
+      "Id": "wall-panel",
+      "Name": "Стеновая панель (утеплённая)",
+      "SectorId": "V",
+      "Level": 3
+    },
+    {
       "Id": "gearbox-assembly",
       "Name": "Коробка передач в сборе",
       "SectorId": "A",
@@ -695,6 +701,22 @@
       "ProductionRate": 14
     },
     {
+      "Id": "wall-panel-from-frame-and-fabric",
+      "OutputMaterialId": "wall-panel",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "wood-frame",
+          "Quantity": 2
+        },
+        {
+          "MaterialId": "technical-fabric",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 18
+    },
+    {
       "Id": "gearbox-assembly-from-parts",
       "OutputMaterialId": "gearbox-assembly",
       "OutputQuantity": 1,
@@ -804,11 +826,7 @@
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "wood-frame",
-          "Quantity": 6
-        },
-        {
-          "MaterialId": "technical-fabric",
+          "MaterialId": "wall-panel",
           "Quantity": 3
         },
         {
@@ -1316,6 +1334,17 @@
       "FixedCostPerTurn": 44.0
     },
     {
+      "Id": "panel-plant",
+      "Name": "Завод стеновых панелей",
+      "SectorId": "V",
+      "RecipeIds": [
+        "wall-panel-from-frame-and-fabric"
+      ],
+      "BuildCost": 2200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 44.0
+    },
+    {
       "Id": "gearbox-plant",
       "Name": "Завод коробок передач",
       "SectorId": "A",
@@ -1612,6 +1641,11 @@
       "MaterialId": "circuit-board",
       "BasePrice": 85,
       "BaseCapacity": 90
+    },
+    {
+      "MaterialId": "wall-panel",
+      "BasePrice": 40,
+      "BaseCapacity": 110
     },
     {
       "MaterialId": "gearbox-assembly",
