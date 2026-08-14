@@ -42,8 +42,11 @@ internal sealed record CliArguments
     /// <summary>См. doc-comment конструктора <see cref="Game.Bots.SimpleBot"/>.</summary>
     public bool MaintainFactories { get; init; } = true;
 
-    /// <summary>Путь для CSV-сводки по ячейкам сетки.</summary>
+    /// <summary>Путь для CSV-сводки (по ячейкам сетки в режиме <see cref="RunMode.Grid"/>, по ходам в режиме <see cref="RunMode.IdealHall"/>).</summary>
     public string OutPath { get; init; } = "strategy-grid.csv";
+
+    /// <summary>Что считать этим запуском (Блок 7.3.4) — сетку ботовых стратегий или идеальный зал.</summary>
+    public RunMode Mode { get; init; } = RunMode.Grid;
 
     /// <summary>Разбирает пары <c>--флаг значение</c>; неизвестный флаг или флаг без значения — <see cref="ArgumentException"/> (лучше упасть сразу, чем молча проигнорировать опечатку в многочасовом прогоне).</summary>
     public static CliArguments Parse(IReadOnlyList<string> args)
@@ -75,10 +78,28 @@ internal sealed record CliArguments
                 "--teams-per-sector" => result with { TeamsPerSector = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--maintain-factories" => result with { MaintainFactories = bool.Parse(NextValue()) },
                 "--out" => result with { OutPath = NextValue() },
-                _ => throw new ArgumentException($"Unknown argument '{flag}'. Known flags: --config, --session, --preset, --sessions-per-cell, --grid-steps, --teams-per-sector, --maintain-factories, --out."),
+                "--mode" => result with { Mode = ParseMode(NextValue()) },
+                _ => throw new ArgumentException($"Unknown argument '{flag}'. Known flags: --config, --session, --preset, --sessions-per-cell, --grid-steps, --teams-per-sector, --maintain-factories, --out, --mode."),
             };
         }
 
         return result;
     }
+
+    private static RunMode ParseMode(string value) => value switch
+    {
+        "grid" => RunMode.Grid,
+        "ideal-hall" => RunMode.IdealHall,
+        _ => throw new ArgumentException($"Unknown '--mode' value '{value}'. Expected 'grid' or 'ideal-hall'."),
+    };
+}
+
+/// <summary>Режим прогона утилиты (Блок 7.3.4).</summary>
+internal enum RunMode
+{
+    /// <summary>Сетка ботовых стратегий leverage×profile на реальном движке (Блок 7.3.2) — прежнее поведение по умолчанию.</summary>
+    Grid,
+
+    /// <summary>Идеальный зал X(t) (Блок 7.3.4, <c>docs/production-balance.md</c> §4) — детерминированный расчёт без ботов.</summary>
+    IdealHall,
 }

@@ -1,6 +1,7 @@
 using System.Globalization;
 using Game.Balancing;
 using Game.Bots;
+using Game.Config.Loading;
 using Game.Domain;
 using Game.Engine;
 
@@ -19,6 +20,12 @@ if (cliArguments.TeamsPerSector <= 0)
 
 var sectorNames = string.Join(", ", config.Sectors.Select(s => $"{s.Id} ({s.Name})"));
 Console.WriteLine($"Секторов в цепочке: {config.Sectors.Count} [{sectorNames}], команд на сектор: {cliArguments.TeamsPerSector}.");
+
+if (cliArguments.Mode == RunMode.IdealHall)
+{
+    await RunIdealHallAsync(config, preset.MaxTurns, cliArguments.OutPath);
+    return;
+}
 
 var leverageLevels = StrategyGridRunner.UniformLevels(cliArguments.GridSteps);
 var profileLevels = StrategyGridRunner.UniformLevels(cliArguments.GridSteps);
@@ -89,3 +96,37 @@ await using (var writer = new StreamWriter(cliArguments.OutPath))
 
 Console.WriteLine();
 Console.WriteLine($"CSV сводки по сетке записан: {Path.GetFullPath(cliArguments.OutPath)}");
+
+/// <summary>
+/// Режим --mode ideal-hall (Блок 7.3.4, docs/production-balance.md §4): X(t) по каждому сектору
+/// цепочки, детерминированный расчёт, без ботов и без сетки — консольная таблица + CSV с рядом по
+/// ходам на каждую ветку (тот же формат «Turn,SectorA,SectorB,...», что и прежний per-turn CSV блока
+/// 7.2, только на секторы, а не на усреднённые метрики партий).
+/// </summary>
+static async Task RunIdealHallAsync(ResolvedGameConfig config, int maxTurns, string outPath)
+{
+    Console.WriteLine($"Идеальный зал: {maxTurns} ходов (MaxTurns пресета — публично известная верхняя граница, не тайный EndTurn).");
+    Console.WriteLine();
+
+    var result = IdealHallCalculator.Calculate(config, maxTurns);
+
+    var header = "Ход " + string.Join(' ', result.Branches.Select(b => $"{b.SectorId,14}"));
+    Console.WriteLine(header);
+    for (var turn = 0; turn < maxTurns; turn++)
+    {
+        var row = $"{turn + 1,4} " + string.Join(' ', result.Branches.Select(b => $"{b.ValueByTurn[turn],14:N0}"));
+        Console.WriteLine(row);
+    }
+
+    await using var writer = new StreamWriter(outPath);
+    await writer.WriteLineAsync("Turn," + string.Join(',', result.Branches.Select(b => b.SectorId)));
+    for (var turn = 0; turn < maxTurns; turn++)
+    {
+        var row = (turn + 1).ToString(CultureInfo.InvariantCulture) + "," +
+                   string.Join(',', result.Branches.Select(b => b.ValueByTurn[turn].ToString(CultureInfo.InvariantCulture)));
+        await writer.WriteLineAsync(row);
+    }
+
+    Console.WriteLine();
+    Console.WriteLine($"CSV с X(t) по каждой ветке записан: {Path.GetFullPath(outPath)}");
+}
