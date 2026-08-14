@@ -55,8 +55,23 @@
                     }
                 </select>
             </div>
+            <div>
+                <label for="difficultyLevel" class="form-label d-block">Сложность (0 — легко, 5 — сложно)</label>
+                <input id="difficultyLevel" type="number" min="0" max="5" step="0.1" class="form-control" style="width:7em"
+                       @bind="_difficultyLevel" />
+            </div>
             <button type="button" class="btn btn-secondary" @onclick="ApplyProductionModelAndSession">Применить</button>
         </div>
+        <p class="text-muted">
+            <em>
+                Непрерывный множитель поверх восьми именованных рычагов баланса (кредит, стоимость
+                фабрик, зарплата, скорость R&amp;D, цены рынка, штраф аварийной закупки, износ) —
+                уровень 3.0 (дефолт) ничего не меняет, это уже откалиброванная экономика.
+                Фиксируется здесь же, при сборке конфига, вместе с моделью и сессией — во время игры
+                не редактируется (<code>docs/difficulty.md</code>). Сейчас применена сложность
+                @_appliedDifficultyLevel.ToString("0.0").
+            </em>
+        </p>
         <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
             <InputFile OnChange="OnConfigFileSelected" class="form-control d-inline-block w-auto" />
             <a href="/admin/price-ladder" class="btn btn-secondary">Пересчитать цены продажи системе</a>
@@ -199,6 +214,8 @@ else
 
     private string? _selectedProductionModelId;
     private string? _selectedSessionConfigId;
+    private double _difficultyLevel = 3.0;
+    private double _appliedDifficultyLevel = 3.0;
     private string? _selectedPresetId;
     private string? _resetPresetId;
     private string? _errorMessage;
@@ -344,9 +361,16 @@ else
             return;
         }
 
+        if (_difficultyLevel is < 0 or > 5)
+        {
+            _errorMessage = "Сложность должна быть в диапазоне 0-5.";
+            return;
+        }
+
         try
         {
-            Host.SetDraftConfig(GameConfigLoader.Load(model, session));
+            Host.SetDraftConfig(GameConfigLoader.Load(model, session with { DifficultyLevel = _difficultyLevel }));
+            _appliedDifficultyLevel = _difficultyLevel;
             SyncPhaseTimingFields();
         }
         catch (GameConfigValidationException ex)
