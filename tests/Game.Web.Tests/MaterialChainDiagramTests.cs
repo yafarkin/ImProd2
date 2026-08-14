@@ -46,6 +46,19 @@ public class MaterialChainDiagramTests
             host.ProductionModels["metallurgy-petrochemistry"], host.SessionConfigs["pilot"]);
     }
 
+    /// <summary>
+    /// metallurgy-petrochemistry-forestry.json — стадия 3 плана (`docs/production-staging.md`): третий
+    /// сектор (В, Лес и агротекстиль) замыкает связи в треугольник, а не просто добавляет ещё одну
+    /// независимую пару — каждая отрасль одновременно и поставщик, и заказчик у каждой из двух других.
+    /// </summary>
+    private static Game.Config.Loading.ResolvedGameConfig MetallurgyPetrochemistryForestryConfig()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        return Game.Config.Loading.GameConfigLoader.Load(
+            host.ProductionModels["metallurgy-petrochemistry-forestry"], host.SessionConfigs["pilot"]);
+    }
+
     [Fact]
     public void Build_Places_Every_Material_As_A_Node_And_Every_Recipe_Input_As_An_Edge()
     {
@@ -295,6 +308,52 @@ public class MaterialChainDiagramTests
 
         var paintSkip = layout.Edges.Single(e => e.SourceMaterialId == "paint" && e.TargetMaterialId == "automobile");
         Assert.Equal(5, paintSkip.LevelSpan); // level 2 -> level 7.
+    }
+
+    /// <summary>
+    /// Стадия 3 плана: каждая пара секторов должна зависеть друг от друга напрямую — не только А↔Б
+    /// (унаследовано со стадии 2), но и обе новые связи с В. Без этого В рисковала стать «подвешенной»
+    /// третьей отраслью, которая только продаёт себя А и Б, но сама ничего у них не покупает (или
+    /// наоборот) — см. обсуждение риска «сектор держит всех за яйца» на стадии 2.
+    /// </summary>
+    [Fact]
+    public void Build_Draws_All_Three_Sectors_As_A_Closed_Triangle_Of_Mutual_Dependency()
+    {
+        var config = MetallurgyPetrochemistryForestryConfig();
+
+        var automobileRecipe = config.RecipeBook.GetRecipe(config.Materials["automobile"]);
+        Assert.Contains(automobileRecipe.Inputs, i => i.Material.Id == "tires"); // A <- B
+        Assert.Contains(automobileRecipe.Inputs, i => i.Material.Id == "upholstery"); // A <- V
+
+        var boatRecipe = config.RecipeBook.GetRecipe(config.Materials["boat"]);
+        Assert.Contains(boatRecipe.Inputs, i => i.Material.Id == "engine"); // B <- A
+        Assert.Contains(boatRecipe.Inputs, i => i.Material.Id == "upholstery"); // B <- V
+
+        var houseRecipe = config.RecipeBook.GetRecipe(config.Materials["house"]);
+        Assert.Contains(houseRecipe.Inputs, i => i.Material.Id == "fasteners"); // V <- A
+        Assert.Contains(houseRecipe.Inputs, i => i.Material.Id == "paint"); // V <- B
+
+        // Шинный корд — ещё одна закрытая связь Б+В внутри самой цепочки, не только на верхнем уровне.
+        var tireCordRecipe = config.RecipeBook.GetRecipe(config.Materials["tire-cord"]);
+        Assert.Contains(tireCordRecipe.Inputs, i => i.Material.Id == "technical-fabric"); // B <- V
+    }
+
+    /// <summary>
+    /// Стадия 3 сохраняет и углубляет паттерн сквозных рёбер: теперь они пересекают не только уровни
+    /// внутри одной отрасли, но и границы секторов — бензин (Б, уровень 1) идёт напрямую в автомобиль
+    /// (А, уровень 6), крепёж (А, уровень 2) — напрямую в дом (В, уровень 4).
+    /// </summary>
+    [Fact]
+    public void Build_Marks_Cross_Sector_Skip_Level_Edges_At_Stage_Three()
+    {
+        var config = MetallurgyPetrochemistryForestryConfig();
+        var layout = MaterialChainDiagram.Build(config);
+
+        var gasolineSkip = layout.Edges.Single(e => e.SourceMaterialId == "gasoline" && e.TargetMaterialId == "automobile");
+        Assert.Equal(5, gasolineSkip.LevelSpan); // level 1 -> level 6.
+
+        var fastenersSkip = layout.Edges.Single(e => e.SourceMaterialId == "fasteners" && e.TargetMaterialId == "house");
+        Assert.Equal(2, fastenersSkip.LevelSpan); // level 2 -> level 4.
     }
 
     [Fact]

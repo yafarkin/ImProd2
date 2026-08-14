@@ -1,0 +1,1506 @@
+{
+  "Sectors": [
+    {
+      "Id": "A",
+      "Name": "Металлургия"
+    },
+    {
+      "Id": "B",
+      "Name": "Нефтегазохимия"
+    },
+    {
+      "Id": "V",
+      "Name": "Лес и агротекстиль"
+    }
+  ],
+  "Materials": [
+    {
+      "Id": "iron-ore",
+      "Name": "Железная руда",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "coking-coal",
+      "Name": "Коксующийся уголь",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "limestone",
+      "Name": "Известняк",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "scrap-metal",
+      "Name": "Металлолом",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "oil",
+      "Name": "Нефть",
+      "SectorId": "B",
+      "Level": 0
+    },
+    {
+      "Id": "natural-gas",
+      "Name": "Природный газ",
+      "SectorId": "B",
+      "Level": 0
+    },
+    {
+      "Id": "timber",
+      "Name": "Лес (кругляк)",
+      "SectorId": "V",
+      "Level": 0
+    },
+    {
+      "Id": "raw-cotton",
+      "Name": "Хлопок-сырец",
+      "SectorId": "V",
+      "Level": 0
+    },
+    {
+      "Id": "coke",
+      "Name": "Кокс",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "wire-rod",
+      "Name": "Катанка",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "gasoline",
+      "Name": "Бензин",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "ethylene",
+      "Name": "Этилен",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "synthetic-rubber",
+      "Name": "Синтетический каучук",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "methanol",
+      "Name": "Метанол",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "carbon-black",
+      "Name": "Технический углерод (сажа)",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "lumber",
+      "Name": "Пиломатериалы",
+      "SectorId": "V",
+      "Level": 1
+    },
+    {
+      "Id": "fabric",
+      "Name": "Ткань",
+      "SectorId": "V",
+      "Level": 1
+    },
+    {
+      "Id": "pig-iron",
+      "Name": "Чугун",
+      "SectorId": "A",
+      "Level": 2
+    },
+    {
+      "Id": "fasteners",
+      "Name": "Крепёж (болты, гайки, шайбы)",
+      "SectorId": "A",
+      "Level": 2
+    },
+    {
+      "Id": "paint",
+      "Name": "Автоэмаль",
+      "SectorId": "B",
+      "Level": 2
+    },
+    {
+      "Id": "pvc-component",
+      "Name": "ПВХ-компонент (смола и профиль)",
+      "SectorId": "B",
+      "Level": 2
+    },
+    {
+      "Id": "rubber-compound",
+      "Name": "Резиновая смесь",
+      "SectorId": "B",
+      "Level": 2
+    },
+    {
+      "Id": "wood-frame",
+      "Name": "Столярные конструкции (каркасные балки)",
+      "SectorId": "V",
+      "Level": 2
+    },
+    {
+      "Id": "technical-fabric",
+      "Name": "Техническая ткань (брезент)",
+      "SectorId": "V",
+      "Level": 2
+    },
+    {
+      "Id": "upholstery",
+      "Name": "Обивочная ткань (для салона и кают)",
+      "SectorId": "V",
+      "Level": 2
+    },
+    {
+      "Id": "engine-parts",
+      "Name": "Заготовки деталей двигателя (литьё и мехобработка)",
+      "SectorId": "A",
+      "Level": 3
+    },
+    {
+      "Id": "steel-stock",
+      "Name": "Стальной прокат",
+      "SectorId": "A",
+      "Level": 3
+    },
+    {
+      "Id": "tire-cord",
+      "Name": "Шинный корд",
+      "SectorId": "B",
+      "Level": 3
+    },
+    {
+      "Id": "house-frame",
+      "Name": "Каркас дома (утеплённый)",
+      "SectorId": "V",
+      "Level": 3
+    },
+    {
+      "Id": "machined-parts",
+      "Name": "Детали механической обработки (шестерни, валы)",
+      "SectorId": "A",
+      "Level": 4
+    },
+    {
+      "Id": "stamped-panels",
+      "Name": "Штампованные кузовные панели",
+      "SectorId": "A",
+      "Level": 4
+    },
+    {
+      "Id": "composite-material",
+      "Name": "Композитные материалы",
+      "SectorId": "B",
+      "Level": 4
+    },
+    {
+      "Id": "tire-carcass",
+      "Name": "Заготовки шин",
+      "SectorId": "B",
+      "Level": 4
+    },
+    {
+      "Id": "house",
+      "Name": "Дом (базовая комплектация)",
+      "SectorId": "V",
+      "Level": 4
+    },
+    {
+      "Id": "gearbox-assembly",
+      "Name": "Коробка передач в сборе",
+      "SectorId": "A",
+      "Level": 5
+    },
+    {
+      "Id": "welded-body",
+      "Name": "Сварной кузов",
+      "SectorId": "A",
+      "Level": 5
+    },
+    {
+      "Id": "engine",
+      "Name": "Двигатель в сборе",
+      "SectorId": "A",
+      "Level": 5
+    },
+    {
+      "Id": "hull",
+      "Name": "Корпус судна",
+      "SectorId": "B",
+      "Level": 5
+    },
+    {
+      "Id": "tires",
+      "Name": "Готовые шины",
+      "SectorId": "B",
+      "Level": 5
+    },
+    {
+      "Id": "automobile",
+      "Name": "Автомобиль (базовая комплектация)",
+      "SectorId": "A",
+      "Level": 6
+    },
+    {
+      "Id": "boat",
+      "Name": "Катер (базовая комплектация)",
+      "SectorId": "B",
+      "Level": 6
+    }
+  ],
+  "Recipes": [
+    {
+      "Id": "iron-ore-mining",
+      "OutputMaterialId": "iron-ore",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 400
+    },
+    {
+      "Id": "coking-coal-mining",
+      "OutputMaterialId": "coking-coal",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 350
+    },
+    {
+      "Id": "limestone-quarrying",
+      "OutputMaterialId": "limestone",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 500
+    },
+    {
+      "Id": "scrap-collection",
+      "OutputMaterialId": "scrap-metal",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 300
+    },
+    {
+      "Id": "oil-drilling",
+      "OutputMaterialId": "oil",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 300
+    },
+    {
+      "Id": "natural-gas-drilling",
+      "OutputMaterialId": "natural-gas",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 300
+    },
+    {
+      "Id": "logging",
+      "OutputMaterialId": "timber",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 350
+    },
+    {
+      "Id": "cotton-picking",
+      "OutputMaterialId": "raw-cotton",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 300
+    },
+    {
+      "Id": "coke-from-coal",
+      "OutputMaterialId": "coke",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "coking-coal",
+          "Quantity": 1.5
+        }
+      ],
+      "ProductionRate": 220
+    },
+    {
+      "Id": "wire-rod-from-scrap",
+      "OutputMaterialId": "wire-rod",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "scrap-metal",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 150
+    },
+    {
+      "Id": "gasoline-from-oil",
+      "OutputMaterialId": "gasoline",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "oil",
+          "Quantity": 1.5
+        }
+      ],
+      "ProductionRate": 180
+    },
+    {
+      "Id": "ethylene-from-oil",
+      "OutputMaterialId": "ethylene",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "oil",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 160
+    },
+    {
+      "Id": "synthetic-rubber-from-oil",
+      "OutputMaterialId": "synthetic-rubber",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "oil",
+          "Quantity": 4
+        }
+      ],
+      "ProductionRate": 100
+    },
+    {
+      "Id": "methanol-from-gas",
+      "OutputMaterialId": "methanol",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "natural-gas",
+          "Quantity": 3
+        }
+      ],
+      "ProductionRate": 100
+    },
+    {
+      "Id": "carbon-black-from-oil",
+      "OutputMaterialId": "carbon-black",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "oil",
+          "Quantity": 3
+        }
+      ],
+      "ProductionRate": 100
+    },
+    {
+      "Id": "lumber-from-timber",
+      "OutputMaterialId": "lumber",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "timber",
+          "Quantity": 1.3
+        }
+      ],
+      "ProductionRate": 130
+    },
+    {
+      "Id": "fabric-from-cotton",
+      "OutputMaterialId": "fabric",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "raw-cotton",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 90
+    },
+    {
+      "Id": "pig-iron-from-ore",
+      "OutputMaterialId": "pig-iron",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "iron-ore",
+          "Quantity": 1.6
+        },
+        {
+          "MaterialId": "coke",
+          "Quantity": 0.6
+        },
+        {
+          "MaterialId": "limestone",
+          "Quantity": 0.3
+        }
+      ],
+      "ProductionRate": 90
+    },
+    {
+      "Id": "fasteners-from-wire-rod",
+      "OutputMaterialId": "fasteners",
+      "OutputQuantity": 20,
+      "Inputs": [
+        {
+          "MaterialId": "wire-rod",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 55
+    },
+    {
+      "Id": "paint-from-ethylene",
+      "OutputMaterialId": "paint",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "ethylene",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 55
+    },
+    {
+      "Id": "pvc-component-from-ethylene",
+      "OutputMaterialId": "pvc-component",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "ethylene",
+          "Quantity": 3
+        }
+      ],
+      "ProductionRate": 45
+    },
+    {
+      "Id": "rubber-compound-from-synthetic-rubber",
+      "OutputMaterialId": "rubber-compound",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "synthetic-rubber",
+          "Quantity": 10
+        },
+        {
+          "MaterialId": "carbon-black",
+          "Quantity": 3
+        }
+      ],
+      "ProductionRate": 55
+    },
+    {
+      "Id": "wood-frame-from-lumber",
+      "OutputMaterialId": "wood-frame",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "lumber",
+          "Quantity": 1.2
+        }
+      ],
+      "ProductionRate": 45
+    },
+    {
+      "Id": "technical-fabric-from-fabric",
+      "OutputMaterialId": "technical-fabric",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "fabric",
+          "Quantity": 1.3
+        }
+      ],
+      "ProductionRate": 40
+    },
+    {
+      "Id": "upholstery-from-fabric",
+      "OutputMaterialId": "upholstery",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "fabric",
+          "Quantity": 1.3
+        }
+      ],
+      "ProductionRate": 40
+    },
+    {
+      "Id": "engine-parts-from-pig-iron",
+      "OutputMaterialId": "engine-parts",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pig-iron",
+          "Quantity": 1.3
+        }
+      ],
+      "ProductionRate": 22
+    },
+    {
+      "Id": "steel-stock-from-pig-iron",
+      "OutputMaterialId": "steel-stock",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pig-iron",
+          "Quantity": 1.3
+        }
+      ],
+      "ProductionRate": 22
+    },
+    {
+      "Id": "tire-cord-from-rubber-and-fabric",
+      "OutputMaterialId": "tire-cord",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "rubber-compound",
+          "Quantity": 8
+        },
+        {
+          "MaterialId": "technical-fabric",
+          "Quantity": 3
+        }
+      ],
+      "ProductionRate": 20
+    },
+    {
+      "Id": "house-frame-from-wood-and-fabric",
+      "OutputMaterialId": "house-frame",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "wood-frame",
+          "Quantity": 6
+        },
+        {
+          "MaterialId": "technical-fabric",
+          "Quantity": 3
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 4
+        }
+      ],
+      "ProductionRate": 18
+    },
+    {
+      "Id": "machined-parts-from-steel-stock",
+      "OutputMaterialId": "machined-parts",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "steel-stock",
+          "Quantity": 1.2
+        }
+      ],
+      "ProductionRate": 13
+    },
+    {
+      "Id": "stamped-panels-from-steel-stock",
+      "OutputMaterialId": "stamped-panels",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "steel-stock",
+          "Quantity": 1.2
+        }
+      ],
+      "ProductionRate": 13
+    },
+    {
+      "Id": "composite-material-from-pvc-and-cord",
+      "OutputMaterialId": "composite-material",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pvc-component",
+          "Quantity": 5
+        },
+        {
+          "MaterialId": "tire-cord",
+          "Quantity": 5
+        }
+      ],
+      "ProductionRate": 12
+    },
+    {
+      "Id": "tire-carcass-from-tire-cord",
+      "OutputMaterialId": "tire-carcass",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "tire-cord",
+          "Quantity": 10
+        },
+        {
+          "MaterialId": "steel-stock",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "carbon-black",
+          "Quantity": 3
+        },
+        {
+          "MaterialId": "methanol",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 10
+    },
+    {
+      "Id": "house-assembly",
+      "OutputMaterialId": "house",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "house-frame",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "paint",
+          "Quantity": 5
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 15
+        }
+      ],
+      "ProductionRate": 3
+    },
+    {
+      "Id": "gearbox-assembly-from-parts",
+      "OutputMaterialId": "gearbox-assembly",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "machined-parts",
+          "Quantity": 4
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 30
+        }
+      ],
+      "ProductionRate": 6
+    },
+    {
+      "Id": "welded-body-from-panels",
+      "OutputMaterialId": "welded-body",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "stamped-panels",
+          "Quantity": 6
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 50
+        }
+      ],
+      "ProductionRate": 6
+    },
+    {
+      "Id": "engine-from-parts",
+      "OutputMaterialId": "engine",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "engine-parts",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "machined-parts",
+          "Quantity": 6
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 60
+        }
+      ],
+      "ProductionRate": 5
+    },
+    {
+      "Id": "hull-from-composite-and-steel",
+      "OutputMaterialId": "hull",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "composite-material",
+          "Quantity": 10
+        },
+        {
+          "MaterialId": "steel-stock",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 6
+    },
+    {
+      "Id": "tires-from-tire-carcass",
+      "OutputMaterialId": "tires",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "tire-carcass",
+          "Quantity": 10
+        }
+      ],
+      "ProductionRate": 7
+    },
+    {
+      "Id": "automobile-assembly",
+      "OutputMaterialId": "automobile",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "welded-body",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "gearbox-assembly",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "engine",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 60
+        },
+        {
+          "MaterialId": "tires",
+          "Quantity": 4
+        },
+        {
+          "MaterialId": "paint",
+          "Quantity": 8
+        },
+        {
+          "MaterialId": "gasoline",
+          "Quantity": 40
+        },
+        {
+          "MaterialId": "upholstery",
+          "Quantity": 6
+        }
+      ],
+      "ProductionRate": 2
+    },
+    {
+      "Id": "boat-assembly",
+      "OutputMaterialId": "boat",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "hull",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "engine",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 30
+        },
+        {
+          "MaterialId": "paint",
+          "Quantity": 4
+        },
+        {
+          "MaterialId": "tires",
+          "Quantity": 2
+        },
+        {
+          "MaterialId": "upholstery",
+          "Quantity": 4
+        }
+      ],
+      "ProductionRate": 2
+    }
+  ],
+  "FactoryDefinitions": [
+    {
+      "Id": "iron-mine",
+      "Name": "Рудник (железо)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "iron-ore-mining"
+      ],
+      "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10.0
+    },
+    {
+      "Id": "coal-mine",
+      "Name": "Угольная шахта",
+      "SectorId": "A",
+      "RecipeIds": [
+        "coking-coal-mining"
+      ],
+      "BuildCost": 480,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 9.6
+    },
+    {
+      "Id": "limestone-quarry",
+      "Name": "Известняковый карьер",
+      "SectorId": "A",
+      "RecipeIds": [
+        "limestone-quarrying"
+      ],
+      "BuildCost": 420,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 8.4
+    },
+    {
+      "Id": "scrap-yard",
+      "Name": "Пункт приёма металлолома",
+      "SectorId": "A",
+      "RecipeIds": [
+        "scrap-collection"
+      ],
+      "BuildCost": 350,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 7.0
+    },
+    {
+      "Id": "oil-well",
+      "Name": "Нефтяная скважина",
+      "SectorId": "B",
+      "RecipeIds": [
+        "oil-drilling"
+      ],
+      "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10.0
+    },
+    {
+      "Id": "gas-well",
+      "Name": "Газовая скважина",
+      "SectorId": "B",
+      "RecipeIds": [
+        "natural-gas-drilling"
+      ],
+      "BuildCost": 480,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 9.6
+    },
+    {
+      "Id": "logging-site",
+      "Name": "Лесозаготовка",
+      "SectorId": "V",
+      "RecipeIds": [
+        "logging"
+      ],
+      "BuildCost": 480,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 9.6
+    },
+    {
+      "Id": "cotton-plantation",
+      "Name": "Хлопковая плантация",
+      "SectorId": "V",
+      "RecipeIds": [
+        "cotton-picking"
+      ],
+      "BuildCost": 420,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 8.4
+    },
+    {
+      "Id": "coking-plant",
+      "Name": "Коксохимический завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "coke-from-coal"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
+      "Id": "mini-mill",
+      "Name": "Мини-завод (сталь из лома)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "wire-rod-from-scrap"
+      ],
+      "BuildCost": 1000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 20.0
+    },
+    {
+      "Id": "refinery",
+      "Name": "Нефтеперерабатывающий завод",
+      "SectorId": "B",
+      "RecipeIds": [
+        "gasoline-from-oil"
+      ],
+      "BuildCost": 850,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 17.0
+    },
+    {
+      "Id": "petrochemical-plant",
+      "Name": "Нефтехимический завод",
+      "SectorId": "B",
+      "RecipeIds": [
+        "ethylene-from-oil"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
+      "Id": "rubber-plant",
+      "Name": "Завод синтетического каучука",
+      "SectorId": "B",
+      "RecipeIds": [
+        "synthetic-rubber-from-oil"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
+      "Id": "gas-processing-plant",
+      "Name": "Газоперерабатывающий завод",
+      "SectorId": "B",
+      "RecipeIds": [
+        "methanol-from-gas"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
+      "Id": "carbon-black-plant",
+      "Name": "Завод технического углерода",
+      "SectorId": "B",
+      "RecipeIds": [
+        "carbon-black-from-oil"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
+      "Id": "sawmill",
+      "Name": "Лесопилка",
+      "SectorId": "V",
+      "RecipeIds": [
+        "lumber-from-timber"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
+      "Id": "spinning-mill",
+      "Name": "Прядильно-ткацкая фабрика",
+      "SectorId": "V",
+      "RecipeIds": [
+        "fabric-from-cotton"
+      ],
+      "BuildCost": 850,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 17.0
+    },
+    {
+      "Id": "blast-furnace",
+      "Name": "Доменная печь",
+      "SectorId": "A",
+      "RecipeIds": [
+        "pig-iron-from-ore"
+      ],
+      "BuildCost": 1400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 28.0
+    },
+    {
+      "Id": "fastener-plant",
+      "Name": "Метизный завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "fasteners-from-wire-rod"
+      ],
+      "BuildCost": 1400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 28.0
+    },
+    {
+      "Id": "paint-plant",
+      "Name": "Лакокрасочный завод",
+      "SectorId": "B",
+      "RecipeIds": [
+        "paint-from-ethylene"
+      ],
+      "BuildCost": 1400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 28.0
+    },
+    {
+      "Id": "pvc-plant",
+      "Name": "Завод ПВХ",
+      "SectorId": "B",
+      "RecipeIds": [
+        "pvc-component-from-ethylene"
+      ],
+      "BuildCost": 1400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 28.0
+    },
+    {
+      "Id": "compounding-plant",
+      "Name": "Завод резиносмешения",
+      "SectorId": "B",
+      "RecipeIds": [
+        "rubber-compound-from-synthetic-rubber"
+      ],
+      "BuildCost": 1400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 28.0
+    },
+    {
+      "Id": "carpentry-shop",
+      "Name": "Столярный цех",
+      "SectorId": "V",
+      "RecipeIds": [
+        "wood-frame-from-lumber"
+      ],
+      "BuildCost": 1400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 28.0
+    },
+    {
+      "Id": "technical-fabric-shop",
+      "Name": "Цех технических тканей",
+      "SectorId": "V",
+      "RecipeIds": [
+        "technical-fabric-from-fabric"
+      ],
+      "BuildCost": 1400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 28.0
+    },
+    {
+      "Id": "upholstery-shop",
+      "Name": "Цех обивочных тканей",
+      "SectorId": "V",
+      "RecipeIds": [
+        "upholstery-from-fabric"
+      ],
+      "BuildCost": 1400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 28.0
+    },
+    {
+      "Id": "casting-machining-shop",
+      "Name": "Литейно-механический участок",
+      "SectorId": "A",
+      "RecipeIds": [
+        "engine-parts-from-pig-iron"
+      ],
+      "BuildCost": 2200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 44.0
+    },
+    {
+      "Id": "rolling-mill",
+      "Name": "Прокатный стан",
+      "SectorId": "A",
+      "RecipeIds": [
+        "steel-stock-from-pig-iron"
+      ],
+      "BuildCost": 2200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 44.0
+    },
+    {
+      "Id": "tire-cord-plant",
+      "Name": "Кордная фабрика",
+      "SectorId": "B",
+      "RecipeIds": [
+        "tire-cord-from-rubber-and-fabric"
+      ],
+      "BuildCost": 2200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 44.0
+    },
+    {
+      "Id": "house-frame-shop",
+      "Name": "Домостроительный цех",
+      "SectorId": "V",
+      "RecipeIds": [
+        "house-frame-from-wood-and-fabric"
+      ],
+      "BuildCost": 2200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 44.0
+    },
+    {
+      "Id": "machining-shop",
+      "Name": "Механообрабатывающий цех",
+      "SectorId": "A",
+      "RecipeIds": [
+        "machined-parts-from-steel-stock"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64.0
+    },
+    {
+      "Id": "stamping-shop",
+      "Name": "Штамповочный цех",
+      "SectorId": "A",
+      "RecipeIds": [
+        "stamped-panels-from-steel-stock"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64.0
+    },
+    {
+      "Id": "composite-plant",
+      "Name": "Завод композитных материалов",
+      "SectorId": "B",
+      "RecipeIds": [
+        "composite-material-from-pvc-and-cord"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64.0
+    },
+    {
+      "Id": "tire-carcass-plant",
+      "Name": "Завод шинных заготовок",
+      "SectorId": "B",
+      "RecipeIds": [
+        "tire-carcass-from-tire-cord"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64.0
+    },
+    {
+      "Id": "house-builder",
+      "Name": "Домостроительная бригада",
+      "SectorId": "V",
+      "RecipeIds": [
+        "house-assembly"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64.0
+    },
+    {
+      "Id": "gearbox-plant",
+      "Name": "Завод коробок передач",
+      "SectorId": "A",
+      "RecipeIds": [
+        "gearbox-assembly-from-parts"
+      ],
+      "BuildCost": 4800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 96.0
+    },
+    {
+      "Id": "body-welding-shop",
+      "Name": "Цех сварки кузовов",
+      "SectorId": "A",
+      "RecipeIds": [
+        "welded-body-from-panels"
+      ],
+      "BuildCost": 4800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 96.0
+    },
+    {
+      "Id": "engine-assembly-plant",
+      "Name": "Моторный завод (сборка двигателей)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "engine-from-parts"
+      ],
+      "BuildCost": 4800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 96.0
+    },
+    {
+      "Id": "shipyard",
+      "Name": "Верфь (корпус)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "hull-from-composite-and-steel"
+      ],
+      "BuildCost": 4800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 96.0
+    },
+    {
+      "Id": "tire-plant",
+      "Name": "Шинный завод",
+      "SectorId": "B",
+      "RecipeIds": [
+        "tires-from-tire-carcass"
+      ],
+      "BuildCost": 4800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 96.0
+    },
+    {
+      "Id": "car-assembly-plant",
+      "Name": "Автосборочный завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "automobile-assembly"
+      ],
+      "BuildCost": 7500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 150.0
+    },
+    {
+      "Id": "boat-assembly-plant",
+      "Name": "Катерная верфь (сборка)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "boat-assembly"
+      ],
+      "BuildCost": 7500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 150.0
+    }
+  ],
+  "BaseMarketPerMaterial": [
+    {
+      "MaterialId": "iron-ore",
+      "BasePrice": 1,
+      "BaseCapacity": 4000
+    },
+    {
+      "MaterialId": "coking-coal",
+      "BasePrice": 1.2,
+      "BaseCapacity": 3000
+    },
+    {
+      "MaterialId": "limestone",
+      "BasePrice": 0.6,
+      "BaseCapacity": 3500
+    },
+    {
+      "MaterialId": "scrap-metal",
+      "BasePrice": 0.8,
+      "BaseCapacity": 2500
+    },
+    {
+      "MaterialId": "oil",
+      "BasePrice": 1,
+      "BaseCapacity": 4000
+    },
+    {
+      "MaterialId": "natural-gas",
+      "BasePrice": 0.9,
+      "BaseCapacity": 3500
+    },
+    {
+      "MaterialId": "timber",
+      "BasePrice": 0.9,
+      "BaseCapacity": 3500
+    },
+    {
+      "MaterialId": "raw-cotton",
+      "BasePrice": 1.5,
+      "BaseCapacity": 2200
+    },
+    {
+      "MaterialId": "coke",
+      "BasePrice": 3,
+      "BaseCapacity": 1400
+    },
+    {
+      "MaterialId": "wire-rod",
+      "BasePrice": 4,
+      "BaseCapacity": 900
+    },
+    {
+      "MaterialId": "gasoline",
+      "BasePrice": 3,
+      "BaseCapacity": 1600
+    },
+    {
+      "MaterialId": "ethylene",
+      "BasePrice": 3.5,
+      "BaseCapacity": 1400
+    },
+    {
+      "MaterialId": "synthetic-rubber",
+      "BasePrice": 7,
+      "BaseCapacity": 900
+    },
+    {
+      "MaterialId": "methanol",
+      "BasePrice": 3,
+      "BaseCapacity": 1300
+    },
+    {
+      "MaterialId": "carbon-black",
+      "BasePrice": 3,
+      "BaseCapacity": 1600
+    },
+    {
+      "MaterialId": "lumber",
+      "BasePrice": 3,
+      "BaseCapacity": 1600
+    },
+    {
+      "MaterialId": "fabric",
+      "BasePrice": 5,
+      "BaseCapacity": 1000
+    },
+    {
+      "MaterialId": "pig-iron",
+      "BasePrice": 6,
+      "BaseCapacity": 700
+    },
+    {
+      "MaterialId": "fasteners",
+      "BasePrice": 9,
+      "BaseCapacity": 1800
+    },
+    {
+      "MaterialId": "paint",
+      "BasePrice": 12,
+      "BaseCapacity": 700
+    },
+    {
+      "MaterialId": "pvc-component",
+      "BasePrice": 14,
+      "BaseCapacity": 600
+    },
+    {
+      "MaterialId": "rubber-compound",
+      "BasePrice": 14,
+      "BaseCapacity": 600
+    },
+    {
+      "MaterialId": "wood-frame",
+      "BasePrice": 10,
+      "BaseCapacity": 700
+    },
+    {
+      "MaterialId": "technical-fabric",
+      "BasePrice": 16,
+      "BaseCapacity": 500
+    },
+    {
+      "MaterialId": "upholstery",
+      "BasePrice": 18,
+      "BaseCapacity": 450
+    },
+    {
+      "MaterialId": "engine-parts",
+      "BasePrice": 22,
+      "BaseCapacity": 220
+    },
+    {
+      "MaterialId": "steel-stock",
+      "BasePrice": 22,
+      "BaseCapacity": 220
+    },
+    {
+      "MaterialId": "tire-cord",
+      "BasePrice": 30,
+      "BaseCapacity": 220
+    },
+    {
+      "MaterialId": "house-frame",
+      "BasePrice": 60,
+      "BaseCapacity": 90
+    },
+    {
+      "MaterialId": "machined-parts",
+      "BasePrice": 40,
+      "BaseCapacity": 100
+    },
+    {
+      "MaterialId": "stamped-panels",
+      "BasePrice": 40,
+      "BaseCapacity": 100
+    },
+    {
+      "MaterialId": "composite-material",
+      "BasePrice": 46,
+      "BaseCapacity": 100
+    },
+    {
+      "MaterialId": "tire-carcass",
+      "BasePrice": 80,
+      "BaseCapacity": 45
+    },
+    {
+      "MaterialId": "house",
+      "BasePrice": 5200,
+      "BaseCapacity": 4
+    },
+    {
+      "MaterialId": "gearbox-assembly",
+      "BasePrice": 700,
+      "BaseCapacity": 6
+    },
+    {
+      "MaterialId": "welded-body",
+      "BasePrice": 550,
+      "BaseCapacity": 6
+    },
+    {
+      "MaterialId": "engine",
+      "BasePrice": 900,
+      "BaseCapacity": 5
+    },
+    {
+      "MaterialId": "hull",
+      "BasePrice": 85,
+      "BaseCapacity": 40
+    },
+    {
+      "MaterialId": "tires",
+      "BasePrice": 150,
+      "BaseCapacity": 25
+    },
+    {
+      "MaterialId": "automobile",
+      "BasePrice": 4200,
+      "BaseCapacity": 1
+    },
+    {
+      "MaterialId": "boat",
+      "BasePrice": 3600,
+      "BaseCapacity": 1.2
+    }
+  ],
+  "GenerationResearch": {
+    "StartingGeneration": 1,
+    "ResearchPointThresholdsByGeneration": [
+      25,
+      40,
+      60,
+      85,
+      115
+    ],
+    "DiminishingReturnsExponent": 0.5,
+    "MaxCommitmentPerTurn": 300
+  }
+}
