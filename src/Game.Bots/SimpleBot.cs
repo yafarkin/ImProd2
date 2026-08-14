@@ -35,6 +35,16 @@ namespace Game.Bots;
 /// жадность/агрессивность заявок стакана (<see cref="MinSellMarginRate"/>, <see
 /// cref="MaxBuyPremiumRate"/> и т.д.) сознательно НЕ входит в сетку v1 — общая для всех ячеек
 /// (`docs/balancing-bots.md` §2, «Осознанно не входит в сетку»).
+///
+/// <para>
+/// <b>Финансовая осторожность</b> (запрос пользователя, найдено первым калибровочным прогоном
+/// `metallurgy.json` — Блок 7.3.1-7.3.6: бот раскручивал спираль принудительных займов, продолжая
+/// строить фабрики и вкладывать в R&amp;D независимо от того, что кассовый разрыв только рос).
+/// <see cref="UpdateFinancialTrend"/> отслеживает тренд чистой стоимости команды и подрезает темп
+/// расширения/вложений (не номинальные <c>leverage</c>/<c>profile</c> — они остаются осями сетки, это
+/// поверх них), пока тренд не развернётся. При здоровом тренде поведение не отличается от версии до
+/// этой правки.
+/// </para>
 /// </summary>
 public sealed class SimpleBot
 {
@@ -73,10 +83,40 @@ public sealed class SimpleBot
     /// <summary>Сектор команды.</summary>
     public Sector Sector { get; }
 
+    /// <summary>
+    /// Подряд идущих ходов ухудшения чистой стоимости (Balance − Debt), после которого <see
+    /// cref="UpdateFinancialTrend"/> начинает подрезать <see cref="_throttle"/> — запрос
+    /// пользователя: «постоянно занимать бабки и при этом строить дальше — недальновидно», бот должен
+    /// реагировать на тренд, а не слепо выполнять фиксированный план. Масштабируется номинальным
+    /// <c>leverage</c> — чем выше аппетит к риску, тем дольше бот терпит ухудшение, прежде чем
+    /// притормозить (тот же смысл, что и у остальной интерпретации оси); минимум 1 — даже самый
+    /// рисковый бот не игнорирует ухудшение бесконечно.
+    /// </summary>
+    private int DistressThresholdTurns => 1 + (int)Math.Round(_leverage * 3m, MidpointRounding.AwayFromZero);
+
+    /// <summary>
+    /// На сколько <see cref="_throttle"/> сдвигается за один ход (к 0 — при ухудшении сверх <see
+    /// cref="DistressThresholdTurns"/>, обратно к 1 — при улучшении) — плавно, не рывком: полная
+    /// остановка сразу после первого же лучшего хода выглядела бы так же недальновидно, как и
+    /// упрямое строительство несмотря на кассовый разрыв.
+    /// </summary>
+    private const decimal ThrottleStep = 0.25m;
+
     private readonly IReadOnlyList<FactoryDefinition> _sectorFactories;
     private readonly bool _maintainsFactories;
     private readonly decimal _leverage;
     private readonly decimal _profile;
+    private decimal? _previousNetWorth;
+    private int _consecutiveDeclineTurns;
+
+    /// <summary>
+    /// Множитель темпа расширения/вложений от 1 (обычное поведение по номинальным <see
+    /// cref="_leverage"/>/<see cref="_profile"/>) до 0 (полная пауза) — см. <see
+    /// cref="UpdateFinancialTrend"/>. 1 по умолчанию: до первого пересчёта (или если <see
+    /// cref="UpdateFinancialTrend"/> вообще не вызывается вызывающим кодом) бот ведёт себя как раньше,
+    /// без сюрпризов для существующих вызывающих.
+    /// </summary>
+    private decimal _throttle = 1m;
 
     /// <summary>
     /// <paramref name="maintainsFactories"/> — обслуживает ли бот износ уже построенных фабрик (SPEC
@@ -124,6 +164,43 @@ public sealed class SimpleBot
     public Material FinalMaterial => _sectorFactories[^1].Recipes[0].Output;
 
     /// <summary>
+    /// Финансовая осторожность (запрос пользователя: «постоянно занимать бабки и при этом строить
+    /// дальше — недальновидно; боты должны следить за финансовым состоянием, анализировать тренд и в
+    /// зависимости от него менять поведение согласно своим параметрам»). Отслеживает чистую стоимость
+    /// команды (<c>Balance − Debt</c> — не одну только <c>Balance</c>, которая при принудительном
+    /// займе прыгает вверх на ту же сумму, что и <c>Debt</c>, и потому маскирует именно ту спираль,
+    /// которую нужно заметить). Пока чистая стоимость не ухудшается подряд дольше <see
+    /// cref="DistressThresholdTurns"/> ходов — <see cref="_throttle"/> остаётся/возвращается к 1
+    /// (обычное поведение по номинальным <c>leverage</c>/<c>profile</c>). Как только порог пройден —
+    /// <see cref="_throttle"/> начинает снижаться на <see cref="ThrottleStep"/> за ход, пока тренд не
+    /// развернётся. Идёт во все места, где темп расширения/вложений завязан на <c>leverage</c> — <see
+    /// cref="BuildNewlyUnlockedFactories"/> (новое: раньше достройка не смотрела на leverage вовсе),
+    /// <see cref="UpdateInvestmentPace"/>, <see cref="RepayDebt"/> (в бедственном положении гасит
+    /// агрессивнее номинального <c>leverage</c> — вылезать из спирали важнее, чем следовать
+    /// изначальному аппетиту к риску). Продажу через стакан (<see cref="ComputeSellOrders"/>) не
+    /// трогает — источник живых денег должен работать в любом состоянии, тормозить нужно только новые
+    /// траты. Вызывать первым в ходу решений, до любого из перечисленных методов, каждый ход.
+    /// </summary>
+    public void UpdateFinancialTrend(GameSession session)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        var team = session.State.Teams[TeamId];
+        var netWorth = team.Balance - team.Debt;
+
+        if (_previousNetWorth is { } previous)
+        {
+            _consecutiveDeclineTurns = netWorth < previous ? _consecutiveDeclineTurns + 1 : 0;
+        }
+        _previousNetWorth = netWorth;
+
+        var inDistress = _consecutiveDeclineTurns >= DistressThresholdTurns;
+        _throttle = inDistress
+            ? Math.Max(0m, _throttle - ThrottleStep)
+            : Math.Min(1m, _throttle + ThrottleStep);
+    }
+
+    /// <summary>
     /// Берёт первый кредит (команды больше не получают стартовый капитал автоматически — это их
     /// первое собственное финансовое решение, SPEC §5.1; боту нужен детерминированный эквивалент
     /// для калибровки) — сумма масштабируется <c>leverage</c> (Блок 7.3.2, см. doc-comment класса) от
@@ -153,12 +230,20 @@ public sealed class SimpleBot
     /// открылось благодаря командному исследованию поколений (<see cref="UpdateInvestmentPace"/>).
     /// Нанимает на каждую новую фабрику базовую численность рабочих; R&amp;D-вложение фабрике не
     /// назначает — тем же <see cref="UpdateInvestmentPace"/>, вызванным следом в тот же ход, чтобы
-    /// новая фабрика не осталась на ход без объявленного темпа. Вызывать каждый ход решений,
-    /// идемпотентно (уже построенные типы пропускаются).
+    /// новая фабрика не осталась на ход без объявленного темпа. Ничего не строит, если <see
+    /// cref="_throttle"/> (см. <see cref="UpdateFinancialTrend"/>) уже упал до нуля — новая фабрика
+    /// требует свежего капитала, а команда в этот момент как раз в бедственном положении: достройка
+    /// просто откладывается до улучшения тренда, разблокированные типы никуда не денутся. Вызывать
+    /// каждый ход решений, идемпотентно (уже построенные типы пропускаются).
     /// </summary>
     public void BuildNewlyUnlockedFactories(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
+
+        if (_throttle <= 0m)
+        {
+            return;
+        }
 
         var team = session.State.Teams[TeamId];
         var builtDefinitionIds = team.Factories.Select(f => f.Definition.Id).ToHashSet();
@@ -196,7 +281,9 @@ public sealed class SimpleBot
         var team = session.State.Teams[TeamId];
         var maxTurns = session.State.Config.Raw.SessionPresets.Single(p => p.Id == session.State.PresetId).MaxTurns;
         var switchTurn = (int)Math.Round(_profile * maxTurns, MidpointRounding.AwayFromZero);
-        var fraction = session.State.CurrentTurn >= switchTurn ? _leverage : 0m;
+        // _throttle=1 (по умолчанию, здоровый тренд) — точно то же значение, что и до финансовой
+        // осторожности, см. doc-comment UpdateFinancialTrend.
+        var fraction = (session.State.CurrentTurn >= switchTurn ? _leverage : 0m) * _throttle;
 
         var targetGenerationCommitment = session.State.Config.Raw.GenerationResearch.MaxCommitmentPerTurn * fraction;
         if (team.GenerationResearchCommitmentPerTurn != targetGenerationCommitment)
@@ -285,10 +372,15 @@ public sealed class SimpleBot
     /// (<see cref="Game.Engine.FinanceCalculator.CalculateMandatoryRepayment"/>). Свободный остаток
     /// сверх буфера на ближайший ход (зарплата всех рабочих команды, содержание фабрик, обязательный
     /// платёж, проценты, уже объявленные R&amp;D-вложения — свои и командные) гасится не целиком, а в
-    /// доле <c>(1 - leverage)</c> (Блок 7.3.2, doc-comment класса): <c>leverage=1</c> — доля 0, ничего
-    /// не гасит сверх обязательного, весь свободный кэш остаётся на реинвестирование; <c>leverage=0</c>
-    /// — доля 1, гасит весь свободный остаток при первой возможности. Ничего не делает, если долга нет
-    /// или буфер уже съедает весь баланс. Идемпотентно, вызывать каждый ход решений.
+    /// доле <c>max(1 - leverage, 1 - throttle)</c> (Блок 7.3.2, doc-comment класса — номинальная доля
+    /// от <c>leverage</c>; финансовая осторожность, <see cref="UpdateFinancialTrend"/> — при
+    /// ухудшающемся тренде гасит агрессивнее номинального аппетита к риску, вылезать из спирали
+    /// принудительных займов важнее, чем следовать изначальной стратегии). При здоровом тренде
+    /// (<c>throttle=1</c>) доля равна ровно <c>1 - leverage</c>, как и до финансовой осторожности.
+    /// <c>leverage=1</c> при здоровом тренде — доля 0, ничего не гасит сверх обязательного;
+    /// <c>leverage=0</c> — доля 1, гасит весь свободный остаток при первой возможности. Ничего не
+    /// делает, если долга нет или буфер уже съедает весь баланс. Идемпотентно, вызывать каждый ход
+    /// решений.
     /// </summary>
     public void RepayDebt(GameSession session)
     {
@@ -311,7 +403,8 @@ public sealed class SimpleBot
                      + team.Factories.Sum(f => f.RndCommitmentPerTurn)
                      + team.GenerationResearchCommitmentPerTurn;
 
-        var repayable = (team.Balance - buffer) * (1m - _leverage);
+        var repayFraction = Math.Max(1m - _leverage, 1m - _throttle);
+        var repayable = (team.Balance - buffer) * repayFraction;
         if (repayable > 0m)
         {
             session.RepayLoan(TeamId, Math.Min(repayable, team.Debt));

@@ -52,6 +52,10 @@ public static class BotSessionRunner
 
                     foreach (var bot in bots)
                     {
+                        // Первым — до любого решения, завязанного на leverage/profile, чтобы темп
+                        // расширения/вложений этого же хода уже учитывал свежий тренд (финансовая
+                        // осторожность, doc-comment SimpleBot.UpdateFinancialTrend).
+                        bot.UpdateFinancialTrend(session);
                         // Идемпотентно: на ходу первой постройки ничего нового не найдёт (уже
                         // построено BuildOutSectorChain), на последующих — достраивает то, что
                         // разблокировало исследование поколений.

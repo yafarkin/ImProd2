@@ -83,6 +83,7 @@ internal static class LoadTestRunner
                         }
                         foreach (var bot in bots)
                         {
+                            bot.UpdateFinancialTrend(session);
                             bot.BuildNewlyUnlockedFactories(session);
                             bot.UpdateInvestmentPace(session);
                             bot.RepayDebt(session);
