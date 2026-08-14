@@ -42,8 +42,8 @@ internal sealed record CliArguments
     /// <summary>См. doc-comment конструктора <see cref="Game.Bots.SimpleBot"/>.</summary>
     public bool MaintainFactories { get; init; } = true;
 
-    /// <summary>Путь для CSV-сводки (по ячейкам сетки в режиме <see cref="RunMode.Grid"/>, по ходам в режиме <see cref="RunMode.IdealHall"/>).</summary>
-    public string OutPath { get; init; } = "strategy-grid.csv";
+    /// <summary>Путь для JSON-отчёта прогона (Блок 7.3.6, <see cref="BalancingRunReport"/>).</summary>
+    public string OutPath { get; init; } = "balancing-report.json";
 
     /// <summary>Что считать этим запуском (Блок 7.3.4) — сетку ботовых стратегий или идеальный зал.</summary>
     public RunMode Mode { get; init; } = RunMode.Grid;

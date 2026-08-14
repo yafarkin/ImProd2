@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Game.Balancing;
 using Game.Bots;
 using Game.Config.Loading;
@@ -18,17 +19,35 @@ if (cliArguments.TeamsPerSector <= 0)
     throw new ArgumentException("'--teams-per-sector' must be positive.", nameof(cliArguments));
 }
 
-var sectorNames = string.Join(", ", config.Sectors.Select(s => $"{s.Id} ({s.Name})"));
-Console.WriteLine($"Секторов в цепочке: {config.Sectors.Count} [{sectorNames}], команд на сектор: {cliArguments.TeamsPerSector}.");
+var sectorSummaries = config.Sectors.Select(s => new SectorSummary { Id = s.Id, Name = s.Name }).ToList();
+var sectorNames = string.Join(", ", sectorSummaries.Select(s => $"{s.Id} ({s.Name})"));
+Console.WriteLine($"Секторов в цепочке: {sectorSummaries.Count} [{sectorNames}], команд на сектор: {cliArguments.TeamsPerSector}.");
+
+var metadata = new RunMetadata
+{
+    ConfigPath = cliArguments.ConfigPath ?? "(выбран интерактивно)",
+    SessionPath = cliArguments.SessionPath,
+    Mode = cliArguments.Mode == RunMode.IdealHall ? "ideal-hall" : "grid",
+    PresetId = cliArguments.PresetId,
+    MaxTurns = preset.MaxTurns,
+    Sectors = sectorSummaries,
+    GitCommit = GitCommitReader.TryGetCurrentCommit(),
+    GeneratedAtUtc = DateTimeOffset.UtcNow,
+};
 
 // Блок 7.3.5 (docs/balancing-bots.md §3): X(t) зависит только от конфига, не от leverage/profile —
 // считается один раз и используется и как самостоятельный режим (--mode ideal-hall), и как опорная
 // линия сходимости Score(t)/X(t) для сетки ботовых стратегий ниже.
 var idealHall = IdealHallCalculator.Calculate(config, preset.MaxTurns);
+var idealHallSection = new IdealHallSection
+{
+    ValueByTurnBySector = idealHall.Branches.ToDictionary(b => b.SectorId, b => b.ValueByTurn),
+};
 
 if (cliArguments.Mode == RunMode.IdealHall)
 {
-    await WriteIdealHallAsync(idealHall, preset.MaxTurns, cliArguments.OutPath);
+    PrintIdealHallTable(idealHall, preset.MaxTurns);
+    await WriteReportAsync(new BalancingRunReport { Metadata = metadata, IdealHall = idealHallSection }, cliArguments.OutPath);
     return;
 }
 
@@ -88,39 +107,33 @@ foreach (var cell in results)
         $"{FormatNullable(cell.Report.OverallAverageFinalConvergence, "P1"),14} {FormatNullable(cell.Report.AverageFinalConvergenceSpread, "P1"),19}");
 }
 
-await using (var writer = new StreamWriter(cliArguments.OutPath))
+var gridSection = new GridSection
 {
-    await writer.WriteLineAsync(
-        "Leverage,Profile,SessionCount,ForcedLoanShare,ForcedRepairEventShare,AverageFinalScoreSpread," +
-        "OverallAverageFinalConvergence,AverageFinalConvergenceSpread");
-    foreach (var cell in results)
+    GridSteps = cliArguments.GridSteps,
+    SessionsPerCell = cliArguments.SessionsPerCell,
+    TeamsPerSector = cliArguments.TeamsPerSector,
+    Cells = results.Select(cell => new GridCellSummary
     {
-        await writer.WriteLineAsync(string.Join(',',
-            cell.Leverage.ToString(CultureInfo.InvariantCulture),
-            cell.Profile.ToString(CultureInfo.InvariantCulture),
-            cell.Report.SessionCount.ToString(CultureInfo.InvariantCulture),
-            cell.Report.ForcedLoanShare.ToString(CultureInfo.InvariantCulture),
-            cell.Report.ForcedRepairEventShare.ToString(CultureInfo.InvariantCulture),
-            cell.Report.AverageFinalScoreSpread.ToString(CultureInfo.InvariantCulture),
-            cell.Report.OverallAverageFinalConvergence?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
-            cell.Report.AverageFinalConvergenceSpread?.ToString(CultureInfo.InvariantCulture) ?? string.Empty));
-    }
-}
+        Leverage = cell.Leverage,
+        Profile = cell.Profile,
+        SessionCount = cell.Report.SessionCount,
+        ForcedLoanShare = cell.Report.ForcedLoanShare,
+        ForcedRepairEventShare = cell.Report.ForcedRepairEventShare,
+        AverageFinalScoreSpread = cell.Report.AverageFinalScoreSpread,
+        OverallAverageFinalConvergence = cell.Report.OverallAverageFinalConvergence,
+        AverageFinalConvergenceSpread = cell.Report.AverageFinalConvergenceSpread,
+        AverageFinalConvergenceBySector = cell.Report.AverageFinalConvergenceBySector,
+        ConvergenceByTurn = cell.Report.TurnsByIndex.Select(t => t.AverageConvergence).ToList(),
+    }).ToList(),
+};
 
-Console.WriteLine();
-Console.WriteLine($"CSV сводки по сетке записан: {Path.GetFullPath(cliArguments.OutPath)}");
+await WriteReportAsync(new BalancingRunReport { Metadata = metadata, IdealHall = idealHallSection, Grid = gridSection }, cliArguments.OutPath);
 
 static string FormatNullable(decimal? value, string format) =>
     value.HasValue ? value.Value.ToString(format, CultureInfo.InvariantCulture) : "—";
 
-/// <summary>
-/// Режим --mode ideal-hall (Блок 7.3.4, docs/production-balance.md §4): X(t) по каждому сектору
-/// цепочки — консольная таблица + CSV с рядом по ходам на каждую ветку (тот же формат
-/// «Turn,SectorA,SectorB,...», что и прежний per-turn CSV блока 7.2, только на секторы, а не на
-/// усреднённые метрики партий). Расчёт (<see cref="IdealHallCalculator.Calculate"/>) уже готов на
-/// входе — этот же результат используется и как опорная линия сходимости сетки (Блок 7.3.5).
-/// </summary>
-static async Task WriteIdealHallAsync(IdealHallResult result, int maxTurns, string outPath)
+/// <summary>Консольная таблица X(t) — только для режима --mode ideal-hall, чтобы видеть числа сразу, не только в JSON.</summary>
+static void PrintIdealHallTable(IdealHallResult result, int maxTurns)
 {
     Console.WriteLine($"Идеальный зал: {maxTurns} ходов (MaxTurns пресета — публично известная верхняя граница, не тайный EndTurn).");
     Console.WriteLine();
@@ -132,16 +145,24 @@ static async Task WriteIdealHallAsync(IdealHallResult result, int maxTurns, stri
         var row = $"{turn + 1,4} " + string.Join(' ', result.Branches.Select(b => $"{b.ValueByTurn[turn],14:N0}"));
         Console.WriteLine(row);
     }
+}
 
-    await using var writer = new StreamWriter(outPath);
-    await writer.WriteLineAsync("Turn," + string.Join(',', result.Branches.Select(b => b.SectorId)));
-    for (var turn = 0; turn < maxTurns; turn++)
+/// <summary>
+/// Блок 7.3.6 (BUILD_PLAN, «Компактный JSON-отчёт») — единственный файл на прогон: агрегаты (не
+/// трассы действий ботов) плюс метаданные версии, чтобы отчёт был самодостаточен для анализа даже без
+/// доступа к исходным партиям. Заменяет CSV прежних блоков — тот был сознательной временной заглушкой.
+/// </summary>
+static async Task WriteReportAsync(BalancingRunReport report, string outPath)
+{
+    var options = new JsonSerializerOptions
     {
-        var row = (turn + 1).ToString(CultureInfo.InvariantCulture) + "," +
-                   string.Join(',', result.Branches.Select(b => b.ValueByTurn[turn].ToString(CultureInfo.InvariantCulture)));
-        await writer.WriteLineAsync(row);
-    }
+        WriteIndented = true,
+        // Кириллица (имена секторов) читаемой строкой, не \uXXXX — отчёт открывают/читают напрямую.
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
+    };
+    await using var stream = File.Create(outPath);
+    await JsonSerializer.SerializeAsync(stream, report, options);
 
     Console.WriteLine();
-    Console.WriteLine($"CSV с X(t) по каждой ветке записан: {Path.GetFullPath(outPath)}");
+    Console.WriteLine($"JSON-отчёт записан: {Path.GetFullPath(outPath)}");
 }
