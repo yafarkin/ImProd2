@@ -26,6 +26,12 @@
     <None Include="..\..\src\Game.Config\Samples\gameconfig.pilot.json" Link="Samples\gameconfig.pilot.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\..\src\Game.Config\Samples\production-models\control-twin-metallurgy.json" Link="Samples\production-models\control-twin-metallurgy.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\src\Game.Config\Samples\sessions\pilot.json" Link="Samples\sessions\pilot.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

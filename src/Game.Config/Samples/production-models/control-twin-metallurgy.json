@@ -1,0 +1,1859 @@
+{
+  "Sectors": [
+    {
+      "Id": "A",
+      "Name": "Металлургия"
+    },
+    {
+      "Id": "B",
+      "Name": "Металлургия-2 (контроль)"
+    }
+  ],
+  "Materials": [
+    {
+      "Id": "iron-ore",
+      "Name": "Железная руда",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "coking-coal",
+      "Name": "Коксующийся уголь",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "limestone",
+      "Name": "Известняк",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "scrap-metal",
+      "Name": "Металлолом",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "coke",
+      "Name": "Кокс",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "wire-rod",
+      "Name": "Катанка",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "pig-iron",
+      "Name": "Чугун",
+      "SectorId": "A",
+      "Level": 2
+    },
+    {
+      "Id": "fasteners",
+      "Name": "Крепёж (болты, гайки, шайбы)",
+      "SectorId": "A",
+      "Level": 2
+    },
+    {
+      "Id": "crude-steel",
+      "Name": "Конвертерная сталь",
+      "SectorId": "A",
+      "Level": 3
+    },
+    {
+      "Id": "cast-iron",
+      "Name": "Литейный чугун (переплав для литья)",
+      "SectorId": "A",
+      "Level": 3
+    },
+    {
+      "Id": "billet",
+      "Name": "Сортовая заготовка",
+      "SectorId": "A",
+      "Level": 4
+    },
+    {
+      "Id": "slab",
+      "Name": "Стальной сляб",
+      "SectorId": "A",
+      "Level": 4
+    },
+    {
+      "Id": "engine-block-castings",
+      "Name": "Литые заготовки блока цилиндров",
+      "SectorId": "A",
+      "Level": 4
+    },
+    {
+      "Id": "forging-bar",
+      "Name": "Пруток для поковок",
+      "SectorId": "A",
+      "Level": 5
+    },
+    {
+      "Id": "hot-rolled-sheet",
+      "Name": "Горячекатаный лист",
+      "SectorId": "A",
+      "Level": 5
+    },
+    {
+      "Id": "heat-treated-castings",
+      "Name": "Термообработанные отливки блока",
+      "SectorId": "A",
+      "Level": 5
+    },
+    {
+      "Id": "forged-blanks",
+      "Name": "Кованые заготовки",
+      "SectorId": "A",
+      "Level": 6
+    },
+    {
+      "Id": "cold-rolled-sheet",
+      "Name": "Холоднокатаный лист",
+      "SectorId": "A",
+      "Level": 6
+    },
+    {
+      "Id": "rough-machined-block",
+      "Name": "Блок цилиндров после черновой расточки",
+      "SectorId": "A",
+      "Level": 6
+    },
+    {
+      "Id": "machined-parts",
+      "Name": "Детали механической обработки (шестерни, валы, шатуны, клапаны)",
+      "SectorId": "A",
+      "Level": 7
+    },
+    {
+      "Id": "stamped-panels",
+      "Name": "Штампованные кузовные панели",
+      "SectorId": "A",
+      "Level": 7
+    },
+    {
+      "Id": "engine-block-finished",
+      "Name": "Блок цилиндров, чистовая обработка",
+      "SectorId": "A",
+      "Level": 7
+    },
+    {
+      "Id": "gearbox-assembly",
+      "Name": "Коробка передач в сборе",
+      "SectorId": "A",
+      "Level": 8
+    },
+    {
+      "Id": "welded-body",
+      "Name": "Сварной кузов",
+      "SectorId": "A",
+      "Level": 8
+    },
+    {
+      "Id": "engine",
+      "Name": "Двигатель в сборе",
+      "SectorId": "A",
+      "Level": 8
+    },
+    {
+      "Id": "automobile",
+      "Name": "Автомобиль",
+      "SectorId": "A",
+      "Level": 9
+    },
+    {
+      "Id": "iron-ore-2",
+      "Name": "Железная руда (2)",
+      "SectorId": "B",
+      "Level": 0
+    },
+    {
+      "Id": "coking-coal-2",
+      "Name": "Коксующийся уголь (2)",
+      "SectorId": "B",
+      "Level": 0
+    },
+    {
+      "Id": "limestone-2",
+      "Name": "Известняк (2)",
+      "SectorId": "B",
+      "Level": 0
+    },
+    {
+      "Id": "scrap-metal-2",
+      "Name": "Металлолом (2)",
+      "SectorId": "B",
+      "Level": 0
+    },
+    {
+      "Id": "coke-2",
+      "Name": "Кокс (2)",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "wire-rod-2",
+      "Name": "Катанка (2)",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "pig-iron-2",
+      "Name": "Чугун (2)",
+      "SectorId": "B",
+      "Level": 2
+    },
+    {
+      "Id": "fasteners-2",
+      "Name": "Крепёж (болты, гайки, шайбы) (2)",
+      "SectorId": "B",
+      "Level": 2
+    },
+    {
+      "Id": "crude-steel-2",
+      "Name": "Конвертерная сталь (2)",
+      "SectorId": "B",
+      "Level": 3
+    },
+    {
+      "Id": "cast-iron-2",
+      "Name": "Литейный чугун (переплав для литья) (2)",
+      "SectorId": "B",
+      "Level": 3
+    },
+    {
+      "Id": "billet-2",
+      "Name": "Сортовая заготовка (2)",
+      "SectorId": "B",
+      "Level": 4
+    },
+    {
+      "Id": "slab-2",
+      "Name": "Стальной сляб (2)",
+      "SectorId": "B",
+      "Level": 4
+    },
+    {
+      "Id": "engine-block-castings-2",
+      "Name": "Литые заготовки блока цилиндров (2)",
+      "SectorId": "B",
+      "Level": 4
+    },
+    {
+      "Id": "forging-bar-2",
+      "Name": "Пруток для поковок (2)",
+      "SectorId": "B",
+      "Level": 5
+    },
+    {
+      "Id": "hot-rolled-sheet-2",
+      "Name": "Горячекатаный лист (2)",
+      "SectorId": "B",
+      "Level": 5
+    },
+    {
+      "Id": "heat-treated-castings-2",
+      "Name": "Термообработанные отливки блока (2)",
+      "SectorId": "B",
+      "Level": 5
+    },
+    {
+      "Id": "forged-blanks-2",
+      "Name": "Кованые заготовки (2)",
+      "SectorId": "B",
+      "Level": 6
+    },
+    {
+      "Id": "cold-rolled-sheet-2",
+      "Name": "Холоднокатаный лист (2)",
+      "SectorId": "B",
+      "Level": 6
+    },
+    {
+      "Id": "rough-machined-block-2",
+      "Name": "Блок цилиндров после черновой расточки (2)",
+      "SectorId": "B",
+      "Level": 6
+    },
+    {
+      "Id": "machined-parts-2",
+      "Name": "Детали механической обработки (шестерни, валы, шатуны, клапаны) (2)",
+      "SectorId": "B",
+      "Level": 7
+    },
+    {
+      "Id": "stamped-panels-2",
+      "Name": "Штампованные кузовные панели (2)",
+      "SectorId": "B",
+      "Level": 7
+    },
+    {
+      "Id": "engine-block-finished-2",
+      "Name": "Блок цилиндров, чистовая обработка (2)",
+      "SectorId": "B",
+      "Level": 7
+    },
+    {
+      "Id": "gearbox-assembly-2",
+      "Name": "Коробка передач в сборе (2)",
+      "SectorId": "B",
+      "Level": 8
+    },
+    {
+      "Id": "welded-body-2",
+      "Name": "Сварной кузов (2)",
+      "SectorId": "B",
+      "Level": 8
+    },
+    {
+      "Id": "engine-2",
+      "Name": "Двигатель в сборе (2)",
+      "SectorId": "B",
+      "Level": 8
+    },
+    {
+      "Id": "automobile-2",
+      "Name": "Автомобиль (2)",
+      "SectorId": "B",
+      "Level": 9
+    }
+  ],
+  "Recipes": [
+    {
+      "Id": "iron-ore-mining",
+      "OutputMaterialId": "iron-ore",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 1654
+    },
+    {
+      "Id": "coking-coal-mining",
+      "OutputMaterialId": "coking-coal",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 1209
+    },
+    {
+      "Id": "limestone-quarrying",
+      "OutputMaterialId": "limestone",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 500
+    },
+    {
+      "Id": "scrap-collection",
+      "OutputMaterialId": "scrap-metal",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 390
+    },
+    {
+      "Id": "coke-from-coal",
+      "OutputMaterialId": "coke",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "coking-coal",
+          "Quantity": 1.5
+        }
+      ],
+      "ProductionRate": 620
+    },
+    {
+      "Id": "wire-rod-from-scrap",
+      "OutputMaterialId": "wire-rod",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "scrap-metal",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 150
+    },
+    {
+      "Id": "pig-iron-from-ore",
+      "OutputMaterialId": "pig-iron",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "iron-ore",
+          "Quantity": 1.6
+        },
+        {
+          "MaterialId": "coke",
+          "Quantity": 0.6
+        },
+        {
+          "MaterialId": "limestone",
+          "Quantity": 0.3
+        },
+        {
+          "MaterialId": "coke-2",
+          "Quantity": 0.2
+        }
+      ],
+      "ProductionRate": 795
+    },
+    {
+      "Id": "fasteners-from-wire-rod",
+      "OutputMaterialId": "fasteners",
+      "OutputQuantity": 20,
+      "Inputs": [
+        {
+          "MaterialId": "wire-rod",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1170
+    },
+    {
+      "Id": "crude-steel-from-pig-iron",
+      "OutputMaterialId": "crude-steel",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pig-iron",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 466
+    },
+    {
+      "Id": "cast-iron-from-pig-iron",
+      "OutputMaterialId": "cast-iron",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pig-iron",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 90
+    },
+    {
+      "Id": "billet-from-crude-steel",
+      "OutputMaterialId": "billet",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "crude-steel",
+          "Quantity": 1.05
+        },
+        {
+          "MaterialId": "cast-iron-2",
+          "Quantity": 0.2
+        }
+      ],
+      "ProductionRate": 205
+    },
+    {
+      "Id": "slab-from-crude-steel",
+      "OutputMaterialId": "slab",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "crude-steel",
+          "Quantity": 1.05
+        }
+      ],
+      "ProductionRate": 137
+    },
+    {
+      "Id": "engine-block-castings-from-cast-iron",
+      "OutputMaterialId": "engine-block-castings",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "cast-iron",
+          "Quantity": 1.2
+        }
+      ],
+      "ProductionRate": 50
+    },
+    {
+      "Id": "forging-bar-from-billet",
+      "OutputMaterialId": "forging-bar",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "billet",
+          "Quantity": 1.05
+        }
+      ],
+      "ProductionRate": 150
+    },
+    {
+      "Id": "hot-rolled-sheet-from-slab",
+      "OutputMaterialId": "hot-rolled-sheet",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "slab",
+          "Quantity": 1.05
+        }
+      ],
+      "ProductionRate": 100
+    },
+    {
+      "Id": "heat-treated-castings-from-castings",
+      "OutputMaterialId": "heat-treated-castings",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "engine-block-castings",
+          "Quantity": 1.05
+        }
+      ],
+      "ProductionRate": 32
+    },
+    {
+      "Id": "forged-blanks-from-forging-bar",
+      "OutputMaterialId": "forged-blanks",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "forging-bar",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 105
+    },
+    {
+      "Id": "cold-rolled-sheet-from-hot-rolled-sheet",
+      "OutputMaterialId": "cold-rolled-sheet",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "hot-rolled-sheet",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 70
+    },
+    {
+      "Id": "rough-machined-block-from-castings",
+      "OutputMaterialId": "rough-machined-block",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "heat-treated-castings",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 18
+    },
+    {
+      "Id": "machined-parts-from-forged-blanks",
+      "OutputMaterialId": "machined-parts",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "forged-blanks",
+          "Quantity": 1.15
+        }
+      ],
+      "ProductionRate": 70
+    },
+    {
+      "Id": "stamped-panels-from-cold-rolled-sheet",
+      "OutputMaterialId": "stamped-panels",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "cold-rolled-sheet",
+          "Quantity": 1.15
+        }
+      ],
+      "ProductionRate": 47
+    },
+    {
+      "Id": "engine-block-finished-from-rough-machined",
+      "OutputMaterialId": "engine-block-finished",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "rough-machined-block",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 10
+    },
+    {
+      "Id": "gearbox-assembly-from-parts",
+      "OutputMaterialId": "gearbox-assembly",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "machined-parts",
+          "Quantity": 4
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 30
+        }
+      ],
+      "ProductionRate": 6
+    },
+    {
+      "Id": "welded-body-from-panels",
+      "OutputMaterialId": "welded-body",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "stamped-panels",
+          "Quantity": 6
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 50
+        }
+      ],
+      "ProductionRate": 6
+    },
+    {
+      "Id": "engine-from-parts",
+      "OutputMaterialId": "engine",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "engine-block-finished",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "machined-parts",
+          "Quantity": 6
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 60
+        },
+        {
+          "MaterialId": "engine-block-finished-2",
+          "Quantity": 0.3
+        }
+      ],
+      "ProductionRate": 5
+    },
+    {
+      "Id": "automobile-assembly",
+      "OutputMaterialId": "automobile",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "welded-body",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "gearbox-assembly",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "engine",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "fasteners",
+          "Quantity": 60
+        }
+      ],
+      "ProductionRate": 2
+    },
+    {
+      "Id": "iron-ore-mining-2",
+      "OutputMaterialId": "iron-ore-2",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 1654
+    },
+    {
+      "Id": "coking-coal-mining-2",
+      "OutputMaterialId": "coking-coal-2",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 1209
+    },
+    {
+      "Id": "limestone-quarrying-2",
+      "OutputMaterialId": "limestone-2",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 500
+    },
+    {
+      "Id": "scrap-collection-2",
+      "OutputMaterialId": "scrap-metal-2",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 390
+    },
+    {
+      "Id": "coke-from-coal-2",
+      "OutputMaterialId": "coke-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "coking-coal-2",
+          "Quantity": 1.5
+        }
+      ],
+      "ProductionRate": 620
+    },
+    {
+      "Id": "wire-rod-from-scrap-2",
+      "OutputMaterialId": "wire-rod-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "scrap-metal-2",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 150
+    },
+    {
+      "Id": "pig-iron-from-ore-2",
+      "OutputMaterialId": "pig-iron-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "iron-ore-2",
+          "Quantity": 1.6
+        },
+        {
+          "MaterialId": "coke-2",
+          "Quantity": 0.6
+        },
+        {
+          "MaterialId": "limestone-2",
+          "Quantity": 0.3
+        },
+        {
+          "MaterialId": "coke",
+          "Quantity": 0.2
+        }
+      ],
+      "ProductionRate": 795
+    },
+    {
+      "Id": "fasteners-from-wire-rod-2",
+      "OutputMaterialId": "fasteners-2",
+      "OutputQuantity": 20,
+      "Inputs": [
+        {
+          "MaterialId": "wire-rod-2",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1170
+    },
+    {
+      "Id": "crude-steel-from-pig-iron-2",
+      "OutputMaterialId": "crude-steel-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pig-iron-2",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 466
+    },
+    {
+      "Id": "cast-iron-from-pig-iron-2",
+      "OutputMaterialId": "cast-iron-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pig-iron-2",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 90
+    },
+    {
+      "Id": "billet-from-crude-steel-2",
+      "OutputMaterialId": "billet-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "crude-steel-2",
+          "Quantity": 1.05
+        },
+        {
+          "MaterialId": "cast-iron",
+          "Quantity": 0.2
+        }
+      ],
+      "ProductionRate": 205
+    },
+    {
+      "Id": "slab-from-crude-steel-2",
+      "OutputMaterialId": "slab-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "crude-steel-2",
+          "Quantity": 1.05
+        }
+      ],
+      "ProductionRate": 137
+    },
+    {
+      "Id": "engine-block-castings-from-cast-iron-2",
+      "OutputMaterialId": "engine-block-castings-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "cast-iron-2",
+          "Quantity": 1.2
+        }
+      ],
+      "ProductionRate": 50
+    },
+    {
+      "Id": "forging-bar-from-billet-2",
+      "OutputMaterialId": "forging-bar-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "billet-2",
+          "Quantity": 1.05
+        }
+      ],
+      "ProductionRate": 150
+    },
+    {
+      "Id": "hot-rolled-sheet-from-slab-2",
+      "OutputMaterialId": "hot-rolled-sheet-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "slab-2",
+          "Quantity": 1.05
+        }
+      ],
+      "ProductionRate": 100
+    },
+    {
+      "Id": "heat-treated-castings-from-castings-2",
+      "OutputMaterialId": "heat-treated-castings-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "engine-block-castings-2",
+          "Quantity": 1.05
+        }
+      ],
+      "ProductionRate": 32
+    },
+    {
+      "Id": "forged-blanks-from-forging-bar-2",
+      "OutputMaterialId": "forged-blanks-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "forging-bar-2",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 105
+    },
+    {
+      "Id": "cold-rolled-sheet-from-hot-rolled-sheet-2",
+      "OutputMaterialId": "cold-rolled-sheet-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "hot-rolled-sheet-2",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 70
+    },
+    {
+      "Id": "rough-machined-block-from-castings-2",
+      "OutputMaterialId": "rough-machined-block-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "heat-treated-castings-2",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 18
+    },
+    {
+      "Id": "machined-parts-from-forged-blanks-2",
+      "OutputMaterialId": "machined-parts-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "forged-blanks-2",
+          "Quantity": 1.15
+        }
+      ],
+      "ProductionRate": 70
+    },
+    {
+      "Id": "stamped-panels-from-cold-rolled-sheet-2",
+      "OutputMaterialId": "stamped-panels-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "cold-rolled-sheet-2",
+          "Quantity": 1.15
+        }
+      ],
+      "ProductionRate": 47
+    },
+    {
+      "Id": "engine-block-finished-from-rough-machined-2",
+      "OutputMaterialId": "engine-block-finished-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "rough-machined-block-2",
+          "Quantity": 1.1
+        }
+      ],
+      "ProductionRate": 10
+    },
+    {
+      "Id": "gearbox-assembly-from-parts-2",
+      "OutputMaterialId": "gearbox-assembly-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "machined-parts-2",
+          "Quantity": 4
+        },
+        {
+          "MaterialId": "fasteners-2",
+          "Quantity": 30
+        }
+      ],
+      "ProductionRate": 6
+    },
+    {
+      "Id": "welded-body-from-panels-2",
+      "OutputMaterialId": "welded-body-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "stamped-panels-2",
+          "Quantity": 6
+        },
+        {
+          "MaterialId": "fasteners-2",
+          "Quantity": 50
+        }
+      ],
+      "ProductionRate": 6
+    },
+    {
+      "Id": "engine-from-parts-2",
+      "OutputMaterialId": "engine-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "engine-block-finished-2",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "machined-parts-2",
+          "Quantity": 6
+        },
+        {
+          "MaterialId": "fasteners-2",
+          "Quantity": 60
+        },
+        {
+          "MaterialId": "engine-block-finished",
+          "Quantity": 0.3
+        }
+      ],
+      "ProductionRate": 5
+    },
+    {
+      "Id": "automobile-assembly-2",
+      "OutputMaterialId": "automobile-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "welded-body-2",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "gearbox-assembly-2",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "engine-2",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "fasteners-2",
+          "Quantity": 60
+        }
+      ],
+      "ProductionRate": 2
+    }
+  ],
+  "FactoryDefinitions": [
+    {
+      "Id": "iron-mine",
+      "Name": "Рудник (железо)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "iron-ore-mining"
+      ],
+      "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
+    },
+    {
+      "Id": "coal-mine",
+      "Name": "Угольная шахта",
+      "SectorId": "A",
+      "RecipeIds": [
+        "coking-coal-mining"
+      ],
+      "BuildCost": 480,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
+    },
+    {
+      "Id": "limestone-quarry",
+      "Name": "Известняковый карьер",
+      "SectorId": "A",
+      "RecipeIds": [
+        "limestone-quarrying"
+      ],
+      "BuildCost": 420,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 8
+    },
+    {
+      "Id": "scrap-yard",
+      "Name": "Пункт приёма металлолома",
+      "SectorId": "A",
+      "RecipeIds": [
+        "scrap-collection"
+      ],
+      "BuildCost": 350,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 6
+    },
+    {
+      "Id": "coking-plant",
+      "Name": "Коксохимический завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "coke-from-coal"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18
+    },
+    {
+      "Id": "mini-mill",
+      "Name": "Мини-завод (сталь из лома)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "wire-rod-from-scrap"
+      ],
+      "BuildCost": 1100,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 22
+    },
+    {
+      "Id": "blast-furnace",
+      "Name": "Доменная печь",
+      "SectorId": "A",
+      "RecipeIds": [
+        "pig-iron-from-ore"
+      ],
+      "BuildCost": 2200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 44
+    },
+    {
+      "Id": "fastener-plant",
+      "Name": "Метизный завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "fasteners-from-wire-rod"
+      ],
+      "BuildCost": 1400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 28
+    },
+    {
+      "Id": "oxygen-converter",
+      "Name": "Кислородно-конвертерный цех",
+      "SectorId": "A",
+      "RecipeIds": [
+        "crude-steel-from-pig-iron"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64
+    },
+    {
+      "Id": "foundry-cupola",
+      "Name": "Литейный цех (вагранка)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "cast-iron-from-pig-iron"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64
+    },
+    {
+      "Id": "billet-caster",
+      "Name": "Машина непрерывного литья заготовок (сорт)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "billet-from-crude-steel"
+      ],
+      "BuildCost": 4200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 84
+    },
+    {
+      "Id": "slab-caster",
+      "Name": "Машина непрерывного литья заготовок (слябы)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "slab-from-crude-steel"
+      ],
+      "BuildCost": 4200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 84
+    },
+    {
+      "Id": "engine-block-foundry",
+      "Name": "Литейный участок блоков цилиндров",
+      "SectorId": "A",
+      "RecipeIds": [
+        "engine-block-castings-from-cast-iron"
+      ],
+      "BuildCost": 4200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 84
+    },
+    {
+      "Id": "bar-mill",
+      "Name": "Сортопрокатный стан",
+      "SectorId": "A",
+      "RecipeIds": [
+        "forging-bar-from-billet"
+      ],
+      "BuildCost": 5200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 104
+    },
+    {
+      "Id": "hot-rolling-mill",
+      "Name": "Стан горячей прокатки",
+      "SectorId": "A",
+      "RecipeIds": [
+        "hot-rolled-sheet-from-slab"
+      ],
+      "BuildCost": 5200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 104
+    },
+    {
+      "Id": "stress-relief-shop",
+      "Name": "Цех термообработки отливок",
+      "SectorId": "A",
+      "RecipeIds": [
+        "heat-treated-castings-from-castings"
+      ],
+      "BuildCost": 5200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 104
+    },
+    {
+      "Id": "forge-shop",
+      "Name": "Кузнечный цех",
+      "SectorId": "A",
+      "RecipeIds": [
+        "forged-blanks-from-forging-bar"
+      ],
+      "BuildCost": 6800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 136
+    },
+    {
+      "Id": "cold-rolling-mill",
+      "Name": "Стан холодной прокатки",
+      "SectorId": "A",
+      "RecipeIds": [
+        "cold-rolled-sheet-from-hot-rolled-sheet"
+      ],
+      "BuildCost": 6800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 136
+    },
+    {
+      "Id": "rough-machining-shop",
+      "Name": "Цех черновой расточки блоков",
+      "SectorId": "A",
+      "RecipeIds": [
+        "rough-machined-block-from-castings"
+      ],
+      "BuildCost": 6800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 136
+    },
+    {
+      "Id": "machining-shop",
+      "Name": "Механообрабатывающий цех",
+      "SectorId": "A",
+      "RecipeIds": [
+        "machined-parts-from-forged-blanks"
+      ],
+      "BuildCost": 9000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 180
+    },
+    {
+      "Id": "stamping-shop",
+      "Name": "Штамповочный цех",
+      "SectorId": "A",
+      "RecipeIds": [
+        "stamped-panels-from-cold-rolled-sheet"
+      ],
+      "BuildCost": 9000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 180
+    },
+    {
+      "Id": "precision-machining-shop",
+      "Name": "Цех чистовой обработки блоков цилиндров",
+      "SectorId": "A",
+      "RecipeIds": [
+        "engine-block-finished-from-rough-machined"
+      ],
+      "BuildCost": 9000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 180
+    },
+    {
+      "Id": "gearbox-plant",
+      "Name": "Завод коробок передач",
+      "SectorId": "A",
+      "RecipeIds": [
+        "gearbox-assembly-from-parts"
+      ],
+      "BuildCost": 14000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 280
+    },
+    {
+      "Id": "body-welding-shop",
+      "Name": "Цех сварки кузовов",
+      "SectorId": "A",
+      "RecipeIds": [
+        "welded-body-from-panels"
+      ],
+      "BuildCost": 14000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 280
+    },
+    {
+      "Id": "engine-assembly-plant",
+      "Name": "Моторный завод (сборка двигателей)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "engine-from-parts"
+      ],
+      "BuildCost": 14000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 280
+    },
+    {
+      "Id": "car-assembly-plant",
+      "Name": "Автосборочный завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "automobile-assembly"
+      ],
+      "BuildCost": 25000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 500
+    },
+    {
+      "Id": "iron-mine-2",
+      "Name": "Рудник (железо) (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "iron-ore-mining-2"
+      ],
+      "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
+    },
+    {
+      "Id": "coal-mine-2",
+      "Name": "Угольная шахта (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "coking-coal-mining-2"
+      ],
+      "BuildCost": 480,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
+    },
+    {
+      "Id": "limestone-quarry-2",
+      "Name": "Известняковый карьер (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "limestone-quarrying-2"
+      ],
+      "BuildCost": 420,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 8
+    },
+    {
+      "Id": "scrap-yard-2",
+      "Name": "Пункт приёма металлолома (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "scrap-collection-2"
+      ],
+      "BuildCost": 350,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 6
+    },
+    {
+      "Id": "coking-plant-2",
+      "Name": "Коксохимический завод (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "coke-from-coal-2"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18
+    },
+    {
+      "Id": "mini-mill-2",
+      "Name": "Мини-завод (сталь из лома) (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "wire-rod-from-scrap-2"
+      ],
+      "BuildCost": 1100,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 22
+    },
+    {
+      "Id": "blast-furnace-2",
+      "Name": "Доменная печь (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "pig-iron-from-ore-2"
+      ],
+      "BuildCost": 2200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 44
+    },
+    {
+      "Id": "fastener-plant-2",
+      "Name": "Метизный завод (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "fasteners-from-wire-rod-2"
+      ],
+      "BuildCost": 1400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 28
+    },
+    {
+      "Id": "oxygen-converter-2",
+      "Name": "Кислородно-конвертерный цех (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "crude-steel-from-pig-iron-2"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64
+    },
+    {
+      "Id": "foundry-cupola-2",
+      "Name": "Литейный цех (вагранка) (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "cast-iron-from-pig-iron-2"
+      ],
+      "BuildCost": 3200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 64
+    },
+    {
+      "Id": "billet-caster-2",
+      "Name": "Машина непрерывного литья заготовок (сорт) (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "billet-from-crude-steel-2"
+      ],
+      "BuildCost": 4200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 84
+    },
+    {
+      "Id": "slab-caster-2",
+      "Name": "Машина непрерывного литья заготовок (слябы) (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "slab-from-crude-steel-2"
+      ],
+      "BuildCost": 4200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 84
+    },
+    {
+      "Id": "engine-block-foundry-2",
+      "Name": "Литейный участок блоков цилиндров (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "engine-block-castings-from-cast-iron-2"
+      ],
+      "BuildCost": 4200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 84
+    },
+    {
+      "Id": "bar-mill-2",
+      "Name": "Сортопрокатный стан (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "forging-bar-from-billet-2"
+      ],
+      "BuildCost": 5200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 104
+    },
+    {
+      "Id": "hot-rolling-mill-2",
+      "Name": "Стан горячей прокатки (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "hot-rolled-sheet-from-slab-2"
+      ],
+      "BuildCost": 5200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 104
+    },
+    {
+      "Id": "stress-relief-shop-2",
+      "Name": "Цех термообработки отливок (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "heat-treated-castings-from-castings-2"
+      ],
+      "BuildCost": 5200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 104
+    },
+    {
+      "Id": "forge-shop-2",
+      "Name": "Кузнечный цех (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "forged-blanks-from-forging-bar-2"
+      ],
+      "BuildCost": 6800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 136
+    },
+    {
+      "Id": "cold-rolling-mill-2",
+      "Name": "Стан холодной прокатки (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "cold-rolled-sheet-from-hot-rolled-sheet-2"
+      ],
+      "BuildCost": 6800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 136
+    },
+    {
+      "Id": "rough-machining-shop-2",
+      "Name": "Цех черновой расточки блоков (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "rough-machined-block-from-castings-2"
+      ],
+      "BuildCost": 6800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 136
+    },
+    {
+      "Id": "machining-shop-2",
+      "Name": "Механообрабатывающий цех (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "machined-parts-from-forged-blanks-2"
+      ],
+      "BuildCost": 9000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 180
+    },
+    {
+      "Id": "stamping-shop-2",
+      "Name": "Штамповочный цех (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "stamped-panels-from-cold-rolled-sheet-2"
+      ],
+      "BuildCost": 9000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 180
+    },
+    {
+      "Id": "precision-machining-shop-2",
+      "Name": "Цех чистовой обработки блоков цилиндров (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "engine-block-finished-from-rough-machined-2"
+      ],
+      "BuildCost": 9000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 180
+    },
+    {
+      "Id": "gearbox-plant-2",
+      "Name": "Завод коробок передач (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "gearbox-assembly-from-parts-2"
+      ],
+      "BuildCost": 14000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 280
+    },
+    {
+      "Id": "body-welding-shop-2",
+      "Name": "Цех сварки кузовов (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "welded-body-from-panels-2"
+      ],
+      "BuildCost": 14000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 280
+    },
+    {
+      "Id": "engine-assembly-plant-2",
+      "Name": "Моторный завод (сборка двигателей) (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "engine-from-parts-2"
+      ],
+      "BuildCost": 14000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 280
+    },
+    {
+      "Id": "car-assembly-plant-2",
+      "Name": "Автосборочный завод (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "automobile-assembly-2"
+      ],
+      "BuildCost": 25000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 500
+    }
+  ],
+  "BaseMarketPerMaterial": [
+    {
+      "MaterialId": "iron-ore",
+      "BasePrice": 1,
+      "BaseCapacity": 4000
+    },
+    {
+      "MaterialId": "coking-coal",
+      "BasePrice": 1.2,
+      "BaseCapacity": 3000
+    },
+    {
+      "MaterialId": "limestone",
+      "BasePrice": 0.6,
+      "BaseCapacity": 3500
+    },
+    {
+      "MaterialId": "scrap-metal",
+      "BasePrice": 0.8,
+      "BaseCapacity": 2500
+    },
+    {
+      "MaterialId": "coke",
+      "BasePrice": 3,
+      "BaseCapacity": 1400
+    },
+    {
+      "MaterialId": "wire-rod",
+      "BasePrice": 4,
+      "BaseCapacity": 900
+    },
+    {
+      "MaterialId": "pig-iron",
+      "BasePrice": 6,
+      "BaseCapacity": 700
+    },
+    {
+      "MaterialId": "fasteners",
+      "BasePrice": 9,
+      "BaseCapacity": 1800
+    },
+    {
+      "MaterialId": "crude-steel",
+      "BasePrice": 14,
+      "BaseCapacity": 400
+    },
+    {
+      "MaterialId": "cast-iron",
+      "BasePrice": 14,
+      "BaseCapacity": 400
+    },
+    {
+      "MaterialId": "billet",
+      "BasePrice": 22,
+      "BaseCapacity": 220
+    },
+    {
+      "MaterialId": "slab",
+      "BasePrice": 22,
+      "BaseCapacity": 220
+    },
+    {
+      "MaterialId": "engine-block-castings",
+      "BasePrice": 22,
+      "BaseCapacity": 220
+    },
+    {
+      "MaterialId": "forging-bar",
+      "BasePrice": 34,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "hot-rolled-sheet",
+      "BasePrice": 34,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "heat-treated-castings",
+      "BasePrice": 34,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "forged-blanks",
+      "BasePrice": 55,
+      "BaseCapacity": 60
+    },
+    {
+      "MaterialId": "cold-rolled-sheet",
+      "BasePrice": 55,
+      "BaseCapacity": 60
+    },
+    {
+      "MaterialId": "rough-machined-block",
+      "BasePrice": 55,
+      "BaseCapacity": 60
+    },
+    {
+      "MaterialId": "machined-parts",
+      "BasePrice": 95,
+      "BaseCapacity": 28
+    },
+    {
+      "MaterialId": "stamped-panels",
+      "BasePrice": 95,
+      "BaseCapacity": 28
+    },
+    {
+      "MaterialId": "engine-block-finished",
+      "BasePrice": 95,
+      "BaseCapacity": 28
+    },
+    {
+      "MaterialId": "gearbox-assembly",
+      "BasePrice": 900,
+      "BaseCapacity": 5
+    },
+    {
+      "MaterialId": "welded-body",
+      "BasePrice": 700,
+      "BaseCapacity": 5
+    },
+    {
+      "MaterialId": "engine",
+      "BasePrice": 1200,
+      "BaseCapacity": 4
+    },
+    {
+      "MaterialId": "automobile",
+      "BasePrice": 4800,
+      "BaseCapacity": 1
+    },
+    {
+      "MaterialId": "iron-ore-2",
+      "BasePrice": 1,
+      "BaseCapacity": 4000
+    },
+    {
+      "MaterialId": "coking-coal-2",
+      "BasePrice": 1.2,
+      "BaseCapacity": 3000
+    },
+    {
+      "MaterialId": "limestone-2",
+      "BasePrice": 0.6,
+      "BaseCapacity": 3500
+    },
+    {
+      "MaterialId": "scrap-metal-2",
+      "BasePrice": 0.8,
+      "BaseCapacity": 2500
+    },
+    {
+      "MaterialId": "coke-2",
+      "BasePrice": 3,
+      "BaseCapacity": 1400
+    },
+    {
+      "MaterialId": "wire-rod-2",
+      "BasePrice": 4,
+      "BaseCapacity": 900
+    },
+    {
+      "MaterialId": "pig-iron-2",
+      "BasePrice": 6,
+      "BaseCapacity": 700
+    },
+    {
+      "MaterialId": "fasteners-2",
+      "BasePrice": 9,
+      "BaseCapacity": 1800
+    },
+    {
+      "MaterialId": "crude-steel-2",
+      "BasePrice": 14,
+      "BaseCapacity": 400
+    },
+    {
+      "MaterialId": "cast-iron-2",
+      "BasePrice": 14,
+      "BaseCapacity": 400
+    },
+    {
+      "MaterialId": "billet-2",
+      "BasePrice": 22,
+      "BaseCapacity": 220
+    },
+    {
+      "MaterialId": "slab-2",
+      "BasePrice": 22,
+      "BaseCapacity": 220
+    },
+    {
+      "MaterialId": "engine-block-castings-2",
+      "BasePrice": 22,
+      "BaseCapacity": 220
+    },
+    {
+      "MaterialId": "forging-bar-2",
+      "BasePrice": 34,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "hot-rolled-sheet-2",
+      "BasePrice": 34,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "heat-treated-castings-2",
+      "BasePrice": 34,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "forged-blanks-2",
+      "BasePrice": 55,
+      "BaseCapacity": 60
+    },
+    {
+      "MaterialId": "cold-rolled-sheet-2",
+      "BasePrice": 55,
+      "BaseCapacity": 60
+    },
+    {
+      "MaterialId": "rough-machined-block-2",
+      "BasePrice": 55,
+      "BaseCapacity": 60
+    },
+    {
+      "MaterialId": "machined-parts-2",
+      "BasePrice": 95,
+      "BaseCapacity": 28
+    },
+    {
+      "MaterialId": "stamped-panels-2",
+      "BasePrice": 95,
+      "BaseCapacity": 28
+    },
+    {
+      "MaterialId": "engine-block-finished-2",
+      "BasePrice": 95,
+      "BaseCapacity": 28
+    },
+    {
+      "MaterialId": "gearbox-assembly-2",
+      "BasePrice": 900,
+      "BaseCapacity": 5
+    },
+    {
+      "MaterialId": "welded-body-2",
+      "BasePrice": 700,
+      "BaseCapacity": 5
+    },
+    {
+      "MaterialId": "engine-2",
+      "BasePrice": 1200,
+      "BaseCapacity": 4
+    },
+    {
+      "MaterialId": "automobile-2",
+      "BasePrice": 4800,
+      "BaseCapacity": 1
+    }
+  ],
+  "GenerationResearch": {
+    "StartingGeneration": 1,
+    "ResearchPointThresholdsByGeneration": [
+      25,
+      45,
+      70,
+      100,
+      140,
+      190,
+      250,
+      320
+    ],
+    "DiminishingReturnsExponent": 0.5,
+    "MaxCommitmentPerTurn": 1575
+  }
+}
