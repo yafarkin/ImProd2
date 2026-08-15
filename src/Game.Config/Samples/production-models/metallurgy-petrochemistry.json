@@ -59,6 +59,24 @@
       "Level": 1
     },
     {
+      "Id": "quicklime",
+      "Name": "Известь негашёная",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "coal-tar",
+      "Name": "Каменноугольная смола",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "iron-powder",
+      "Name": "Железный порошок",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
       "Id": "gasoline",
       "Name": "Бензин",
       "SectorId": "B",
@@ -245,21 +263,21 @@
       "OutputMaterialId": "iron-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 2946
+      "ProductionRate": 4246
     },
     {
       "Id": "coking-coal-mining",
       "OutputMaterialId": "coking-coal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 2154
+      "ProductionRate": 3325
     },
     {
       "Id": "limestone-quarrying",
       "OutputMaterialId": "limestone",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 552
+      "ProductionRate": 1853
     },
     {
       "Id": "scrap-collection",
@@ -273,7 +291,7 @@
       "OutputMaterialId": "oil",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 19000
+      "ProductionRate": 25900
     },
     {
       "Id": "natural-gas-drilling",
@@ -305,6 +323,42 @@
         }
       ],
       "ProductionRate": 150
+    },
+    {
+      "Id": "quicklime-from-limestone",
+      "OutputMaterialId": "quicklime",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "limestone",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1000
+    },
+    {
+      "Id": "coal-tar-from-coking-coal",
+      "OutputMaterialId": "coal-tar",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "coking-coal",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 900
+    },
+    {
+      "Id": "iron-powder-from-ore",
+      "OutputMaterialId": "iron-powder",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "iron-ore",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1000
     },
     {
       "Id": "gasoline-from-oil",
@@ -845,6 +899,39 @@
       "FixedCostPerTurn": 49.0
     },
     {
+      "Id": "lime-kiln",
+      "Name": "Известковая печь",
+      "SectorId": "A",
+      "RecipeIds": [
+        "quicklime-from-limestone"
+      ],
+      "BuildCost": 2200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 44.0
+    },
+    {
+      "Id": "coal-tar-plant",
+      "Name": "Смолоперегонный завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "coal-tar-from-coking-coal"
+      ],
+      "BuildCost": 2200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 44.0
+    },
+    {
+      "Id": "iron-powder-plant",
+      "Name": "Завод порошкового железа",
+      "SectorId": "A",
+      "RecipeIds": [
+        "iron-powder-from-ore"
+      ],
+      "BuildCost": 2200,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 44.0
+    },
+    {
       "Id": "refinery",
       "Name": "Нефтеперерабатывающий завод",
       "SectorId": "B",
@@ -1215,6 +1302,21 @@
       "MaterialId": "wire-rod",
       "BasePrice": 4,
       "BaseCapacity": 900
+    },
+    {
+      "MaterialId": "quicklime",
+      "BasePrice": 4,
+      "BaseCapacity": 1000
+    },
+    {
+      "MaterialId": "coal-tar",
+      "BasePrice": 5,
+      "BaseCapacity": 900
+    },
+    {
+      "MaterialId": "iron-powder",
+      "BasePrice": 4,
+      "BaseCapacity": 1000
     },
     {
       "MaterialId": "gasoline",
