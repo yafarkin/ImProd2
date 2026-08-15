@@ -12,37 +12,13 @@
   "Materials": [
     {
       "Id": "iron-ore",
-      "Name": "Железная руда",
-      "SectorId": "A",
-      "Level": 0
-    },
-    {
-      "Id": "coking-coal",
-      "Name": "Коксующийся уголь",
-      "SectorId": "A",
-      "Level": 0
-    },
-    {
-      "Id": "limestone",
-      "Name": "Известняк",
-      "SectorId": "A",
-      "Level": 0
-    },
-    {
-      "Id": "scrap-metal",
-      "Name": "Металлолом",
+      "Name": "Руда",
       "SectorId": "A",
       "Level": 0
     },
     {
       "Id": "oil",
       "Name": "Нефть",
-      "SectorId": "B",
-      "Level": 0
-    },
-    {
-      "Id": "natural-gas",
-      "Name": "Природный газ",
       "SectorId": "B",
       "Level": 0
     },
@@ -263,86 +239,58 @@
       "OutputMaterialId": "iron-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 4246
-    },
-    {
-      "Id": "coking-coal-mining",
-      "OutputMaterialId": "coking-coal",
-      "OutputQuantity": 1,
-      "Inputs": [],
-      "ProductionRate": 3325
-    },
-    {
-      "Id": "limestone-quarrying",
-      "OutputMaterialId": "limestone",
-      "OutputQuantity": 1,
-      "Inputs": [],
-      "ProductionRate": 1853
-    },
-    {
-      "Id": "scrap-collection",
-      "OutputMaterialId": "scrap-metal",
-      "OutputQuantity": 1,
-      "Inputs": [],
-      "ProductionRate": 390
+      "ProductionRate": 9812
     },
     {
       "Id": "oil-drilling",
       "OutputMaterialId": "oil",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 25900
+      "ProductionRate": 26600
     },
     {
-      "Id": "natural-gas-drilling",
-      "OutputMaterialId": "natural-gas",
-      "OutputQuantity": 1,
-      "Inputs": [],
-      "ProductionRate": 1069
-    },
-    {
-      "Id": "coke-from-coal",
+      "Id": "coke-from-ore",
       "OutputMaterialId": "coke",
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "coking-coal",
+          "MaterialId": "iron-ore",
           "Quantity": 1.5
         }
       ],
       "ProductionRate": 1105
     },
     {
-      "Id": "wire-rod-from-scrap",
+      "Id": "wire-rod-from-ore",
       "OutputMaterialId": "wire-rod",
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "scrap-metal",
+          "MaterialId": "iron-ore",
           "Quantity": 2
         }
       ],
       "ProductionRate": 150
     },
     {
-      "Id": "quicklime-from-limestone",
+      "Id": "quicklime-from-ore",
       "OutputMaterialId": "quicklime",
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "limestone",
+          "MaterialId": "iron-ore",
           "Quantity": 1
         }
       ],
       "ProductionRate": 1000
     },
     {
-      "Id": "coal-tar-from-coking-coal",
+      "Id": "coal-tar-from-ore",
       "OutputMaterialId": "coal-tar",
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "coking-coal",
+          "MaterialId": "iron-ore",
           "Quantity": 1
         }
       ],
@@ -397,12 +345,12 @@
       "ProductionRate": 2635
     },
     {
-      "Id": "methanol-from-gas",
+      "Id": "methanol-from-oil",
       "OutputMaterialId": "methanol",
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "natural-gas",
+          "MaterialId": "oil",
           "Quantity": 3
         }
       ],
@@ -427,15 +375,11 @@
       "Inputs": [
         {
           "MaterialId": "iron-ore",
-          "Quantity": 1.6
+          "Quantity": 1.9
         },
         {
           "MaterialId": "coke",
           "Quantity": 0.6
-        },
-        {
-          "MaterialId": "limestone",
-          "Quantity": 0.3
         }
       ],
       "ProductionRate": 1416
@@ -822,39 +766,6 @@
       "FixedCostPerTurn": 24.0
     },
     {
-      "Id": "coal-mine",
-      "Name": "Угольная шахта",
-      "SectorId": "A",
-      "RecipeIds": [
-        "coking-coal-mining"
-      ],
-      "BuildCost": 1150,
-      "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 23.0
-    },
-    {
-      "Id": "limestone-quarry",
-      "Name": "Известняковый карьер",
-      "SectorId": "A",
-      "RecipeIds": [
-        "limestone-quarrying"
-      ],
-      "BuildCost": 1000,
-      "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 20.0
-    },
-    {
-      "Id": "scrap-yard",
-      "Name": "Пункт приёма металлолома",
-      "SectorId": "A",
-      "RecipeIds": [
-        "scrap-collection"
-      ],
-      "BuildCost": 850,
-      "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 17.0
-    },
-    {
       "Id": "oil-well",
       "Name": "Нефтяная скважина",
       "SectorId": "B",
@@ -866,22 +777,11 @@
       "FixedCostPerTurn": 24.0
     },
     {
-      "Id": "gas-well",
-      "Name": "Газовая скважина",
-      "SectorId": "B",
-      "RecipeIds": [
-        "natural-gas-drilling"
-      ],
-      "BuildCost": 1150,
-      "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 23.0
-    },
-    {
       "Id": "coking-plant",
       "Name": "Коксохимический завод",
       "SectorId": "A",
       "RecipeIds": [
-        "coke-from-coal"
+        "coke-from-ore"
       ],
       "BuildCost": 2200,
       "LiquidationValueCoefficient": 0.5,
@@ -892,7 +792,7 @@
       "Name": "Мини-завод (сталь из лома)",
       "SectorId": "A",
       "RecipeIds": [
-        "wire-rod-from-scrap"
+        "wire-rod-from-ore"
       ],
       "BuildCost": 2450,
       "LiquidationValueCoefficient": 0.5,
@@ -903,7 +803,7 @@
       "Name": "Известковая печь",
       "SectorId": "A",
       "RecipeIds": [
-        "quicklime-from-limestone"
+        "quicklime-from-ore"
       ],
       "BuildCost": 2200,
       "LiquidationValueCoefficient": 0.5,
@@ -914,7 +814,7 @@
       "Name": "Смолоперегонный завод",
       "SectorId": "A",
       "RecipeIds": [
-        "coal-tar-from-coking-coal"
+        "coal-tar-from-ore"
       ],
       "BuildCost": 2200,
       "LiquidationValueCoefficient": 0.5,
@@ -969,7 +869,7 @@
       "Name": "Газоперерабатывающий завод",
       "SectorId": "B",
       "RecipeIds": [
-        "methanol-from-gas"
+        "methanol-from-oil"
       ],
       "BuildCost": 2200,
       "LiquidationValueCoefficient": 0.5,
@@ -1269,29 +1169,9 @@
       "BaseCapacity": 4000
     },
     {
-      "MaterialId": "coking-coal",
-      "BasePrice": 1.2,
-      "BaseCapacity": 3000
-    },
-    {
-      "MaterialId": "limestone",
-      "BasePrice": 0.6,
-      "BaseCapacity": 3500
-    },
-    {
-      "MaterialId": "scrap-metal",
-      "BasePrice": 0.8,
-      "BaseCapacity": 2500
-    },
-    {
       "MaterialId": "oil",
       "BasePrice": 1,
       "BaseCapacity": 4000
-    },
-    {
-      "MaterialId": "natural-gas",
-      "BasePrice": 0.9,
-      "BaseCapacity": 3500
     },
     {
       "MaterialId": "coke",
