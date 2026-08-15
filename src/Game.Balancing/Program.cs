@@ -23,6 +23,12 @@ var sectorSummaries = config.Sectors.Select(s => new SectorSummary { Id = s.Id, 
 var sectorNames = string.Join(", ", sectorSummaries.Select(s => $"{s.Id} ({s.Name})"));
 Console.WriteLine($"Секторов в цепочке: {sectorSummaries.Count} [{sectorNames}], команд на сектор: {cliArguments.TeamsPerSector}.");
 
+// Дёшево (один проход по конфигу, без бота/сессии) — печатается всегда, до долгого прогона, чтобы
+// содержательный баг был виден сразу, а не только после часов сетки (см. doc-comment GenerationParityCheck).
+var generationParityValues = GenerationParityCheck.Calculate(config);
+GenerationParityCheck.PrintReport(generationParityValues);
+var generationParitySection = generationParityValues.Count >= 2 ? generationParityValues : null;
+
 var metadata = new RunMetadata
 {
     ConfigPath = cliArguments.ConfigPath ?? "(выбран интерактивно)",
@@ -47,7 +53,9 @@ var idealHallSection = new IdealHallSection
 if (cliArguments.Mode == RunMode.IdealHall)
 {
     PrintIdealHallTable(idealHall, preset.MaxTurns);
-    await WriteReportAsync(new BalancingRunReport { Metadata = metadata, IdealHall = idealHallSection }, cliArguments.OutPath);
+    await WriteReportAsync(
+        new BalancingRunReport { Metadata = metadata, IdealHall = idealHallSection, GenerationParity = generationParitySection },
+        cliArguments.OutPath);
     return;
 }
 
@@ -127,7 +135,9 @@ var gridSection = new GridSection
     }).ToList(),
 };
 
-await WriteReportAsync(new BalancingRunReport { Metadata = metadata, IdealHall = idealHallSection, Grid = gridSection }, cliArguments.OutPath);
+await WriteReportAsync(
+    new BalancingRunReport { Metadata = metadata, IdealHall = idealHallSection, Grid = gridSection, GenerationParity = generationParitySection },
+    cliArguments.OutPath);
 
 static string FormatNullable(decimal? value, string format) =>
     value.HasValue ? value.Value.ToString(format, CultureInfo.InvariantCulture) : "—";

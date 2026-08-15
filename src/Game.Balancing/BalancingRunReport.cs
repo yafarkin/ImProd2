@@ -21,6 +21,13 @@ public sealed record BalancingRunReport
 
     /// <summary>Сетка ботовых стратегий (Блок 7.3.2/7.3.5) — <c>null</c> в режиме <c>--mode ideal-hall</c>, где сетки не было.</summary>
     public GridSection? Grid { get; init; }
+
+    /// <summary>
+    /// Статическая проверка «генерация-1 фронт-лоадинга» (<see cref="GenerationParityCheck"/>,
+    /// <c>docs/TODO.md</c> №2) — присутствует всегда, не зависит от режима: считается по одному
+    /// конфигу, без бота/сессии. <c>null</c> только для односекторных цепочек (нечего сравнивать).
+    /// </summary>
+    public IReadOnlyList<SectorGenerationValue>? GenerationParity { get; init; }
 }
 
 /// <summary>
