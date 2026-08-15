@@ -17,6 +17,16 @@ namespace Game.Engine;
 /// <item>Обмен между ветками — по себестоимости (<see cref="CostCalculator"/>), без переговорной
 /// надбавки; платёж за перевод идёт в обе стороны (продавец получает деньги, покупатель платит) —
 /// перевод не бесплатный подарок, просто без монопольной наценки.</item>
+/// <item>Остаток излишка материала, который не забрала ни одна соседняя ветка (после <see
+/// cref="TransferAcrossBranches"/>), продаётся системе тем же ходом по <see
+/// cref="MarketSaleCalculator"/> (котировка × <see cref="EconomyConfig.MarginMultiplierByProcessingLevel"/>
+/// текущего уровня передела, включая понижающий коэффициент за превышение ёмкости) — аналог
+/// <c>SimpleBot.SellSurplusToSystem</c> у реального бота, а не только пассивная оценка склада в конце
+/// хода (см. <see cref="ComputeValue"/>). Добавлено намеренно: без этого X(t) сильно
+/// недооценивал ветки с большим числом параллельных нисходящих переделов на одном сырье — у них
+/// заметная доля выпуска не находит покупателя среди соседних веток и должна уходить в реальный
+/// рыночный доход, а не лежать на складе по неполной цене (см. <c>docs/TODO.md</c> №2, находка сессии
+/// 2026-08-15).</item>
 /// <item>Полная информация, ноль ошибок: капремонт не нужен вовсе — состояние фабрики держится на 1.0
 /// (не моделируем износ), эквивалент «капремонт всегда точно вовремя».</item>
 /// <item>Темп вложений — эталонная постоянная доля потолка за ход, и для R&amp;D фабрики, и для
@@ -57,9 +67,13 @@ public static class IdealHallCalculator
         var basePriceByMaterialId = config.Raw.Economy.BaseMarketPerMaterial
             .ToDictionary(m => m.MaterialId, m => m.BasePrice);
         var branches = config.Sectors.Select(sector => CreateBranch(config, sector)).ToList();
+        var market = new Market();
 
         for (var turn = 1; turn <= maxTurns; turn++)
         {
+            var marketUpdate = MarketCalculator.Calculate(turn, config.Raw.Economy);
+            market.ReplaceQuotes(marketUpdate.Quotes, marketUpdate.ElectricityPrice);
+
             foreach (var branch in branches)
             {
                 AdvanceGeneration(branch, config, turn);
@@ -70,7 +84,7 @@ public static class IdealHallCalculator
                 ChargeOperatingCosts(branch, config);
             }
 
-            TransferAcrossBranches(branches, config, rawMaterialCosts);
+            TransferAcrossBranches(branches, config, rawMaterialCosts, market);
 
             foreach (var branch in branches)
             {
@@ -235,10 +249,14 @@ public static class IdealHallCalculator
     /// больше одной ветки-производителя (<see cref="Material.Sector"/>) — делить излишек между
     /// несколькими продавцами не от чего, только между покупателями: если суммарный дефицит
     /// покупателей больше излишка продавца, все получают одну и ту же долю своего дефицита
-    /// («жадное», но справедливое распределение — не первый пришедший забирает всё).
+    /// («жадное», но справедливое распределение — не первый пришедший забирает всё). То, что после
+    /// этого остаётся невостребованным соседями (частично или целиком — в т.ч. материалы, у которых
+    /// вообще нет ветки-покупателя, например финальный флагман), продаётся системе тем же ходом (см.
+    /// doc-comment класса, «намеренно добавлено») — не откладывается до пассивной оценки склада.
     /// </summary>
     private static void TransferAcrossBranches(
-        IReadOnlyList<BranchState> branches, ResolvedGameConfig config, IReadOnlyDictionary<Material, decimal> rawMaterialCosts)
+        IReadOnlyList<BranchState> branches, ResolvedGameConfig config, IReadOnlyDictionary<Material, decimal> rawMaterialCosts,
+        Market market)
     {
         foreach (var material in config.Materials.Values)
         {
@@ -254,43 +272,83 @@ public static class IdealHallCalculator
                 continue;
             }
 
-            var buyers = branches
-                .Where(b => b != seller)
-                .Select(b => (Branch: b, Deficit: ComputeDeficit(b, material, config)))
-                .Where(entry => entry.Deficit > 0m)
-                .ToList();
-            if (buyers.Count == 0)
-            {
-                continue;
-            }
-
-            var totalDeficit = buyers.Sum(entry => entry.Deficit);
-            var fillRatio = Math.Min(1m, surplus / totalDeficit);
-            if (fillRatio <= 0m || !TryCalculateUnitCost(material, config.RecipeBook, rawMaterialCosts, out var unitCost))
-            {
-                continue;
-            }
-
-            foreach (var (buyer, deficit) in buyers)
-            {
-                var quantity = deficit * fillRatio;
-                if (quantity <= 0m)
-                {
-                    continue;
-                }
-
-                seller.Team.Warehouse.Remove(material, quantity);
-                buyer.Team.Warehouse.Add(material, quantity, cost: 0m);
-
-                // По себестоимости (doc-comment класса) — не бесплатный подарок и не переговорная
-                // наценка: продавец не беднеет от передачи (склад минус, касса плюс на ту же сумму),
-                // покупатель платит ровно то, во что материал обошёлся бы ему самому, будь у него
-                // своя такая же фабрика.
-                var payment = quantity * unitCost;
-                seller.Cash += payment;
-                buyer.Cash -= payment;
-            }
+            var remainingSurplus = surplus - TransferToBuyers(seller, branches, material, surplus, config, rawMaterialCosts);
+            SellRemainingSurplusToSystem(seller, material, remainingSurplus, config, market);
         }
+    }
+
+    /// <summary>Раздаёт излишек продавца соседним веткам-покупателям по себестоимости (см. doc-comment <see cref="TransferAcrossBranches"/>). Возвращает фактически переданное количество — остаток после этого не покупателям, а системе (<see cref="SellRemainingSurplusToSystem"/>).</summary>
+    private static decimal TransferToBuyers(
+        BranchState seller, IReadOnlyList<BranchState> branches, Material material, decimal surplus,
+        ResolvedGameConfig config, IReadOnlyDictionary<Material, decimal> rawMaterialCosts)
+    {
+        var buyers = branches
+            .Where(b => b != seller)
+            .Select(b => (Branch: b, Deficit: ComputeDeficit(b, material, config)))
+            .Where(entry => entry.Deficit > 0m)
+            .ToList();
+        if (buyers.Count == 0)
+        {
+            return 0m;
+        }
+
+        var totalDeficit = buyers.Sum(entry => entry.Deficit);
+        var fillRatio = Math.Min(1m, surplus / totalDeficit);
+        if (fillRatio <= 0m || !TryCalculateUnitCost(material, config.RecipeBook, rawMaterialCosts, out var unitCost))
+        {
+            return 0m;
+        }
+
+        var transferredTotal = 0m;
+        foreach (var (buyer, deficit) in buyers)
+        {
+            var quantity = deficit * fillRatio;
+            if (quantity <= 0m)
+            {
+                continue;
+            }
+
+            seller.Team.Warehouse.Remove(material, quantity);
+            buyer.Team.Warehouse.Add(material, quantity, cost: 0m);
+
+            // По себестоимости (doc-comment класса) — не бесплатный подарок и не переговорная
+            // наценка: продавец не беднеет от передачи (склад минус, касса плюс на ту же сумму),
+            // покупатель платит ровно то, во что материал обошёлся бы ему самому, будь у него
+            // своя такая же фабрика.
+            var payment = quantity * unitCost;
+            seller.Cash += payment;
+            buyer.Cash -= payment;
+            transferredTotal += quantity;
+        }
+
+        return transferredTotal;
+    }
+
+    /// <summary>
+    /// Продаёт продавцу-ветке то, что не забрали соседи, системе по рыночной котировке этого хода
+    /// (<see cref="MarketSaleCalculator"/>, с наценкой уровня передела и понижающим коэффициентом за
+    /// превышение ёмкости) — аналог <c>SimpleBot.SellSurplusToSystem</c> реального бота (см.
+    /// doc-comment класса). Материал у каждой ветки свой (<see cref="Material.Sector"/>), поэтому
+    /// разные ветки никогда не делят одну и ту же ёмкость рынка за один вызов.
+    /// </summary>
+    private static void SellRemainingSurplusToSystem(
+        BranchState seller, Material material, decimal remainingSurplus, ResolvedGameConfig config, Market market)
+    {
+        if (remainingSurplus <= 0m || !market.HasQuote(material.Id))
+        {
+            return;
+        }
+
+        var sale = MarketSaleCalculator.Calculate(market, config.Raw.Economy, material, remainingSurplus);
+        var soldVolume = sale.WithinCapacityVolume + sale.OverflowVolume;
+        if (soldVolume <= 0m)
+        {
+            return;
+        }
+
+        seller.Team.Warehouse.Remove(material, soldVolume);
+        seller.Cash += sale.TotalRevenue;
+        market.RecordSale(material.Id, soldVolume);
     }
 
     /// <summary>

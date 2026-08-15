@@ -86,6 +86,154 @@ public class IdealHallCalculatorTests
         Assert.True(branchB.ValueByTurn[^1] > 0m, "X(T) сектора Б должен быть положительным — материал от А должен был дойти.");
     }
 
+    [Fact]
+    public void Calculate_Sells_Uncontested_Surplus_To_The_System_At_The_Margin_Of_Its_Level()
+    {
+        // Ветка добывает намного больше руды, чем сама же перерабатывает — остаток раньше просто
+        // лежал на складе и оценивался по плоской BasePrice в конце хода (см. doc-comment класса,
+        // «намеренно добавлено»); теперь он должен активно продаваться системе по котировке ×
+        // MarginMultiplierByProcessingLevel уровня руды. Единственное различие между двумя прогонами —
+        // сама наценка (1.0 против 3.0) — если фикс работает, более высокая наценка обязана дать
+        // заметно бо́льший X(t), потому что раньше наценка вообще не участвовала в расчёте.
+        var flatConfig = BuildSingleSectorSurplusConfig(marginMultiplier: 1.0m);
+        var markedUpConfig = BuildSingleSectorSurplusConfig(marginMultiplier: 3.0m);
+
+        var flatValue = IdealHallCalculator.Calculate(flatConfig, 5).Branches.Single().ValueByTurn[^1];
+        var markedUpValue = IdealHallCalculator.Calculate(markedUpConfig, 5).Branches.Single().ValueByTurn[^1];
+
+        Assert.True(
+            markedUpValue > flatValue,
+            $"X(5) с наценкой ×3 ({markedUpValue}) должен быть заметно выше, чем без наценки ({flatValue}) — иначе излишек не продаётся активно.");
+    }
+
+    /// <summary>
+    /// Один сектор, руда добывается с большим запасом сверх того, что перерабатывает единственная
+    /// фабрика — гарантированный необслуженный излишек руды (уровень 0) каждый ход, покупателя для
+    /// него в конфиге нет вовсе (один сектор). <paramref name="marginMultiplier"/> — наценка именно
+    /// этого уровня, единственная переменная между двумя вызовами в тесте выше.
+    /// </summary>
+    private static ResolvedGameConfig BuildSingleSectorSurplusConfig(decimal marginMultiplier)
+    {
+        var config = new GameConfig
+        {
+            Sectors = new[] { new SectorConfig { Id = "A", Name = "Металлургия" } },
+            Materials = new[]
+            {
+                new MaterialConfig { Id = "ore", Name = "Руда", SectorId = "A", Level = 0 },
+                new MaterialConfig { Id = "part", Name = "Деталь", SectorId = "A", Level = 1 },
+            },
+            Recipes = new[]
+            {
+                new RecipeConfig { Id = "ore-mining", OutputMaterialId = "ore", OutputQuantity = 1m, Inputs = Array.Empty<RecipeInputConfig>(), ProductionRate = 1000m },
+                new RecipeConfig
+                {
+                    Id = "part-from-ore", OutputMaterialId = "part", OutputQuantity = 1m,
+                    Inputs = new[] { new RecipeInputConfig { MaterialId = "ore", Quantity = 5m } }, ProductionRate = 1m,
+                },
+            },
+            FactoryDefinitions = new[]
+            {
+                new FactoryDefinitionConfig { Id = "mine-a", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+                new FactoryDefinitionConfig { Id = "plant-a", Name = "Завод", SectorId = "A", RecipeIds = new[] { "part-from-ore" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+            },
+            StartingConditions = new StartingConditionsConfig
+            {
+                MaxStartingLoanAmount = 100_000m,
+                BaseLoanInterestRate = 0.05m,
+                LoanInterestRateGrowthPerUnitBorrowed = 0m,
+                ForcedLoanPenaltyRatePerOccurrence = 0.1m,
+                MaxReputationRatePenalty = 0.1m,
+                MandatoryRepaymentRatePerTurn = 0m,
+                MaxTotalDebt = 1_000_000_000m,
+            },
+            SessionPresets = new[]
+            {
+                new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 15, MaxTurns = 15, TurnDurationMinutes = 1 },
+            },
+            PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
+            Economy = new EconomyConfig
+            {
+                EmergencyPurchaseBaseMultiplier = 2m,
+                EmergencyPurchasePressureMultiplierPerUnit = 0m,
+                EmergencyPurchasePressureHalfLifeTurns = 3,
+                BaseMarketPerMaterial = new[]
+                {
+                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "part", BasePrice = 50m, BaseCapacity = 1_000_000m },
+                },
+                MarginMultiplierByProcessingLevel = new[]
+                {
+                    new ProcessingLevelMarginConfig { Level = 0, MarginMultiplier = marginMultiplier },
+                },
+                MarketCapacityOverflowDiscount = 0.5m,
+                ElectricityBasePrice = 1m,
+                ElectricityConsumptionPerOutputUnit = 0m,
+                TrendScenario = Array.Empty<EconomyTrendPhaseConfig>(),
+                WarehouseLiquidationRate = 0.5m,
+            },
+            WorkerProductivity = new WorkerProductivityConfig
+            {
+                BaseWorkerCount = 5,
+                DiminishingReturnsFactor = 0.5m,
+                HireCostPerWorker = 50m,
+                FireCostPerWorker = 30m,
+                SalaryPerWorkerPerTurn = 5m,
+                TeamSalaryBaseWorkerCount = 1000,
+                SalaryEscalationFactor = 1.5m,
+            },
+            Rnd = new RndConfig
+            {
+                ResearchPointThresholdsByLevel = new[] { 100m, 300m },
+                DiminishingReturnsExponent = 1m,
+                ProductionRateBonusPerLevel = 0.1m,
+                MaxCommitmentPerTurn = 200m,
+            },
+            Wear = new WearConfig
+            {
+                GracePeriodTurns = 1000,
+                BaseWearRatePerTurn = 0.01m,
+                AccelerationFactorPerTurn = 0.004m,
+                MaxUpkeepPenaltyMultiplier = 0.5m,
+                OverhaulTiers = new[]
+                {
+                    new OverhaulTierConfig { Id = "prevention", Name = "Профилактика", MinCondition = 0.9m, CostFraction = 0.02m, DurationTurns = 1, OutputMultiplier = 0.97m, SalaryRate = 1m, UpkeepRate = 1m },
+                },
+                CriticalConditionThreshold = 0.2m,
+                ForcedRepairDurationTurns = 8,
+                ForcedRepairSalaryRate = 0.66m,
+                ForcedRepairUpkeepRate = 0.5m,
+                PostForcedRepairCondition = 0.85m,
+            },
+            GenerationResearch = new GenerationResearchConfig
+            {
+                StartingGeneration = 1,
+                ResearchPointThresholdsByGeneration = Array.Empty<decimal>(),
+                DiminishingReturnsExponent = 0.5m,
+                MaxCommitmentPerTurn = 300m,
+            },
+            Warehouse = new WarehouseConfig { FreeCapacity = 1_000_000m, OverageFeePerUnit = 0.1m },
+            Reputation = new ReputationConfig { HalfLifeTurns = 10, WarmupTurns = 3, TerminationSeverityMultiplier = 3m },
+            Contracts = new ContractsConfig
+            {
+                DeliveryMissPenaltyRate = 0.1m,
+                TerminationPenaltyRate = 0.5m,
+                VoluntaryTerminationFee = 100m,
+                MaxActiveContractsPerTeam = null,
+            },
+            Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
+            Deposits = new DepositsConfig { InterestRatePerTurn = 0m },
+            News = Array.Empty<NewsItemConfig>(),
+            FeatureFlags = new FeatureFlagsConfig
+            {
+                TaxesEnabled = false,
+                DepositsEnabled = false,
+                EmergencyPurchaseEnabled = true,
+            },
+        };
+
+        return GameConfigLoader.Load(config);
+    }
+
     /// <summary>
     /// Та же цепочка (А самодостаточен, Б зависит от А напрямую), что <c>Game.Bots.Tests.CrossSectorTradingTests.BuildTwoSectorConfig</c>
     /// — см. её doc-comment за подробным разбором; базовые цены здесь выше (см. комментарий у
