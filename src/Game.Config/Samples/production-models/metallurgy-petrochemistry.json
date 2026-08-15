@@ -245,21 +245,21 @@
       "OutputMaterialId": "iron-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 1099
+      "ProductionRate": 2946
     },
     {
       "Id": "coking-coal-mining",
       "OutputMaterialId": "coking-coal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 804
+      "ProductionRate": 2154
     },
     {
       "Id": "limestone-quarrying",
       "OutputMaterialId": "limestone",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 500
+      "ProductionRate": 552
     },
     {
       "Id": "scrap-collection",
@@ -273,7 +273,7 @@
       "OutputMaterialId": "oil",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 14400
+      "ProductionRate": 19000
     },
     {
       "Id": "natural-gas-drilling",
@@ -292,7 +292,7 @@
           "Quantity": 1.5
         }
       ],
-      "ProductionRate": 412
+      "ProductionRate": 1105
     },
     {
       "Id": "wire-rod-from-scrap",
@@ -384,7 +384,7 @@
           "Quantity": 0.3
         }
       ],
-      "ProductionRate": 528
+      "ProductionRate": 1416
     },
     {
       "Id": "fasteners-from-wire-rod",
@@ -472,7 +472,7 @@
           "Quantity": 1.1
         }
       ],
-      "ProductionRate": 335
+      "ProductionRate": 955
     },
     {
       "Id": "cast-iron-from-pig-iron",
@@ -520,7 +520,7 @@
           "Quantity": 1.1
         }
       ],
-      "ProductionRate": 234
+      "ProductionRate": 668
     },
     {
       "Id": "engine-block-rough-from-cast-iron",
@@ -621,7 +621,7 @@
         },
         {
           "MaterialId": "steel-stock",
-          "Quantity": 2
+          "Quantity": 39
         }
       ],
       "ProductionRate": 9
