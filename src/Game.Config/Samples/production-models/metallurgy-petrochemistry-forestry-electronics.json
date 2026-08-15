@@ -97,6 +97,18 @@
       "Level": 1
     },
     {
+      "Id": "quicklime",
+      "Name": "Известь негашёная",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "coal-tar",
+      "Name": "Каменноугольная смола",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
       "Id": "rare-metal-concentrate",
       "Name": "Обогащённые редкие металлы",
       "SectorId": "D",
@@ -145,8 +157,38 @@
       "Level": 1
     },
     {
+      "Id": "sawdust",
+      "Name": "Опилки",
+      "SectorId": "V",
+      "Level": 1
+    },
+    {
+      "Id": "tree-resin",
+      "Name": "Живица",
+      "SectorId": "V",
+      "Level": 1
+    },
+    {
+      "Id": "cotton-seed",
+      "Name": "Семена хлопка",
+      "SectorId": "V",
+      "Level": 1
+    },
+    {
       "Id": "semiconductor-wafer",
       "Name": "Полупроводниковые пластины",
+      "SectorId": "D",
+      "Level": 1
+    },
+    {
+      "Id": "niobium-powder",
+      "Name": "Ниобиевый порошок",
+      "SectorId": "D",
+      "Level": 1
+    },
+    {
+      "Id": "silica-fume",
+      "Name": "Микрокремнезём",
       "SectorId": "D",
       "Level": 1
     },
@@ -325,42 +367,42 @@
       "OutputMaterialId": "iron-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 728
+      "ProductionRate": 534
     },
     {
       "Id": "coking-coal-mining",
       "OutputMaterialId": "coking-coal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 533
+      "ProductionRate": 1344
     },
     {
       "Id": "limestone-quarrying",
       "OutputMaterialId": "limestone",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 500
+      "ProductionRate": 1149
     },
     {
       "Id": "scrap-collection",
       "OutputMaterialId": "scrap-metal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 1455
+      "ProductionRate": 1066
     },
     {
       "Id": "rare-metal-mining",
       "OutputMaterialId": "rare-metal-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 636
+      "ProductionRate": 2602
     },
     {
       "Id": "oil-drilling",
       "OutputMaterialId": "oil",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 9724
+      "ProductionRate": 15479
     },
     {
       "Id": "natural-gas-drilling",
@@ -374,21 +416,21 @@
       "OutputMaterialId": "timber",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 350
+      "ProductionRate": 3287
     },
     {
       "Id": "cotton-picking",
       "OutputMaterialId": "raw-cotton",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 3506
+      "ProductionRate": 4390
     },
     {
       "Id": "silicon-smelting",
       "OutputMaterialId": "silicon",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 595
+      "ProductionRate": 2542
     },
     {
       "Id": "coke-from-coal",
@@ -425,6 +467,30 @@
         }
       ],
       "ProductionRate": 328
+    },
+    {
+      "Id": "quicklime-from-limestone",
+      "OutputMaterialId": "quicklime",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "limestone",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1100
+    },
+    {
+      "Id": "coal-tar-from-coking-coal",
+      "OutputMaterialId": "coal-tar",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "coking-coal",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1000
     },
     {
       "Id": "rare-metal-concentrate-from-ore",
@@ -523,6 +589,42 @@
       "ProductionRate": 1349
     },
     {
+      "Id": "sawdust-from-timber",
+      "OutputMaterialId": "sawdust",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "timber",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1600
+    },
+    {
+      "Id": "tree-resin-from-timber",
+      "OutputMaterialId": "tree-resin",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "timber",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1000
+    },
+    {
+      "Id": "cotton-seed-from-cotton",
+      "OutputMaterialId": "cotton-seed",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "raw-cotton",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1000
+    },
+    {
       "Id": "semiconductor-wafer-from-silicon",
       "OutputMaterialId": "semiconductor-wafer",
       "OutputQuantity": 1,
@@ -533,6 +635,30 @@
         }
       ],
       "ProductionRate": 327
+    },
+    {
+      "Id": "niobium-powder-from-ore",
+      "OutputMaterialId": "niobium-powder",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "rare-metal-ore",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 850
+    },
+    {
+      "Id": "silica-fume-from-silicon",
+      "OutputMaterialId": "silica-fume",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "silicon",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 850
     },
     {
       "Id": "pig-iron-from-ore",
@@ -1156,6 +1282,28 @@
       "FixedCostPerTurn": 18.0
     },
     {
+      "Id": "lime-kiln",
+      "Name": "Известковая печь",
+      "SectorId": "A",
+      "RecipeIds": [
+        "quicklime-from-limestone"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
+      "Id": "coal-tar-plant",
+      "Name": "Смолоперегонный завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "coal-tar-from-coking-coal"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
       "Id": "concentration-plant",
       "Name": "Обогатительная фабрика",
       "SectorId": "D",
@@ -1244,6 +1392,39 @@
       "FixedCostPerTurn": 17.0
     },
     {
+      "Id": "sawdust-mill",
+      "Name": "Опилочный цех",
+      "SectorId": "V",
+      "RecipeIds": [
+        "sawdust-from-timber"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
+      "Id": "resin-tapping-station",
+      "Name": "Смолокурня",
+      "SectorId": "V",
+      "RecipeIds": [
+        "tree-resin-from-timber"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
+      "Id": "cotton-seed-plant",
+      "Name": "Цех обработки семян хлопка",
+      "SectorId": "V",
+      "RecipeIds": [
+        "cotton-seed-from-cotton"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
       "Id": "wafer-plant",
       "Name": "Завод полупроводниковых пластин",
       "SectorId": "D",
@@ -1253,6 +1434,28 @@
       "BuildCost": 950,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 19.0
+    },
+    {
+      "Id": "niobium-extraction-plant",
+      "Name": "Участок извлечения ниобия",
+      "SectorId": "D",
+      "RecipeIds": [
+        "niobium-powder-from-ore"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
+    },
+    {
+      "Id": "silica-fume-plant",
+      "Name": "Цех микрокремнезёма",
+      "SectorId": "D",
+      "RecipeIds": [
+        "silica-fume-from-silicon"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 18.0
     },
     {
       "Id": "blast-furnace",
@@ -1630,6 +1833,16 @@
       "BaseCapacity": 700
     },
     {
+      "MaterialId": "quicklime",
+      "BasePrice": 6,
+      "BaseCapacity": 1100
+    },
+    {
+      "MaterialId": "coal-tar",
+      "BasePrice": 6,
+      "BaseCapacity": 1000
+    },
+    {
       "MaterialId": "rare-metal-concentrate",
       "BasePrice": 12,
       "BaseCapacity": 400
@@ -1670,9 +1883,34 @@
       "BaseCapacity": 1000
     },
     {
+      "MaterialId": "sawdust",
+      "BasePrice": 3,
+      "BaseCapacity": 1600
+    },
+    {
+      "MaterialId": "tree-resin",
+      "BasePrice": 5,
+      "BaseCapacity": 1000
+    },
+    {
+      "MaterialId": "cotton-seed",
+      "BasePrice": 5,
+      "BaseCapacity": 1000
+    },
+    {
       "MaterialId": "semiconductor-wafer",
       "BasePrice": 9,
       "BaseCapacity": 700
+    },
+    {
+      "MaterialId": "niobium-powder",
+      "BasePrice": 8,
+      "BaseCapacity": 850
+    },
+    {
+      "MaterialId": "silica-fume",
+      "BasePrice": 8,
+      "BaseCapacity": 850
     },
     {
       "MaterialId": "pig-iron",
