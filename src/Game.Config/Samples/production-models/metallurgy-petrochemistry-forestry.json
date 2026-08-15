@@ -75,6 +75,24 @@
       "Level": 1
     },
     {
+      "Id": "quicklime",
+      "Name": "Известь негашёная",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "coal-tar",
+      "Name": "Каменноугольная смола",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "iron-powder",
+      "Name": "Железный порошок",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
       "Id": "gasoline",
       "Name": "Бензин",
       "SectorId": "B",
@@ -113,6 +131,24 @@
     {
       "Id": "fabric",
       "Name": "Ткань",
+      "SectorId": "V",
+      "Level": 1
+    },
+    {
+      "Id": "sawdust",
+      "Name": "Опилки",
+      "SectorId": "V",
+      "Level": 1
+    },
+    {
+      "Id": "tree-resin",
+      "Name": "Живица",
+      "SectorId": "V",
+      "Level": 1
+    },
+    {
+      "Id": "cotton-seed",
+      "Name": "Семена хлопка",
       "SectorId": "V",
       "Level": 1
     },
@@ -267,21 +303,21 @@
       "OutputMaterialId": "iron-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 968
+      "ProductionRate": 2397
     },
     {
       "Id": "coking-coal-mining",
       "OutputMaterialId": "coking-coal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 708
+      "ProductionRate": 2008
     },
     {
       "Id": "limestone-quarrying",
       "OutputMaterialId": "limestone",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 500
+      "ProductionRate": 1612
     },
     {
       "Id": "scrap-collection",
@@ -295,7 +331,7 @@
       "OutputMaterialId": "oil",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 12971
+      "ProductionRate": 22800
     },
     {
       "Id": "natural-gas-drilling",
@@ -309,14 +345,14 @@
       "OutputMaterialId": "timber",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 350
+      "ProductionRate": 3600
     },
     {
       "Id": "cotton-picking",
       "OutputMaterialId": "raw-cotton",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 3612
+      "ProductionRate": 4912
     },
     {
       "Id": "coke-from-coal",
@@ -341,6 +377,42 @@
         }
       ],
       "ProductionRate": 150
+    },
+    {
+      "Id": "quicklime-from-limestone",
+      "OutputMaterialId": "quicklime",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "limestone",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1100
+    },
+    {
+      "Id": "coal-tar-from-coking-coal",
+      "OutputMaterialId": "coal-tar",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "coking-coal",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1000
+    },
+    {
+      "Id": "iron-powder-from-ore",
+      "OutputMaterialId": "iron-powder",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "iron-ore",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1100
     },
     {
       "Id": "gasoline-from-oil",
@@ -425,6 +497,42 @@
         }
       ],
       "ProductionRate": 1389
+    },
+    {
+      "Id": "sawdust-from-timber",
+      "OutputMaterialId": "sawdust",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "timber",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1600
+    },
+    {
+      "Id": "tree-resin-from-timber",
+      "OutputMaterialId": "tree-resin",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "timber",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1000
+    },
+    {
+      "Id": "cotton-seed-from-cotton",
+      "OutputMaterialId": "cotton-seed",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "raw-cotton",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 1000
     },
     {
       "Id": "pig-iron-from-ore",
@@ -943,6 +1051,39 @@
       "FixedCostPerTurn": 69.0
     },
     {
+      "Id": "lime-kiln",
+      "Name": "Известковая печь",
+      "SectorId": "A",
+      "RecipeIds": [
+        "quicklime-from-limestone"
+      ],
+      "BuildCost": 3100,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 62.0
+    },
+    {
+      "Id": "coal-tar-plant",
+      "Name": "Смолоперегонный завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "coal-tar-from-coking-coal"
+      ],
+      "BuildCost": 3100,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 62.0
+    },
+    {
+      "Id": "iron-powder-plant",
+      "Name": "Завод порошкового железа",
+      "SectorId": "A",
+      "RecipeIds": [
+        "iron-powder-from-ore"
+      ],
+      "BuildCost": 3100,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 62.0
+    },
+    {
       "Id": "refinery",
       "Name": "Нефтеперерабатывающий завод",
       "SectorId": "B",
@@ -1018,6 +1159,39 @@
       "BuildCost": 2950,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 59.0
+    },
+    {
+      "Id": "sawdust-mill",
+      "Name": "Опилочный цех",
+      "SectorId": "V",
+      "RecipeIds": [
+        "sawdust-from-timber"
+      ],
+      "BuildCost": 3100,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 62.0
+    },
+    {
+      "Id": "resin-tapping-station",
+      "Name": "Смолокурня",
+      "SectorId": "V",
+      "RecipeIds": [
+        "tree-resin-from-timber"
+      ],
+      "BuildCost": 3100,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 62.0
+    },
+    {
+      "Id": "cotton-seed-plant",
+      "Name": "Цех обработки семян хлопка",
+      "SectorId": "V",
+      "RecipeIds": [
+        "cotton-seed-from-cotton"
+      ],
+      "BuildCost": 3100,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 62.0
     },
     {
       "Id": "blast-furnace",
@@ -1336,6 +1510,21 @@
       "BaseCapacity": 900
     },
     {
+      "MaterialId": "quicklime",
+      "BasePrice": 5,
+      "BaseCapacity": 1100
+    },
+    {
+      "MaterialId": "coal-tar",
+      "BasePrice": 6,
+      "BaseCapacity": 1000
+    },
+    {
+      "MaterialId": "iron-powder",
+      "BasePrice": 5,
+      "BaseCapacity": 1100
+    },
+    {
       "MaterialId": "gasoline",
       "BasePrice": 3,
       "BaseCapacity": 1600
@@ -1367,6 +1556,21 @@
     },
     {
       "MaterialId": "fabric",
+      "BasePrice": 5,
+      "BaseCapacity": 1000
+    },
+    {
+      "MaterialId": "sawdust",
+      "BasePrice": 3,
+      "BaseCapacity": 1600
+    },
+    {
+      "MaterialId": "tree-resin",
+      "BasePrice": 5,
+      "BaseCapacity": 1000
+    },
+    {
+      "MaterialId": "cotton-seed",
       "BasePrice": 5,
       "BaseCapacity": 1000
     },
