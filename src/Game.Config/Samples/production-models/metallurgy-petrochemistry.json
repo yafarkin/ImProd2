@@ -273,7 +273,7 @@
       "OutputMaterialId": "oil",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 16970
+      "ProductionRate": 12971
     },
     {
       "Id": "natural-gas-drilling",
