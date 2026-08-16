@@ -29,6 +29,11 @@ internal static class BotCommandSummary
         BotCommandKind.TakeLoan => $"takeLoan({command.Amount})",
         BotCommandKind.RepayLoan => $"repayLoan({command.Amount})",
         BotCommandKind.SellToSystem => $"sellToSystem({command.MaterialId}, {command.Volume})",
+        BotCommandKind.SellFactory => $"sellFactory({command.FactoryId})",
+        BotCommandKind.SetFactoryAllocationShare => $"setFactoryAllocationShare({command.FactoryId}, {command.Share})",
+        BotCommandKind.PostNeed => $"postNeed({command.MaterialId}, {command.Direction}, {command.VolumeOrder})",
+        BotCommandKind.WithdrawNeed => $"withdrawNeed({command.NeedId})",
+        BotCommandKind.EmergencyPurchase => $"emergencyPurchase({command.MaterialId}, {command.Volume})",
         BotCommandKind.Nop => "nop",
         _ => command.Kind.ToString(),
     };

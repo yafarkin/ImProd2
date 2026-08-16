@@ -1,3 +1,4 @@
+using Game.Domain;
 using Game.Engine;
 
 namespace Game.Bots.Llm;
@@ -52,6 +53,11 @@ public sealed class BotCommandExecutor
                 BotCommandKind.TakeLoan => ExecuteTakeLoan(command, session, teamId),
                 BotCommandKind.RepayLoan => ExecuteRepayLoan(command, session, teamId),
                 BotCommandKind.SellToSystem => ExecuteSellToSystem(command, session, teamId),
+                BotCommandKind.SellFactory => ExecuteSellFactory(command, session, teamId),
+                BotCommandKind.SetFactoryAllocationShare => ExecuteSetFactoryAllocationShare(command, session, teamId),
+                BotCommandKind.PostNeed => ExecutePostNeed(command, session, teamId),
+                BotCommandKind.WithdrawNeed => ExecuteWithdrawNeed(command, session, teamId),
+                BotCommandKind.EmergencyPurchase => ExecuteEmergencyPurchase(command, session, teamId),
                 _ => new BotCommandExecutionResult.DomainError($"Unknown command kind '{command.Kind}'."),
             };
         }
@@ -149,5 +155,100 @@ public sealed class BotCommandExecutor
         }
 
         return new BotCommandExecutionResult.Success(session.SellToSystem(teamId, command.MaterialId, volume));
+    }
+
+    private static BotCommandExecutionResult ExecuteSellFactory(BotCommand command, GameSession session, Ulid teamId)
+    {
+        if (command.FactoryId is not { } factoryId)
+        {
+            return new BotCommandExecutionResult.DomainError("SellFactory requires factoryId.");
+        }
+
+        return new BotCommandExecutionResult.Success(session.SellFactory(teamId, factoryId));
+    }
+
+    private static BotCommandExecutionResult ExecuteSetFactoryAllocationShare(BotCommand command, GameSession session, Ulid teamId)
+    {
+        if (command.FactoryId is not { } factoryId || command.Share is not { } share)
+        {
+            return new BotCommandExecutionResult.DomainError("SetFactoryAllocationShare requires factoryId and share.");
+        }
+
+        return new BotCommandExecutionResult.Success(session.SetFactoryAllocationShare(teamId, factoryId, share));
+    }
+
+    private static BotCommandExecutionResult ExecutePostNeed(BotCommand command, GameSession session, Ulid teamId)
+    {
+        if (command.MaterialId is null || command.Direction is null || command.VolumeOrder is null)
+        {
+            return new BotCommandExecutionResult.DomainError("PostNeed requires materialId, direction, and volumeOrder.");
+        }
+        if (!TryParseDirection(command.Direction, out var direction))
+        {
+            return new BotCommandExecutionResult.DomainError(
+                $"PostNeed: unknown direction '{command.Direction}', expected 'surplus' or 'deficit'.");
+        }
+        if (!TryParseVolumeOrder(command.VolumeOrder, out var volumeOrder))
+        {
+            return new BotCommandExecutionResult.DomainError(
+                $"PostNeed: unknown volumeOrder '{command.VolumeOrder}', expected 'small', 'medium', or 'large'.");
+        }
+
+        return new BotCommandExecutionResult.Success(session.PostNeed(teamId, command.MaterialId, direction, volumeOrder, command.Comment));
+    }
+
+    private static BotCommandExecutionResult ExecuteWithdrawNeed(BotCommand command, GameSession session, Ulid teamId)
+    {
+        if (command.NeedId is not { } needId)
+        {
+            return new BotCommandExecutionResult.DomainError("WithdrawNeed requires needId.");
+        }
+
+        return new BotCommandExecutionResult.Success(session.WithdrawNeed(teamId, needId));
+    }
+
+    private static BotCommandExecutionResult ExecuteEmergencyPurchase(BotCommand command, GameSession session, Ulid teamId)
+    {
+        if (command.MaterialId is null || command.Volume is not { } volume)
+        {
+            return new BotCommandExecutionResult.DomainError("EmergencyPurchase requires materialId and volume.");
+        }
+
+        return new BotCommandExecutionResult.Success(session.EmergencyPurchase(teamId, command.MaterialId, volume));
+    }
+
+    private static bool TryParseDirection(string value, out NeedDirection direction)
+    {
+        switch (value.Trim().ToLowerInvariant())
+        {
+            case "surplus":
+                direction = NeedDirection.Surplus;
+                return true;
+            case "deficit":
+                direction = NeedDirection.Deficit;
+                return true;
+            default:
+                direction = default;
+                return false;
+        }
+    }
+
+    private static bool TryParseVolumeOrder(string value, out NeedVolumeOrder volumeOrder)
+    {
+        switch (value.Trim().ToLowerInvariant())
+        {
+            case "small":
+                volumeOrder = NeedVolumeOrder.Small;
+                return true;
+            case "medium":
+                volumeOrder = NeedVolumeOrder.Medium;
+                return true;
+            case "large":
+                volumeOrder = NeedVolumeOrder.Large;
+                return true;
+            default:
+                volumeOrder = default;
+                return false;
+        }
     }
 }

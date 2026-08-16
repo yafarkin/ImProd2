@@ -58,17 +58,44 @@ public static class BotCommandSchema
                 ["materialId"] = new JsonObject
                 {
                     ["type"] = new JsonArray("string", "null"),
-                    ["description"] = "Catalog id of a material, for kind=sellToSystem.",
+                    ["description"] = "Catalog id of a material, for kind=sellToSystem/emergencyPurchase/postNeed.",
                 },
                 ["volume"] = new JsonObject
                 {
                     ["type"] = new JsonArray("number", "null"),
-                    ["description"] = "Volume of material, for kind=sellToSystem.",
+                    ["description"] = "Volume of material, for kind=sellToSystem/emergencyPurchase.",
                 },
                 ["enabled"] = new JsonObject
                 {
                     ["type"] = new JsonArray("boolean", "null"),
                     ["description"] = "Whether to request an overhaul, for kind=setOverhaulRequested.",
+                },
+                ["share"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("number", "null"),
+                    ["description"] = "Allocation weight for scarce input material, for kind=setFactoryAllocationShare.",
+                },
+                ["direction"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("string", "null"),
+                    ["enum"] = new JsonArray("surplus", "deficit", null),
+                    ["description"] = "'surplus' (you have extra) or 'deficit' (you need it), for kind=postNeed.",
+                },
+                ["volumeOrder"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("string", "null"),
+                    ["enum"] = new JsonArray("small", "medium", "large", null),
+                    ["description"] = "Rough size of the need, for kind=postNeed.",
+                },
+                ["comment"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("string", "null"),
+                    ["description"] = "Optional free-text comment, for kind=postNeed.",
+                },
+                ["needId"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("string", "null"),
+                    ["description"] = "Id of an existing need-board posting to withdraw, for kind=withdrawNeed.",
                 },
                 ["annotation"] = new JsonObject
                 {

@@ -35,6 +35,21 @@ public enum BotCommandKind
 
     /// <summary>См. <see cref="Game.Engine.GameSession.SellToSystem"/>.</summary>
     SellToSystem,
+
+    /// <summary>См. <see cref="Game.Engine.GameSession.SellFactory"/>.</summary>
+    SellFactory,
+
+    /// <summary>См. <see cref="Game.Engine.GameSession.SetFactoryAllocationShare"/>.</summary>
+    SetFactoryAllocationShare,
+
+    /// <summary>См. <see cref="Game.Engine.GameSession.PostNeed"/>.</summary>
+    PostNeed,
+
+    /// <summary>См. <see cref="Game.Engine.GameSession.WithdrawNeed"/>.</summary>
+    WithdrawNeed,
+
+    /// <summary>См. <see cref="Game.Engine.GameSession.EmergencyPurchase"/>.</summary>
+    EmergencyPurchase,
 }
 
 /// <summary>
@@ -52,7 +67,11 @@ public sealed record BotCommand
     /// <summary>Идентификатор типа фабрики из каталога — для <see cref="BotCommandKind.BuildFactory"/>.</summary>
     public string? FactoryDefinitionId { get; init; }
 
-    /// <summary>Идентификатор уже построенной фабрики команды — для команд, действующих на конкретную фабрику.</summary>
+    /// <summary>
+    /// Идентификатор уже построенной фабрики команды — для команд, действующих на конкретную
+    /// фабрику, включая <see cref="BotCommandKind.SellFactory"/> (продажа/ликвидация целиком) и
+    /// <see cref="BotCommandKind.SetFactoryAllocationShare"/>.
+    /// </summary>
     public Ulid? FactoryId { get; init; }
 
     /// <summary>
@@ -68,14 +87,32 @@ public sealed record BotCommand
     /// <summary>Число рабочих — для <see cref="BotCommandKind.SetWorkerCount"/>.</summary>
     public int? Count { get; init; }
 
-    /// <summary>Идентификатор материала — для <see cref="BotCommandKind.SellToSystem"/>.</summary>
+    /// <summary>Идентификатор материала — для <see cref="BotCommandKind.SellToSystem"/>, <see cref="BotCommandKind.EmergencyPurchase"/> и <see cref="BotCommandKind.PostNeed"/>.</summary>
     public string? MaterialId { get; init; }
 
-    /// <summary>Объём материала — для <see cref="BotCommandKind.SellToSystem"/>.</summary>
+    /// <summary>Объём материала — для <see cref="BotCommandKind.SellToSystem"/> и <see cref="BotCommandKind.EmergencyPurchase"/>.</summary>
     public decimal? Volume { get; init; }
 
     /// <summary>Включить/выключить запрос — для <see cref="BotCommandKind.SetOverhaulRequested"/>.</summary>
     public bool? Enabled { get; init; }
+
+    /// <summary>Вес доли при разборе дефицитного сырья между своими фабриками — для <see cref="BotCommandKind.SetFactoryAllocationShare"/>.</summary>
+    public decimal? Share { get; init; }
+
+    /// <summary>
+    /// «surplus» (избыток, есть чем поделиться) или «deficit» (дефицит, команда ищет материал) —
+    /// для <see cref="BotCommandKind.PostNeed"/>.
+    /// </summary>
+    public string? Direction { get; init; }
+
+    /// <summary>Грубый порядок объёма — «small», «medium» или «large» — для <see cref="BotCommandKind.PostNeed"/>.</summary>
+    public string? VolumeOrder { get; init; }
+
+    /// <summary>Необязательный комментарий к записи на доске потребностей — для <see cref="BotCommandKind.PostNeed"/>.</summary>
+    public string? Comment { get; init; }
+
+    /// <summary>Идентификатор записи на доске потребностей — для <see cref="BotCommandKind.WithdrawNeed"/>.</summary>
+    public Ulid? NeedId { get; init; }
 
     /// <summary>
     /// Свободная заметка, которую модель оставляет сама себе, — по запросу пользователя, чтобы бот

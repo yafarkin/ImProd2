@@ -40,6 +40,23 @@ public static class SystemPromptBuilder
         [BotCommandKind.SellToSystem] =
             "sellToSystem(materialId, volume) — sell material from your warehouse to the system at the " +
             "current market price.",
+        [BotCommandKind.SellFactory] =
+            "sellFactory(factoryId) — permanently sell (liquidate) one of your existing factories for a " +
+            "fraction of its build cost. Irreversible.",
+        [BotCommandKind.SetFactoryAllocationShare] =
+            "setFactoryAllocationShare(factoryId, share) — set the relative weight of one existing " +
+            "factory when a scarce input material has to be split between several of YOUR OWN factories " +
+            "that both need it; only matters when you have more than one factory competing for the same " +
+            "input.",
+        [BotCommandKind.PostNeed] =
+            "postNeed(materialId, direction, volumeOrder, comment?) — publish a note on the shared need " +
+            "board that you have a surplus or deficit of a material, to help other teams find you as a " +
+            "trade partner. Purely informational — does not move money or materials by itself.",
+        [BotCommandKind.WithdrawNeed] =
+            "withdrawNeed(needId) — remove one of your own postings from the need board.",
+        [BotCommandKind.EmergencyPurchase] =
+            "emergencyPurchase(materialId, volume) — buy material immediately at a steep markup over the " +
+            "market price, when you need it now and can't wait for a regular trade or production.",
     };
 
     /// <summary>Строит системный промпт для персоны <paramref name="personaDescription"/> (текст страх/жадность и любые другие устойчивые черты).</summary>
