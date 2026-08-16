@@ -119,4 +119,22 @@ public sealed class LlmBotDecisionLoopTests
         Assert.Empty(session.State.Teams[teamId].Factories);
         Assert.Equal("Nop", log.Entries[0].Outcome);
     }
+
+    [Fact]
+    public async Task Nop_KeepsCommandSoAnnotationSurvives()
+    {
+        // Живой прогон против LM Studio 2026-08-16 показал: без этого аннотация Nop-хода терялась
+        // (LlmBotTurnResult.Command был null), а с ней — единственное объяснение модели, почему она
+        // решила ничего не делать.
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+        var client = new ScriptedLlmClient("""{"kind":"nop","annotation":"waiting for a loan first"}""");
+        var log = new BotDecisionLog();
+        var loop = CreateLoop(client);
+
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+
+        Assert.Equal(LlmBotTurnOutcome.Nop, result.Outcome);
+        Assert.NotNull(result.Command);
+        Assert.Equal("waiting for a loan first", result.Command!.Annotation);
+    }
 }

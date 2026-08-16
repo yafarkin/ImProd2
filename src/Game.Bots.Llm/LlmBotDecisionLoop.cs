@@ -21,7 +21,12 @@ public sealed record LlmBotTurnResult(LlmBotTurnOutcome Outcome, int Attempts, B
 {
     public static LlmBotTurnResult ForSuccess(int attempts, BotCommand command) => new(LlmBotTurnOutcome.Success, attempts, command);
 
-    public static LlmBotTurnResult ForNop(int attempts) => new(LlmBotTurnOutcome.Nop, attempts, null);
+    /// <summary>
+    /// <paramref name="command"/> сохраняется (не отбрасывается в <see langword="null"/>), хотя ход и
+    /// пустой, — иначе теряется <see cref="BotCommand.Annotation"/>, а с ней и объяснение модели,
+    /// почему она решила ничего не делать (ровно то, что аннотации должны сохранять).
+    /// </summary>
+    public static LlmBotTurnResult ForNop(int attempts, BotCommand command) => new(LlmBotTurnOutcome.Nop, attempts, command);
 
     public static LlmBotTurnResult ForExhausted(int attempts) => new(LlmBotTurnOutcome.Exhausted, attempts, null);
 }
@@ -89,7 +94,7 @@ public sealed class LlmBotDecisionLoop
             if (command!.Kind == BotCommandKind.Nop)
             {
                 log.Record(attempt, raw, "Nop");
-                return LlmBotTurnResult.ForNop(attempt);
+                return LlmBotTurnResult.ForNop(attempt, command);
             }
 
             var result = _executor.Execute(command, session, teamId);
