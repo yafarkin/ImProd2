@@ -139,15 +139,27 @@ public static class FactoryProfitabilityCalculator
         // Зарплата теперь прогрессивная и считается на всю команду сразу (см.
         // FinanceCalculator.CalculateSalaries) — этой фабрике достаётся пропорциональная её доле
         // рабочих часть общей суммы, а не отдельная плоская ставка (иначе оценка виджета
-        // разойдётся с тем, что реально спишет TickFinanceStep).
-        var totalTeamWorkers = teamFactories.Sum(f => f.Workers);
+        // разойдётся с тем, что реально спишет TickFinanceStep). Фабрики на вынужденном простое
+        // исключены из этого пула тем же способом, что и в TickFinanceStep.Run (см. фильтр
+        // !IsUnderRepair там), — их зарплата и содержание идёт не через прогрессивную кривую, а по
+        // отдельному плоскому льготному тарифу (WearStep.RunRepairTurn). Раньше эта фабрика всё
+        // равно попадала в totalTeamWorkers — команда с любой одной простаивающей фабрикой видела
+        // завышенную (по более высокой прогрессивной ступени) зарплатную нагрузку у ВСЕХ остальных,
+        // работающих фабрик, из-за чего виджет мог показать убыток там, где реально команда в плюсе
+        // (найдено по жалобе пользователя: «Прибыльность фабрики» расходится с реальным балансом).
+        var workingTeamFactories = teamFactories.Where(f => !f.IsUnderRepair).ToList();
+        var totalTeamWorkers = workingTeamFactories.Sum(f => f.Workers);
         var totalTeamSalary = FinanceCalculator.CalculateSalaries(totalTeamWorkers, productivity);
-        var wageCost = totalTeamWorkers > 0 ? totalTeamSalary * factory.Workers / totalTeamWorkers : 0m;
+        var wageCost = factory.IsUnderRepair
+            ? factory.Workers * productivity.SalaryPerWorkerPerTurn * factory.RepairSalaryRate
+            : totalTeamWorkers > 0 ? totalTeamSalary * factory.Workers / totalTeamWorkers : 0m;
         // Те же два слагаемых, что реально списываются с баланса при настоящем производстве (см.
         // FactoryUpkeepPaid и FactoryProduced.OverheadCost) — иначе оценка тут была бы систематически
         // оптимистичнее реального результата (запрос пользователя: виджет должен считать так же, как
-        // считает реальный тик, а не только по зарплате и рыночным ценам).
-        var overheadCost = fixedCostPerTurn + result.OutputQuantity * electricityConsumptionPerOutputUnit * market.ElectricityPrice;
+        // считает реальный тик, а не только по зарплате и рыночным ценам). У фабрики на простое
+        // содержание тоже идёт по льготному тарифу простоя (см. wageCost выше), не по полной ставке.
+        var overheadCost = (factory.IsUnderRepair ? fixedCostPerTurn * factory.RepairUpkeepRate : fixedCostPerTurn)
+                            + result.OutputQuantity * electricityConsumptionPerOutputUnit * market.ElectricityPrice;
         var profit = revenue - inputCost - wageCost - overheadCost;
         var unitCost = result.OutputQuantity > 0 ? (inputCost + wageCost + overheadCost) / result.OutputQuantity : 0m;
 
@@ -167,7 +179,8 @@ public static class FactoryProfitabilityCalculator
             .ToList();
         var maxInputCost = maxInputBreakdown.Sum(line => line.Cost);
         var maxRevenue = result.CapacityLimitedOutputQuantity * outputPrice;
-        var maxOverheadCost = fixedCostPerTurn + result.CapacityLimitedOutputQuantity * electricityConsumptionPerOutputUnit * market.ElectricityPrice;
+        var maxOverheadCost = (factory.IsUnderRepair ? fixedCostPerTurn * factory.RepairUpkeepRate : fixedCostPerTurn)
+                               + result.CapacityLimitedOutputQuantity * electricityConsumptionPerOutputUnit * market.ElectricityPrice;
         var maxProfit = maxRevenue - maxInputCost - wageCost - maxOverheadCost;
         var maxUnitCost = result.CapacityLimitedOutputQuantity > 0
             ? (maxInputCost + wageCost + maxOverheadCost) / result.CapacityLimitedOutputQuantity
