@@ -106,8 +106,43 @@ public sealed class LmStudioClientTests
         var responseFormat = body["response_format"]!.AsObject();
         Assert.Equal("json_schema", responseFormat["type"]!.GetValue<string>());
         var jsonSchema = responseFormat["json_schema"]!.AsObject();
+        Assert.Equal("bot_command_batch", jsonSchema["name"]!.GetValue<string>());
         Assert.False(jsonSchema["strict"]!.GetValue<bool>());
-        Assert.Equal("object", jsonSchema["schema"]!["type"]!.GetValue<string>());
+        var schema = jsonSchema["schema"]!.AsObject();
+        Assert.Equal("object", schema["type"]!.GetValue<string>());
+        // Запрос пользователя 2026-08-16: один вызов LLM на весь ход — ответ содержит массив команд
+        // ("actions"), а не одну команду, см. doc-comment BotCommandBatch.
+        Assert.Equal("array", schema["properties"]!["actions"]!["type"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task CompleteAsync_DisableThinkingFalse_OmitsReasoningEffort()
+    {
+        var handler = new StubHttpMessageHandler(BuildSseBody(("ok", null)));
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
+        var client = new LmStudioClient(httpClient, "google/gemma-4-12b");
+
+        await client.CompleteAsync("s", "u");
+
+        var body = JsonNode.Parse(handler.LastRequestBody!)!.AsObject();
+        Assert.False(body.ContainsKey("reasoning_effort"));
+    }
+
+    [Fact]
+    public async Task CompleteAsync_DisableThinkingTrue_SendsReasoningEffortNone()
+    {
+        // reasoning_effort: "none" — единственный из проверенных живьём вариантов (2026-08-16, LM
+        // Studio + qwen/qwen3.8-27b), который реально убрал reasoning_content; документированный для
+        // Qwen3 chat_template_kwargs.enable_thinking на этом сервере не сработал, см. doc-comment
+        // LmStudioClient.
+        var handler = new StubHttpMessageHandler(BuildSseBody(("ok", null)));
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
+        var client = new LmStudioClient(httpClient, "qwen3.8-27b-mlx", disableThinking: true);
+
+        await client.CompleteAsync("s", "u");
+
+        var body = JsonNode.Parse(handler.LastRequestBody!)!.AsObject();
+        Assert.Equal("none", body["reasoning_effort"]!.GetValue<string>());
     }
 
     [Fact]

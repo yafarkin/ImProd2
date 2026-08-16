@@ -19,6 +19,7 @@ internal sealed record RunSettings(
     int MaxActionsPerTurn,
     double Temperature,
     int MaxTokens,
+    bool DisableThinking,
     string MetricsPath,
     string DecisionLogPath)
 {
@@ -35,18 +36,29 @@ internal sealed record RunSettings(
             // (замеры 2026-08-16: реальный ход занимал 2-5 минут на этом сервере).
             TimeoutMinutes: GetInt("LLM_BOT_TIMEOUT_MINUTES", 20),
             // "retry повыше" — с потолком выше библиотечного умолчания (3), чтобы разовые сетевые
-            // сбои за ночь не срывали отдельные ходы.
+            // сбои за ночь не срывали отдельные ходы. Запрос пользователя 2026-08-16 (позже): один
+            // вызов LLM на весь ход, а не на действие — это попыток на ВЕСЬ ход (битый JSON/сетевая
+            // ошибка), не на отдельное действие, как было раньше (см. doc-comment LlmBotDecisionLoop).
             MaxAttempts: GetInt("LLM_BOT_MAX_ATTEMPTS", 6),
             // Выше умолчания LlmBotSessionRunner (3) — при нескольких ботах не хотим останавливать
             // весь прогон из-за временных проблем у одного бота; это по-прежнему страховка на случай
             // настоящей поломки (например, сервер лёг), не бесконечное ожидание.
             MaxConsecutiveFailures: GetInt("LLM_BOT_MAX_CONSECUTIVE_FAILURES", 8),
-            // Страховка на случай, если модель не научится сама вовремя говорить nop (запрос
-            // пользователя 2026-08-16: "надо убедиться, что модель умеет останавливаться") — не то,
-            // чем должен управляться нормальный ход.
-            MaxActionsPerTurn: GetInt("LLM_BOT_MAX_ACTIONS_PER_TURN", 8),
+            // Потолок длины массива действий в ОДНОМ ответе модели (запрос пользователя 2026-08-16:
+            // один вызов LLM на весь ход, сразу массив команд, — см. doc-comment LlmBotDecisionLoop)
+            // — избыток сверх него молча отбрасывается. Было 8 (когда это было потолком числа вызовов
+            // LLM за ход); живые прогоны 2026-08-16 (gemma-2-9b-it, qwen3.8-27b без reasoning, ещё в
+            // многовызовной версии) показали, что модели надёжно доходят до потолка, штампуя одно и то
+            // же (buildFactory/emergencyPurchase) — держим ниже (5) и здесь, вместе с детектором
+            // точного повтора и лимитом на emergencyPurchase (LlmBotDecisionLoop), не давая одному
+            // плохому плану на весь ход раздуться до предела.
+            MaxActionsPerTurn: GetInt("LLM_BOT_MAX_ACTIONS_PER_TURN", 5),
             Temperature: GetDouble("LLM_BOT_TEMPERATURE", 0.4),
             MaxTokens: GetInt("LLM_BOT_MAX_TOKENS", 3000),
+            // Запрос пользователя 2026-08-16: reasoning жрёт токены и сильно замедляет каждый ход —
+            // по умолчанию выключен (см. doc-comment LmStudioClient, chat_template_kwargs); поставьте
+            // LLM_BOT_DISABLE_THINKING=0, если для конкретной модели reasoning всё же нужен.
+            DisableThinking: GetBool("LLM_BOT_DISABLE_THINKING", true),
             MetricsPath: GetString("LLM_BOT_METRICS_PATH", Path.Combine(AppContext.BaseDirectory, $"metrics-{timestamp}.csv")),
             DecisionLogPath: GetString("LLM_BOT_DECISIONS_PATH", Path.Combine(AppContext.BaseDirectory, $"decisions-{timestamp}.jsonl")));
     }
@@ -63,4 +75,13 @@ internal sealed record RunSettings(
         Environment.GetEnvironmentVariable(name) is { Length: > 0 } value && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
             ? parsed
             : fallback;
+
+    private static bool GetBool(string name, bool fallback) =>
+        Environment.GetEnvironmentVariable(name) switch
+        {
+            "0" => false,
+            "1" => true,
+            { Length: > 0 } value => bool.TryParse(value, out var parsed) ? parsed : fallback,
+            _ => fallback,
+        };
 }

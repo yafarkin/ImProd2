@@ -7,8 +7,8 @@ public sealed class LlmBotSessionRunnerTests
     public async Task RunToCompletionAsync_DrivesSessionToFinish()
     {
         var (session, teamId) = TestSession.StartSingleTeamSession(endTurn: 3);
-        // Один "nop" на каждый ход decision-фазы (ходы 1, 2, 3).
-        var client = new ScriptedLlmClient("""{"kind":"nop"}""", """{"kind":"nop"}""", """{"kind":"nop"}""");
+        // Пустой массив действий на каждый ход decision-фазы (ходы 1, 2, 3) — "нечего делать".
+        var client = new ScriptedLlmClient("""{"actions":[]}""", """{"actions":[]}""", """{"actions":[]}""");
         var bot = new LlmBot(teamId, "persona", client);
         var log = new BotDecisionLog();
         var completedTurns = new List<int>();
@@ -49,7 +49,7 @@ public sealed class LlmBotSessionRunnerTests
         var (session, teamId) = TestSession.StartSingleTeamSession(endTurn: 3);
         var client = new ScriptedLlmClient(
             "not json", // ход 1: одна попытка, мимо — Exhausted
-            """{"kind":"nop"}""", // ход 2: успех — сбрасывает счётчик
+            """{"actions":[]}""", // ход 2: успех (пустой массив — "нечего делать") — сбрасывает счётчик
             "not json"); // ход 3: снова Exhausted, но серия только 1, до порога 2 не хватает
         var bot = new LlmBot(teamId, "persona", client, maxAttempts: 1);
         var log = new BotDecisionLog();
@@ -65,7 +65,7 @@ public sealed class LlmBotSessionRunnerTests
     public async Task RunToCompletionAsync_WithMetricsLog_RecordsOneRowPerTurn()
     {
         var (session, teamId) = TestSession.StartSingleTeamSession(endTurn: 2);
-        var client = new ScriptedLlmClient("""{"kind":"nop"}""", """{"kind":"nop"}""");
+        var client = new ScriptedLlmClient("""{"actions":[]}""", """{"actions":[]}""");
         var bot = new LlmBot(teamId, "persona", client);
         var writer = new StringWriter();
         using var metrics = new BotMetricsLog(writer);
@@ -82,7 +82,7 @@ public sealed class LlmBotSessionRunnerTests
         // Запрос пользователя 2026-08-16: живой построчный статус для автономного прогона без
         // консоли под рукой — "бот 2, ход 14, баланс такой то, запущен запрос к llm во столько то".
         var (session, teamId) = TestSession.StartSingleTeamSession(endTurn: 1);
-        var client = new ScriptedLlmClient("""{"kind":"nop"}""");
+        var client = new ScriptedLlmClient("""{"actions":[]}""");
         var bot = new LlmBot(teamId, "persona", client);
         var lines = new List<string>();
 
@@ -90,8 +90,9 @@ public sealed class LlmBotSessionRunnerTests
             session, [bot], new Random(1), new BotDecisionLog(), onStatusLine: lines.Add);
 
         Assert.Equal(2, lines.Count);
-        Assert.Contains("Команда: ход 1, действие 1 — запрос к LLM...", lines[0]);
-        Assert.Contains("Команда: ход 1, действие 1 — Nop", lines[1]);
+        Assert.Contains("Команда: ход 1 — запрос к LLM...", lines[0]);
+        Assert.Contains("Команда: ход 1, действие 1/1", lines[1]);
+        Assert.Contains("Nop", lines[1]);
         Assert.Contains("nop", lines[1]);
     }
 }

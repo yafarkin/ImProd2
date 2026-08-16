@@ -34,4 +34,17 @@ public sealed class SystemPromptBuilderTests
     {
         Assert.Throws<ArgumentException>(() => SystemPromptBuilder.Build(" "));
     }
+
+    [Fact]
+    public void Build_MentionsOneCallPerTurnAndTheActualActionCap()
+    {
+        // Запрос пользователя 2026-08-16: "только раз за ход обращаться к LLM, и чтобы он сразу
+        // формировал массив команд на ход" — промпт должен называть реальный потолок числом, не
+        // абстрактным "hard limit", и явно описывать batch-формат ответа.
+        var prompt = SystemPromptBuilder.Build("persona", maxActionsPerTurn: 7);
+
+        Assert.Contains("ONE CALL DECIDES THE WHOLE TURN", prompt);
+        Assert.Contains("actions", prompt);
+        Assert.Contains("Put at most 7", prompt);
+    }
 }

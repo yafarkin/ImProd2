@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace Game.Bots.Llm.Tests;
@@ -11,25 +12,46 @@ namespace Game.Bots.Llm.Tests;
 public sealed class BotCommandSchemaTests
 {
     [Fact]
-    public void Schema_ListsEveryCommandKind()
+    public void Schema_ListsEveryCommandKindInCamelCase()
     {
-        var schema = BotCommandSchema.Build();
+        // camelCase, не сырое имя enum'а из Enum.GetNames — так же, как реально разбирает
+        // BotCommandSerialization.Options (JsonStringEnumConverter(JsonNamingPolicy.CamelCase)).
+        // Раньше схема звала PascalCase-именами, которые сам парсер не принимал — попутно найденный
+        // и исправленный баг, см. doc-comment BotCommandSchema.BuildCommand.
+        var schema = BotCommandSchema.BuildCommand();
         var kindEnum = ((JsonObject)schema["properties"]!["kind"]!)["enum"]!.AsArray();
         var listedNames = kindEnum.Select(node => node!.GetValue<string>()).ToHashSet();
 
         foreach (var name in Enum.GetNames<BotCommandKind>())
         {
-            Assert.Contains(name, listedNames);
+            Assert.Contains(JsonNamingPolicy.CamelCase.ConvertName(name), listedNames);
         }
     }
 
     [Fact]
     public void Schema_RequiresKindAndForbidsAdditionalProperties()
     {
-        var schema = BotCommandSchema.Build();
+        var schema = BotCommandSchema.BuildCommand();
 
         Assert.Equal("object", schema["type"]!.GetValue<string>());
         Assert.False(schema["additionalProperties"]!.GetValue<bool>());
         Assert.Contains("kind", schema["required"]!.AsArray().Select(node => node!.GetValue<string>()));
+    }
+
+    [Fact]
+    public void BuildBatch_WrapsCommandSchemaInActionsArray()
+    {
+        var batchSchema = BotCommandSchema.BuildBatch(maxActions: 4);
+
+        Assert.Equal("object", batchSchema["type"]!.GetValue<string>());
+        Assert.Contains("actions", batchSchema["required"]!.AsArray().Select(node => node!.GetValue<string>()));
+
+        var actionsProperty = (JsonObject)batchSchema["properties"]!["actions"]!;
+        Assert.Equal("array", actionsProperty["type"]!.GetValue<string>());
+        Assert.Equal(4, actionsProperty["maxItems"]!.GetValue<int>());
+
+        var itemSchema = (JsonObject)actionsProperty["items"]!;
+        Assert.Equal("object", itemSchema["type"]!.GetValue<string>());
+        Assert.Contains("kind", itemSchema["required"]!.AsArray().Select(node => node!.GetValue<string>()));
     }
 }

@@ -1,23 +1,54 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace Game.Bots.Llm;
 
 /// <summary>
-/// JSON Schema формы <see cref="BotCommand"/> — на шагах 2-3 плана LLM-ботов передаётся LM
-/// Studio/Ollama как <c>response_format</c>/<c>json_schema</c>, чтобы модель не отвечала свободным
-/// текстом, а строго структурой (риск №2 из обсуждения TODO #20). На шаге 1 реального инференса нет
-/// — схема используется только для структурной самопроверки (см. BotCommandSchemaTests), чтобы
-/// список полей здесь не разошёлся с <see cref="BotCommand"/> незаметно.
+/// JSON Schema формы <see cref="BotCommand"/> и обёртки <see cref="BotCommandBatch"/> вокруг неё —
+/// передаётся LM Studio/Ollama как <c>response_format</c>/<c>json_schema</c>, чтобы модель не
+/// отвечала свободным текстом, а строго структурой (риск №2 из обсуждения TODO #20). Схема
+/// используется и для структурной самопроверки (см. BotCommandSchemaTests), чтобы список полей здесь
+/// не разошёлся с <see cref="BotCommand"/> незаметно.
 /// </summary>
 public static class BotCommandSchema
 {
-    /// <summary>Строит схему заново при каждом вызове — дешёвая операция, состояние не кешируется намеренно.</summary>
-    public static JsonObject Build()
+    /// <summary>
+    /// Схема ответа на весь ход разом (запрос пользователя 2026-08-16: один вызов LLM за ход — см.
+    /// doc-comment <see cref="BotCommandBatch"/>) — объект с единственным полем <c>actions</c>,
+    /// массивом объектов формы <see cref="BuildCommand"/>. <paramref name="maxActions"/> — мягкий
+    /// потолок длины массива на уровне схемы (генерация не может уйти в бесконечность); настоящее
+    /// принудительное ограничение — по-прежнему в коде (<see cref="LlmBotDecisionLoop"/>), схема не
+    /// гарантия для бэкендов, не проверяющих массивы при <c>strict: false</c>.
+    /// </summary>
+    public static JsonObject BuildBatch(int maxActions = 10) => new()
     {
+        ["type"] = "object",
+        ["additionalProperties"] = false,
+        ["required"] = new JsonArray("actions"),
+        ["properties"] = new JsonObject
+        {
+            ["actions"] = new JsonObject
+            {
+                ["type"] = "array",
+                ["maxItems"] = maxActions,
+                ["items"] = BuildCommand(),
+            },
+        },
+    };
+
+    /// <summary>Схема одной команды — строится заново при каждом вызове, дешёвая операция, состояние не кешируется намеренно.</summary>
+    public static JsonObject BuildCommand()
+    {
+        // Найденный попутно баг (не связан с батч-переделкой 2026-08-16): Enum.GetNames возвращает
+        // PascalCase ("BuildFactory"), а BotCommandSerialization.Options разбирает kind camelCase'ом
+        // ("buildFactory", JsonStringEnumConverter(JsonNamingPolicy.CamelCase)) — схема годами звала
+        // модель значениями, которые её же парсер не ждал. Живьём это не било, потому что модель
+        // следовала явным camelCase-примерам в SystemPromptBuilder (CommandDescriptions), а не enum'у
+        // схемы, но схема должна документировать то, что реально принимается.
         var kindEnum = new JsonArray();
         foreach (var name in Enum.GetNames<BotCommandKind>())
         {
-            kindEnum.Add(name);
+            kindEnum.Add(JsonNamingPolicy.CamelCase.ConvertName(name));
         }
 
         return new JsonObject

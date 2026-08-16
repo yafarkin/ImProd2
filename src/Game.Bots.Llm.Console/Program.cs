@@ -47,10 +47,11 @@ void Log(string line)
 
 Log("=== LLM-боты, стадия 1 (один сектор), автономный прогон ===");
 Log($"LM Studio: {LmStudioClient.DefaultBaseUrl}");
-Log($"Модель: {settings.Model}, температура: {settings.Temperature}, max_tokens: {settings.MaxTokens}");
+Log($"Модель: {settings.Model}, температура: {settings.Temperature}, max_tokens: {settings.MaxTokens}, " +
+    $"thinking отключён: {settings.DisableThinking}");
 Log($"Ботов: {settings.BotCount}, ходов до конца сессии: {settings.Turns}");
-Log($"HTTP-таймаут запроса: {settings.TimeoutMinutes} мин, попыток на действие: {settings.MaxAttempts}, " +
-    $"потолок действий за ход: {settings.MaxActionsPerTurn}, " +
+Log($"HTTP-таймаут запроса: {settings.TimeoutMinutes} мин, попыток на ход (один вызов LLM на ход): {settings.MaxAttempts}, " +
+    $"потолок действий в массиве за ход: {settings.MaxActionsPerTurn}, " +
     $"остановка после {settings.MaxConsecutiveFailures} провалов подряд у одного бота");
 Log($"Лог на диске: {logPath}");
 Log($"Метрики: {settings.MetricsPath}");
@@ -123,7 +124,8 @@ try
         stallWarningThreshold += TimeSpan.FromSeconds(30);
     }
 
-    var llmClient = new LmStudioClient(httpClient, settings.Model, settings.Temperature, settings.MaxTokens, OnToken, OnStalled);
+    var llmClient = new LmStudioClient(
+        httpClient, settings.Model, settings.Temperature, settings.MaxTokens, OnToken, OnStalled, settings.DisableThinking);
 
     var bots = teamIds
         .Select((id, i) => new LlmBot(

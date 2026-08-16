@@ -7,12 +7,17 @@ namespace Game.Bots.Llm;
 /// </summary>
 internal static class BotCommandSummary
 {
-    /// <summary>Описывает итог <see cref="LlmBotDecisionLoop.RunTurnAsync"/> одной строкой.</summary>
+    /// <summary>Описывает итог одного действия одной строкой.</summary>
     public static string Describe(LlmBotTurnResult result) => result.Outcome switch
     {
         LlmBotTurnOutcome.Nop => "nop",
-        LlmBotTurnOutcome.Exhausted => "(no valid command — retries exhausted)",
+        LlmBotTurnOutcome.Exhausted => "(no valid response — retries exhausted)",
         LlmBotTurnOutcome.Success => DescribeCommand(result.Command!),
+        // Запрос пользователя 2026-08-16 (один вызов LLM на весь ход): доменные ошибки и
+        // анти-залипательные guard'ы больше не запускают повторный запрос к модели с исправлением —
+        // причина пропуска попадает сюда и дальше в кросс-ходовую историю бота (см. doc-comment
+        // LlmBotTurnResult.ForSkipped), единственный способ модели узнать об этом на будущем ходу.
+        LlmBotTurnOutcome.Skipped => $"(skipped: {DescribeCommand(result.Command!)} — {result.SkipReason})",
         _ => result.Outcome.ToString(),
     };
 

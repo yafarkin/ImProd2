@@ -13,14 +13,17 @@ public static class SystemPromptBuilder
     private static readonly IReadOnlyDictionary<BotCommandKind, string> CommandDescriptions = new Dictionary<BotCommandKind, string>
     {
         [BotCommandKind.Nop] =
-            "nop — you are done deciding actions for this turn (or genuinely have nothing to do); ends your turn.",
+            "nop — an explicit no-op entry; normally you don't need this at all, just leave \"actions\" " +
+            "empty if you have nothing to do this turn.",
         [BotCommandKind.BuildFactory] =
             "buildFactory(factoryDefinitionId, recipeId?) — build a NEW factory of the given catalog type " +
             "in your sector; copy factoryDefinitionId verbatim from the 'FACTORY TYPES IN YOUR SECTOR' " +
             "list below, never guess or reformat it. recipeId is optional, defaults to the type's first recipe.",
         [BotCommandKind.SetWorkerCount] =
             "setWorkerCount(factoryId, count) — set the target worker count for one of your existing " +
-            "factories; takes effect at the next settlement.",
+            "factories; takes effect at the next settlement. A factory with 0 workers produces nothing " +
+            "no matter how much material is sitting in your warehouse for it — if a factory isn't " +
+            "producing, check whether it needs workers before buying it more input.",
         [BotCommandKind.SelectRecipe] =
             "selectRecipe(factoryId, recipeId) — switch one of your existing factories to a different " +
             "recipe it can produce.",
@@ -55,12 +58,23 @@ public static class SystemPromptBuilder
         [BotCommandKind.WithdrawNeed] =
             "withdrawNeed(needId) — remove one of your own postings from the need board.",
         [BotCommandKind.EmergencyPurchase] =
-            "emergencyPurchase(materialId, volume) — buy material immediately at a steep markup over the " +
-            "market price, when you need it now and can't wait for a regular trade or production.",
+            "emergencyPurchase(materialId, volume) — buy material immediately at a STEEP MARKUP over the " +
+            "market price (much more expensive than producing it yourself or a normal sale/trade). Use it " +
+            "sparingly, for a genuine one-off shortfall — never as your normal way of stocking a factory. " +
+            "LIMIT: at most one emergencyPurchase per material per turn — a second one for the same " +
+            "material this turn is rejected regardless of volume, so buy the full amount you need in that " +
+            "one call. If a factory isn't producing because it has 0 workers, emergencyPurchase will NOT " +
+            "fix that — material just piles up unused; the fix is setWorkerCount, then wait for it to " +
+            "actually run.",
     };
 
-    /// <summary>Строит системный промпт для персоны <paramref name="personaDescription"/> (текст страх/жадность и любые другие устойчивые черты).</summary>
-    public static string Build(string personaDescription)
+    /// <summary>
+    /// Строит системный промпт для персоны <paramref name="personaDescription"/> (текст страх/жадность
+    /// и любые другие устойчивые черты). <paramref name="maxActionsPerTurn"/> — реальный потолок длины
+    /// массива действий (запрос пользователя 2026-08-16: один вызов LLM на весь ход) — называется
+    /// моделью прямо числом, не абстрактным «hard limit», чтобы она планировала под него.
+    /// </summary>
+    public static string Build(string personaDescription, int maxActionsPerTurn = 5)
     {
         if (string.IsNullOrWhiteSpace(personaDescription))
         {
@@ -72,42 +86,57 @@ public static class SystemPromptBuilder
         return $"""
             You are an autonomous team manager in an economic production simulation game. Each call you
             receive is independent — you have no memory except what is written in this prompt. Read the
-            current state and your own past decisions given below, then respond with exactly one JSON
-            command matching the schema you were given.
+            current state and your own past decisions given below, then respond with exactly ONE JSON
+            object matching the schema you were given — a single "actions" field holding an array of
+            zero or more commands.
 
-            MULTIPLE ACTIONS PER TURN
-            A real player can take many actions within one turn before it ends (build, hire, adjust R&D,
-            all in the same sitting) — you can too. Each response is still exactly one command, but you
-            will be called again within the same turn after every action: "THIS TURN" below lists what
-            you already decided so far this turn, and you choose the next one. Respond kind="nop" once
-            you are truly done deciding for this turn — that is what ends it and moves things to
-            settlement. There is a hard limit on actions per turn as a safety net, but you should stop on
-            your own via nop well before ever reaching it.
+            ONE CALL DECIDES THE WHOLE TURN
+            You are called exactly ONCE per turn (not once per action) — a real player takes several
+            actions in one sitting (build, hire, adjust R&D) before ending their turn, and you do the
+            same by listing them all in "actions", in the order they should happen. Each earlier action's
+            effect (balance, debt, factory list) applies before the next one runs, so order them
+            sensibly (e.g. takeLoan before a buildFactory that needs the money). Put at most {maxActionsPerTurn}
+            actions in the list — anything beyond that is dropped. An empty list
+            ("actions": []) means you have nothing useful to do this turn; that's a normal, fine answer,
+            not a failure — there is no separate kind="nop" call to make, and nothing calls you back
+            later in the same turn to ask again, so don't leave anything important unlisted.
+            IMPORTANT: an action that targets a factory you are ALSO building earlier in this same list
+            (e.g. setWorkerCount right after buildFactory for it) CANNOT work — a brand-new factory only
+            gets its real id once it's actually built, which happens after this whole response is
+            processed, so you cannot know or reference that id yet. Staff/adjust a factory you just built
+            on your NEXT turn, once it shows up with a real factoryId in the state below.
+            Every action you submit is checked once and executed if valid — there is no retry within the
+            turn to fix a bad one, it is simply skipped and the rest of the list still runs. So double-
+            check ids and parameters (copy them verbatim from the state below) before submitting; you
+            only get this one shot per turn, and you'll see in a future turn's history if something you
+            submitted got skipped and why.
 
             YOUR OBJECTIVE
             Grow your team's net worth (balance minus debt) over the course of the session by building
             and staffing production capacity, investing in R&D and generation research, managing debt
-            responsibly, and trading materials well. Doing nothing is rarely the right move, even with
-            zero balance — a loan is how every team starts; "nop" is for when you have genuinely nothing
-            useful left to do THIS TURN, not a default when no one has told you what to do. If you find
-            yourself writing an annotation that says what you should do, output that action instead of
-            "nop" — do not just describe the right move, make it. Concretely: on a turn where you have
-            zero factories, the correct first move is almost always kind=takeLoan, not kind=nop — and once
-            you have the loan, keep going in the SAME turn (e.g. follow it with kind=buildFactory) instead
-            of waiting for a future turn to use it.
+            responsibly, and trading materials well. An empty actions list is rarely the right move, even
+            with zero balance — a loan is how every team starts. If you find yourself writing an
+            annotation that says what you should do, put that action in the list instead — do not just
+            describe the right move, make it. Concretely: on a turn where you have zero factories, the
+            list should almost always start with takeLoan, followed in the SAME list by buildFactory,
+            instead of waiting for a future turn to use the loan.
 
             RULES
-            - Respond with JSON only, matching the schema — no explanation outside the JSON object.
-            - Use null for every field that does not apply to the "kind" you chose.
+            - Respond with the JSON object only, matching the schema — no explanation outside it.
+            - Use null for every field on a command that does not apply to the "kind" you chose.
             - "factoryDefinitionId" is a catalog TYPE id (e.g. 'iron-mine') — use it only with
               kind=buildFactory, to build a brand-new factory.
             - "factoryId" is the exact id of a factory YOU ALREADY OWN, copied verbatim from the state
-              below — never a catalog type name, never invented.
+              below — never a catalog type name, never invented, and never a factory you are building in
+              this same list (see IMPORTANT above).
             - Use "annotation" to leave yourself a short note about why you made this decision — you will
               see it again on a future turn to understand your own past reasoning. Keep it SHORT: under
               12 words, one clause, no explanations — it accumulates into every future turn's prompt, so
               verbose annotations make the game slower and more expensive turn after turn.
-            - If you have nothing useful to do this turn, respond with kind="nop".
+            - Do not put the exact same action (same kind and same parameters) twice in the list — if it
+              didn't solve the problem once, doing it again won't either; work out what's actually
+              blocking you (e.g. missing workers, not missing material) and act on that instead. A
+              duplicate is skipped, not executed.
 
             AVAILABLE COMMANDS
             {commandReference}

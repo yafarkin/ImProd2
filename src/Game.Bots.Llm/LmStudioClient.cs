@@ -8,8 +8,10 @@ namespace Game.Bots.Llm;
 /// Реализация <see cref="ILlmClient"/> для LM Studio (шаг 2 плана LLM-ботов, docs/TODO.md #20) —
 /// OpenAI-совместимый <c>/v1/chat/completions</c>, поэтому та же реализация без изменений подходит
 /// и для Ollama (шаг 3), если у переданного <see cref="HttpClient"/> выставить его base address.
-/// Ответ запрашивается как <c>response_format: json_schema</c> по <see cref="BotCommandSchema"/>
-/// (риск №2 из обсуждения TODO #20) — но <c>strict</c> сознательно <see langword="false"/> и
+/// Ответ запрашивается как <c>response_format: json_schema</c> по <see cref="BotCommandSchema.BuildBatch"/>
+/// (риск №2 из обсуждения TODO #20; запрос пользователя 2026-08-16 — один вызов LLM на весь ход,
+/// массив команд разом, а не по одному действию на вызов, см. doc-comment <see cref="BotCommandBatch"/>)
+/// — но <c>strict</c> сознательно <see langword="false"/> и
 /// в required только <c>kind</c>: живая проверка на LM Studio (gemma-4-12b, 2026-08-16) показала,
 /// что при <c>strict: true</c>, требующем перечислить в required вообще все поля схемы, модель не
 /// умеет оставить нерелевантное поле пустым — вместо null подставляет правдоподобный мусор
@@ -23,12 +25,25 @@ namespace Game.Bots.Llm;
 /// <para>
 /// Запрос идёт потоково (<c>stream: true</c>, запрос пользователя 2026-08-16: реальные ходы на
 /// медленном сервере занимали от ~4 до ~17 минут, и без streaming нечем отличить «модель думает» от
-/// «всё зависло»). <see cref="LmStudioClient(HttpClient, string, double, int, Action{int}?, Action{TimeSpan}?)"/>
+/// «всё зависло»). <see cref="LmStudioClient(HttpClient, string, double, int, Action{int}?, Action{TimeSpan}?, bool)"/>
 /// принимает необязательные <c>onToken</c> (счётчик кусков ответа по мере получения — не точное
 /// число токенов, SSE-чанк лленка не всегда ровно один токен, но для «идёт ли ещё генерация» этого
 /// достаточно) и <c>onStalled</c> (сколько времени нет новых кусков подряд — консоль показывает
 /// предупреждение, не обрывает запрос: возможно, модель просто долго думает над одним трудным
 /// токеном, не обязательно зависла).
+/// </para>
+/// <para>
+/// <c>disableThinking</c> (запрос пользователя 2026-08-16: reasoning жрёт токены и сильно замедляет
+/// каждый ход) шлёт <c>reasoning_effort: "none"</c>. Это не первый вариант, который проверялся:
+/// документированный для Qwen3 способ <c>chat_template_kwargs: { enable_thinking: false }</c> живьём
+/// проверен 2026-08-16 против этого же сервера (LM Studio + <c>qwen/qwen3.8-27b</c>) и не сработал —
+/// <c>reasoning_content</c> и токены на размышление остались теми же, что и без него (известный баг
+/// LM Studio с гибридными Qwen3-моделями). Живая проверка того же дня подтвердила, что
+/// <c>reasoning_effort: "none"</c> реально убирает <c>reasoning_content</c> (пусто, 0
+/// reasoning-токенов) — и в потоковом, и в обычном режиме, и не ломает не-reasoning модель
+/// (<c>gemma-2-9b-it</c>: тот же пустой <c>reasoning_content</c>, без ошибок). Если когда-нибудь
+/// окажется, что на другом сервере/версии LM Studio этот параметр тоже перестал помогать —
+/// перепроверяйте это живым запросом, а не полагайтесь на доки; так уже подвела одна попытка.
 /// </para>
 /// </summary>
 public sealed class LmStudioClient : ILlmClient
@@ -49,6 +64,7 @@ public sealed class LmStudioClient : ILlmClient
     private readonly string _model;
     private readonly double _temperature;
     private readonly int _maxTokens;
+    private readonly bool _disableThinking;
     private readonly Action<int>? _onToken;
     private readonly Action<TimeSpan>? _onStalled;
 
@@ -57,12 +73,13 @@ public sealed class LmStudioClient : ILlmClient
     /// (например, <see cref="DefaultBaseUrl"/>) — сам клиент не создаёт и не владеет
     /// <see cref="HttpClient"/>, чтобы вызывающая сторона управляла его временем жизни
     /// (<c>IHttpClientFactory</c> в реальном раннере, поддельный обработчик в тестах).
+    /// <paramref name="disableThinking"/> — см. doc-comment класса (<c>chat_template_kwargs</c>).
     /// <paramref name="onToken"/>/<paramref name="onStalled"/> — см. doc-comment класса; вызываются
     /// синхронно из потока чтения ответа, не должны блокировать надолго.
     /// </summary>
     public LmStudioClient(
         HttpClient httpClient, string model, double temperature = 0.2, int maxTokens = 500,
-        Action<int>? onToken = null, Action<TimeSpan>? onStalled = null)
+        Action<int>? onToken = null, Action<TimeSpan>? onStalled = null, bool disableThinking = false)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         if (string.IsNullOrWhiteSpace(model))
@@ -74,6 +91,7 @@ public sealed class LmStudioClient : ILlmClient
         _model = model;
         _temperature = temperature;
         _maxTokens = maxTokens;
+        _disableThinking = disableThinking;
         _onToken = onToken;
         _onStalled = onStalled;
     }
@@ -190,24 +208,37 @@ public sealed class LmStudioClient : ILlmClient
         throw new InvalidOperationException("LM Studio streamed response had no content or reasoning_content.");
     }
 
-    private JsonObject BuildRequestBody(string systemPrompt, string userPrompt) => new()
+    private JsonObject BuildRequestBody(string systemPrompt, string userPrompt)
     {
-        ["model"] = _model,
-        ["messages"] = new JsonArray(
-            new JsonObject { ["role"] = "system", ["content"] = systemPrompt },
-            new JsonObject { ["role"] = "user", ["content"] = userPrompt }),
-        ["temperature"] = _temperature,
-        ["max_tokens"] = _maxTokens,
-        ["stream"] = true,
-        ["response_format"] = new JsonObject
+        var body = new JsonObject
         {
-            ["type"] = "json_schema",
-            ["json_schema"] = new JsonObject
+            ["model"] = _model,
+            ["messages"] = new JsonArray(
+                new JsonObject { ["role"] = "system", ["content"] = systemPrompt },
+                new JsonObject { ["role"] = "user", ["content"] = userPrompt }),
+            ["temperature"] = _temperature,
+            ["max_tokens"] = _maxTokens,
+            ["stream"] = true,
+            ["response_format"] = new JsonObject
             {
-                ["name"] = "bot_command",
-                ["strict"] = false,
-                ["schema"] = BotCommandSchema.Build(),
+                ["type"] = "json_schema",
+                ["json_schema"] = new JsonObject
+                {
+                    ["name"] = "bot_command_batch",
+                    ["strict"] = false,
+                    ["schema"] = BotCommandSchema.BuildBatch(),
+                },
             },
-        },
-    };
+        };
+
+        if (_disableThinking)
+        {
+            // См. doc-comment класса: живьём проверенный способ (2026-08-16, LM Studio +
+            // qwen/qwen3.8-27b) — chat_template_kwargs.enable_thinking не сработал на этом сервере,
+            // reasoning_effort: "none" сработал.
+            body["reasoning_effort"] = "none";
+        }
+
+        return body;
+    }
 }
