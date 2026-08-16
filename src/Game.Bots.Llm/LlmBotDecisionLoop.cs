@@ -80,6 +80,8 @@ public sealed class LlmBotDecisionLoop
         ArgumentNullException.ThrowIfNull(initialUserPrompt);
         ArgumentNullException.ThrowIfNull(log);
 
+        var botLabel = session.State.Teams.TryGetValue(teamId, out var team) ? team.Name : teamId.ToString();
+        var turn = session.State.CurrentTurn;
         var userPrompt = initialUserPrompt;
 
         for (var attempt = 1; attempt <= _maxAttempts; attempt++)
@@ -96,7 +98,7 @@ public sealed class LlmBotDecisionLoop
                 // один ход одного бота не должен ронять всю сессию. Не удлиняем userPrompt текстом
                 // ошибки, как при доменной/парсинг-ошибке (тут ошибка не в содержимом ответа модели,
                 // добавлять к промпту нечего — если причина в размере запроса, это лишь усугубит).
-                log.Record(attempt, string.Empty, $"Client error: {ex.Message}");
+                log.Record(botLabel, turn, attempt, userPrompt, string.Empty, $"Client error: {ex.Message}");
                 continue;
             }
 
@@ -104,30 +106,30 @@ public sealed class LlmBotDecisionLoop
 
             if (parseError is not null)
             {
-                log.Record(attempt, raw, $"Parse error: {parseError}");
+                log.Record(botLabel, turn, attempt, userPrompt, raw, $"Parse error: {parseError}");
                 userPrompt = WithError(initialUserPrompt, parseError);
                 continue;
             }
 
             if (command!.Kind == BotCommandKind.Nop)
             {
-                log.Record(attempt, raw, "Nop");
+                log.Record(botLabel, turn, attempt, userPrompt, raw, "Nop");
                 return LlmBotTurnResult.ForNop(attempt, command);
             }
 
             var result = _executor.Execute(command, session, teamId);
             if (result is BotCommandExecutionResult.DomainError error)
             {
-                log.Record(attempt, raw, $"Domain error: {error.Message}");
+                log.Record(botLabel, turn, attempt, userPrompt, raw, $"Domain error: {error.Message}");
                 userPrompt = WithError(initialUserPrompt, error.Message);
                 continue;
             }
 
-            log.Record(attempt, raw, "Success");
+            log.Record(botLabel, turn, attempt, userPrompt, raw, "Success");
             return LlmBotTurnResult.ForSuccess(attempt, command);
         }
 
-        log.Record(_maxAttempts, string.Empty, "Exhausted");
+        log.Record(botLabel, turn, _maxAttempts, userPrompt, string.Empty, "Exhausted");
         return LlmBotTurnResult.ForExhausted(_maxAttempts);
     }
 

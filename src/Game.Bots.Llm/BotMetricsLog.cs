@@ -3,12 +3,14 @@ using System.Globalization;
 namespace Game.Bots.Llm;
 
 /// <summary>
-/// Простейший CSV-файл метрик по ходам LLM-бота (запрос пользователя 2026-08-16): бот, ход, время
-/// ответа, размер запроса в байтах, отвеченная команда — сырьё для перцентилей позже (p50/p85
-/// времени ответа — «как долго бот думает»; p50/p85/макс и рост размера запроса между ходами — как
-/// быстро растёт промпт с историей). Раздельно от <see cref="BotDecisionLog"/>: тот хранит сырые
-/// промпты/ответы по каждой попытке ретрая, этот — по одной строке на реальный ход, для статистики,
-/// а не для разбора «почему бот так решил».
+/// CSV-файл метрик по ходам LLM-бота (запрос пользователя 2026-08-16): бот, ход, время ответа,
+/// размер запроса в байтах, отвеченная команда, плюс баланс/долг/net worth/число фабрик сразу после
+/// хода — сырьё и для перцентилей (p50/p85 времени ответа — «как долго бот думает»; p50/p85/макс и
+/// рост размера запроса между ходами — как быстро растёт промпт с историей), и для быстрого разбора
+/// самой партии: «файл с ходами», который можно отдать на анализ целиком, не вчитываясь в сырые
+/// логи (запрос пользователя 2026-08-16). Раздельно от <see cref="BotDecisionLog"/>: тот хранит
+/// сырые промпты/ответы по каждой попытке ретрая (зачем решение такое), этот — по одной строке на
+/// реальный ход (что получилось в итоге), для статистики и быстрого просмотра.
 /// <para>
 /// «Размер запроса» — байты UTF-8 системного+пользовательского промпта, переданных в
 /// <see cref="ILlmClient.CompleteAsync"/> на первой попытке хода (без текста ошибок ретраев, если
@@ -16,10 +18,16 @@ namespace Game.Bots.Llm;
 /// вариации внутри одного хода). Не точный размер тела HTTP-запроса (JSON-обвязка, схема — примерно
 /// постоянный довесок, не искажает тренд по ходам), см. doc-comment <see cref="LlmBot"/>.
 /// </para>
+/// <para>
+/// Баланс/долг/фабрики — состояние сразу после того, как решение хода исполнено, но ДО расчёта
+/// (Settlement) — мгновенные эффекты (например, постройка фабрики) уже видны, отложенные (заём,
+/// продажа системе — SPEC §4) появятся в строке следующего хода той же команды, когда расчёт между
+/// ходами их применит. Не баг — так устроен сам движок (решение/расчёт разнесены).
+/// </para>
 /// </summary>
 public sealed class BotMetricsLog : IDisposable
 {
-    private const string Header = "bot,turn,response_time_ms,request_size_bytes,command";
+    private const string Header = "bot,turn,response_time_ms,request_size_bytes,command,balance,debt,net_worth,factory_count";
 
     private readonly TextWriter _writer;
     private readonly bool _ownsWriter;
@@ -65,7 +73,9 @@ public sealed class BotMetricsLog : IDisposable
     }
 
     /// <summary>Добавляет одну строку — один реальный ход одного бота.</summary>
-    public void Record(string botLabel, int turn, TimeSpan responseTime, int requestSizeBytes, string command)
+    public void Record(
+        string botLabel, int turn, TimeSpan responseTime, int requestSizeBytes, string command,
+        decimal balance, decimal debt, int factoryCount)
     {
         ArgumentNullException.ThrowIfNull(botLabel);
         ArgumentNullException.ThrowIfNull(command);
@@ -81,6 +91,10 @@ public sealed class BotMetricsLog : IDisposable
             responseTime.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture),
             requestSizeBytes.ToString(CultureInfo.InvariantCulture),
             EscapeCsvField(command),
+            balance.ToString("0.00", CultureInfo.InvariantCulture),
+            debt.ToString("0.00", CultureInfo.InvariantCulture),
+            (balance - debt).ToString("0.00", CultureInfo.InvariantCulture),
+            factoryCount.ToString(CultureInfo.InvariantCulture),
         };
 
         _writer.WriteLine(string.Join(',', fields));

@@ -20,9 +20,21 @@ namespace Game.Bots.Llm;
 /// <c>content</c> оставляет пустым — даже при <c>finish_reason: "stop"</c> (не обрезка по лимиту
 /// токенов, так отработал шаблон чата модели). См. <see cref="ExtractMessageContent"/> — откат на
 /// <c>reasoning_content</c>, когда <c>content</c> пуст.
+/// <para>
+/// Запрос идёт потоково (<c>stream: true</c>, запрос пользователя 2026-08-16: реальные ходы на
+/// медленном сервере занимали от ~4 до ~17 минут, и без streaming нечем отличить «модель думает» от
+/// «всё зависло»). <see cref="LmStudioClient(HttpClient, string, double, int, Action{int}?, Action{TimeSpan}?)"/>
+/// принимает необязательные <c>onToken</c> (счётчик кусков ответа по мере получения — не точное
+/// число токенов, SSE-чанк лленка не всегда ровно один токен, но для «идёт ли ещё генерация» этого
+/// достаточно) и <c>onStalled</c> (сколько времени нет новых кусков подряд — консоль показывает
+/// предупреждение, не обрывает запрос: возможно, модель просто долго думает над одним трудным
+/// токеном, не обязательно зависла).
+/// </para>
 /// </summary>
 public sealed class LmStudioClient : ILlmClient
 {
+    private static readonly TimeSpan StallCheckInterval = TimeSpan.FromSeconds(10);
+
     /// <summary>
     /// Адрес LM Studio — из переменной окружения <c>LM_STUDIO_BASE_URL</c>, если задана (запрос
     /// пользователя 2026-08-16: переключаться между ноутбуком и стационарным ПК в сети без правки
@@ -37,14 +49,20 @@ public sealed class LmStudioClient : ILlmClient
     private readonly string _model;
     private readonly double _temperature;
     private readonly int _maxTokens;
+    private readonly Action<int>? _onToken;
+    private readonly Action<TimeSpan>? _onStalled;
 
     /// <summary>
     /// <paramref name="httpClient"/> должен иметь выставленный <see cref="HttpClient.BaseAddress"/>
     /// (например, <see cref="DefaultBaseUrl"/>) — сам клиент не создаёт и не владеет
     /// <see cref="HttpClient"/>, чтобы вызывающая сторона управляла его временем жизни
     /// (<c>IHttpClientFactory</c> в реальном раннере, поддельный обработчик в тестах).
+    /// <paramref name="onToken"/>/<paramref name="onStalled"/> — см. doc-comment класса; вызываются
+    /// синхронно из потока чтения ответа, не должны блокировать надолго.
     /// </summary>
-    public LmStudioClient(HttpClient httpClient, string model, double temperature = 0.2, int maxTokens = 500)
+    public LmStudioClient(
+        HttpClient httpClient, string model, double temperature = 0.2, int maxTokens = 500,
+        Action<int>? onToken = null, Action<TimeSpan>? onStalled = null)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         if (string.IsNullOrWhiteSpace(model))
@@ -56,6 +74,8 @@ public sealed class LmStudioClient : ILlmClient
         _model = model;
         _temperature = temperature;
         _maxTokens = maxTokens;
+        _onToken = onToken;
+        _onStalled = onStalled;
     }
 
     /// <inheritdoc/>
@@ -65,17 +85,109 @@ public sealed class LmStudioClient : ILlmClient
         ArgumentNullException.ThrowIfNull(userPrompt);
 
         var requestBody = BuildRequestBody(systemPrompt, userPrompt);
-        using var content = new StringContent(requestBody.ToJsonString(), Encoding.UTF8, "application/json");
-        using var response = await _httpClient.PostAsync("chat/completions", content, cancellationToken).ConfigureAwait(false);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
+        {
+            Content = new StringContent(requestBody.ToJsonString(), Encoding.UTF8, "application/json"),
+        };
 
-        var responseText = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        // ResponseHeadersRead — не ждём всё тело целиком, читаем SSE-поток по мере поступления.
+        using var response = await _httpClient
+            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+
         if (!response.IsSuccessStatusCode)
         {
+            var errorText = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             throw new InvalidOperationException(
-                $"LM Studio request failed with {(int)response.StatusCode} {response.ReasonPhrase}: {responseText}");
+                $"LM Studio request failed with {(int)response.StatusCode} {response.ReasonPhrase}: {errorText}");
         }
 
-        return ExtractMessageContent(responseText);
+        return await ReadStreamAsync(response, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<string> ReadStreamAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+
+        var content = new StringBuilder();
+        var reasoning = new StringBuilder();
+        var chunkCount = 0;
+        var lastChunkAt = DateTimeOffset.UtcNow;
+        Task<string?>? pendingLine = null;
+
+        while (true)
+        {
+            pendingLine ??= reader.ReadLineAsync(cancellationToken).AsTask();
+            var delay = Task.Delay(StallCheckInterval, cancellationToken);
+            var finished = await Task.WhenAny(pendingLine, delay).ConfigureAwait(false);
+
+            if (finished != pendingLine)
+            {
+                // Строка ещё не пришла — тот же pendingLine продолжает читаться, просто сообщаем о
+                // застое и опрашиваем снова, не переоткрывая чтение потока.
+                _onStalled?.Invoke(DateTimeOffset.UtcNow - lastChunkAt);
+                continue;
+            }
+
+            var line = await pendingLine.ConfigureAwait(false);
+            pendingLine = null;
+
+            if (line is null)
+            {
+                break; // поток закрылся без явного [DONE] — считаем, что ответ окончен
+            }
+            if (line.Length == 0 || !line.StartsWith("data: ", StringComparison.Ordinal))
+            {
+                continue; // SSE: пустые строки-разделители и любые другие поля события не наши
+            }
+
+            var payload = line["data: ".Length..];
+            if (payload == "[DONE]")
+            {
+                break;
+            }
+
+            using var chunk = JsonDocument.Parse(payload);
+            if (!chunk.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0)
+            {
+                continue;
+            }
+
+            var delta = choices[0].GetProperty("delta");
+            var appended = false;
+            if (delta.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.String && c.GetString() is { Length: > 0 } cText)
+            {
+                content.Append(cText);
+                appended = true;
+            }
+            if (delta.TryGetProperty("reasoning_content", out var r) && r.ValueKind == JsonValueKind.String && r.GetString() is { Length: > 0 } rText)
+            {
+                reasoning.Append(rText);
+                appended = true;
+            }
+
+            if (appended)
+            {
+                chunkCount++;
+                lastChunkAt = DateTimeOffset.UtcNow;
+                _onToken?.Invoke(chunkCount);
+            }
+        }
+
+        if (content.Length > 0)
+        {
+            return content.ToString();
+        }
+
+        // Тот же откат, что и раньше для нестримингового ответа (doc-comment класса) — reasoning-
+        // модель может отдать весь ответ через reasoning_content, оставив content пустым.
+        if (reasoning.Length > 0)
+        {
+            return reasoning.ToString();
+        }
+
+        throw new InvalidOperationException("LM Studio streamed response had no content or reasoning_content.");
     }
 
     private JsonObject BuildRequestBody(string systemPrompt, string userPrompt) => new()
@@ -86,6 +198,7 @@ public sealed class LmStudioClient : ILlmClient
             new JsonObject { ["role"] = "user", ["content"] = userPrompt }),
         ["temperature"] = _temperature,
         ["max_tokens"] = _maxTokens,
+        ["stream"] = true,
         ["response_format"] = new JsonObject
         {
             ["type"] = "json_schema",
@@ -97,35 +210,4 @@ public sealed class LmStudioClient : ILlmClient
             },
         },
     };
-
-    private static string ExtractMessageContent(string responseText)
-    {
-        using var document = JsonDocument.Parse(responseText);
-        if (!document.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0)
-        {
-            throw new InvalidOperationException($"LM Studio response had no choices: {responseText}");
-        }
-
-        var message = choices[0].GetProperty("message");
-        if (message.TryGetProperty("content", out var contentElement) &&
-            contentElement.ValueKind == JsonValueKind.String &&
-            contentElement.GetString() is { Length: > 0 } content)
-        {
-            return content;
-        }
-
-        // Живой прогон 2026-08-16 с reasoning-моделью (qwen3.8-27b-mlx): она кладёт весь ответ,
-        // включая наш JSON, в "reasoning_content", а "content" оставляет пустой строкой — даже при
-        // finish_reason "stop" (не обрезка по токенам, так и задумано моделью/шаблоном чата LM
-        // Studio). "Классические" модели (gemma-4-12b) всегда заполняют "content" и не задевают эту
-        // ветку, так что откат безопасен для них.
-        if (message.TryGetProperty("reasoning_content", out var reasoningElement) &&
-            reasoningElement.ValueKind == JsonValueKind.String &&
-            reasoningElement.GetString() is { Length: > 0 } reasoning)
-        {
-            return reasoning;
-        }
-
-        throw new InvalidOperationException($"LM Studio response message had no text content: {responseText}");
-    }
 }

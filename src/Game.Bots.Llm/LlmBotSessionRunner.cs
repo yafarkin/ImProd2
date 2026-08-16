@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Game.Engine;
 
 namespace Game.Bots.Llm;
@@ -35,6 +36,11 @@ public static class LlmBotSessionRunner
     /// застрял): если ОДИН бот подряд столько раз исчерпал попытки хода
     /// (<see cref="LlmBotTurnOutcome.Exhausted"/>), прогон останавливается сразу, не дожидаясь конца
     /// сессии — дальнейшие ходы тем же бэкендом/промптом почти наверняка так же бесполезны.
+    /// <paramref name="onStatusLine"/> — необязательный построчный лог «что происходит прямо сейчас»
+    /// (запрос пользователя 2026-08-16, для автономного многочасового прогона без консоли под рукой):
+    /// одна строка перед отправкой запроса к LLM для конкретного бота и одна — сразу после ответа, с
+    /// итогом и затраченным временем. Без метки времени — её добавляет вызывающая сторона (см.
+    /// консольный раннер), чтобы не дублировать её на каждой строке из разных источников.
     /// </summary>
     public static async Task<LlmBotSessionRunResult> RunToCompletionAsync(
         GameSession session,
@@ -43,6 +49,7 @@ public static class LlmBotSessionRunner
         BotDecisionLog log,
         BotMetricsLog? metricsLog = null,
         Action<GameSession>? onTurnCompleted = null,
+        Action<string>? onStatusLine = null,
         int maxConsecutiveExhaustedTurns = 3,
         CancellationToken cancellationToken = default)
     {
@@ -70,7 +77,17 @@ public static class LlmBotSessionRunner
                 case TurnPhase.Decision:
                     foreach (var bot in bots)
                     {
+                        var botLabel = session.State.Teams.TryGetValue(bot.TeamId, out var team) ? team.Name : bot.TeamId.ToString();
+                        var turnNumber = session.State.CurrentTurn;
+                        onStatusLine?.Invoke($"{botLabel}: ход {turnNumber} — запрос к LLM...");
+
+                        var stopwatch = Stopwatch.StartNew();
                         var result = await bot.TakeTurnAsync(session, log, metricsLog, cancellationToken).ConfigureAwait(false);
+                        stopwatch.Stop();
+
+                        onStatusLine?.Invoke(
+                            $"{botLabel}: ход {turnNumber} — {result.Outcome} за {stopwatch.Elapsed:mm\\:ss} — " +
+                            $"{BotCommandSummary.Describe(result)}");
 
                         if (result.Outcome != LlmBotTurnOutcome.Exhausted)
                         {

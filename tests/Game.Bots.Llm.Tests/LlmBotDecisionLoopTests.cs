@@ -25,6 +25,43 @@ public sealed class LlmBotDecisionLoopTests
         Assert.Single(session.State.Teams[teamId].Factories);
         Assert.Single(log.Entries);
         Assert.Equal("Success", log.Entries[0].Outcome);
+        // Запрос пользователя 2026-08-16: записи должны быть помечены, какому боту/ходу они
+        // принадлежат, и хранить сам текст запроса — иначе многочасовой многоботовый лог
+        // невозможно разобрать после факта.
+        Assert.Equal("Команда", log.Entries[0].BotLabel);
+        Assert.Equal(1, log.Entries[0].Turn);
+        Assert.Equal("user", log.Entries[0].UserPrompt);
+    }
+
+    [Fact]
+    public async Task DecisionLog_CreateFile_PersistsEveryAttemptImmediately()
+    {
+        // Запрос пользователя 2026-08-16: "если упадёт — всё что было наработано, останется на
+        // диске" — проверяем это буквально, читая файл, пока лог ещё открыт (без Dispose), как
+        // было бы после аварийного завершения процесса.
+        var path = Path.Combine(Path.GetTempPath(), $"decisions-{Ulid.NewUlid()}.jsonl");
+        try
+        {
+            var (session, teamId) = TestSession.StartSingleTeamSession();
+            var client = new ScriptedLlmClient(
+                """{"kind":"buildFactory","factoryDefinitionId":"unknown"}""",
+                """{"kind":"buildFactory","factoryDefinitionId":"iron-mine"}""");
+            using (var log = BotDecisionLog.CreateFile(path))
+            {
+                var loop = CreateLoop(client);
+                await loop.RunTurnAsync(session, teamId, "system", "user", log);
+
+                // Ещё до Dispose — файл уже должен содержать обе попытки.
+                var linesWhileOpen = File.ReadAllLines(path);
+                Assert.Equal(2, linesWhileOpen.Length);
+                Assert.Contains("Domain error", linesWhileOpen[0]);
+                Assert.Contains("Success", linesWhileOpen[1]);
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 
     [Fact]

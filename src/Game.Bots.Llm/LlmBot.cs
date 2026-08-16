@@ -78,7 +78,10 @@ public sealed class LlmBot
         {
             var botLabel = session.State.Teams.TryGetValue(TeamId, out var team) ? team.Name : TeamId.ToString();
             var requestSizeBytes = Encoding.UTF8.GetByteCount(systemPrompt) + Encoding.UTF8.GetByteCount(userPrompt);
-            metricsLog.Record(botLabel, turn, stopwatch!.Elapsed, requestSizeBytes, summary);
+            var (balance, debt, factoryCount) = session.State.Teams.TryGetValue(TeamId, out var teamAfter)
+                ? (teamAfter.Balance, teamAfter.Debt, teamAfter.Factories.Count)
+                : (0m, 0m, 0);
+            metricsLog.Record(botLabel, turn, stopwatch!.Elapsed, requestSizeBytes, summary, balance, debt, factoryCount);
         }
 
         return result;

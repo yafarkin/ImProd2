@@ -40,6 +40,7 @@ public sealed class LlmBotTests
         Assert.True(int.Parse(fields[2]) >= 0); // response_time_ms
         Assert.True(int.Parse(fields[3]) > 0); // request_size_bytes
         Assert.Equal("buildFactory(iron-mine)", fields[4]);
+        Assert.Equal("1", fields[8]); // factory_count — BuildFactory мгновенный, виден сразу же, не только после расчёта
     }
 
     [Fact]

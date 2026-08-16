@@ -1,48 +1,60 @@
 using System.Net;
+using System.Text;
 using System.Text.Json.Nodes;
 
 namespace Game.Bots.Llm.Tests;
 
 /// <summary>
 /// <see cref="LmStudioClient"/> против поддельного HTTP-обработчика — без сети, без зависимости от
-/// реально запущенного LM Studio (то, что нужно CI). Форма запроса/ответа взята с живого прогона
-/// против LM Studio (gemma-4-12b) 2026-08-16, см. doc-comment <see cref="LmStudioClient"/>.
+/// реально запущенного LM Studio (то, что нужно CI). Ответы — в реальном SSE-формате (запрос
+/// пользователя 2026-08-16: streaming вместо ожидания всего ответа целиком), форма которого взята с
+/// живых прогонов против LM Studio, см. doc-comment <see cref="LmStudioClient"/>.
 /// </summary>
 public sealed class LmStudioClientTests
 {
-    private const string SampleSuccessResponse = """
+    /// <summary>Собирает тело SSE-потока из кусков content/reasoning_content, как их шлёт LM Studio, плюс завершающий "data: [DONE]".</summary>
+    private static string BuildSseBody(params (string? Content, string? Reasoning)[] deltas)
+    {
+        var body = new StringBuilder();
+        foreach (var (content, reasoning) in deltas)
         {
-          "id": "chatcmpl-1",
-          "object": "chat.completion",
-          "choices": [
+            var delta = new JsonObject();
+            if (content is not null)
             {
-              "index": 0,
-              "message": {
-                "role": "assistant",
-                "content": "{\"kind\": \"buildFactory\", \"factoryDefinitionId\": \"iron-mine\", \"recipeId\": null}"
-              },
-              "finish_reason": "stop"
+                delta["content"] = content;
             }
-          ]
+            if (reasoning is not null)
+            {
+                delta["reasoning_content"] = reasoning;
+            }
+
+            var chunk = new JsonObject { ["choices"] = new JsonArray(new JsonObject { ["delta"] = delta }) };
+            body.Append("data: ").Append(chunk.ToJsonString()).Append("\n\n");
         }
-        """;
+
+        body.Append("data: [DONE]\n\n");
+        return body.ToString();
+    }
 
     [Fact]
-    public async Task CompleteAsync_ExtractsMessageContentFromResponse()
+    public async Task CompleteAsync_AssemblesContentAcrossStreamedChunks()
     {
-        var handler = new StubHttpMessageHandler(SampleSuccessResponse);
+        var handler = new StubHttpMessageHandler(BuildSseBody(
+            ("""{"kind": "buildFactory", """, null),
+            ("""  "factoryDefinitionId": "iron-mine"}""", null)));
         using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
         var client = new LmStudioClient(httpClient, "google/gemma-4-12b");
 
         var content = await client.CompleteAsync("system", "user");
 
-        Assert.Equal("""{"kind": "buildFactory", "factoryDefinitionId": "iron-mine", "recipeId": null}""", content);
+        Assert.Equal("""{"kind": "buildFactory",   "factoryDefinitionId": "iron-mine"}""", content);
     }
 
     [Fact]
     public async Task CompleteAsync_ParsedContentDeserializesToExpectedCommand()
     {
-        var handler = new StubHttpMessageHandler(SampleSuccessResponse);
+        var handler = new StubHttpMessageHandler(BuildSseBody(
+            ("""{"kind": "buildFactory", "factoryDefinitionId": "iron-mine", "recipeId": null}""", null)));
         using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
         var client = new LmStudioClient(httpClient, "google/gemma-4-12b");
 
@@ -54,9 +66,23 @@ public sealed class LmStudioClientTests
     }
 
     [Fact]
-    public async Task CompleteAsync_SendsModelMessagesAndJsonSchemaResponseFormat()
+    public async Task CompleteAsync_InvokesOnTokenOncePerChunk()
     {
-        var handler = new StubHttpMessageHandler(SampleSuccessResponse);
+        var handler = new StubHttpMessageHandler(BuildSseBody(("a", null), ("b", null), ("c", null)));
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
+        var counts = new List<int>();
+        var client = new LmStudioClient(httpClient, "google/gemma-4-12b", onToken: counts.Add);
+
+        var content = await client.CompleteAsync("system", "user");
+
+        Assert.Equal("abc", content);
+        Assert.Equal([1, 2, 3], counts);
+    }
+
+    [Fact]
+    public async Task CompleteAsync_SendsModelMessagesStreamTrueAndJsonSchemaResponseFormat()
+    {
+        var handler = new StubHttpMessageHandler(BuildSseBody(("ok", null)));
         using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
         var client = new LmStudioClient(httpClient, "google/gemma-4-12b", temperature: 0.3, maxTokens: 123);
 
@@ -69,6 +95,7 @@ public sealed class LmStudioClientTests
         Assert.Equal("google/gemma-4-12b", body["model"]!.GetValue<string>());
         Assert.Equal(0.3, body["temperature"]!.GetValue<double>());
         Assert.Equal(123, body["max_tokens"]!.GetValue<int>());
+        Assert.True(body["stream"]!.GetValue<bool>());
 
         var messages = body["messages"]!.AsArray();
         Assert.Equal("system", messages[0]!["role"]!.GetValue<string>());
@@ -86,6 +113,7 @@ public sealed class LmStudioClientTests
     [Fact]
     public async Task CompleteAsync_NonSuccessStatusCode_ThrowsWithBodyInMessage()
     {
+        // Ошибки не стримятся — сервер возвращает обычное JSON-тело до начала генерации.
         var handler = new StubHttpMessageHandler("""{"error":"model not loaded"}""", HttpStatusCode.ServiceUnavailable);
         using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
         var client = new LmStudioClient(httpClient, "google/gemma-4-12b");
@@ -97,9 +125,9 @@ public sealed class LmStudioClientTests
     }
 
     [Fact]
-    public async Task CompleteAsync_NoChoices_Throws()
+    public async Task CompleteAsync_EmptyStream_Throws()
     {
-        var handler = new StubHttpMessageHandler("""{"choices":[]}""");
+        var handler = new StubHttpMessageHandler("data: [DONE]\n\n");
         using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
         var client = new LmStudioClient(httpClient, "google/gemma-4-12b");
 
@@ -107,40 +135,18 @@ public sealed class LmStudioClientTests
     }
 
     [Fact]
-    public async Task CompleteAsync_EmptyContentWithReasoningContent_FallsBackToReasoningContent()
+    public async Task CompleteAsync_OnlyReasoningContentChunks_FallsBackToReasoningContent()
     {
-        // Живой прогон 2026-08-16 с reasoning-моделью (qwen3.8-27b-mlx): LM Studio кладёт весь ответ
-        // в "reasoning_content", а "content" оставляет пустой строкой, даже при finish_reason "stop".
-        const string reasoningModelResponse = """
-            {
-              "choices": [
-                {
-                  "message": {
-                    "role": "assistant",
-                    "content": "",
-                    "reasoning_content": "{\"kind\": \"buildFactory\", \"factoryDefinitionId\": \"iron-mine\"}"
-                  },
-                  "finish_reason": "stop"
-                }
-              ]
-            }
-            """;
-        var handler = new StubHttpMessageHandler(reasoningModelResponse);
+        // Живой прогон 2026-08-16 с reasoning-моделью (qwen3.8-27b-mlx): весь ответ приходит через
+        // reasoning_content-дельты, "content" не появляется вовсе.
+        var handler = new StubHttpMessageHandler(BuildSseBody(
+            (null, """{"kind": "buildFactory", """),
+            (null, "\"factoryDefinitionId\": \"iron-mine\"}")));
         using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
         var client = new LmStudioClient(httpClient, "qwen3.8-27b-mlx");
 
         var content = await client.CompleteAsync("s", "u");
 
         Assert.Equal("""{"kind": "buildFactory", "factoryDefinitionId": "iron-mine"}""", content);
-    }
-
-    [Fact]
-    public async Task CompleteAsync_BothContentAndReasoningContentEmpty_Throws()
-    {
-        var handler = new StubHttpMessageHandler("""{"choices":[{"message":{"content":"","reasoning_content":""}}]}""");
-        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
-        var client = new LmStudioClient(httpClient, "google/gemma-4-12b");
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => client.CompleteAsync("s", "u"));
     }
 }

@@ -75,4 +75,23 @@ public sealed class LlmBotSessionRunnerTests
         var lines = writer.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         Assert.Equal(3, lines.Length); // header + 2 rows
     }
+
+    [Fact]
+    public async Task RunToCompletionAsync_OnStatusLine_ReportsBeforeAndAfterEachBotsTurn()
+    {
+        // Запрос пользователя 2026-08-16: живой построчный статус для автономного прогона без
+        // консоли под рукой — "бот 2, ход 14, баланс такой то, запущен запрос к llm во столько то".
+        var (session, teamId) = TestSession.StartSingleTeamSession(endTurn: 1);
+        var client = new ScriptedLlmClient("""{"kind":"nop"}""");
+        var bot = new LlmBot(teamId, "persona", client);
+        var lines = new List<string>();
+
+        await LlmBotSessionRunner.RunToCompletionAsync(
+            session, [bot], new Random(1), new BotDecisionLog(), onStatusLine: lines.Add);
+
+        Assert.Equal(2, lines.Count);
+        Assert.Contains("Команда: ход 1 — запрос к LLM...", lines[0]);
+        Assert.Contains("Команда: ход 1 — Nop", lines[1]);
+        Assert.Contains("nop", lines[1]);
+    }
 }
