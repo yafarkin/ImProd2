@@ -22,6 +22,39 @@ public sealed class LlmBotTests
     }
 
     [Fact]
+    public async Task TakeTurnAsync_WithMetricsLog_RecordsOneRowPerTurn()
+    {
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+        var client = new ScriptedLlmClient("""{"kind":"buildFactory","factoryDefinitionId":"iron-mine"}""");
+        var bot = new LlmBot(teamId, "persona", client);
+        var writer = new StringWriter();
+        using var metrics = new BotMetricsLog(writer);
+
+        await bot.TakeTurnAsync(session, new BotDecisionLog(), metrics);
+
+        var lines = writer.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        Assert.Equal(2, lines.Length); // header + 1 row
+        var fields = lines[1].Split(',');
+        Assert.Equal("Команда", fields[0]);
+        Assert.Equal("1", fields[1]); // turn
+        Assert.True(int.Parse(fields[2]) >= 0); // response_time_ms
+        Assert.True(int.Parse(fields[3]) > 0); // request_size_bytes
+        Assert.Equal("buildFactory(iron-mine)", fields[4]);
+    }
+
+    [Fact]
+    public async Task TakeTurnAsync_WithoutMetricsLog_DoesNotThrow()
+    {
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+        var client = new ScriptedLlmClient("""{"kind":"nop"}""");
+        var bot = new LlmBot(teamId, "persona", client);
+
+        var result = await bot.TakeTurnAsync(session, new BotDecisionLog());
+
+        Assert.Equal(LlmBotTurnOutcome.Nop, result.Outcome);
+    }
+
+    [Fact]
     public async Task TakeTurnAsync_RecordsOutcomeAndAnnotationInHistory()
     {
         var (session, teamId) = TestSession.StartSingleTeamSession();

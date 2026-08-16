@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Text;
 using Game.Engine;
 
 namespace Game.Bots.Llm;
@@ -47,8 +49,14 @@ public sealed class LlmBot
     /// <summary>
     /// Собирает промпты по текущему состоянию <paramref name="session"/>, прогоняет цикл
     /// execute→validate→retry и запоминает итог хода в собственной истории для будущих ходов.
+    /// <paramref name="metricsLog"/> необязателен (тесты и разовые прогоны без файла метрик его не
+    /// передают) — если задан, добавляет одну строку в <see cref="BotMetricsLog"/>: время ответа
+    /// покрывает весь ход целиком (включая все попытки ретрая внутри него, если они были), размер
+    /// запроса — байты первой (без текста ошибок) пары систем+user промпта этого хода, см.
+    /// doc-comment <see cref="BotMetricsLog"/>.
     /// </summary>
-    public async Task<LlmBotTurnResult> TakeTurnAsync(GameSession session, BotDecisionLog log, CancellationToken cancellationToken = default)
+    public async Task<LlmBotTurnResult> TakeTurnAsync(
+        GameSession session, BotDecisionLog log, BotMetricsLog? metricsLog = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(log);
@@ -59,9 +67,19 @@ public sealed class LlmBot
         var userPrompt = $"{stateSnapshot}\n{historySeries}\n{_history.Render()}";
         var turn = session.State.CurrentTurn;
 
+        var stopwatch = metricsLog is null ? null : Stopwatch.StartNew();
         var result = await _loop.RunTurnAsync(session, TeamId, systemPrompt, userPrompt, log, cancellationToken).ConfigureAwait(false);
+        stopwatch?.Stop();
 
-        _history.Add(new BotTurnHistoryEntry(turn, BotCommandSummary.Describe(result), result.Command?.Annotation));
+        var summary = BotCommandSummary.Describe(result);
+        _history.Add(new BotTurnHistoryEntry(turn, summary, result.Command?.Annotation));
+
+        if (metricsLog is not null)
+        {
+            var botLabel = session.State.Teams.TryGetValue(TeamId, out var team) ? team.Name : TeamId.ToString();
+            var requestSizeBytes = Encoding.UTF8.GetByteCount(systemPrompt) + Encoding.UTF8.GetByteCount(userPrompt);
+            metricsLog.Record(botLabel, turn, stopwatch!.Elapsed, requestSizeBytes, summary);
+        }
 
         return result;
     }
