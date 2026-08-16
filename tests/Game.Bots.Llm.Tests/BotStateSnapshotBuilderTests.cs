@@ -24,6 +24,22 @@ public sealed class BotStateSnapshotBuilderTests
     }
 
     [Fact]
+    public void Build_ListsBuildableFactoryTypesWithExactCatalogIds()
+    {
+        // Живой прогон 2026-08-16: без этой секции модель однажды придумала "IronMine" вместо
+        // настоящего "iron-mine" — доменная ошибка на первой попытке из-за нехватки данных, не из-за
+        // самой модели. Регресс на то, что точный id теперь есть в снапшоте.
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+
+        var snapshot = BotStateSnapshotBuilder.Build(session, teamId);
+
+        Assert.Contains("FACTORY TYPES IN YOUR SECTOR (A)", snapshot);
+        Assert.Contains("factoryDefinitionId=iron-mine", snapshot);
+        Assert.Contains("status=unlocked", snapshot);
+        Assert.DoesNotContain("oil-well", snapshot); // sector B, must not leak into sector A's list
+    }
+
+    [Fact]
     public void Build_AfterBuildingFactory_ListsItWithRealId()
     {
         var (session, teamId) = TestSession.StartSingleTeamSession();

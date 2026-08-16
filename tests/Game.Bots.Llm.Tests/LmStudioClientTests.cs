@@ -105,4 +105,42 @@ public sealed class LmStudioClientTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => client.CompleteAsync("s", "u"));
     }
+
+    [Fact]
+    public async Task CompleteAsync_EmptyContentWithReasoningContent_FallsBackToReasoningContent()
+    {
+        // Живой прогон 2026-08-16 с reasoning-моделью (qwen3.8-27b-mlx): LM Studio кладёт весь ответ
+        // в "reasoning_content", а "content" оставляет пустой строкой, даже при finish_reason "stop".
+        const string reasoningModelResponse = """
+            {
+              "choices": [
+                {
+                  "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "reasoning_content": "{\"kind\": \"buildFactory\", \"factoryDefinitionId\": \"iron-mine\"}"
+                  },
+                  "finish_reason": "stop"
+                }
+              ]
+            }
+            """;
+        var handler = new StubHttpMessageHandler(reasoningModelResponse);
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
+        var client = new LmStudioClient(httpClient, "qwen3.8-27b-mlx");
+
+        var content = await client.CompleteAsync("s", "u");
+
+        Assert.Equal("""{"kind": "buildFactory", "factoryDefinitionId": "iron-mine"}""", content);
+    }
+
+    [Fact]
+    public async Task CompleteAsync_BothContentAndReasoningContentEmpty_Throws()
+    {
+        var handler = new StubHttpMessageHandler("""{"choices":[{"message":{"content":"","reasoning_content":""}}]}""");
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
+        var client = new LmStudioClient(httpClient, "google/gemma-4-12b");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.CompleteAsync("s", "u"));
+    }
 }

@@ -16,7 +16,8 @@ public static class SystemPromptBuilder
             "nop — do nothing this turn.",
         [BotCommandKind.BuildFactory] =
             "buildFactory(factoryDefinitionId, recipeId?) — build a NEW factory of the given catalog type " +
-            "in your sector. recipeId is optional, defaults to the type's first recipe.",
+            "in your sector; copy factoryDefinitionId verbatim from the 'FACTORY TYPES IN YOUR SECTOR' " +
+            "list below, never guess or reformat it. recipeId is optional, defaults to the type's first recipe.",
         [BotCommandKind.SetWorkerCount] =
             "setWorkerCount(factoryId, count) — set the target worker count for one of your existing " +
             "factories; takes effect at the next settlement.",

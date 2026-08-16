@@ -15,6 +15,11 @@ namespace Game.Bots.Llm;
 /// умеет оставить нерелевантное поле пустым — вместо null подставляет правдоподобный мусор
 /// (придуманный <c>factoryId</c>, гигантские числа в <c>amount</c>/<c>count</c>), что бьёт по
 /// парсингу (переполнение <see langword="int"/>) чаще, чем просто отсутствие поля.
+/// Отдельно: с reasoning-моделью (<c>qwen3.8-27b-mlx</c>, живая проверка 2026-08-16) LM Studio
+/// иногда кладёт весь ответ, включая наш JSON, в поле <c>reasoning_content</c> сообщения, а
+/// <c>content</c> оставляет пустым — даже при <c>finish_reason: "stop"</c> (не обрезка по лимиту
+/// токенов, так отработал шаблон чата модели). См. <see cref="ExtractMessageContent"/> — откат на
+/// <c>reasoning_content</c>, когда <c>content</c> пуст.
 /// </summary>
 public sealed class LmStudioClient : ILlmClient
 {
@@ -95,11 +100,25 @@ public sealed class LmStudioClient : ILlmClient
         }
 
         var message = choices[0].GetProperty("message");
-        if (!message.TryGetProperty("content", out var contentElement) || contentElement.ValueKind != JsonValueKind.String)
+        if (message.TryGetProperty("content", out var contentElement) &&
+            contentElement.ValueKind == JsonValueKind.String &&
+            contentElement.GetString() is { Length: > 0 } content)
         {
-            throw new InvalidOperationException($"LM Studio response message had no text content: {responseText}");
+            return content;
         }
 
-        return contentElement.GetString()!;
+        // Живой прогон 2026-08-16 с reasoning-моделью (qwen3.8-27b-mlx): она кладёт весь ответ,
+        // включая наш JSON, в "reasoning_content", а "content" оставляет пустой строкой — даже при
+        // finish_reason "stop" (не обрезка по токенам, так и задумано моделью/шаблоном чата LM
+        // Studio). "Классические" модели (gemma-4-12b) всегда заполняют "content" и не задевают эту
+        // ветку, так что откат безопасен для них.
+        if (message.TryGetProperty("reasoning_content", out var reasoningElement) &&
+            reasoningElement.ValueKind == JsonValueKind.String &&
+            reasoningElement.GetString() is { Length: > 0 } reasoning)
+        {
+            return reasoning;
+        }
+
+        throw new InvalidOperationException($"LM Studio response message had no text content: {responseText}");
     }
 }

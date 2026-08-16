@@ -32,6 +32,7 @@ public static class BotStateSnapshotBuilder
         AppendHeader(text, state);
         AppendTeamFinancials(text, state, team);
         AppendFactories(text, state, team);
+        AppendBuildableFactoryTypes(text, state, team);
         AppendWarehouse(text, team);
         AppendMarket(text, state, team.Sector);
         AppendContracts(text, state, teamId);
@@ -77,6 +78,42 @@ public static class BotStateSnapshotBuilder
                 $"workers={factory.Workers}/{factory.DesiredWorkers} condition={Percent(factory.Condition)} " +
                 $"recipe={factory.SelectedRecipe.Id} rnd={Money(factory.RndCommitmentPerTurn)}/turn(max {Money(maxRnd)}) " +
                 $"status={status}");
+        }
+    }
+
+    /// <summary>
+    /// Каталог типов фабрик сектора команды с точными <c>factoryDefinitionId</c> для
+    /// <see cref="BotCommandKind.BuildFactory"/> — без этой секции модель может лишь угадывать id по
+    /// единственному примеру в системном промпте (живая проверка 2026-08-16: reasoning-модель
+    /// однажды придумала "IronMine" вместо настоящего "iron-mine" — доменная ошибка, ретрай отработал
+    /// штатно, но команда не выполнилась с первой попытки просто из-за нехватки этих данных).
+    /// </summary>
+    private static void AppendBuildableFactoryTypes(StringBuilder text, GameSessionState state, Team team)
+    {
+        text.AppendLine();
+        text.AppendLine($"FACTORY TYPES IN YOUR SECTOR ({team.Sector.Id}) — exact factoryDefinitionId to use with buildFactory");
+
+        var definitions = state.Config.FactoryDefinitions
+            .Where(definition => definition.Sector == team.Sector)
+            .OrderBy(definition => definition.Id, StringComparer.Ordinal)
+            .ToList();
+
+        if (definitions.Count == 0)
+        {
+            text.AppendLine("(none)");
+            return;
+        }
+
+        foreach (var definition in definitions)
+        {
+            var generation = definition.Recipes[0].Output.Level;
+            var unlocked = generation <= team.UnlockedGeneration;
+            var buildCost = state.Config.Raw.FactoryDefinitions.First(f => f.Id == definition.Id).BuildCost;
+            var recipeIds = string.Join(", ", definition.Recipes.Select(recipe => recipe.Id));
+            var status = unlocked ? "unlocked" : $"locked, needs generation {generation}";
+
+            text.AppendLine($"- factoryDefinitionId={definition.Id} name={definition.Name} buildCost={Money(buildCost)} " +
+                $"recipes=[{recipeIds}] status={status}");
         }
     }
 
