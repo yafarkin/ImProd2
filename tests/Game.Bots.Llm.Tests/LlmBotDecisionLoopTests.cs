@@ -121,6 +121,46 @@ public sealed class LlmBotDecisionLoopTests
     }
 
     [Fact]
+    public async Task ClientException_TreatedAsRetryableErrorNotFatal()
+    {
+        // Живая проверка 2026-08-16 (реальный конфиг стадии 1): промпт перерос контекст-окно
+        // модели, LM Studio вернула HTTP 400 — LmStudioClient оборачивает это в
+        // InvalidOperationException. Раньше это падало необработанным исключением и обрушивало
+        // весь многочасовой прогон; теперь тратит попытку, как доменная ошибка.
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+        var client = new ScriptedLlmClient();
+        client.EnqueueException(new InvalidOperationException("LM Studio request failed with 400 Bad Request: context length exceeded"));
+        client.EnqueueException(new HttpRequestException("connection reset"));
+        client.EnqueueException(new InvalidOperationException("still failing"));
+        var log = new BotDecisionLog();
+        var loop = CreateLoop(client, maxAttempts: 3);
+
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+
+        Assert.Equal(LlmBotTurnOutcome.Exhausted, result.Outcome);
+        Assert.Equal(3, log.Entries.Count(e => e.Outcome.Contains("Client error")));
+    }
+
+    [Fact]
+    public async Task ClientException_ThenValidResponse_Recovers()
+    {
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+        var client = new ScriptedLlmClient();
+        client.EnqueueException(new InvalidOperationException("transient failure"));
+        client.EnqueueResponse("""{"kind":"buildFactory","factoryDefinitionId":"iron-mine"}""");
+        var log = new BotDecisionLog();
+        var loop = CreateLoop(client);
+
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+
+        Assert.Equal(LlmBotTurnOutcome.Success, result.Outcome);
+        Assert.Equal(2, result.Attempts);
+        Assert.Contains("Client error", log.Entries[0].Outcome);
+        Assert.Equal("Success", log.Entries[1].Outcome);
+        Assert.Single(session.State.Teams[teamId].Factories);
+    }
+
+    [Fact]
     public async Task Nop_KeepsCommandSoAnnotationSurvives()
     {
         // Живой прогон против LM Studio 2026-08-16 показал: без этого аннотация Nop-хода терялась

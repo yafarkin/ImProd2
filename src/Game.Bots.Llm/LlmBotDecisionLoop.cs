@@ -36,8 +36,11 @@ public sealed record LlmBotTurnResult(LlmBotTurnOutcome Outcome, int Attempts, B
 /// #20): вызывает <see cref="ILlmClient"/>, разбирает и исполняет ответ через
 /// <see cref="BotCommandExecutor"/>, при доменной ошибке или битом JSON добавляет текст ошибки к
 /// промпту и повторяет — с потолком попыток, чтобы один галлюцинированный ответ не подвесил весь
-/// прогон (риск №3 из обсуждения TODO #20). Промпт здесь — заглушка: настоящий снапшот состояния и
-/// свёртка истории под контекст-окно — отдельный, более поздний шаг плана (шаг 4).
+/// прогон (риск №3 из обсуждения TODO #20). Исключение из самого <see cref="ILlmClient"/> (сеть,
+/// HTTP-ошибка бэкенда, в том числе переполнение контекст-окна — живая проверка 2026-08-16) тоже не
+/// прерывает прогон, а тратит попытку: промпт при этом не растёт текстом ошибки, как при доменной —
+/// если причина в размере запроса, добавлять к нему нечего, кроме как всё-таки исчерпать попытки и
+/// сдать ход (см. <see cref="LlmBotTurnOutcome.Exhausted"/>), не всю сессию.
 /// </summary>
 public sealed class LlmBotDecisionLoop
 {
@@ -81,7 +84,22 @@ public sealed class LlmBotDecisionLoop
 
         for (var attempt = 1; attempt <= _maxAttempts; attempt++)
         {
-            var raw = await _client.CompleteAsync(systemPrompt, userPrompt, cancellationToken).ConfigureAwait(false);
+            string raw;
+            try
+            {
+                raw = await _client.CompleteAsync(systemPrompt, userPrompt, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Живая проверка 2026-08-16 (реальный конфиг стадии 1, промпт перерос контекст-окно
+                // модели): LM Studio вернула HTTP 400, и это обрушило весь многочасовой прогон —
+                // один ход одного бота не должен ронять всю сессию. Не удлиняем userPrompt текстом
+                // ошибки, как при доменной/парсинг-ошибке (тут ошибка не в содержимом ответа модели,
+                // добавлять к промпту нечего — если причина в размере запроса, это лишь усугубит).
+                log.Record(attempt, string.Empty, $"Client error: {ex.Message}");
+                continue;
+            }
+
             var (command, parseError) = TryParse(raw);
 
             if (parseError is not null)

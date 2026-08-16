@@ -40,6 +40,24 @@ public sealed class BotStateSnapshotBuilderTests
     }
 
     [Fact]
+    public void Build_FactoryTypesSection_StaysWithinGenerationPlusOneAndDoesNotDropInRangeTypes()
+    {
+        // Живой прогон на реальном конфиге стадии 1 (26 типов фабрик в одном секторе, 2026-08-16,
+        // см. TODO.md #20): без ограничения по поколению список всех типов переполнил контекст-окно
+        // модели через несколько ходов и обвалил прогон HTTP 400. Пилотный конфиг тут маленький
+        // (3 типа сектора А, поколения 0/1/2, все укладываются в unlockedGeneration(1)+1=2) — этот
+        // тест лишь подтверждает, что на маленьком каталоге ограничение ничего не откусывает.
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+
+        var snapshot = BotStateSnapshotBuilder.Build(session, teamId);
+
+        Assert.Contains("factoryDefinitionId=iron-mine", snapshot);
+        Assert.Contains("factoryDefinitionId=steel-mill", snapshot);
+        Assert.Contains("factoryDefinitionId=rolling-mill", snapshot);
+        Assert.DoesNotContain("more factory type", snapshot);
+    }
+
+    [Fact]
     public void Build_AfterBuildingFactory_ListsItWithRealId()
     {
         var (session, teamId) = TestSession.StartSingleTeamSession();

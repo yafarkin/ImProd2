@@ -87,16 +87,30 @@ public static class BotStateSnapshotBuilder
     /// единственному примеру в системном промпте (живая проверка 2026-08-16: reasoning-модель
     /// однажды придумала "IronMine" вместо настоящего "iron-mine" — доменная ошибка, ретрай отработал
     /// штатно, но команда не выполнилась с первой попытки просто из-за нехватки этих данных).
+    /// <para>
+    /// Ограничено поколением команды +1 (живая проверка на реальном конфиге стадии 1, 26 типов
+    /// фабрик в одном секторе, а не 5 как в тестовом пилотном конфиге, 2026-08-16): без этого
+    /// ограничения список всех типов сразу переполнил контекст-окно модели через несколько ходов
+    /// (HTTP 400 от LM Studio, обвалил весь прогон) — команда всё равно не может построить фабрику
+    /// поколения выше своего +1 (<see cref="Game.Engine.GameSession.BuildFactory"/> отклонит), так
+    /// что дальние поколения бесполезны в промпте прямо сейчас, покажутся, когда откроются.
+    /// </para>
     /// </summary>
     private static void AppendBuildableFactoryTypes(StringBuilder text, GameSessionState state, Team team)
     {
         text.AppendLine();
         text.AppendLine($"FACTORY TYPES IN YOUR SECTOR ({team.Sector.Id}) — exact factoryDefinitionId to use with buildFactory");
 
-        var definitions = state.Config.FactoryDefinitions
+        var allDefinitions = state.Config.FactoryDefinitions
             .Where(definition => definition.Sector == team.Sector)
             .OrderBy(definition => definition.Id, StringComparer.Ordinal)
             .ToList();
+
+        var visibleMaxGeneration = team.UnlockedGeneration + 1;
+        var definitions = allDefinitions
+            .Where(definition => definition.Recipes[0].Output.Level <= visibleMaxGeneration)
+            .ToList();
+        var hiddenCount = allDefinitions.Count - definitions.Count;
 
         if (definitions.Count == 0)
         {
@@ -114,6 +128,11 @@ public static class BotStateSnapshotBuilder
 
             text.AppendLine($"- factoryDefinitionId={definition.Id} name={definition.Name} buildCost={Money(buildCost)} " +
                 $"recipes=[{recipeIds}] status={status}");
+        }
+
+        if (hiddenCount > 0)
+        {
+            text.AppendLine($"(+{hiddenCount} more factory type(s) of generation {visibleMaxGeneration + 1}+, not shown — unlock generation {visibleMaxGeneration} first)");
         }
     }
 
