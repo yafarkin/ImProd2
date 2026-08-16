@@ -23,8 +23,15 @@ namespace Game.Bots.Llm;
 /// </summary>
 public sealed class LmStudioClient : ILlmClient
 {
-    /// <summary>Адрес LM Studio по умолчанию при локальном запуске.</summary>
-    public const string DefaultBaseUrl = "http://localhost:1234/v1/";
+    /// <summary>
+    /// Адрес LM Studio — из переменной окружения <c>LM_STUDIO_BASE_URL</c>, если задана (запрос
+    /// пользователя 2026-08-16: переключаться между ноутбуком и стационарным ПК в сети без правки
+    /// кода), иначе локальный запуск по умолчанию.
+    /// </summary>
+    public static string DefaultBaseUrl =>
+        Environment.GetEnvironmentVariable("LM_STUDIO_BASE_URL") is { Length: > 0 } fromEnv
+            ? fromEnv
+            : "http://localhost:1234/v1/";
 
     private readonly HttpClient _httpClient;
     private readonly string _model;

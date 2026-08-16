@@ -41,9 +41,16 @@ public static class BotStateSnapshotBuilder
         return text.ToString();
     }
 
+    /// <summary>
+    /// Сознательно не показывает <see cref="GameSessionState.EndTurn"/> (запрос пользователя
+    /// 2026-08-16, проверено по коду UI): реальный игрок на <c>/team</c> видит только «Ход N, фаза
+    /// X» (<c>Team.razor</c>) — ни точный ход окончания, ни даже диапазон пресета нигде не
+    /// показываются, конкретный `EndTurn` разыгрывается один раз при старте и остаётся тайной от
+    /// команд намеренно (SPEC). Бот не должен знать больше, чем настоящий игрок за тем же столом.
+    /// </summary>
     private static void AppendHeader(StringBuilder text, GameSessionState state)
     {
-        text.AppendLine($"=== Turn {state.CurrentTurn} of {state.EndTurn}, phase {state.CurrentPhase} ===");
+        text.AppendLine($"=== Turn {state.CurrentTurn}, phase {state.CurrentPhase} ===");
     }
 
     private static void AppendTeamFinancials(StringBuilder text, GameSessionState state, Team team)

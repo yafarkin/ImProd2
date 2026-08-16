@@ -10,7 +10,8 @@ public sealed class BotStateSnapshotBuilderTests
 
         var snapshot = BotStateSnapshotBuilder.Build(session, teamId);
 
-        Assert.Contains("=== Turn 1 of 20, phase Decision ===", snapshot);
+        Assert.Contains("=== Turn 1, phase Decision ===", snapshot);
+        Assert.DoesNotContain("of 20", snapshot); // EndTurn must not leak — real players never see it (Team.razor)
         Assert.Contains("YOUR TEAM (sector A)", snapshot);
         Assert.Contains("YOUR FACTORIES", snapshot);
         Assert.Contains("(none yet)", snapshot);

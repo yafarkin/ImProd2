@@ -76,7 +76,9 @@ public static class SystemPromptBuilder
             - "factoryId" is the exact id of a factory YOU ALREADY OWN, copied verbatim from the state
               below — never a catalog type name, never invented.
             - Use "annotation" to leave yourself a short note about why you made this decision — you will
-              see it again on a future turn to understand your own past reasoning.
+              see it again on a future turn to understand your own past reasoning. Keep it SHORT: under
+              12 words, one clause, no explanations — it accumulates into every future turn's prompt, so
+              verbose annotations make the game slower and more expensive turn after turn.
             - If you have nothing useful to do this turn, respond with kind="nop".
 
             AVAILABLE COMMANDS
