@@ -28,15 +28,53 @@ public static class BotCommandSchema
             ["properties"] = new JsonObject
             {
                 ["kind"] = new JsonObject { ["type"] = "string", ["enum"] = kindEnum },
-                ["factoryDefinitionId"] = new JsonObject { ["type"] = new JsonArray("string", "null") },
-                ["factoryId"] = new JsonObject { ["type"] = new JsonArray("string", "null") },
-                ["recipeId"] = new JsonObject { ["type"] = new JsonArray("string", "null") },
-                ["amount"] = new JsonObject { ["type"] = new JsonArray("number", "null") },
-                ["count"] = new JsonObject { ["type"] = new JsonArray("integer", "null") },
-                ["materialId"] = new JsonObject { ["type"] = new JsonArray("string", "null") },
-                ["volume"] = new JsonObject { ["type"] = new JsonArray("number", "null") },
-                ["enabled"] = new JsonObject { ["type"] = new JsonArray("boolean", "null") },
-                ["annotation"] = new JsonObject { ["type"] = new JsonArray("string", "null") },
+                ["factoryDefinitionId"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("string", "null"),
+                    ["description"] = "Catalog id of a factory TYPE to build, e.g. 'iron-mine'. Only for kind=buildFactory.",
+                },
+                ["factoryId"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("string", "null"),
+                    ["description"] =
+                        "Id (ULID) of a factory this team ALREADY OWNS, taken from the state you were given — " +
+                        "never a catalog type name. Not used with kind=buildFactory.",
+                },
+                ["recipeId"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("string", "null"),
+                    ["description"] = "Catalog id of a recipe. Optional for kind=buildFactory, required for kind=selectRecipe.",
+                },
+                ["amount"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("number", "null"),
+                    ["description"] = "Money amount, for kind=takeLoan/repayLoan/setRndCommitment/setGenerationResearchCommitment.",
+                },
+                ["count"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("integer", "null"),
+                    ["description"] = "Number of workers, for kind=setWorkerCount.",
+                },
+                ["materialId"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("string", "null"),
+                    ["description"] = "Catalog id of a material, for kind=sellToSystem.",
+                },
+                ["volume"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("number", "null"),
+                    ["description"] = "Volume of material, for kind=sellToSystem.",
+                },
+                ["enabled"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("boolean", "null"),
+                    ["description"] = "Whether to request an overhaul, for kind=setOverhaulRequested.",
+                },
+                ["annotation"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("string", "null"),
+                    ["description"] = "Free-text note you leave for yourself, to understand this decision on a future turn.",
+                },
             },
         };
     }
