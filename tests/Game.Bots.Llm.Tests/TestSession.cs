@@ -10,7 +10,7 @@ internal static class TestSession
     private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
 
     /// <summary>Одна команда в секторе А, достаточно долгая сессия, чтобы фаза решений точно была открыта.</summary>
-    public static (GameSession Session, Ulid TeamId) StartSingleTeamSession()
+    public static (GameSession Session, Ulid TeamId) StartSingleTeamSession(int endTurn = 20)
     {
         var config = GameConfigLoader.LoadFromFile(ConfigPath);
         var teamId = Ulid.NewUlid();
@@ -19,7 +19,7 @@ internal static class TestSession
             new() { Id = teamId, Name = "Команда", SectorId = "A" },
         };
 
-        var session = GameSession.StartWithEndTurn(config, "short", 20, teams);
+        var session = GameSession.StartWithEndTurn(config, "short", endTurn, teams);
         // Сессия открывается в фазе расчёта (Settlement, см. SessionStarted) — решения команд
         // допустимы только в Decision, продвигаем один раз, как и обычный ход игры.
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
