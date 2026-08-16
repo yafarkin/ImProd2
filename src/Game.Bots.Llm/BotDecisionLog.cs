@@ -3,14 +3,17 @@ using System.Text.Json;
 namespace Game.Bots.Llm;
 
 /// <summary>
-/// Одна запись в <see cref="BotDecisionLog"/> — одна попытка модели ответить за один ход одного
-/// бота. <see cref="UserPrompt"/> — именно тот текст, что был отправлен на этой попытке (при
-/// ретрае в него уже дописан текст предыдущей ошибки), не заглушка и не хэш — запрос пользователя
+/// Одна запись в <see cref="BotDecisionLog"/> — одна попытка модели ответить на одно действие
+/// внутри одного хода одного бота (ход теперь может содержать несколько действий подряд, запрос
+/// пользователя 2026-08-16 — «важно уметь несколько команд за один ход»; <see cref="ActionIndex"/>
+/// — номер действия в ходе, <see cref="Attempt"/> — номер попытки ретрая внутри этого действия).
+/// <see cref="UserPrompt"/> — именно тот текст, что был отправлен на этой попытке (при ретрае в
+/// него уже дописан текст предыдущей ошибки), не заглушка и не хэш — запрос пользователя
 /// 2026-08-16: «лог запросов/ответов, включая конечно последний», чтобы упавший прогон можно было
 /// понять по одному файлу, а не переспрашивать «а что вообще отправляли».
 /// </summary>
 public sealed record BotDecisionLogEntry(
-    string BotLabel, int Turn, int Attempt, string UserPrompt, string RawResponse, string Outcome, DateTimeOffset Timestamp);
+    string BotLabel, int Turn, int ActionIndex, int Attempt, string UserPrompt, string RawResponse, string Outcome, DateTimeOffset Timestamp);
 
 /// <summary>
 /// Сырые запросы и ответы модели, попытка за попыткой, — отдельно от доменного
@@ -55,10 +58,10 @@ public sealed class BotDecisionLog : IDisposable
     /// <summary>Все записи в порядке добавления (в памяти — доступны и при файловом режиме, для тестов и промежуточных отчётов).</summary>
     public IReadOnlyList<BotDecisionLogEntry> Entries => _entries;
 
-    /// <summary>Добавляет запись об одной попытке одного бота на одном ходу.</summary>
-    public void Record(string botLabel, int turn, int attempt, string userPrompt, string rawResponse, string outcome)
+    /// <summary>Добавляет запись об одной попытке одного действия внутри одного хода одного бота.</summary>
+    public void Record(string botLabel, int turn, int actionIndex, int attempt, string userPrompt, string rawResponse, string outcome)
     {
-        var entry = new BotDecisionLogEntry(botLabel, turn, attempt, userPrompt, rawResponse, outcome, _clock());
+        var entry = new BotDecisionLogEntry(botLabel, turn, actionIndex, attempt, userPrompt, rawResponse, outcome, _clock());
         _entries.Add(entry);
         _writer?.WriteLine(JsonSerializer.Serialize(entry));
     }

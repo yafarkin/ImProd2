@@ -27,7 +27,7 @@ namespace Game.Bots.Llm;
 /// </summary>
 public sealed class BotMetricsLog : IDisposable
 {
-    private const string Header = "bot,turn,response_time_ms,request_size_bytes,command,balance,debt,net_worth,factory_count";
+    private const string Header = "bot,turn,action_index,response_time_ms,request_size_bytes,command,balance,debt,net_worth,factory_count";
 
     private readonly TextWriter _writer;
     private readonly bool _ownsWriter;
@@ -72,9 +72,9 @@ public sealed class BotMetricsLog : IDisposable
         return new BotMetricsLog(stream, ownsWriter: true);
     }
 
-    /// <summary>Добавляет одну строку — один реальный ход одного бота.</summary>
+    /// <summary>Добавляет одну строку — одно реальное действие в одном ходу одного бота (ход может состоять из нескольких действий подряд, см. <see cref="LlmBot"/>).</summary>
     public void Record(
-        string botLabel, int turn, TimeSpan responseTime, int requestSizeBytes, string command,
+        string botLabel, int turn, int actionIndex, TimeSpan responseTime, int requestSizeBytes, string command,
         decimal balance, decimal debt, int factoryCount)
     {
         ArgumentNullException.ThrowIfNull(botLabel);
@@ -88,6 +88,7 @@ public sealed class BotMetricsLog : IDisposable
         {
             EscapeCsvField(botLabel),
             turn.ToString(CultureInfo.InvariantCulture),
+            actionIndex.ToString(CultureInfo.InvariantCulture),
             responseTime.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture),
             requestSizeBytes.ToString(CultureInfo.InvariantCulture),
             EscapeCsvField(command),

@@ -16,6 +16,7 @@ internal sealed record RunSettings(
     int TimeoutMinutes,
     int MaxAttempts,
     int MaxConsecutiveFailures,
+    int MaxActionsPerTurn,
     double Temperature,
     int MaxTokens,
     string MetricsPath,
@@ -40,6 +41,10 @@ internal sealed record RunSettings(
             // весь прогон из-за временных проблем у одного бота; это по-прежнему страховка на случай
             // настоящей поломки (например, сервер лёг), не бесконечное ожидание.
             MaxConsecutiveFailures: GetInt("LLM_BOT_MAX_CONSECUTIVE_FAILURES", 8),
+            // Страховка на случай, если модель не научится сама вовремя говорить nop (запрос
+            // пользователя 2026-08-16: "надо убедиться, что модель умеет останавливаться") — не то,
+            // чем должен управляться нормальный ход.
+            MaxActionsPerTurn: GetInt("LLM_BOT_MAX_ACTIONS_PER_TURN", 8),
             Temperature: GetDouble("LLM_BOT_TEMPERATURE", 0.4),
             MaxTokens: GetInt("LLM_BOT_MAX_TOKENS", 3000),
             MetricsPath: GetString("LLM_BOT_METRICS_PATH", Path.Combine(AppContext.BaseDirectory, $"metrics-{timestamp}.csv")),

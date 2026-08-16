@@ -63,9 +63,12 @@ public sealed class LlmBotDecisionLoop
     }
 
     /// <summary>
-    /// Прогоняет цикл на один ход одной команды. Каждый запрос к <see cref="ILlmClient"/> —
-    /// самостоятельный, без накопленного контекста (решение пользователя: не вести переписку) — на
-    /// повторной попытке к <paramref name="initialUserPrompt"/> дописывается текст последней ошибки.
+    /// Прогоняет цикл на одно действие одного хода одной команды (ход теперь может состоять из
+    /// нескольких действий подряд, см. <see cref="LlmBot"/>; <paramref name="actionIndex"/> — номер
+    /// этого действия в ходе, только для тегов в <see cref="BotDecisionLog"/>, на саму логику цикла
+    /// не влияет). Каждый запрос к <see cref="ILlmClient"/> — самостоятельный, без накопленного
+    /// контекста (решение пользователя: не вести переписку) — на повторной попытке к
+    /// <paramref name="initialUserPrompt"/> дописывается текст последней ошибки.
     /// </summary>
     public async Task<LlmBotTurnResult> RunTurnAsync(
         GameSession session,
@@ -73,6 +76,7 @@ public sealed class LlmBotDecisionLoop
         string systemPrompt,
         string initialUserPrompt,
         BotDecisionLog log,
+        int actionIndex,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
@@ -98,7 +102,7 @@ public sealed class LlmBotDecisionLoop
                 // один ход одного бота не должен ронять всю сессию. Не удлиняем userPrompt текстом
                 // ошибки, как при доменной/парсинг-ошибке (тут ошибка не в содержимом ответа модели,
                 // добавлять к промпту нечего — если причина в размере запроса, это лишь усугубит).
-                log.Record(botLabel, turn, attempt, userPrompt, string.Empty, $"Client error: {ex.Message}");
+                log.Record(botLabel, turn, actionIndex, attempt, userPrompt, string.Empty, $"Client error: {ex.Message}");
                 continue;
             }
 
@@ -106,30 +110,30 @@ public sealed class LlmBotDecisionLoop
 
             if (parseError is not null)
             {
-                log.Record(botLabel, turn, attempt, userPrompt, raw, $"Parse error: {parseError}");
+                log.Record(botLabel, turn, actionIndex, attempt, userPrompt, raw, $"Parse error: {parseError}");
                 userPrompt = WithError(initialUserPrompt, parseError);
                 continue;
             }
 
             if (command!.Kind == BotCommandKind.Nop)
             {
-                log.Record(botLabel, turn, attempt, userPrompt, raw, "Nop");
+                log.Record(botLabel, turn, actionIndex, attempt, userPrompt, raw, "Nop");
                 return LlmBotTurnResult.ForNop(attempt, command);
             }
 
             var result = _executor.Execute(command, session, teamId);
             if (result is BotCommandExecutionResult.DomainError error)
             {
-                log.Record(botLabel, turn, attempt, userPrompt, raw, $"Domain error: {error.Message}");
+                log.Record(botLabel, turn, actionIndex, attempt, userPrompt, raw, $"Domain error: {error.Message}");
                 userPrompt = WithError(initialUserPrompt, error.Message);
                 continue;
             }
 
-            log.Record(botLabel, turn, attempt, userPrompt, raw, "Success");
+            log.Record(botLabel, turn, actionIndex, attempt, userPrompt, raw, "Success");
             return LlmBotTurnResult.ForSuccess(attempt, command);
         }
 
-        log.Record(botLabel, turn, _maxAttempts, userPrompt, string.Empty, "Exhausted");
+        log.Record(botLabel, turn, actionIndex, _maxAttempts, userPrompt, string.Empty, "Exhausted");
         return LlmBotTurnResult.ForExhausted(_maxAttempts);
     }
 

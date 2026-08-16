@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Game.Engine;
 
 namespace Game.Bots.Llm;
@@ -33,14 +32,15 @@ public static class LlmBotSessionRunner
     /// <paramref name="maxConsecutiveExhaustedTurns"/> — запрос пользователя 2026-08-16 (живой
     /// прогон стадии 1 честно доехал до конца 12-ходовой сессии, из которых 9 ходов подряд бот не
     /// смог получить ни одного валидного ответа — «нет смысла гнать ходы до конца», если бот явно
-    /// застрял): если ОДИН бот подряд столько раз исчерпал попытки хода
-    /// (<see cref="LlmBotTurnOutcome.Exhausted"/>), прогон останавливается сразу, не дожидаясь конца
-    /// сессии — дальнейшие ходы тем же бэкендом/промптом почти наверняка так же бесполезны.
-    /// <paramref name="onStatusLine"/> — необязательный построчный лог «что происходит прямо сейчас»
-    /// (запрос пользователя 2026-08-16, для автономного многочасового прогона без консоли под рукой):
-    /// одна строка перед отправкой запроса к LLM для конкретного бота и одна — сразу после ответа, с
-    /// итогом и затраченным временем. Без метки времени — её добавляет вызывающая сторона (см.
-    /// консольный раннер), чтобы не дублировать её на каждой строке из разных источников.
+    /// застрял): если ОДИН бот подряд столько раз получил <see cref="LlmBotTurnReport.IsFullyFailedTurn"/>
+    /// (ни одного валидного действия за весь ход, не просто ретрай внутри него), прогон
+    /// останавливается сразу, не дожидаясь конца сессии — дальнейшие ходы тем же бэкендом/промптом
+    /// почти наверняка так же бесполезны. <paramref name="onStatusLine"/> — необязательный
+    /// построчный лог «что происходит прямо сейчас» (запрос пользователя 2026-08-16, для
+    /// автономного многочасового прогона без консоли под рукой) — передаётся напрямую в
+    /// <see cref="LlmBot.TakeTurnAsync"/>, который сам печатает по паре строк на каждое действие
+    /// внутри хода (ход теперь может состоять из нескольких). Без метки времени — её добавляет
+    /// вызывающая сторона (см. консольный раннер), чтобы не дублировать её на каждой строке.
     /// </summary>
     public static async Task<LlmBotSessionRunResult> RunToCompletionAsync(
         GameSession session,
@@ -77,19 +77,9 @@ public static class LlmBotSessionRunner
                 case TurnPhase.Decision:
                     foreach (var bot in bots)
                     {
-                        var botLabel = session.State.Teams.TryGetValue(bot.TeamId, out var team) ? team.Name : bot.TeamId.ToString();
-                        var turnNumber = session.State.CurrentTurn;
-                        onStatusLine?.Invoke($"{botLabel}: ход {turnNumber} — запрос к LLM...");
+                        var report = await bot.TakeTurnAsync(session, log, metricsLog, onStatusLine, cancellationToken).ConfigureAwait(false);
 
-                        var stopwatch = Stopwatch.StartNew();
-                        var result = await bot.TakeTurnAsync(session, log, metricsLog, cancellationToken).ConfigureAwait(false);
-                        stopwatch.Stop();
-
-                        onStatusLine?.Invoke(
-                            $"{botLabel}: ход {turnNumber} — {result.Outcome} за {stopwatch.Elapsed:mm\\:ss} — " +
-                            $"{BotCommandSummary.Describe(result)}");
-
-                        if (result.Outcome != LlmBotTurnOutcome.Exhausted)
+                        if (!report.IsFullyFailedTurn)
                         {
                             consecutiveExhaustedByTeam[bot.TeamId] = 0;
                             continue;

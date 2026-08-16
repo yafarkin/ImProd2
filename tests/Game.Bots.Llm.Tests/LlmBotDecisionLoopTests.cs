@@ -18,7 +18,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log, 1);
 
         Assert.Equal(LlmBotTurnOutcome.Success, result.Outcome);
         Assert.Equal(1, result.Attempts);
@@ -49,7 +49,7 @@ public sealed class LlmBotDecisionLoopTests
             using (var log = BotDecisionLog.CreateFile(path))
             {
                 var loop = CreateLoop(client);
-                await loop.RunTurnAsync(session, teamId, "system", "user", log);
+                await loop.RunTurnAsync(session, teamId, "system", "user", log, 1);
 
                 // Ещё до Dispose — файл уже должен содержать обе попытки.
                 var linesWhileOpen = File.ReadAllLines(path);
@@ -74,7 +74,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log, 1);
 
         Assert.Equal(LlmBotTurnOutcome.Success, result.Outcome);
         Assert.Equal(2, result.Attempts);
@@ -99,7 +99,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client, maxAttempts: 3);
 
-        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log, 1);
 
         Assert.Equal(LlmBotTurnOutcome.Exhausted, result.Outcome);
         Assert.Equal(3, result.Attempts);
@@ -120,7 +120,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log, 1);
 
         Assert.Equal(LlmBotTurnOutcome.Nop, result.Outcome);
         Assert.Equal(2, result.Attempts);
@@ -135,7 +135,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log, 1);
 
         Assert.Equal(LlmBotTurnOutcome.Nop, result.Outcome);
         Assert.Contains("Parse error", log.Entries[0].Outcome);
@@ -149,7 +149,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log, 1);
 
         Assert.Equal(LlmBotTurnOutcome.Nop, result.Outcome);
         Assert.Equal(1, result.Attempts);
@@ -172,7 +172,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client, maxAttempts: 3);
 
-        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log, 1);
 
         Assert.Equal(LlmBotTurnOutcome.Exhausted, result.Outcome);
         Assert.Equal(3, log.Entries.Count(e => e.Outcome.Contains("Client error")));
@@ -188,7 +188,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log, 1);
 
         Assert.Equal(LlmBotTurnOutcome.Success, result.Outcome);
         Assert.Equal(2, result.Attempts);
@@ -208,7 +208,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log);
+        var result = await loop.RunTurnAsync(session, teamId, "system", "user", log, 1);
 
         Assert.Equal(LlmBotTurnOutcome.Nop, result.Outcome);
         Assert.NotNull(result.Command);

@@ -1,16 +1,25 @@
 namespace Game.Bots.Llm;
 
-/// <summary>Одна запись в <see cref="BotTurnHistory"/> — что бот решил на одном ходу и почему, его собственными словами.</summary>
-public sealed record BotTurnHistoryEntry(int Turn, string Summary, string? Annotation);
+/// <summary>Одно действие, которое бот предпринял (или не предпринял) на одном ходу.</summary>
+public sealed record BotTurnActionRecord(string Summary, string? Annotation);
+
+/// <summary>
+/// Одна запись в <see cref="BotTurnHistory"/> — все действия, которые бот предпринял на одном ходу,
+/// по порядку (ход может состоять из нескольких действий подряд, запрос пользователя 2026-08-16 —
+/// «важно уметь несколько команд за один ход»; всегда хотя бы одно — либо реальные действия, либо
+/// одинокий <c>nop</c>).
+/// </summary>
+public sealed record BotTurnHistoryEntry(int Turn, IReadOnlyList<BotTurnActionRecord> Actions);
 
 /// <summary>
 /// Собственная история решений LLM-бота поперёк ходов — то самое, что пользователь описал в первом
 /// обсуждении идеи: короткие записи вида «build fab #0; set worker count fab #0 = 20» плюс
 /// аннотация, которую модель сама себе оставляет, чтобы понимать прошлые решения на будущих ходах.
-/// В отличие от <see cref="BotDecisionLog"/> (тот — попытки внутри одного хода, включая ошибки
-/// парсинга/валидации) — здесь только итог хода, одна запись на ход. Хранит скользящее окно
-/// последних <c>window</c> ходов — полная свёртка экономической истории сессии под контекст-окно
-/// (риск №1 из обсуждения TODO #20) сюда не входит, это отдельная, всё ещё не решённая часть шага 4.
+/// В отличие от <see cref="BotDecisionLog"/> (тот — попытки внутри одного действия, включая ошибки
+/// парсинга/валидации) — здесь только итог хода целиком, одна запись на ход (но с несколькими
+/// действиями внутри). Хранит скользящее окно последних <c>window</c> ходов — полная свёртка
+/// экономической истории сессии под контекст-окно (риск №1 из обсуждения TODO #20) сюда не входит,
+/// это отдельная, всё ещё не решённая часть шага 4.
 /// </summary>
 public sealed class BotTurnHistory
 {
@@ -42,7 +51,7 @@ public sealed class BotTurnHistory
         }
     }
 
-    /// <summary>Рендерит историю в текстовый блок для user-промпта.</summary>
+    /// <summary>Рендерит историю в текстовый блок для user-промпта — действия одного хода через «; ».</summary>
     public string Render()
     {
         if (_entries.Count == 0)
@@ -50,9 +59,13 @@ public sealed class BotTurnHistory
             return "YOUR PAST DECISIONS\n(none yet — this is your first turn)";
         }
 
-        var lines = _entries.Select(entry => entry.Annotation is null
-            ? $"- Turn {entry.Turn}: {entry.Summary}"
-            : $"- Turn {entry.Turn}: {entry.Summary} — {entry.Annotation}");
+        var lines = _entries.Select(entry =>
+        {
+            var actions = string.Join("; ", entry.Actions.Select(a => a.Annotation is null
+                ? a.Summary
+                : $"{a.Summary} — {a.Annotation}"));
+            return $"- Turn {entry.Turn}: {actions}";
+        });
 
         return $"YOUR PAST DECISIONS (most recent {_entries.Count})\n" + string.Join('\n', lines);
     }

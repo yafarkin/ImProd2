@@ -13,7 +13,7 @@ public static class SystemPromptBuilder
     private static readonly IReadOnlyDictionary<BotCommandKind, string> CommandDescriptions = new Dictionary<BotCommandKind, string>
     {
         [BotCommandKind.Nop] =
-            "nop — do nothing this turn.",
+            "nop — you are done deciding actions for this turn (or genuinely have nothing to do); ends your turn.",
         [BotCommandKind.BuildFactory] =
             "buildFactory(factoryDefinitionId, recipeId?) — build a NEW factory of the given catalog type " +
             "in your sector; copy factoryDefinitionId verbatim from the 'FACTORY TYPES IN YOUR SECTOR' " +
@@ -58,15 +58,26 @@ public static class SystemPromptBuilder
             current state and your own past decisions given below, then respond with exactly one JSON
             command matching the schema you were given.
 
+            MULTIPLE ACTIONS PER TURN
+            A real player can take many actions within one turn before it ends (build, hire, adjust R&D,
+            all in the same sitting) — you can too. Each response is still exactly one command, but you
+            will be called again within the same turn after every action: "THIS TURN" below lists what
+            you already decided so far this turn, and you choose the next one. Respond kind="nop" once
+            you are truly done deciding for this turn — that is what ends it and moves things to
+            settlement. There is a hard limit on actions per turn as a safety net, but you should stop on
+            your own via nop well before ever reaching it.
+
             YOUR OBJECTIVE
             Grow your team's net worth (balance minus debt) over the course of the session by building
             and staffing production capacity, investing in R&D and generation research, managing debt
             responsibly, and trading materials well. Doing nothing is rarely the right move, even with
             zero balance — a loan is how every team starts; "nop" is for when you have genuinely nothing
-            useful to do this turn, not a default when no one has told you what to do. If you find
+            useful left to do THIS TURN, not a default when no one has told you what to do. If you find
             yourself writing an annotation that says what you should do, output that action instead of
             "nop" — do not just describe the right move, make it. Concretely: on a turn where you have
-            zero factories, the correct move is almost always kind=takeLoan, not kind=nop.
+            zero factories, the correct first move is almost always kind=takeLoan, not kind=nop — and once
+            you have the loan, keep going in the SAME turn (e.g. follow it with kind=buildFactory) instead
+            of waiting for a future turn to use it.
 
             RULES
             - Respond with JSON only, matching the schema — no explanation outside the JSON object.

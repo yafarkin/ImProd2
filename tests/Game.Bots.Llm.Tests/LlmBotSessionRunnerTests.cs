@@ -90,8 +90,8 @@ public sealed class LlmBotSessionRunnerTests
             session, [bot], new Random(1), new BotDecisionLog(), onStatusLine: lines.Add);
 
         Assert.Equal(2, lines.Count);
-        Assert.Contains("Команда: ход 1 — запрос к LLM...", lines[0]);
-        Assert.Contains("Команда: ход 1 — Nop", lines[1]);
+        Assert.Contains("Команда: ход 1, действие 1 — запрос к LLM...", lines[0]);
+        Assert.Contains("Команда: ход 1, действие 1 — Nop", lines[1]);
         Assert.Contains("nop", lines[1]);
     }
 }

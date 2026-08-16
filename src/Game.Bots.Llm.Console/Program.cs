@@ -49,7 +49,8 @@ Log("=== LLM-боты, стадия 1 (один сектор), автономн�
 Log($"LM Studio: {LmStudioClient.DefaultBaseUrl}");
 Log($"Модель: {settings.Model}, температура: {settings.Temperature}, max_tokens: {settings.MaxTokens}");
 Log($"Ботов: {settings.BotCount}, ходов до конца сессии: {settings.Turns}");
-Log($"HTTP-таймаут запроса: {settings.TimeoutMinutes} мин, попыток на ход: {settings.MaxAttempts}, " +
+Log($"HTTP-таймаут запроса: {settings.TimeoutMinutes} мин, попыток на действие: {settings.MaxAttempts}, " +
+    $"потолок действий за ход: {settings.MaxActionsPerTurn}, " +
     $"остановка после {settings.MaxConsecutiveFailures} провалов подряд у одного бота");
 Log($"Лог на диске: {logPath}");
 Log($"Метрики: {settings.MetricsPath}");
@@ -125,7 +126,8 @@ try
     var llmClient = new LmStudioClient(httpClient, settings.Model, settings.Temperature, settings.MaxTokens, OnToken, OnStalled);
 
     var bots = teamIds
-        .Select((id, i) => new LlmBot(id, personas[i % personas.Length], llmClient, settings.MaxAttempts))
+        .Select((id, i) => new LlmBot(
+            id, personas[i % personas.Length], llmClient, settings.MaxAttempts, maxActionsPerTurn: settings.MaxActionsPerTurn))
         .ToList();
 
     // Файловый режим — каждая попытка (включая последнюю, пусть и неудачную) уходит на диск сразу
