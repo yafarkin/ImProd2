@@ -17,6 +17,7 @@ public sealed class LlmBotTests
 
         var userPrompt = client.ReceivedUserPrompts[0];
         Assert.Contains("YOUR TEAM (sector A)", userPrompt);
+        Assert.Contains("=== HISTORY (sampled turns: 1) ===", userPrompt);
         Assert.Contains("this is your first turn", userPrompt);
     }
 

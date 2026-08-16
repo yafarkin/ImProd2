@@ -25,4 +25,12 @@ internal static class TestSession
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
         return (session, teamId);
     }
+
+    /// <summary>Decision → Settlement → RunTick → Decision — тот же приём, что и <c>BotSessionRunner</c>, для тестов, которым нужна реальная история по нескольким ходам.</summary>
+    public static void SettleOneTurn(GameSession session, Random random)
+    {
+        session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
+        session.RunTick(random);
+        session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
+    }
 }

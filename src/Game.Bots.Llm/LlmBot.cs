@@ -5,16 +5,18 @@ namespace Game.Bots.Llm;
 /// <summary>
 /// Один LLM-бот, ведущий одну команду поперёк ходов (шаг 4 плана, docs/TODO.md #20) — собирает
 /// системный (<see cref="SystemPromptBuilder"/>) и пользовательский (<see cref="BotStateSnapshotBuilder"/>
-/// + собственная <see cref="BotTurnHistory"/>) промпты заново на каждый ход и прогоняет их через
-/// <see cref="LlmBotDecisionLoop"/>. Каждый вызов к <see cref="ILlmClient"/> внутри цикла — без
-/// накопленного контекста (решение пользователя), но сам <see cref="LlmBot"/> помнит итоги своих
-/// прошлых ходов между вызовами <see cref="TakeTurnAsync"/> — так модель на следующем ходу видит,
-/// что делала раньше и почему (собственные аннотации), не имея настоящей памяти между запросами.
+/// + <see cref="BotHistorySeriesBuilder"/> + собственная <see cref="BotTurnHistory"/>) промпты
+/// заново на каждый ход и прогоняет их через <see cref="LlmBotDecisionLoop"/>. Каждый вызов к
+/// <see cref="ILlmClient"/> внутри цикла — без накопленного контекста (решение пользователя), но
+/// сам <see cref="LlmBot"/> помнит итоги своих прошлых ходов между вызовами
+/// <see cref="TakeTurnAsync"/> — так модель на следующем ходу видит, что делала раньше и почему
+/// (собственные аннотации), не имея настоящей памяти между запросами.
 /// </summary>
 public sealed class LlmBot
 {
     private readonly LlmBotDecisionLoop _loop;
     private readonly BotTurnHistory _history;
+    private readonly int _historySampleInterval;
 
     /// <summary>Команда, которой управляет этот бот.</summary>
     public Ulid TeamId { get; }
@@ -22,7 +24,9 @@ public sealed class LlmBot
     /// <summary>Текст персоны (страх/жадность и любые другие устойчивые черты) — часть системного промпта на каждый ход.</summary>
     public string PersonaDescription { get; }
 
-    public LlmBot(Ulid teamId, string personaDescription, ILlmClient client, int maxAttempts = 3, int historyWindow = 10)
+    /// <summary><paramref name="historySampleInterval"/> — шаг разреженной экономической истории по ходам, см. <see cref="BotHistorySeriesBuilder"/>.</summary>
+    public LlmBot(
+        Ulid teamId, string personaDescription, ILlmClient client, int maxAttempts = 3, int historyWindow = 10, int historySampleInterval = 5)
     {
         ArgumentNullException.ThrowIfNull(client);
         if (string.IsNullOrWhiteSpace(personaDescription))
@@ -34,6 +38,7 @@ public sealed class LlmBot
         PersonaDescription = personaDescription;
         _loop = new LlmBotDecisionLoop(client, new BotCommandExecutor(), maxAttempts);
         _history = new BotTurnHistory(historyWindow);
+        _historySampleInterval = historySampleInterval;
     }
 
     /// <summary>Итоги прошлых ходов этого бота, в пределах окна истории — самая старая запись первая.</summary>
@@ -50,7 +55,8 @@ public sealed class LlmBot
 
         var systemPrompt = SystemPromptBuilder.Build(PersonaDescription);
         var stateSnapshot = BotStateSnapshotBuilder.Build(session, TeamId);
-        var userPrompt = $"{stateSnapshot}\n\n{_history.Render()}";
+        var historySeries = BotHistorySeriesBuilder.Build(session, TeamId, _historySampleInterval);
+        var userPrompt = $"{stateSnapshot}\n{historySeries}\n{_history.Render()}";
         var turn = session.State.CurrentTurn;
 
         var result = await _loop.RunTurnAsync(session, TeamId, systemPrompt, userPrompt, log, cancellationToken).ConfigureAwait(false);
