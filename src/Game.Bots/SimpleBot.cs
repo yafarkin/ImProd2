@@ -241,7 +241,19 @@ public sealed class SimpleBot
     /// cref="_throttle"/> (см. <see cref="UpdateFinancialTrend"/>) уже упал до нуля — новая фабрика
     /// требует свежего капитала, а команда в этот момент как раз в бедственном положении: достройка
     /// просто откладывается до улучшения тренда, разблокированные типы никуда не денутся. Вызывать
-    /// каждый ход решений, идемпотентно (уже построенные типы пропускаются).
+    /// каждый ход решений, идемпотентно (уже построенные комбинации пропускаются).
+    /// <para>
+    /// Единица достройки — не <see cref="FactoryDefinition"/>, а пара (тип, рецепт) (запрос
+    /// пользователя, TODO.md #20, 2026-08-17: «научим бот строить все варианты фабрик с каждым
+    /// рецептом — смысл тот же, как все фабрики построить»): для типа с несколькими рецептами
+    /// строится ОТДЕЛЬНАЯ фабрика на каждый рецепт (тот же принцип «построить всё разблокированное»,
+    /// применённый не только к типам, но и к рецептам внутри типа), а не одна с рецептом по
+    /// умолчанию (<c>Recipes[0]</c>, как было раньше — единственная причина, по которой ни один
+    /// формульный бот раньше не вызывал <see cref="GameSession.SelectRecipe"/>, см.
+    /// <c>docs/production-staging.md</c>, «Стадия 4»). Разблокировка проверяется ПО РЕЦЕПТУ
+    /// (<c>recipe.Output.Level</c>), не по <c>Recipes[0]</c> — у типа с рецептами разных уровней они
+    /// открываются независимо друг от друга.
+    /// </para>
     /// </summary>
     public void BuildNewlyUnlockedFactories(GameSession session)
     {
@@ -253,17 +265,20 @@ public sealed class SimpleBot
         }
 
         var team = session.State.Teams[TeamId];
-        var builtDefinitionIds = team.Factories.Select(f => f.Definition.Id).ToHashSet();
+        var builtCombinations = team.Factories.Select(f => (f.Definition.Id, f.SelectedRecipe.Id)).ToHashSet();
         var baseWorkerCount = session.State.Config.Raw.WorkerProductivity.BaseWorkerCount;
         foreach (var definition in _sectorFactories)
         {
-            if (builtDefinitionIds.Contains(definition.Id) || definition.Recipes[0].Output.Level > team.UnlockedGeneration)
+            foreach (var recipe in definition.Recipes)
             {
-                continue;
-            }
+                if (builtCombinations.Contains((definition.Id, recipe.Id)) || recipe.Output.Level > team.UnlockedGeneration)
+                {
+                    continue;
+                }
 
-            var built = (FactoryBuilt)session.BuildFactory(TeamId, definition.Id).Change;
-            session.SetWorkerCount(TeamId, built.FactoryId, baseWorkerCount);
+                var built = (FactoryBuilt)session.BuildFactory(TeamId, definition.Id, recipe.Id).Change;
+                session.SetWorkerCount(TeamId, built.FactoryId, baseWorkerCount);
+            }
         }
     }
 

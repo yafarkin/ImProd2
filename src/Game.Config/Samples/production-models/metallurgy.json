@@ -161,6 +161,18 @@
       "Name": "Автомобиль",
       "SectorId": "A",
       "Level": 9
+    },
+    {
+      "Id": "scrap-alloy",
+      "Name": "Легированный сплав из лома",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "carbon-briquette",
+      "Name": "Угольный брикет",
+      "SectorId": "A",
+      "Level": 1
     }
   ],
   "Recipes": [
@@ -491,6 +503,30 @@
         }
       ],
       "ProductionRate": 2
+    },
+    {
+      "Id": "scrap-alloy-from-scrap",
+      "OutputMaterialId": "scrap-alloy",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "scrap-metal",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 165
+    },
+    {
+      "Id": "coal-briquette-from-coal",
+      "OutputMaterialId": "carbon-briquette",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "coking-coal",
+          "Quantity": 1.5
+        }
+      ],
+      "ProductionRate": 682
     }
   ],
   "FactoryDefinitions": [
@@ -779,6 +815,18 @@
       "BuildCost": 25000,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 500
+    },
+    {
+      "Id": "flex-reprocessing-shop",
+      "Name": "Цех гибкой переработки (выбор рецепта)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "scrap-alloy-from-scrap",
+        "coal-briquette-from-coal"
+      ],
+      "BuildCost": 1000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 20
     }
   ],
   "BaseMarketPerMaterial": [
@@ -911,6 +959,16 @@
       "MaterialId": "automobile",
       "BasePrice": 4800,
       "BaseCapacity": 1
+    },
+    {
+      "MaterialId": "scrap-alloy",
+      "BasePrice": 4.4,
+      "BaseCapacity": 900
+    },
+    {
+      "MaterialId": "carbon-briquette",
+      "BasePrice": 3.3,
+      "BaseCapacity": 1400
     }
   ],
   "GenerationResearch": {

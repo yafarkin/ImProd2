@@ -160,23 +160,33 @@ public static class IdealHallCalculator
         branch.PreviousGeneration = branch.Team.UnlockedGeneration;
     }
 
+    /// <summary>
+    /// Единица достройки — пара (тип, рецепт), не сам тип (тот же принцип и то же обоснование, что и
+    /// у <see cref="SimpleBot.BuildNewlyUnlockedFactories"/>, тем же именем не просто совпадение —
+    /// оба должны сходиться в одном и том же выборе рецепта, иначе «идеальный зал» перестаёт быть
+    /// честной верхней границей для реального бота, запрос пользователя, TODO.md #20, 2026-08-17):
+    /// тип с несколькими рецептами даёт отдельную фабрику на каждый рецепт.
+    /// </summary>
     private static void BuildNewlyUnlockedFactories(BranchState branch, ResolvedGameConfig config, int turn)
     {
-        var builtDefinitionIds = branch.Team.Factories.Select(f => f.Definition.Id).ToHashSet();
+        var builtCombinations = branch.Team.Factories.Select(f => (f.Definition.Id, f.SelectedRecipe.Id)).ToHashSet();
         var baseWorkerCount = config.Raw.WorkerProductivity.BaseWorkerCount;
         foreach (var definition in branch.SectorFactories)
         {
-            if (builtDefinitionIds.Contains(definition.Id) || definition.Recipes[0].Output.Level > branch.Team.UnlockedGeneration)
+            foreach (var recipe in definition.Recipes)
             {
-                continue;
-            }
+                if (builtCombinations.Contains((definition.Id, recipe.Id)) || recipe.Output.Level > branch.Team.UnlockedGeneration)
+                {
+                    continue;
+                }
 
-            var buildCost = config.Raw.FactoryDefinitions.First(d => d.Id == definition.Id).BuildCost;
-            var factory = branch.Team.BuildFactory(Ulid.NewUlid(), definition, builtAtTurn: turn);
-            factory.Hire(baseWorkerCount);
-            branch.Cash -= buildCost;
-            branch.BuiltAtTurn[factory.Id] = turn;
-            branch.PreviousLevel[factory.Id] = 1;
+                var buildCost = config.Raw.FactoryDefinitions.First(d => d.Id == definition.Id).BuildCost;
+                var factory = branch.Team.BuildFactory(Ulid.NewUlid(), definition, recipe, builtAtTurn: turn);
+                factory.Hire(baseWorkerCount);
+                branch.Cash -= buildCost;
+                branch.BuiltAtTurn[factory.Id] = turn;
+                branch.PreviousLevel[factory.Id] = 1;
+            }
         }
     }
 
