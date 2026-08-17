@@ -125,7 +125,8 @@ try
     }
 
     var llmClient = new LmStudioClient(
-        httpClient, settings.Model, settings.Temperature, settings.MaxTokens, OnToken, OnStalled, settings.DisableThinking);
+        httpClient, settings.Model, settings.Temperature, settings.MaxTokens, OnToken, OnStalled, settings.DisableThinking,
+        settings.MaxActionsPerTurn);
 
     var bots = teamIds
         .Select((id, i) => new LlmBot(

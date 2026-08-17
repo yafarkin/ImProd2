@@ -65,6 +65,7 @@ public sealed class LmStudioClient : ILlmClient
     private readonly double _temperature;
     private readonly int _maxTokens;
     private readonly bool _disableThinking;
+    private readonly int _maxActionsPerTurn;
     private readonly Action<int>? _onToken;
     private readonly Action<TimeSpan>? _onStalled;
 
@@ -74,17 +75,29 @@ public sealed class LmStudioClient : ILlmClient
     /// <see cref="HttpClient"/>, чтобы вызывающая сторона управляла его временем жизни
     /// (<c>IHttpClientFactory</c> в реальном раннере, поддельный обработчик в тестах).
     /// <paramref name="disableThinking"/> — см. doc-comment класса (<c>chat_template_kwargs</c>).
+    /// <paramref name="maxActionsPerTurn"/> — попутно найденный баг (2026-08-17): схема
+    /// (<see cref="BotCommandSchema.BuildBatch"/>) раньше всегда строилась с умолчанием
+    /// (<c>maxItems: 10</c>) независимо от того, что реально принудительно обрезает
+    /// <see cref="LlmBotDecisionLoop"/> (по умолчанию был 5) — модель видела в схеме предложение до 10
+    /// действий, а получала обрезку после 5-го молча, без объяснения. Теперь оба числа — одно и то же
+    /// значение, приходящее сюда с той же настройкой, что и в <see cref="LlmBot"/>/
+    /// <see cref="LlmBotDecisionLoop"/>.
     /// <paramref name="onToken"/>/<paramref name="onStalled"/> — см. doc-comment класса; вызываются
     /// синхронно из потока чтения ответа, не должны блокировать надолго.
     /// </summary>
     public LmStudioClient(
         HttpClient httpClient, string model, double temperature = 0.2, int maxTokens = 500,
-        Action<int>? onToken = null, Action<TimeSpan>? onStalled = null, bool disableThinking = false)
+        Action<int>? onToken = null, Action<TimeSpan>? onStalled = null, bool disableThinking = false,
+        int maxActionsPerTurn = 10)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         if (string.IsNullOrWhiteSpace(model))
         {
             throw new ArgumentException("Model id must not be empty.", nameof(model));
+        }
+        if (maxActionsPerTurn < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxActionsPerTurn), maxActionsPerTurn, "Must allow at least one action per turn.");
         }
 
         _httpClient = httpClient;
@@ -92,6 +105,7 @@ public sealed class LmStudioClient : ILlmClient
         _temperature = temperature;
         _maxTokens = maxTokens;
         _disableThinking = disableThinking;
+        _maxActionsPerTurn = maxActionsPerTurn;
         _onToken = onToken;
         _onStalled = onStalled;
     }
@@ -226,7 +240,7 @@ public sealed class LmStudioClient : ILlmClient
                 {
                     ["name"] = "bot_command_batch",
                     ["strict"] = false,
-                    ["schema"] = BotCommandSchema.BuildBatch(),
+                    ["schema"] = BotCommandSchema.BuildBatch(_maxActionsPerTurn),
                 },
             },
         };

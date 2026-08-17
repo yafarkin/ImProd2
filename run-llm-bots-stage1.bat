@@ -36,10 +36,14 @@ set LLM_BOT_MAX_CONSECUTIVE_FAILURES=8
 
 rem One LLM call decides the whole turn as a batch of actions (build,
 rem hire, raise R&D, ...) - this caps how many actions can be in that
-rem one batch; anything beyond it is dropped. Lowered from 8 (2026-08-16
-rem live runs: weak/small models reliably filled this cap repeating the
-rem same wasteful action instead of stopping on their own).
-set LLM_BOT_MAX_ACTIONS_PER_TURN=5
+rem one batch; anything beyond it is dropped. Was lowered 8->5 on
+rem 2026-08-16 (weak/small models reliably filled the cap repeating the
+rem same wasteful action). Raised back 5->8 on 2026-08-17: the first
+rem full 90-turn batch-mode run showed the anti-repeat guards never
+rem triggering even once in 270 calls, while most turns (63 percent)
+rem hit the cap of 5 just from legitimate per-factory selling once bots had 10+
+rem factories - see docs/bot-runs/2026-08-16-stage1-qwen3.8-27b/ANALYSIS.md.
+set LLM_BOT_MAX_ACTIONS_PER_TURN=8
 
 set LLM_BOT_TEMPERATURE=0.4
 set LLM_BOT_MAX_TOKENS=3000

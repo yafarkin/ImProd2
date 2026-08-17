@@ -113,6 +113,26 @@ public sealed class LmStudioClientTests
         // Запрос пользователя 2026-08-16: один вызов LLM на весь ход — ответ содержит массив команд
         // ("actions"), а не одну команду, см. doc-comment BotCommandBatch.
         Assert.Equal("array", schema["properties"]!["actions"]!["type"]!.GetValue<string>());
+        // Умолчание конструктора (10) не передавалось явно здесь — schema["maxItems"] должно отражать
+        // именно его, не что-то захардкоженное отдельно в BuildBatch().
+        Assert.Equal(10, schema["properties"]!["actions"]!["maxItems"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task CompleteAsync_SchemaMaxItemsMatchesConfiguredMaxActionsPerTurn()
+    {
+        // Попутно найденный баг (2026-08-17): раньше схема всегда строилась с умолчанием BuildBatch()
+        // (maxItems: 10), даже если LlmBotDecisionLoop реально обрезает ответ по другому потолку —
+        // модель не знала настоящее ограничение. Теперь maxActionsPerTurn конструктора решает оба места.
+        var handler = new StubHttpMessageHandler(BuildSseBody(("ok", null)));
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri(LmStudioClient.DefaultBaseUrl) };
+        var client = new LmStudioClient(httpClient, "google/gemma-4-12b", maxActionsPerTurn: 4);
+
+        await client.CompleteAsync("be careful", "build a factory");
+
+        var body = JsonNode.Parse(handler.LastRequestBody!)!.AsObject();
+        var schema = body["response_format"]!["json_schema"]!["schema"]!.AsObject();
+        Assert.Equal(4, schema["properties"]!["actions"]!["maxItems"]!.GetValue<int>());
     }
 
     [Fact]
