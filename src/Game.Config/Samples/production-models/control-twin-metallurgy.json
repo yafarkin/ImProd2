@@ -167,6 +167,18 @@
       "Level": 9
     },
     {
+      "Id": "scrap-alloy",
+      "Name": "Легированный сплав из лома",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "carbon-briquette",
+      "Name": "Угольный брикет",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
       "Id": "iron-ore-2",
       "Name": "Железная руда (2)",
       "SectorId": "B",
@@ -321,6 +333,18 @@
       "Name": "Автомобиль (2)",
       "SectorId": "B",
       "Level": 9
+    },
+    {
+      "Id": "scrap-alloy-2",
+      "Name": "Легированный сплав из лома (2)",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "carbon-briquette-2",
+      "Name": "Угольный брикет (2)",
+      "SectorId": "B",
+      "Level": 1
     }
   ],
   "Recipes": [
@@ -665,6 +689,30 @@
       "ProductionRate": 2
     },
     {
+      "Id": "scrap-alloy-from-scrap",
+      "OutputMaterialId": "scrap-alloy",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "scrap-metal",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 165
+    },
+    {
+      "Id": "coal-briquette-from-coal",
+      "OutputMaterialId": "carbon-briquette",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "coking-coal",
+          "Quantity": 1.5
+        }
+      ],
+      "ProductionRate": 682
+    },
+    {
       "Id": "iron-ore-mining-2",
       "OutputMaterialId": "iron-ore-2",
       "OutputQuantity": 1,
@@ -1003,6 +1051,30 @@
         }
       ],
       "ProductionRate": 2
+    },
+    {
+      "Id": "scrap-alloy-from-scrap-2",
+      "OutputMaterialId": "scrap-alloy-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "scrap-metal-2",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 165
+    },
+    {
+      "Id": "coal-briquette-from-coal-2",
+      "OutputMaterialId": "carbon-briquette-2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "coking-coal-2",
+          "Quantity": 1.5
+        }
+      ],
+      "ProductionRate": 682
     }
   ],
   "FactoryDefinitions": [
@@ -1293,6 +1365,18 @@
       "FixedCostPerTurn": 500
     },
     {
+      "Id": "flex-reprocessing-shop",
+      "Name": "Цех гибкой переработки (выбор рецепта)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "scrap-alloy-from-scrap",
+        "coal-briquette-from-coal"
+      ],
+      "BuildCost": 1000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 20
+    },
+    {
       "Id": "iron-mine-2",
       "Name": "Рудник (железо) (2)",
       "SectorId": "B",
@@ -1577,6 +1661,18 @@
       "BuildCost": 25000,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 500
+    },
+    {
+      "Id": "flex-reprocessing-shop-2",
+      "Name": "Цех гибкой переработки (выбор рецепта) (2)",
+      "SectorId": "B",
+      "RecipeIds": [
+        "scrap-alloy-from-scrap-2",
+        "coal-briquette-from-coal-2"
+      ],
+      "BuildCost": 1000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 20
     }
   ],
   "BaseMarketPerMaterial": [
@@ -1711,6 +1807,16 @@
       "BaseCapacity": 1
     },
     {
+      "MaterialId": "scrap-alloy",
+      "BasePrice": 4.4,
+      "BaseCapacity": 900
+    },
+    {
+      "MaterialId": "carbon-briquette",
+      "BasePrice": 3.3,
+      "BaseCapacity": 1400
+    },
+    {
       "MaterialId": "iron-ore-2",
       "BasePrice": 1,
       "BaseCapacity": 4000
@@ -1839,6 +1945,16 @@
       "MaterialId": "automobile-2",
       "BasePrice": 4800,
       "BaseCapacity": 1
+    },
+    {
+      "MaterialId": "scrap-alloy-2",
+      "BasePrice": 4.4,
+      "BaseCapacity": 900
+    },
+    {
+      "MaterialId": "carbon-briquette-2",
+      "BasePrice": 3.3,
+      "BaseCapacity": 1400
     }
   ],
   "GenerationResearch": {
