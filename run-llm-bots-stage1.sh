@@ -18,8 +18,8 @@ set -euo pipefail
 # ==================================================================
 
 export LM_STUDIO_BASE_URL="http://localhost:1234/v1/"
-export LLM_BOT_MODEL="openai/gpt-oss-20b"
-# export LLM_BOT_MODEL="lmstudio-community/qwen3.8-27b-mlx"
+# export LLM_BOT_MODEL="openai/gpt-oss-20b"
+export LLM_BOT_MODEL="lmstudio-community/qwen3.8-27b-mlx"
 # export LLM_BOT_MODEL="unsloth/qwen3-30b-a3b"
 export LLM_BOT_COUNT=1
 export LLM_BOT_TURNS=90
