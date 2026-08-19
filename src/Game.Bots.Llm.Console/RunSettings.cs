@@ -21,7 +21,10 @@ internal sealed record RunSettings(
     int MaxTokens,
     bool DisableThinking,
     string MetricsPath,
-    string DecisionLogPath)
+    string DecisionLogPath,
+    string JournalPath,
+    string SnapshotPath,
+    string CheckpointPath)
 {
     public static RunSettings FromEnvironment()
     {
@@ -64,7 +67,16 @@ internal sealed record RunSettings(
             // LLM_BOT_DISABLE_THINKING=0, если для конкретной модели reasoning всё же нужен.
             DisableThinking: GetBool("LLM_BOT_DISABLE_THINKING", true),
             MetricsPath: GetString("LLM_BOT_METRICS_PATH", Path.Combine(AppContext.BaseDirectory, $"metrics-{timestamp}.csv")),
-            DecisionLogPath: GetString("LLM_BOT_DECISIONS_PATH", Path.Combine(AppContext.BaseDirectory, $"decisions-{timestamp}.jsonl")));
+            DecisionLogPath: GetString("LLM_BOT_DECISIONS_PATH", Path.Combine(AppContext.BaseDirectory, $"decisions-{timestamp}.jsonl")),
+            // Использованы только при старте С НУЛЯ (запрос пользователя 2026-08-19: продолжить
+            // прерванный прогон с того же места) — при возобновлении раннер берёт пути из уже
+            // существующего CheckpointPath, не пересоздаёт их с новой меткой времени.
+            JournalPath: GetString("LLM_BOT_JOURNAL_PATH", Path.Combine(AppContext.BaseDirectory, $"journal-{timestamp}.jsonl")),
+            SnapshotPath: GetString("LLM_BOT_SNAPSHOT_PATH", Path.Combine(AppContext.BaseDirectory, $"snapshot-{timestamp}.json")),
+            // НЕ помечен меткой времени, в отличие от всего остального выше, — единственный файл,
+            // который должен называться одинаково между запусками, иначе следующий запуск не найдёт,
+            // что возобновлять.
+            CheckpointPath: GetString("LLM_BOT_CHECKPOINT_PATH", Path.Combine(AppContext.BaseDirectory, ".working.json")));
     }
 
     private static string GetString(string name, string fallback) =>

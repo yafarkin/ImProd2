@@ -25,6 +25,29 @@ public sealed class LlmBotTests
     }
 
     [Fact]
+    public async Task TakeTurnAsync_ConstructedWithInitialHistory_SeesItOnTheVeryFirstPrompt()
+    {
+        // Запрос пользователя 2026-08-19: после Ctrl+C и возобновления бот не должен просыпаться с
+        // чистой памятью — initialHistory должно попасть в промпт уже на первом же вызове TakeTurnAsync
+        // этого экземпляра, не только начиная со второго (как обычное накопление через Add).
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+        var client = new ScriptedLlmClient("""{"actions":[]}""");
+        var restoredHistory = new[]
+        {
+            new BotTurnHistoryEntry(3, [new BotTurnActionRecord("takeLoan(2000)", "capital before the crash")]),
+        };
+        var bot = new LlmBot(teamId, "persona", client, initialHistory: restoredHistory);
+
+        await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
+
+        Assert.Contains("Turn 3: takeLoan(2000) — capital before the crash", client.ReceivedUserPrompts[0]);
+        // Восстановленная запись (ход 3) осталась в истории вместе со свежей (ход 1 — этот же вызов
+        // TakeTurnAsync добавил её как обычно, поверх уже сидевшей initialHistory, не вместо неё).
+        Assert.Equal(2, bot.History.Count);
+        Assert.Contains(bot.History, entry => entry.Turn == 3);
+    }
+
+    [Fact]
     public async Task TakeTurnAsync_EmptyActionsArray_ReportHasSingleNopAction()
     {
         var (session, teamId) = TestSession.StartSingleTeamSession();

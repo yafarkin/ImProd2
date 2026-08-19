@@ -10,6 +10,7 @@
     <ProjectReference Include="..\Game.Domain\Game.Domain.csproj" />
     <ProjectReference Include="..\Game.Config\Game.Config.csproj" />
     <ProjectReference Include="..\Game.Engine\Game.Engine.csproj" />
+    <ProjectReference Include="..\Game.Persistence\Game.Persistence.csproj" />
     <ProjectReference Include="..\Game.Bots.Llm\Game.Bots.Llm.csproj" />
   </ItemGroup>
 
