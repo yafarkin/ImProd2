@@ -10,6 +10,8 @@ namespace Game.Bots.Llm.ConsoleApp;
 /// здесь только то, что специфично для консольного раннера.
 /// </summary>
 internal sealed record RunSettings(
+    string ProductionModel,
+    string Sectors,
     string Model,
     int BotCount,
     int Turns,
@@ -31,6 +33,16 @@ internal sealed record RunSettings(
         var timestamp = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
 
         return new RunSettings(
+            // Имя файла под Samples/production-models (не полный путь — тот же приём, что и у
+            // остальных настроек здесь: .sh/.bat подставляют только то, что меняется между
+            // прогонами). Стадия 2 (запрос пользователя 2026-08-20: два бота, металлургия +
+            // нефтегазохимия) добавляет второй вариант рядом с "metallurgy.json" стадии 1, не
+            // заменяет его.
+            ProductionModel: GetString("LLM_BOT_PRODUCTION_MODEL", "metallurgy.json"),
+            // Список секторов через запятую, по одному на бота (по кругу, как персоны ниже) —
+            // на стадии 1 один сектор на всех ("A"), на стадии 2 — "A,B", чтобы боты реально
+            // оказались в разных отраслях и было что возить друг другу по доске публичных заявок.
+            Sectors: GetString("LLM_BOT_SECTORS", "A"),
             Model: GetString("LLM_BOT_MODEL", "qwen/qwen3.8-27b"),
             BotCount: Math.Clamp(GetInt("LLM_BOT_COUNT", 3), 1, 8),
             Turns: GetInt("LLM_BOT_TURNS", 90),

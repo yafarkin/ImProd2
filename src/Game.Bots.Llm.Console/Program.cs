@@ -1,8 +1,11 @@
-// Автономный прогон LLM-ботов на стадии 1 (запрос пользователя 2026-08-16): собрать, запустить под
-// Windows и уйти спать — устойчивый к отдельным сбоям (щедрые таймауты и ретраи, остановка сессии
-// целиком только при явно застрявшем боте), с построчным статусом на экран в реальном времени
-// ("бот 2, ход 14, запрос к LLM...", "бот 2, ход 14, TakeLoan за 03:12"), плюс CSV-метрики и сырой
-// JSONL-лог решений на диск — не только на экран, переживает закрытие консоли.
+// Автономный прогон LLM-ботов (запрос пользователя 2026-08-16): собрать, запустить под Windows и
+// уйти спать — устойчивый к отдельным сбоям (щедрые таймауты и ретраи, остановка сессии целиком
+// только при явно застрявшем боте), с построчным статусом на экран в реальном времени ("бот 2, ход
+// 14, запрос к LLM...", "бот 2, ход 14, TakeLoan за 03:12"), плюс CSV-метрики и сырой JSONL-лог
+// решений на диск — не только на экран, переживает закрытие консоли. Production-модель и раскладка
+// ботов по секторам (запрос пользователя 2026-08-20: стадия 2, два бота, металлургия +
+// нефтегазохимия, для обкатки межсекторной доски заявок) — через RunSettings.ProductionModel/
+// Sectors, не хардкод; см. run-llm-bots-stage1.sh против run-llm-bots-stage2.sh.
 //
 // Запрос пользователя 2026-08-19: пережить Ctrl+C/убийство процесса и на следующем запуске
 // продолжить с того же места, не с начала. Игровое состояние — через
@@ -58,8 +61,14 @@ void Log(string line)
 }
 
 var checkpoint = BotRunCheckpoint.TryLoad(settings.CheckpointPath);
+var sectors = settings.Sectors.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+if (sectors.Length == 0)
+{
+    sectors = ["A"];
+}
 
-Log("=== LLM-боты, стадия 1 (один сектор), автономный прогон ===");
+Log("=== LLM-боты, автономный прогон ===");
+Log($"Production-модель: {settings.ProductionModel}, секторы ботов (по кругу): {string.Join(",", sectors)}");
 Log($"LM Studio: {LmStudioClient.DefaultBaseUrl}");
 Log($"Модель: {settings.Model}, температура: {settings.Temperature}, max_tokens: {settings.MaxTokens}, " +
     $"thinking отключён: {settings.DisableThinking}");
@@ -87,7 +96,7 @@ Console.CancelKeyPress += (_, _) => Log(
 
 try
 {
-    var productionModelPath = Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", "metallurgy.json");
+    var productionModelPath = Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", settings.ProductionModel);
     var sessionPath = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
     var config = GameConfigLoader.LoadFromFiles(productionModelPath, sessionPath);
 
@@ -191,7 +200,7 @@ try
         {
             var id = Ulid.NewUlid();
             teamIds.Add(id);
-            teamSpecs.Add(new TeamSpec { Id = id, Name = $"Бот {i + 1}", SectorId = "A" });
+            teamSpecs.Add(new TeamSpec { Id = id, Name = $"Бот {i + 1}", SectorId = sectors[i % sectors.Length] });
         }
 
         var durableLog = DurableEventLog<GameSessionState>.Open(journalPath, snapshotPath, () => new GameSessionState(config));
