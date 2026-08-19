@@ -48,6 +48,35 @@ public sealed class BotTurnHistoryTests
     }
 
     [Fact]
+    public void Constructor_WithInitialEntries_SeedsHistoryImmediately()
+    {
+        // Запрос пользователя 2026-08-19: восстановить память бота после Ctrl+C — initialEntries
+        // должно быть видно сразу, до единого вызова Add.
+        var restored = new[] { new BotTurnHistoryEntry(4, [new BotTurnActionRecord("takeLoan(2000)", "capital for expansion")]) };
+
+        var history = new BotTurnHistory(initialEntries: restored);
+
+        Assert.Contains("Turn 4: takeLoan(2000) — capital for expansion", history.Render());
+    }
+
+    [Fact]
+    public void Constructor_WithInitialEntries_TruncatesToTheMostRecentWithinTheWindow()
+    {
+        var restored = new[]
+        {
+            new BotTurnHistoryEntry(1, [new BotTurnActionRecord("a", null)]),
+            new BotTurnHistoryEntry(2, [new BotTurnActionRecord("b", null)]),
+            new BotTurnHistoryEntry(3, [new BotTurnActionRecord("c", null)]),
+        };
+
+        var history = new BotTurnHistory(window: 2, initialEntries: restored);
+
+        Assert.Equal(2, history.Entries.Count);
+        Assert.Equal(2, history.Entries[0].Turn);
+        Assert.Equal(3, history.Entries[1].Turn);
+    }
+
+    [Fact]
     public void Add_BeyondWindow_DropsOldestEntry()
     {
         var history = new BotTurnHistory(window: 2);

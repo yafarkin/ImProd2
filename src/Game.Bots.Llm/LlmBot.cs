@@ -71,10 +71,12 @@ public sealed class LlmBot
     /// <paramref name="historySampleInterval"/> — шаг разреженной экономической истории по ходам, см.
     /// <see cref="BotHistorySeriesBuilder"/>. <paramref name="maxActionsPerTurn"/> — потолок длины
     /// массива действий за один вызов (см. doc-comment класса) — избыток сверх него молча отбрасывается.
+    /// <paramref name="initialHistory"/> — восстановление собственной памяти бота после прерывания
+    /// прогона (запрос пользователя 2026-08-19), см. doc-comment <see cref="BotTurnHistory"/>.
     /// </summary>
     public LlmBot(
         Ulid teamId, string personaDescription, ILlmClient client, int maxAttempts = 3, int historyWindow = 10,
-        int historySampleInterval = 5, int maxActionsPerTurn = 5)
+        int historySampleInterval = 5, int maxActionsPerTurn = 5, IReadOnlyList<BotTurnHistoryEntry>? initialHistory = null)
     {
         ArgumentNullException.ThrowIfNull(client);
         if (string.IsNullOrWhiteSpace(personaDescription))
@@ -89,7 +91,7 @@ public sealed class LlmBot
         TeamId = teamId;
         PersonaDescription = personaDescription;
         _loop = new LlmBotDecisionLoop(client, new BotCommandExecutor(), maxAttempts);
-        _history = new BotTurnHistory(historyWindow);
+        _history = new BotTurnHistory(historyWindow, initialHistory);
         _historySampleInterval = historySampleInterval;
         _maxActionsPerTurn = maxActionsPerTurn;
     }

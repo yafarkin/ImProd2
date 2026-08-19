@@ -26,7 +26,14 @@ public sealed class BotTurnHistory
     private readonly int _window;
     private readonly List<BotTurnHistoryEntry> _entries = new();
 
-    public BotTurnHistory(int window = 10)
+    /// <summary>
+    /// <paramref name="initialEntries"/> — восстановление после прерывания (запрос пользователя
+    /// 2026-08-19: «продолжить с прерванного места»), собственная память бота не часть игрового
+    /// журнала, поэтому переносится отдельно, из чекпойнта консольного раннера. Обрезается до
+    /// последних <paramref name="window"/> записей тем же приёмом, что и <see cref="Add"/> — на
+    /// случай, если окно с прошлого запуска было шире.
+    /// </summary>
+    public BotTurnHistory(int window = 10, IReadOnlyList<BotTurnHistoryEntry>? initialEntries = null)
     {
         if (window < 1)
         {
@@ -34,6 +41,10 @@ public sealed class BotTurnHistory
         }
 
         _window = window;
+        if (initialEntries is not null)
+        {
+            _entries.AddRange(initialEntries.Count > window ? initialEntries.Skip(initialEntries.Count - window) : initialEntries);
+        }
     }
 
     /// <summary>Записи в пределах окна, от самой старой к самой новой.</summary>

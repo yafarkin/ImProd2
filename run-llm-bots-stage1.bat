@@ -14,6 +14,13 @@ rem  measurements. 3 bots x 90 turns is hours, not minutes; you can
 rem  minimize the window and come back later - the run won't stop on
 rem  its own unless it actually gets stuck (see
 rem  LLM_BOT_MAX_CONSECUTIVE_FAILURES below).
+rem
+rem  Interrupted a run (closed the window, machine slept, killed it)?
+rem  Just double-click this file again - it finds ".working.json" next
+rem  to the executable and continues from the last completed turn
+rem  instead of starting over. That file (and the session journal
+rem  alongside it) are deleted automatically once a run finishes or
+rem  gives up cleanly; don't touch them by hand while a run is going.
 rem ==================================================================
 
 set LM_STUDIO_BASE_URL=http://192.168.0.2:1234/v1/

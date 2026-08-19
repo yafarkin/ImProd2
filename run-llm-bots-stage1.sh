@@ -15,6 +15,13 @@ set -euo pipefail
 #  measurements. Even 1 bot x 90 turns can be hours, not minutes; the
 #  run won't stop on its own unless it actually gets stuck (see
 #  LLM_BOT_MAX_CONSECUTIVE_FAILURES below).
+#
+#  Interrupted a run (Ctrl+C, closed the terminal, machine slept)?
+#  Just run this script again - it finds ".working.json" next to the
+#  executable and continues from the last completed turn instead of
+#  starting over. That file (and the session journal alongside it)
+#  are deleted automatically once a run finishes or gives up cleanly;
+#  don't touch them by hand while a run is in progress.
 # ==================================================================
 
 export LM_STUDIO_BASE_URL="http://192.168.0.2:1234/v1/"

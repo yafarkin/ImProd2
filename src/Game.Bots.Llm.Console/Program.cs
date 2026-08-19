@@ -3,6 +3,17 @@
 // целиком только при явно застрявшем боте), с построчным статусом на экран в реальном времени
 // ("бот 2, ход 14, запрос к LLM...", "бот 2, ход 14, TakeLoan за 03:12"), плюс CSV-метрики и сырой
 // JSONL-лог решений на диск — не только на экран, переживает закрытие консоли.
+//
+// Запрос пользователя 2026-08-19: пережить Ctrl+C/убийство процесса и на следующем запуске
+// продолжить с того же места, не с начала. Игровое состояние — через
+// Game.Persistence.DurableEventLog (та же durable-обёртка, что уже проверена в Game.Web для
+// восстановления сессии после сбоя): каждое событие дописывается на диск сразу же при исполнении,
+// восстановление — снапшот (если есть) + доигрывание хвоста журнала. Всё, что журналом НЕ
+// покрывается — пути файлов этого прогона (чтобы дописывать те же самые, не плодить новые с новой
+// меткой времени), сид Random (сам поток чисел после возобновления не совпадёт с гипотетическим
+// непрерывным прогоном — для качественного плейтеста не важно) и собственная память каждого бота
+// (BotTurnHistory, не часть игрового журнала) — лежит в BotRunCheckpoint (".working.json" по
+// умолчанию), переписывается целиком после каждого хода, удаляется по чистой остановке.
 
 using System.Text;
 using Game.Bots.Llm;
@@ -10,6 +21,7 @@ using Game.Bots.Llm.ConsoleApp;
 using Game.Config.Loading;
 using Game.Domain;
 using Game.Engine;
+using Game.Persistence;
 
 // Явно, не полагаясь на кодовую страницу консоли по умолчанию (на Windows без этого кириллица в
 // echo/Console.Write может исказиться, даже если .bat уже сделал chcp 65001).
@@ -45,6 +57,8 @@ void Log(string line)
     logFile.WriteLine(stamped);
 }
 
+var checkpoint = BotRunCheckpoint.TryLoad(settings.CheckpointPath);
+
 Log("=== LLM-боты, стадия 1 (один сектор), автономный прогон ===");
 Log($"LM Studio: {LmStudioClient.DefaultBaseUrl}");
 Log($"Модель: {settings.Model}, температура: {settings.Temperature}, max_tokens: {settings.MaxTokens}, " +
@@ -54,9 +68,22 @@ Log($"HTTP-таймаут запроса: {settings.TimeoutMinutes} мин, по
     $"потолок действий в массиве за ход: {settings.MaxActionsPerTurn}, " +
     $"остановка после {settings.MaxConsecutiveFailures} провалов подряд у одного бота");
 Log($"Лог на диске: {logPath}");
-Log($"Метрики: {settings.MetricsPath}");
-Log($"Сырой лог решений: {settings.DecisionLogPath}");
+if (checkpoint is not null)
+{
+    Log($"Найден чекпойнт прерванного прогона ({settings.CheckpointPath}) — продолжаю его, не начинаю заново.");
+    Log($"Метрики: {checkpoint.MetricsPath}");
+    Log($"Сырой лог решений: {checkpoint.DecisionLogPath}");
+}
+else
+{
+    Log($"Метрики: {settings.MetricsPath}");
+    Log($"Сырой лог решений: {settings.DecisionLogPath}");
+}
 Log("");
+
+Console.CancelKeyPress += (_, _) => Log(
+    "⚠ Получен Ctrl+C — журнал сессии и чекпойнт уже на диске (пишутся синхронно на каждом ходу), " +
+    "следующий запуск этого же .bat/.sh продолжит с последнего завершённого хода.");
 
 try
 {
@@ -75,19 +102,6 @@ try
         "You are ambitious and growth-focused: you take on debt readily to expand production capacity " +
         "fast, betting that scale pays off before it becomes a problem.",
     ];
-
-    var teamSpecs = new List<TeamSpec>();
-    var teamIds = new List<Ulid>();
-    for (var i = 0; i < settings.BotCount; i++)
-    {
-        var id = Ulid.NewUlid();
-        teamIds.Add(id);
-        teamSpecs.Add(new TeamSpec { Id = id, Name = $"Бот {i + 1}", SectorId = "A" });
-    }
-
-    var session = GameSession.StartWithEndTurn(config, "full", settings.Turns, teamSpecs);
-    // Сессия открывается в фазе расчёта (Settlement) — решения допустимы только в Decision.
-    session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
 
     using var httpClient = new HttpClient
     {
@@ -128,17 +142,95 @@ try
         httpClient, settings.Model, settings.Temperature, settings.MaxTokens, OnToken, OnStalled, settings.DisableThinking,
         settings.MaxActionsPerTurn);
 
-    var bots = teamIds
-        .Select((id, i) => new LlmBot(
-            id, personas[i % personas.Length], llmClient, settings.MaxAttempts, maxActionsPerTurn: settings.MaxActionsPerTurn))
-        .ToList();
+    // Пути ЭТОГО прогона — из чекпойнта при возобновлении (те же файлы, дозаписываем), иначе новые
+    // с меткой времени (см. RunSettings).
+    string journalPath, snapshotPath, metricsPath, decisionLogPath;
+    GameSession session;
+    List<Ulid> teamIds;
+    List<LlmBot> bots;
+    Random random;
+    int randomSeed;
+
+    if (checkpoint is not null)
+    {
+        journalPath = checkpoint.JournalPath;
+        snapshotPath = checkpoint.SnapshotPath;
+        metricsPath = checkpoint.MetricsPath;
+        decisionLogPath = checkpoint.DecisionLogPath;
+
+        if (checkpoint.Bots.Count != settings.BotCount)
+        {
+            Log($"⚠ В чекпойнте {checkpoint.Bots.Count} бот(ов), а LLM_BOT_COUNT сейчас {settings.BotCount} — " +
+                "продолжаю с числом ботов из чекпойнта, не трогайте LLM_BOT_COUNT между запусками одного прогона.");
+        }
+
+        var durableLog = DurableEventLog<GameSessionState>.Open(journalPath, snapshotPath, () => new GameSessionState(config));
+        session = new GameSession(durableLog);
+        randomSeed = checkpoint.RandomSeed;
+        random = new Random(randomSeed);
+
+        teamIds = checkpoint.Bots.Select(b => Ulid.Parse(b.TeamId)).ToList();
+        bots = checkpoint.Bots
+            .Select(b => new LlmBot(
+                Ulid.Parse(b.TeamId), personas[b.PersonaIndex % personas.Length], llmClient, settings.MaxAttempts,
+                maxActionsPerTurn: settings.MaxActionsPerTurn, initialHistory: b.History))
+            .ToList();
+
+        Log($"Восстановлено: ход {session.State.CurrentTurn}, фаза {session.State.CurrentPhase}, {teamIds.Count} бот(ов).");
+    }
+    else
+    {
+        journalPath = settings.JournalPath;
+        snapshotPath = settings.SnapshotPath;
+        metricsPath = settings.MetricsPath;
+        decisionLogPath = settings.DecisionLogPath;
+
+        var teamSpecs = new List<TeamSpec>();
+        teamIds = new List<Ulid>();
+        for (var i = 0; i < settings.BotCount; i++)
+        {
+            var id = Ulid.NewUlid();
+            teamIds.Add(id);
+            teamSpecs.Add(new TeamSpec { Id = id, Name = $"Бот {i + 1}", SectorId = "A" });
+        }
+
+        var durableLog = DurableEventLog<GameSessionState>.Open(journalPath, snapshotPath, () => new GameSessionState(config));
+        session = GameSession.StartWithEndTurn(durableLog, "full", settings.Turns, teamSpecs);
+        // Сессия открывается в фазе расчёта (Settlement) — решения допустимы только в Decision.
+        session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
+
+        // Не фиксированный сид — но сохраняется в чекпойнт ниже, чтобы возобновление хотя бы имело
+        // повторяемый (пусть и не идентичный прерванному прогону) поток чисел вперёд от точки
+        // возобновления, а не новый случайный каждый раз.
+        randomSeed = Random.Shared.Next();
+        random = new Random(randomSeed);
+
+        bots = teamIds
+            .Select((id, i) => new LlmBot(
+                id, personas[i % personas.Length], llmClient, settings.MaxAttempts, maxActionsPerTurn: settings.MaxActionsPerTurn))
+            .ToList();
+    }
 
     // Файловый режим — каждая попытка (включая последнюю, пусть и неудачную) уходит на диск сразу
     // же, а не только при штатном завершении: если процесс упадёт или его убьют, наработанное не
-    // теряется (запрос пользователя 2026-08-16).
-    using var decisionLog = BotDecisionLog.CreateFile(settings.DecisionLogPath);
-    using var metricsLog = BotMetricsLog.Create(settings.MetricsPath);
-    var random = new Random();
+    // теряется (запрос пользователя 2026-08-16). CreateFile/Create дозаписывают существующий файл,
+    // не дублируя заголовок — безопасно вызывать на путях из чекпойнта тоже (запрос пользователя
+    // 2026-08-19).
+    using var decisionLog = BotDecisionLog.CreateFile(decisionLogPath);
+    using var metricsLog = BotMetricsLog.Create(metricsPath);
+
+    void SaveCheckpoint()
+    {
+        var entry = new BotRunCheckpoint(
+            RandomSeed: randomSeed,
+            LogPath: logPath,
+            MetricsPath: metricsPath,
+            DecisionLogPath: decisionLogPath,
+            JournalPath: journalPath,
+            SnapshotPath: snapshotPath,
+            Bots: bots.Select((bot, i) => new BotCheckpointEntry(bot.TeamId.ToString(), i, bot.History)).ToList());
+        entry.Save(settings.CheckpointPath);
+    }
 
     var runResult = await LlmBotSessionRunner.RunToCompletionAsync(
         session,
@@ -154,9 +246,16 @@ try
                 Log($"  итог хода {s.State.CurrentTurn} — {team.Name}: баланс={team.Balance:0.00} " +
                     $"долг={team.Debt:0.00} netWorth={team.Balance - team.Debt:0.00} фабрик={team.Factories.Count}");
             }
+
+            SaveCheckpoint();
         },
         onStatusLine: Log,
         maxConsecutiveExhaustedTurns: settings.MaxConsecutiveFailures);
+
+    // Обе причины остановки здесь — осознанные, не сбой: чекпойнт больше не нужен, следующий запуск
+    // должен начать новый прогон, а не донашивать этот же (запрос пользователя 2026-08-19: удалять
+    // по завершению). Прерывание Ctrl+C/убийство процесса до этой строки чекпойнт не тронет.
+    File.Delete(settings.CheckpointPath);
 
     Log("");
     Log($"=== ОСТАНОВКА: {runResult.Reason} {runResult.Detail} ===");
@@ -181,6 +280,7 @@ catch (Exception ex)
 {
     Log("");
     Log($"=== АВАРИЙНАЯ ОШИБКА: {ex} ===");
+    Log("Чекпойнт (если он был создан) оставлен на диске — следующий запуск попробует продолжить с последнего сохранённого хода.");
 }
 
 Log("");
