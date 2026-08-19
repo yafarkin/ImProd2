@@ -17,8 +17,10 @@ set -euo pipefail
 #  LLM_BOT_MAX_CONSECUTIVE_FAILURES below).
 # ==================================================================
 
-export LM_STUDIO_BASE_URL="http://192.168.0.2:1234/v1/"
+export LM_STUDIO_BASE_URL="http://localhost:1234/v1/"
 export LLM_BOT_MODEL="openai/gpt-oss-20b"
+# export LLM_BOT_MODEL="lmstudio-community/qwen3.8-27b-mlx"
+# export LLM_BOT_MODEL="unsloth/qwen3-30b-a3b"
 export LLM_BOT_COUNT=1
 export LLM_BOT_TURNS=90
 
@@ -39,10 +41,10 @@ export LLM_BOT_MAX_CONSECUTIVE_FAILURES=8
 # one batch; anything beyond it is dropped. Lowered from 8 (2026-08-16
 # live runs: weak/small models reliably filled this cap repeating the
 # same wasteful action instead of stopping on their own).
-export LLM_BOT_MAX_ACTIONS_PER_TURN=5
+export LLM_BOT_MAX_ACTIONS_PER_TURN=8
 
 export LLM_BOT_TEMPERATURE=0.4
-export LLM_BOT_MAX_TOKENS=3000
+export LLM_BOT_MAX_TOKENS=8000
 
 # Model reasoning/"thinking" is OFF by default (saves tokens and time).
 # Set to 0 below to re-enable it if your model needs it.
