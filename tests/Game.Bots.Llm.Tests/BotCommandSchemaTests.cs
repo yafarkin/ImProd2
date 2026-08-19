@@ -29,13 +29,18 @@ public sealed class BotCommandSchemaTests
     }
 
     [Fact]
-    public void Schema_RequiresKindAndForbidsAdditionalProperties()
+    public void Schema_RequiresKindAndReasonAndForbidsAdditionalProperties()
     {
         var schema = BotCommandSchema.BuildCommand();
 
         Assert.Equal("object", schema["type"]!.GetValue<string>());
         Assert.False(schema["additionalProperties"]!.GetValue<bool>());
-        Assert.Contains("kind", schema["required"]!.AsArray().Select(node => node!.GetValue<string>()));
+        var required = schema["required"]!.AsArray().Select(node => node!.GetValue<string>()).ToList();
+        Assert.Contains("kind", required);
+        // Запрос пользователя 2026-08-19: «попросим модель объяснять каждое своё действие» —
+        // reason обязателен для каждой команды, в отличие от необязательной annotation.
+        Assert.Contains("reason", required);
+        Assert.DoesNotContain("annotation", required);
     }
 
     [Fact]

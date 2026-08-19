@@ -55,7 +55,7 @@ public static class BotCommandSchema
         {
             ["type"] = "object",
             ["additionalProperties"] = false,
-            ["required"] = new JsonArray("kind"),
+            ["required"] = new JsonArray("kind", "reason"),
             ["properties"] = new JsonObject
             {
                 ["kind"] = new JsonObject { ["type"] = "string", ["enum"] = kindEnum },
@@ -159,10 +159,17 @@ public static class BotCommandSchema
                     ["type"] = new JsonArray("number", "null"),
                     ["description"] = "The exact price you offer, within the offer's price range, for kind=fulfillTradeOffer.",
                 },
+                ["reason"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["description"] =
+                        "REQUIRED for every action: briefly explain why this action makes sense right now, given the " +
+                        "state you were shown. Not saved anywhere beyond this one response — separate from annotation.",
+                },
                 ["annotation"] = new JsonObject
                 {
                     ["type"] = new JsonArray("string", "null"),
-                    ["description"] = "Free-text note you leave for yourself, to understand this decision on a future turn.",
+                    ["description"] = "Optional free-text note you leave for yourself, to understand this decision on a future turn.",
                 },
             },
         };

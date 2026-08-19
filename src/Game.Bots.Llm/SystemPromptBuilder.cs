@@ -139,11 +139,16 @@ public static class SystemPromptBuilder
             Grow your team's net worth (balance minus debt) over the course of the session by building
             and staffing production capacity, investing in R&D and generation research, managing debt
             responsibly, and trading materials well. An empty actions list is rarely the right move, even
-            with zero balance — a loan is how every team starts. If you find yourself writing an
-            annotation that says what you should do, put that action in the list instead — do not just
-            describe the right move, make it. Concretely: on a turn where you have zero factories, the
-            list should almost always start with takeLoan, followed in the SAME list by buildFactory,
-            instead of waiting for a future turn to use the loan.
+            with zero balance — a loan is how every team starts. If you find yourself writing a reason
+            that says what you should do, put that action in the list instead — do not just describe the
+            right move, make it. Concretely: on a turn where you have zero factories, the list should
+            almost always start with takeLoan, followed in the SAME list by buildFactory, instead of
+            waiting for a future turn to use the loan.
+            Watch for a saturated market: if you keep selling the same material near or above its
+            capacity turn after turn and the price has stopped rising (or already crashed and stayed
+            flat), building MORE of that same factory type will not help — the market cannot absorb more
+            of it. Look at the 'FACTORY TYPES IN YOUR SECTOR' catalog below for a DIFFERENT product to
+            diversify into instead of piling up idle cash.
 
             The "=== DERIVED METRICS ===" section below is already computed for you: trends over the
             last several turns compared to the turns before that (loan interest/principal paid, cash
@@ -161,10 +166,15 @@ public static class SystemPromptBuilder
             - "factoryId" is the exact id of a factory YOU ALREADY OWN, copied verbatim from the state
               below — never a catalog type name, never invented, and never a factory you are building in
               this same list (see IMPORTANT above).
-            - Use "annotation" to leave yourself a short note about why you made this decision — you will
-              see it again on a future turn to understand your own past reasoning. Keep it SHORT: under
-              12 words, one clause, no explanations — it accumulates into every future turn's prompt, so
-              verbose annotations make the game slower and more expensive turn after turn.
+            - "reason" is REQUIRED on every action: briefly explain why it makes sense right now, given
+              the state you were shown. It is read once and discarded — it does not come back to you on
+              a future turn, so a full sentence or two is fine here.
+            - "annotation" is different and OPTIONAL: a short note to your future self, for when you see
+              this decision again in your own history on a LATER turn. Keep it SHORT: under 12 words, one
+              clause — it accumulates into every future turn's prompt, so verbose annotations make the
+              game slower and more expensive turn after turn. Often blank is fine; use it only for
+              something you'll actually need to remember later (e.g. "waiting on coke price to recover"),
+              not a restatement of "reason".
             - Do not put the exact same action (same kind and same parameters) twice in the list — if it
               didn't solve the problem once, doing it again won't either; work out what's actually
               blocking you (e.g. missing workers, not missing material) and act on that instead. A

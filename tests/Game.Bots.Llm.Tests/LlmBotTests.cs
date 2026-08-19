@@ -131,6 +131,26 @@ public sealed class LlmBotTests
     }
 
     [Fact]
+    public async Task TakeTurnAsync_ReasonIsAccepted_ButDoesNotLeakIntoHistory()
+    {
+        // Запрос пользователя 2026-08-19: "reason" объясняет действие здесь и сейчас, для разбора
+        // человеком (см. BotDecisionLog), а не для памяти бота — в отличие от annotation, оно не
+        // должно накапливаться в промпте из хода в ход.
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+        var client = new ScriptedLlmClient(
+            """{"actions":[{"kind":"buildFactory","factoryDefinitionId":"iron-mine","reason":"ore is cheap and we have zero factories","annotation":"starting the ore chain"}]}""");
+        var bot = new LlmBot(teamId, "persona", client);
+
+        var report = await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
+
+        Assert.Equal(LlmBotTurnOutcome.Success, report.Actions[0].Outcome);
+        Assert.Equal("ore is cheap and we have zero factories", report.Actions[0].Command!.Reason);
+        Assert.Equal("starting the ore chain", bot.History[0].Actions[0].Annotation);
+        Assert.DoesNotContain("ore is cheap", bot.History[0].Actions[0].Summary);
+        Assert.DoesNotContain("ore is cheap", bot.History[0].Actions[0].Annotation);
+    }
+
+    [Fact]
     public async Task TakeTurnAsync_SecondTurn_SeesFirstTurnInPrompt()
     {
         var (session, teamId) = TestSession.StartSingleTeamSession();
