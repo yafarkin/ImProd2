@@ -20,6 +20,7 @@ public sealed class BotDerivedMetricsBuilderTests
         Assert.Contains("WAREHOUSE OVERAGE FEE", metrics);
         Assert.Contains("IDLE / UNDERPERFORMING FACTORIES", metrics);
         Assert.Contains("(no factories yet)", metrics);
+        Assert.Contains("FACTORY WEAR", metrics);
         Assert.Contains("FACTORY UTILIZATION", metrics);
         Assert.Contains("R&D", metrics);
         Assert.Contains("RUNWAY", metrics);
@@ -58,6 +59,69 @@ public sealed class BotDerivedMetricsBuilderTests
 
         // Ход сейчас 7: recent = ходы 3-7, prior = ходы 1-2 (обрезано снизу первым ходом).
         Assert.Contains("recent: turns 3-7, prior: turns 1-2", metrics);
+    }
+
+    [Fact]
+    public void Build_FreshFactory_IsNotFlaggedAsWearRisk()
+    {
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+        session.BuildFactory(teamId, "iron-mine");
+
+        var metrics = BotDerivedMetricsBuilder.Build(session, teamId);
+
+        Assert.Contains("(none — every factory is either healthy or already has an overhaul requested)", metrics);
+    }
+
+    [Fact]
+    public void Build_FactoryLeftToDecayWithoutOverhaul_IsFlaggedAsWearRisk()
+    {
+        // Запрос пользователя 2026-08-19, по следам живого прогона (docs/bot-runs/2026-08-19-stage1-
+        // gpt-oss-20b/ANALYSIS.md): бот ни разу не вызвал setOverhaulRequested за 90 ходов, износ
+        // копился незаметно, несколько фабрик разом ушли в вынужденный простой. Турн-калибровка —
+        // на пилотном конфиге (GracePeriodTurns=8, BaseWearRatePerTurn=0.01, AccelerationFactorPerTurn=
+        // 0.004): condition пересекает предупредительный порог (2×CriticalConditionThreshold=0.4) на
+        // ходу 24 (0.370), вынужденный ремонт (порог 0.2) — не раньше хода 27; 23 хода settlement —
+        // безопасно внутри окна «уже низко, но ещё не поздно попросить капремонт самому».
+        var (session, teamId) = TestSession.StartSingleTeamSession(endTurn: 30);
+        var random = new Random(13);
+        session.BuildFactory(teamId, "iron-mine");
+        var factoryId = session.State.Teams[teamId].Factories[0].Id;
+        session.SetWorkerCount(teamId, factoryId, 1);
+
+        for (var i = 0; i < 23; i++)
+        {
+            TestSession.SettleOneTurn(session, random);
+        }
+
+        var factory = session.State.Teams[teamId].Factories[0];
+        Assert.True(factory.Condition < 0.4m, $"Precondition: expected condition below the warn threshold, was {factory.Condition}.");
+        Assert.False(factory.IsUnderRepair, "Precondition: factory should not be forced into repair yet.");
+
+        var metrics = BotDerivedMetricsBuilder.Build(session, teamId);
+
+        Assert.Contains("no overhaul requested", metrics);
+        Assert.Contains("call setOverhaulRequested now", metrics);
+    }
+
+    [Fact]
+    public void Build_LowConditionFactoryWithOverhaulAlreadyRequested_IsNotFlaggedAgain()
+    {
+        var (session, teamId) = TestSession.StartSingleTeamSession(endTurn: 30);
+        var random = new Random(13);
+        session.BuildFactory(teamId, "iron-mine");
+        var factoryId = session.State.Teams[teamId].Factories[0].Id;
+        session.SetWorkerCount(teamId, factoryId, 1);
+
+        for (var i = 0; i < 23; i++)
+        {
+            TestSession.SettleOneTurn(session, random);
+        }
+
+        session.SetOverhaulRequested(teamId, factoryId, true);
+
+        var metrics = BotDerivedMetricsBuilder.Build(session, teamId);
+
+        Assert.Contains("(none — every factory is either healthy or already has an overhaul requested)", metrics);
     }
 
     [Fact]

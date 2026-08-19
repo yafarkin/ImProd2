@@ -157,7 +157,8 @@
     "ForcedLoanPenaltyRatePerOccurrence": 0.05,
     "MaxReputationRatePenalty": 0.1,
     "MandatoryRepaymentRatePerTurn": 0.005,
-    "MaxTotalDebt": 10000000
+    "MaxTotalDebt": 10000000,
+    "MaxLoanInterestRate": 0.5
   },
   "SessionPresets": [
     {

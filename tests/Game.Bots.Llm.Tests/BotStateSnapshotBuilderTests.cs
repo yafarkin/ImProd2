@@ -89,7 +89,33 @@ public sealed class BotStateSnapshotBuilderTests
 
         Assert.Contains($"factoryId={factoryId}", snapshot);
         Assert.Contains("type=iron-mine", snapshot);
+        Assert.Contains("overhaulRequested=false", snapshot);
         Assert.Contains("status=operating", snapshot);
+    }
+
+    [Fact]
+    public void Build_AfterRequestingOverhaul_ShowsOverhaulRequestedTrue()
+    {
+        // Запрос пользователя 2026-08-19: боту должно быть видно, уже запросил ли он капремонт сам,
+        // чтобы не путать это с «фабрика уже сломалась» (status=operating остаётся тем же).
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+        var random = new Random(1);
+        session.BuildFactory(teamId, "iron-mine");
+        var factoryId = session.State.Teams[teamId].Factories[0].Id;
+
+        // Свежепостроенная фабрика в идеальном состоянии — запросить капремонт для неё нельзя (движок
+        // отказывает, незачем). Износ начинается не раньше GracePeriodTurns (пилотный конфиг — 8), 10
+        // ходов settlement гарантированно уводят condition ниже 100%.
+        for (var i = 0; i < 10; i++)
+        {
+            TestSession.SettleOneTurn(session, random);
+        }
+
+        session.SetOverhaulRequested(teamId, factoryId, true);
+
+        var snapshot = BotStateSnapshotBuilder.Build(session, teamId);
+
+        Assert.Contains("overhaulRequested=true", snapshot);
     }
 
     [Fact]

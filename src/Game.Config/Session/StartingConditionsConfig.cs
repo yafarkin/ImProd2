@@ -60,4 +60,19 @@ public sealed record StartingConditionsConfig
     /// выдаёт вообще ничего), баланс так и остаётся отрицательным, непокрытым.
     /// </summary>
     public required decimal MaxTotalDebt { get; init; }
+
+    /// <summary>
+    /// Потолок итоговой эффективной ставки за ход (после сложения <see cref="BaseLoanInterestRate"/>,
+    /// <see cref="LoanInterestRateGrowthPerUnitBorrowed"/>×долг, штрафов и надбавки за репутацию) —
+    /// найдено разбором реального прогона LLM-бота (docs/TODO.md #21,
+    /// docs/bot-runs/2026-08-19-stage1-gpt-oss-20b/ANALYSIS.md): <see
+    /// cref="LoanInterestRateGrowthPerUnitBorrowed"/> растёт линейно от АБСОЛЮТНОЙ суммы долга в
+    /// деньгах, без этого потолка — ничем не ограничена и даёт бессмысленные величины ставки уже на
+    /// <see cref="MaxTotalDebt"/> (том самом потолке, который добровольный заём демонстративно не
+    /// проверяет — «решение и риск команды», см. его doc-comment), а дальше проценты
+    /// (<c>долг × ставка</c>) растут фактически квадратично от долга. Здесь — последний рубеж:
+    /// сколько бы команда ни назанимала, ставка (и с ней — потери за один ход) остаётся конечной и
+    /// осмысленной величиной, даже если долг уже за пределами разумного.
+    /// </summary>
+    public required decimal MaxLoanInterestRate { get; init; }
 }

@@ -68,6 +68,7 @@ public static class BotDerivedMetricsBuilder
         var recentNet = AppendCashFlow(text, financeOps, recentWindow, priorWindow);
         AppendWarehouseFee(text, financeOps, recentWindow, priorWindow);
         AppendIdleFactories(text, team, productionPoints);
+        AppendWearWarning(text, state, team);
         AppendUtilization(text, team, productionPoints, recentWindow, priorWindow);
         AppendRnd(text, team);
         AppendRunway(text, team, recentNet, recentWindow);
@@ -188,6 +189,48 @@ public static class BotDerivedMetricsBuilder
         if (!any)
         {
             text.AppendLine("(none — all factories running at or near capacity)");
+        }
+    }
+
+    /// <summary>
+    /// Проактивное предупреждение об износе — прямой запрос пользователя (2026-08-19), по следам
+    /// живого прогона (docs/TODO.md #20, docs/bot-runs/2026-08-19-stage1-gpt-oss-20b/ANALYSIS.md):
+    /// бот ни разу за 90 ходов не вызвал <c>setOverhaulRequested</c>, износ незаметно копился, и
+    /// сразу несколько фабрик одновременно ушли в вынужденный простой — то, что уже сломалось,
+    /// показывает <see cref="AppendIdleFactories"/>, а это — то, что вот-вот сломается, но ещё не
+    /// поздно попросить капремонт САМОМУ и подешевле. Порог — вдвое выше <see
+    /// cref="Game.Config.Economy.WearConfig.CriticalConditionThreshold"/> (того, при котором движок
+    /// сам, без спроса, запускает вынужденный ремонт) — не магическое число, а прямое следствие
+    /// конфига сессии.
+    /// </summary>
+    private static void AppendWearWarning(StringBuilder text, GameSessionState state, Team team)
+    {
+        text.AppendLine();
+        text.AppendLine("FACTORY WEAR — ACT BEFORE IT'S FORCED (requesting overhaul early is cheap and fast; waiting for a forced repair is expensive and slow)");
+
+        if (team.Factories.Count == 0)
+        {
+            text.AppendLine("(no factories yet)");
+            return;
+        }
+
+        var warnThreshold = state.Config.Raw.Wear.CriticalConditionThreshold * 2m;
+        var atRisk = team.Factories
+            .Where(factory => !factory.IsUnderRepair && !factory.OverhaulRequested && factory.Condition < warnThreshold)
+            .ToList();
+
+        if (atRisk.Count == 0)
+        {
+            text.AppendLine("(none — every factory is either healthy or already has an overhaul requested)");
+            return;
+        }
+
+        foreach (var factory in atRisk)
+        {
+            text.AppendLine(
+                $"- {factory.Definition.Id} (factoryId={factory.Id}): condition {Percent(factory.Condition)}, no overhaul " +
+                "requested — call setOverhaulRequested now, before it drops further and the engine forces a repair on its own " +
+                "(far more turns lost than an overhaul you request yourself).");
         }
     }
 

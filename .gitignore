@@ -482,3 +482,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# User's local scratch folder for raw LLM-bot run output (TODO #20) — the user drops metrics/decision
+# files from every .sh/.bat run here; only the meaningful runs get promoted (by hand) into the
+# permanent archive at docs/bot-runs/<date>-<stage>-<model>/. NOTES.md inside is a running index of
+# what's already been analyzed — keep that file, it's not disposable output.
+/_bots_llm/

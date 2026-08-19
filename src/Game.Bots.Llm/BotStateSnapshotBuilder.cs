@@ -85,7 +85,7 @@ public static class BotStateSnapshotBuilder
             text.AppendLine($"- factoryId={factory.Id} type={factory.Definition.Id} level={factory.Level} " +
                 $"workers={factory.Workers}/{factory.DesiredWorkers} condition={Percent(factory.Condition)} " +
                 $"recipe={factory.SelectedRecipe.Id} rnd={Money(factory.RndCommitmentPerTurn)}/turn(max {Money(maxRnd)}) " +
-                $"status={status}");
+                $"overhaulRequested={(factory.OverhaulRequested ? "true" : "false")} status={status}");
         }
     }
 

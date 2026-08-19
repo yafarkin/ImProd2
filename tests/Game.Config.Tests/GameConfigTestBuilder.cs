@@ -36,6 +36,8 @@ internal static class GameConfigTestBuilder
                 // Огромный — существующие тесты этого билдера не про потолок долга и не должны
                 // неожиданно словить недостачу принудительного займа.
                 MaxTotalDebt = 1_000_000_000m,
+                // Огромный по той же причине — не про потолок ставки (docs/TODO.md #21).
+                MaxLoanInterestRate = 1_000_000m,
             },
             SessionPresets = new[]
             {

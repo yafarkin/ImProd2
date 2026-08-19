@@ -28,6 +28,12 @@ public static class FinanceCalculator
     /// То же самое на сырых числах, а не на живой команде (Блок 9.2) — нужно для предпросмотра
     /// ставки/платежа гипотетического займа до подтверждения (SPEC §5.9: «в UI до подтверждения —
     /// расчёт платежа за ход»), где долг после займа ещё не применён ни к какой реальной команде.
+    /// Итог закэплен сверху <see cref="StartingConditionsConfig.MaxLoanInterestRate"/> (найдено
+    /// разбором реального прогона LLM-бота, docs/TODO.md #21) — без этого предела слагаемое
+    /// <see cref="StartingConditionsConfig.LoanInterestRateGrowthPerUnitBorrowed"/>×долг ничем не
+    /// ограничено и при крупном (в т.ч. добровольном, см. doc-comment <see
+    /// cref="StartingConditionsConfig.MaxTotalDebt"/>) долге даёт бессмысленную ставку, а вместе с
+    /// ней и <see cref="CalculateInterest"/> — фактически квадратичный от долга расход за один ход.
     /// </summary>
     public static decimal CalculateEffectiveLoanRate(
         decimal debt, decimal penaltyRateSurcharge, decimal reputationPercentage, StartingConditionsConfig loanConfig)
@@ -36,10 +42,12 @@ public static class FinanceCalculator
 
         var reputationPenalty = loanConfig.MaxReputationRatePenalty * (100m - reputationPercentage) / 100m;
 
-        return loanConfig.BaseLoanInterestRate
-               + loanConfig.LoanInterestRateGrowthPerUnitBorrowed * debt
-               + penaltyRateSurcharge
-               + reputationPenalty;
+        var rawRate = loanConfig.BaseLoanInterestRate
+                      + loanConfig.LoanInterestRateGrowthPerUnitBorrowed * debt
+                      + penaltyRateSurcharge
+                      + reputationPenalty;
+
+        return Math.Min(rawRate, loanConfig.MaxLoanInterestRate);
     }
 
     /// <summary>Проценты по текущему долгу за один ход; 0, если долга нет.</summary>

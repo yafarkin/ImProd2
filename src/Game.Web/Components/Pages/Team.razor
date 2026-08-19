@@ -108,7 +108,17 @@ else
     <h2>Что у меня плохо</h2>
     <ul class="list-unstyled">
         <li>Баланс: <strong class="@(_balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_balance)</strong></li>
-        <li>Долг: @DashboardDisplay.FormatMoney(_debt)</li>
+        <li>
+            Долг: @DashboardDisplay.FormatMoney(_debt)
+            @if (_debt > 0)
+            {
+                <text> · ставка: <strong class="@(IsLoanRateDangerous ? "text-danger" : null)">@DashboardDisplay.FormatRate(_currentLoanRate)</strong></text>
+                @if (IsLoanRateDangerous)
+                {
+                    <text> — опасно высокая, проценты уже съедают значительную часть баланса каждый ход, гасите долг</text>
+                }
+            }
+        </li>
         @if (_penaltyRateSurcharge > 0)
         {
             <li>Штрафная надбавка к ставке (от принудительных займов): @_penaltyRateSurcharge.ToString("P1")</li>
@@ -788,12 +798,21 @@ else
     <h3>Финансы</h3>
     <p>
         Баланс: <strong class="@(_balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_balance)</strong> ·
-        долг: @DashboardDisplay.FormatMoney(_debt), текущая ставка: @DashboardDisplay.FormatRate(_currentLoanRate)
+        долг: @DashboardDisplay.FormatMoney(_debt), текущая ставка:
+        <strong class="@(IsLoanRateDangerous ? "text-danger" : null)">@DashboardDisplay.FormatRate(_currentLoanRate)</strong>
         @if (_penaltyRateSurcharge > 0)
         {
             <text> (включая штрафную надбавку @_penaltyRateSurcharge.ToString("P1") от принудительных займов)</text>
         }
     </p>
+    @if (IsLoanRateDangerous)
+    {
+        <p class="text-danger small mb-2">
+            Ставка уже близка к максимуму сессии — проценты съедают значительную часть баланса каждый
+            ход, независимо от того, сколько вы берёте новых займов. Гасите долг («Погасить досрочно»
+            ниже), а не занимайте больше.
+        </p>
+    }
     @if (_canManage)
     {
         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -1145,6 +1164,15 @@ else
 
     private Game.Config.Session.StartingConditionsConfig? _loanConfig;
     private decimal _currentLoanRate;
+
+    /// <summary>
+    /// Ставка уже проела больше половины расстояния до <see cref="Game.Config.Session.StartingConditionsConfig.MaxLoanInterestRate"/>
+    /// (docs/TODO.md #21: без явной подсветки цифра ставки — просто ещё одно число среди многих,
+    /// команда могла не заметить, что она уже опасно высока, пока принудительный заём не ударил по
+    /// балансу). Порог — половина от потолка конфига, а не жёсткое число: масштабируется вместе с
+    /// тем, что сессия вообще считает «максимумом».
+    /// </summary>
+    private bool IsLoanRateDangerous => _loanConfig is not null && _currentLoanRate >= _loanConfig.MaxLoanInterestRate / 2m;
     private decimal _loanAmount = 100m;
     private decimal _repayAmount = 100m;
     private decimal _mandatoryRepaymentRate;

@@ -17,6 +17,9 @@ public class FinanceCalculatorTests
         MaxReputationRatePenalty = 0.2m,
         MandatoryRepaymentRatePerTurn = 0.1m,
         MaxTotalDebt = 1_000_000_000m,
+        // Заведомо выше любой ставки, встречающейся в этом файле (максимум 0.35) — не про потолок
+        // ставки, для него отдельные тесты ниже (docs/TODO.md #21).
+        MaxLoanInterestRate = 10m,
     };
 
     private static readonly WorkerProductivityConfig WorkerConfig = new()
@@ -167,5 +170,43 @@ public class FinanceCalculatorTests
     {
         // 5 по базовой ставке (5*5=25) + 3 сверх порога по ставке *2 (3*5*2=30) = 55.
         Assert.Equal(55m, FinanceCalculator.CalculateSalaries(totalWorkers: 8, WorkerConfigWithSalaryEscalation));
+    }
+
+    // Найдено разбором реального прогона LLM-бота (docs/TODO.md #21,
+    // docs/bot-runs/2026-08-19-stage1-gpt-oss-20b/ANALYSIS.md): LoanInterestRateGrowthPerUnitBorrowed
+    // растёт линейно от АБСОЛЮТНОЙ суммы долга без предела — при крупном (в т.ч. добровольном, не
+    // ограниченном MaxTotalDebt) долге давало бессмысленную ставку и, вместе с ней, фактически
+    // квадратичные от долга проценты за один ход.
+    private static readonly StartingConditionsConfig CappedLoanConfig = LoanConfig with { MaxLoanInterestRate = 0.5m };
+
+    [Fact]
+    public void CalculateEffectiveLoanRate_ClampsToTheConfiguredCeiling_AtLargeDebt()
+    {
+        // ставка без потолка = 0.05 + 0.0001 * 10_000_000 = 1000.05 — далеко за пределами 0.5.
+        var rate = FinanceCalculator.CalculateEffectiveLoanRate(10_000_000m, 0m, reputationPercentage: 100m, CappedLoanConfig);
+
+        Assert.Equal(0.5m, rate);
+    }
+
+    [Fact]
+    public void CalculateInterest_StaysBoundedAtLargeDebt_BecauseTheRateIsCapped()
+    {
+        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
+        team.TakeLoan(10_000_000m);
+
+        // Без потолка проценты были бы ~10_000_500_000 (долг × неограниченная ставка ~1000);
+        // с потолком 0.5 — не больше долга, помноженного на него.
+        var interest = FinanceCalculator.CalculateInterest(team, CappedLoanConfig, reputationPercentage: 100m);
+
+        Assert.Equal(5_000_000m, interest); // 10_000_000 * 0.5
+    }
+
+    [Fact]
+    public void CalculateEffectiveLoanRate_BelowTheCeiling_IsUnaffectedByTheCap()
+    {
+        // На небольшом долге (как в остальных тестах файла) потолок 0.5 никого не задевает.
+        var rate = FinanceCalculator.CalculateEffectiveLoanRate(1000m, 0m, reputationPercentage: 100m, CappedLoanConfig);
+
+        Assert.Equal(0.15m, rate); // тот же результат, что и без потолка (см. тест выше по файлу)
     }
 }

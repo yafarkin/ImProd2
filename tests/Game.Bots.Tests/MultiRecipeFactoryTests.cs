@@ -114,6 +114,7 @@ public class MultiRecipeFactoryTests
                 MaxReputationRatePenalty = 0.1m,
                 MandatoryRepaymentRatePerTurn = 0m,
                 MaxTotalDebt = 1_000_000_000m,
+                MaxLoanInterestRate = 1_000_000_000m,
             },
             SessionPresets = new[]
             {

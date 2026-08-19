@@ -35,7 +35,13 @@ public static class SystemPromptBuilder
             "unlocking the next generation of factory types.",
         [BotCommandKind.SetOverhaulRequested] =
             "setOverhaulRequested(factoryId, enabled) — request (enabled=true) or cancel (enabled=false) " +
-            "an overhaul for a worn existing factory.",
+            "an overhaul for a worn existing factory. IMPORTANT: condition decays every turn whether you " +
+            "watch it or not, and the cost/downtime of an overhaul depends on how low condition already " +
+            "is when you request it — requesting EARLY (condition still fairly high) is cheap and fast; " +
+            "ignore it and the engine eventually forces a repair on its own, which costs far more turns " +
+            "of lost production than a self-requested overhaul ever would. Check the 'FACTORY WEAR' " +
+            "section below every turn and request an overhaul the moment a factory shows up there — " +
+            "don't wait for it to actually break.",
         [BotCommandKind.TakeLoan] =
             "takeLoan(amount) — request a loan for the next settlement; interest rate rises with total debt.",
         [BotCommandKind.RepayLoan] =

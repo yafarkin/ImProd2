@@ -53,6 +53,7 @@ public class GameConfigComposerTests
             MaxReputationRatePenalty = 0.1m,
             MandatoryRepaymentRatePerTurn = 0.05m,
             MaxTotalDebt = 1_000_000m,
+            MaxLoanInterestRate = 1_000_000m,
         },
         SessionPresets = new[] { new SessionPresetConfig { Id = "short", Name = "Short", MinTurns = 1, MaxTurns = 2, TurnDurationMinutes = 1 } },
         PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },

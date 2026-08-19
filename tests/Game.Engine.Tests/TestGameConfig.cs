@@ -336,6 +336,7 @@ internal static class TestGameConfig
                 // Огромный — этот общий тестовый конфиг не про потолок долга, существующие тесты не
                 // должны неожиданно словить недостачу принудительного займа.
                 MaxTotalDebt = 1_000_000_000m,
+                MaxLoanInterestRate = 1_000_000_000m,
             },
             SessionPresets = new[]
             {
