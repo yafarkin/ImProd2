@@ -121,6 +121,14 @@ public static class SystemPromptBuilder
             list should almost always start with takeLoan, followed in the SAME list by buildFactory,
             instead of waiting for a future turn to use the loan.
 
+            The "=== DERIVED METRICS ===" section below is already computed for you: trends over the
+            last several turns compared to the turns before that (loan interest/principal paid, cash
+            flow, warehouse overage fee, idle/underperforming factories with reasons, factory
+            utilization, total R&D spend, runway, market position vs. the leader). Trust these numbers
+            and reason from them directly — don't re-derive your own totals from the raw per-turn
+            history further below, that raw history is there for detail, these numbers are already the
+            answer.
+
             RULES
             - Respond with the JSON object only, matching the schema — no explanation outside it.
             - Use null for every field on a command that does not apply to the "kind" you chose.

@@ -26,6 +26,23 @@ internal static class TestSession
         return (session, teamId);
     }
 
+    /// <summary>Две команды (для проверок рыночной позиции/рейтинга, которым нужен реальный конкурент, а не единственная команда за столом).</summary>
+    public static (GameSession Session, Ulid TeamAId, Ulid TeamBId) StartTwoTeamSession(int endTurn = 20)
+    {
+        var config = GameConfigLoader.LoadFromFile(ConfigPath);
+        var teamAId = Ulid.NewUlid();
+        var teamBId = Ulid.NewUlid();
+        var teams = new List<TeamSpec>
+        {
+            new() { Id = teamAId, Name = "Команда А", SectorId = "A" },
+            new() { Id = teamBId, Name = "Команда Б", SectorId = "A" },
+        };
+
+        var session = GameSession.StartWithEndTurn(config, "short", endTurn, teams);
+        session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
+        return (session, teamAId, teamBId);
+    }
+
     /// <summary>Decision → Settlement → RunTick → Decision — тот же приём, что и <c>BotSessionRunner</c>, для тестов, которым нужна реальная история по нескольким ходам.</summary>
     public static void SettleOneTurn(GameSession session, Random random)
     {

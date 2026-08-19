@@ -32,7 +32,8 @@ public sealed record LlmBotTurnReport(int Turn, IReadOnlyList<LlmBotTurnResult> 
 /// <summary>
 /// Один LLM-бот, ведущий одну команду поперёк ходов (шаг 4 плана, docs/TODO.md #20) — собирает
 /// системный (<see cref="SystemPromptBuilder"/>) и пользовательский (<see cref="BotStateSnapshotBuilder"/>
-/// + <see cref="BotHistorySeriesBuilder"/> + собственная <see cref="BotTurnHistory"/>) промпты и
+/// + <see cref="BotDerivedMetricsBuilder"/> + <see cref="BotHistorySeriesBuilder"/> + собственная
+/// <see cref="BotTurnHistory"/>) промпты и
 /// прогоняет их через <see cref="LlmBotDecisionLoop"/>. Каждый вызов к <see cref="ILlmClient"/> — без
 /// накопленного контекста (решение пользователя), но сам <see cref="LlmBot"/> помнит итоги своих
 /// прошлых ходов между вызовами <see cref="TakeTurnAsync"/> — так модель на следующем ходу видит, что
@@ -117,8 +118,9 @@ public sealed class LlmBot
 
         var systemPrompt = SystemPromptBuilder.Build(PersonaDescription, _maxActionsPerTurn);
         var stateSnapshot = BotStateSnapshotBuilder.Build(session, TeamId);
+        var derivedMetrics = BotDerivedMetricsBuilder.Build(session, TeamId, _historySampleInterval);
         var historySeries = BotHistorySeriesBuilder.Build(session, TeamId, _historySampleInterval);
-        var userPrompt = $"{stateSnapshot}\n{historySeries}\n{_history.Render()}";
+        var userPrompt = $"{stateSnapshot}\n{derivedMetrics}\n{historySeries}\n{_history.Render()}";
 
         onStatusLine?.Invoke($"{botLabel}: ход {turn} — запрос к LLM...");
 
