@@ -33,11 +33,19 @@ public abstract record BotCommandExecutionResult
 /// </summary>
 public sealed class BotCommandExecutor
 {
-    /// <summary>Исполняет команду для данной команды-игрока; никогда не бросает исключение — любая ошибка возвращается как <see cref="BotCommandExecutionResult.DomainError"/>.</summary>
-    public BotCommandExecutionResult Execute(BotCommand command, GameSession session, Ulid teamId)
+    /// <summary>
+    /// Исполняет команду для данной команды-игрока; никогда не бросает исключение — любая ошибка
+    /// возвращается как <see cref="BotCommandExecutionResult.DomainError"/>. <paramref name="random"/>
+    /// используется только для <see cref="BotCommandKind.FulfillTradeOffer"/> (код подтверждения
+    /// контракта, см. <see cref="ExecuteFulfillTradeOffer"/>) — тот же общий на весь прогон
+    /// генератор, что и у <see cref="Game.Engine.GameSession.RunTick"/>, ради воспроизводимости
+    /// журнала (AGENTS §2, правило 6).
+    /// </summary>
+    public BotCommandExecutionResult Execute(BotCommand command, GameSession session, Ulid teamId, Random random)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(random);
 
         try
         {
@@ -58,6 +66,10 @@ public sealed class BotCommandExecutor
                 BotCommandKind.PostNeed => ExecutePostNeed(command, session, teamId),
                 BotCommandKind.WithdrawNeed => ExecuteWithdrawNeed(command, session, teamId),
                 BotCommandKind.EmergencyPurchase => ExecuteEmergencyPurchase(command, session, teamId),
+                BotCommandKind.PostSellOffer => ExecutePostTradeOffer(command, session, teamId, TradeOfferDirection.Sell),
+                BotCommandKind.PostBuyOffer => ExecutePostTradeOffer(command, session, teamId, TradeOfferDirection.Buy),
+                BotCommandKind.WithdrawTradeOffer => ExecuteWithdrawTradeOffer(command, session, teamId),
+                BotCommandKind.FulfillTradeOffer => ExecuteFulfillTradeOffer(command, session, teamId, random),
                 _ => new BotCommandExecutionResult.DomainError($"Unknown command kind '{command.Kind}'."),
             };
         }
@@ -215,6 +227,82 @@ public sealed class BotCommandExecutor
         }
 
         return new BotCommandExecutionResult.Success(session.EmergencyPurchase(teamId, command.MaterialId, volume));
+    }
+
+    private static BotCommandExecutionResult ExecutePostTradeOffer(BotCommand command, GameSession session, Ulid teamId, TradeOfferDirection direction)
+    {
+        if (command.MaterialId is null || command.Volume is not { } volume || command.MinPrice is not { } minPrice || command.MaxPrice is not { } maxPrice)
+        {
+            return new BotCommandExecutionResult.DomainError("PostSellOffer/PostBuyOffer requires materialId, volume, minPrice, and maxPrice.");
+        }
+
+        var type = command.Recurring == true ? ContractType.Recurring : ContractType.Spot;
+        return new BotCommandExecutionResult.Success(session.PostTradeOffer(teamId, direction, command.MaterialId, type, volume, minPrice, maxPrice));
+    }
+
+    private static BotCommandExecutionResult ExecuteWithdrawTradeOffer(BotCommand command, GameSession session, Ulid teamId)
+    {
+        if (command.TradeOfferId is not { } tradeOfferId)
+        {
+            return new BotCommandExecutionResult.DomainError("WithdrawTradeOffer requires tradeOfferId.");
+        }
+
+        return new BotCommandExecutionResult.Success(session.WithdrawTradeOffer(teamId, tradeOfferId));
+    }
+
+    /// <summary>
+    /// Исполняет чужую заявку с доски публичных заявок: собирает контракт на условиях заявки и сразу
+    /// сводит+подтверждает его тем же приёмом, что и <c>Game.Bots.OrderBook.SignContract</c> для
+    /// механического стакана SimpleBot — продавец «подаёт» заявку A (инициатор), покупатель
+    /// подтверждает; здесь эта роль всегда достаётся стороне, исполняющей чужое предложение, не
+    /// автору заявки (он уже выразил согласие самим фактом публикации).
+    /// </summary>
+    private static BotCommandExecutionResult ExecuteFulfillTradeOffer(BotCommand command, GameSession session, Ulid teamId, Random random)
+    {
+        if (command.TradeOfferId is not { } tradeOfferId || command.Volume is not { } volume || command.UnitPrice is not { } unitPrice)
+        {
+            return new BotCommandExecutionResult.DomainError("FulfillTradeOffer requires tradeOfferId, volume, and unitPrice.");
+        }
+        if (!session.State.TradeOffers.TryGetValue(tradeOfferId, out var offer))
+        {
+            return new BotCommandExecutionResult.DomainError($"Unknown trade offer '{tradeOfferId}'.");
+        }
+        if (!offer.IsOpenOn(session.State.CurrentTurn))
+        {
+            return new BotCommandExecutionResult.DomainError($"Trade offer '{tradeOfferId}' is no longer open (expired or already fulfilled).");
+        }
+        if (offer.TeamId == teamId)
+        {
+            return new BotCommandExecutionResult.DomainError("A team cannot fulfill its own trade offer.");
+        }
+        if (volume <= 0 || volume > offer.Volume)
+        {
+            return new BotCommandExecutionResult.DomainError($"FulfillTradeOffer volume must be positive and at most the offer's volume ({offer.Volume}).");
+        }
+        if (unitPrice < offer.MinPrice || unitPrice > offer.MaxPrice)
+        {
+            return new BotCommandExecutionResult.DomainError($"FulfillTradeOffer unitPrice must be between {offer.MinPrice} and {offer.MaxPrice}.");
+        }
+
+        var (buyerTeamId, sellerTeamId) = offer.Direction == TradeOfferDirection.Sell ? (teamId, offer.TeamId) : (offer.TeamId, teamId);
+        var turn = session.State.CurrentTurn;
+        var penaltyRate = session.State.Config.Raw.Contracts.DeliveryMissPenaltyRate;
+        var terms = offer.Type == ContractType.Spot
+            ? new ContractTerms(ContractType.Spot, offer.Material, volume, unitPrice, penaltyRate, effectiveTurn: turn, spotDeliveryTurn: turn + 1, recurringEndTurn: null)
+            : new ContractTerms(ContractType.Recurring, offer.Material, volume, unitPrice, penaltyRate, effectiveTurn: turn, spotDeliveryTurn: null, recurringEndTurn: null);
+
+        var sellerProposal = new ContractProposal(buyerTeamId, sellerTeamId, sellerTeamId, terms);
+        var buyerProposal = new ContractProposal(buyerTeamId, sellerTeamId, buyerTeamId, terms);
+
+        var formation = session.SubmitContractProposals(sellerProposal, buyerProposal, random);
+        if (!formation.IsMatched)
+        {
+            return new BotCommandExecutionResult.DomainError(
+                $"Could not form a contract from trade offer '{tradeOfferId}': {string.Join(", ", formation.Mismatches)}.");
+        }
+
+        session.ConfirmContract(formation.Contract!.Id, TeamRole.Manager, buyerTeamId);
+        return new BotCommandExecutionResult.Success(session.MarkTradeOfferFulfilled(tradeOfferId, teamId));
     }
 
     private static bool TryParseDirection(string value, out NeedDirection direction)

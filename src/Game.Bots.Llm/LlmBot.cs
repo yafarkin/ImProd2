@@ -105,13 +105,18 @@ public sealed class LlmBot
     /// действие из полученного массива. <paramref name="metricsLog"/> — пишет по одной строке
     /// <see cref="BotMetricsLog"/> на каждое действие; время и размер запроса — общие для всего
     /// вызова (единственного за ход), намеренно одинаковые в каждой строке одного хода.
+    /// <paramref name="random"/> — тот же общий генератор, что и у <see cref="Game.Engine.GameSession.RunTick"/>
+    /// в <see cref="LlmBotSessionRunner"/>, нужен только команде <see cref="BotCommandKind.FulfillTradeOffer"/>
+    /// (код подтверждения контракта) — прокидывается насквозь, чтобы журнал сессии оставался
+    /// воспроизводимым при одном и том же сиде (AGENTS §2, правило 6).
     /// </summary>
     public async Task<LlmBotTurnReport> TakeTurnAsync(
-        GameSession session, BotDecisionLog log, BotMetricsLog? metricsLog = null,
+        GameSession session, BotDecisionLog log, Random random, BotMetricsLog? metricsLog = null,
         Action<string>? onStatusLine = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(log);
+        ArgumentNullException.ThrowIfNull(random);
 
         var turn = session.State.CurrentTurn;
         var botLabel = session.State.Teams.TryGetValue(TeamId, out var teamAtStart) ? teamAtStart.Name : TeamId.ToString();
@@ -125,7 +130,7 @@ public sealed class LlmBot
         onStatusLine?.Invoke($"{botLabel}: ход {turn} — запрос к LLM...");
 
         var stopwatch = Stopwatch.StartNew();
-        var results = await _loop.RunTurnAsync(session, TeamId, systemPrompt, userPrompt, log, _maxActionsPerTurn, cancellationToken).ConfigureAwait(false);
+        var results = await _loop.RunTurnAsync(session, TeamId, systemPrompt, userPrompt, log, _maxActionsPerTurn, random, cancellationToken).ConfigureAwait(false);
         stopwatch.Stop();
 
         var requestSizeBytes = Encoding.UTF8.GetByteCount(systemPrompt) + Encoding.UTF8.GetByteCount(userPrompt);

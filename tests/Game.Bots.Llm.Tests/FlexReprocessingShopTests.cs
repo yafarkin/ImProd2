@@ -43,7 +43,7 @@ public sealed class FlexReprocessingShopTests
             RecipeId = recipeId,
         };
 
-        var result = Executor.Execute(command, session, teamId);
+        var result = Executor.Execute(command, session, teamId, new Random(1));
 
         Assert.IsType<BotCommandExecutionResult.Success>(result);
         var factory = Assert.Single(session.State.Teams[teamId].Factories);
@@ -59,7 +59,7 @@ public sealed class FlexReprocessingShopTests
         var (session, teamId) = StartSession();
         var command = new BotCommand { Kind = BotCommandKind.BuildFactory, FactoryDefinitionId = "flex-reprocessing-shop" };
 
-        var result = Executor.Execute(command, session, teamId);
+        var result = Executor.Execute(command, session, teamId, new Random(1));
 
         Assert.IsType<BotCommandExecutionResult.Success>(result);
         Assert.Equal("scrap-alloy-from-scrap", session.State.Teams[teamId].Factories[0].SelectedRecipe.Id);
@@ -71,12 +71,12 @@ public sealed class FlexReprocessingShopTests
         var (session, teamId) = StartSession();
         Executor.Execute(
             new BotCommand { Kind = BotCommandKind.BuildFactory, FactoryDefinitionId = "flex-reprocessing-shop", RecipeId = "scrap-alloy-from-scrap" },
-            session, teamId);
+            session, teamId, new Random(1));
         var factoryId = session.State.Teams[teamId].Factories[0].Id;
 
         var result = Executor.Execute(
             new BotCommand { Kind = BotCommandKind.SelectRecipe, FactoryId = factoryId, RecipeId = "coal-briquette-from-coal" },
-            session, teamId);
+            session, teamId, new Random(1));
 
         Assert.IsType<BotCommandExecutionResult.Success>(result);
         Assert.Equal("coal-briquette-from-coal", session.State.Teams[teamId].Factories[0].SelectedRecipe.Id);

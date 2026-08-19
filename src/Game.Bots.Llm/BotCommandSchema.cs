@@ -89,12 +89,14 @@ public static class BotCommandSchema
                 ["materialId"] = new JsonObject
                 {
                     ["type"] = new JsonArray("string", "null"),
-                    ["description"] = "Catalog id of a material, for kind=sellToSystem/emergencyPurchase/postNeed.",
+                    ["description"] = "Catalog id of a material, for kind=sellToSystem/emergencyPurchase/postNeed/postSellOffer/postBuyOffer.",
                 },
                 ["volume"] = new JsonObject
                 {
                     ["type"] = new JsonArray("number", "null"),
-                    ["description"] = "Volume of material, for kind=sellToSystem/emergencyPurchase.",
+                    ["description"] =
+                        "Volume of material, for kind=sellToSystem/emergencyPurchase/postSellOffer/postBuyOffer (per delivery) " +
+                        "and kind=fulfillTradeOffer (how much of the offer to take).",
                 },
                 ["enabled"] = new JsonObject
                 {
@@ -127,6 +129,35 @@ public static class BotCommandSchema
                 {
                     ["type"] = new JsonArray("string", "null"),
                     ["description"] = "Id of an existing need-board posting to withdraw, for kind=withdrawNeed.",
+                },
+                ["recurring"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("boolean", "null"),
+                    ["description"] =
+                        "true = delivered every turn until fulfilled or withdrawn, false/omitted = a one-off delivery. " +
+                        "For kind=postSellOffer/postBuyOffer.",
+                },
+                ["minPrice"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("number", "null"),
+                    ["description"] = "Lowest unit price you'd accept, for kind=postSellOffer/postBuyOffer.",
+                },
+                ["maxPrice"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("number", "null"),
+                    ["description"] = "Highest unit price you'd accept, for kind=postSellOffer/postBuyOffer.",
+                },
+                ["tradeOfferId"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("string", "null"),
+                    ["description"] =
+                        "Id of an existing public trade offer, copied verbatim from the state below, for " +
+                        "kind=withdrawTradeOffer (your own) or kind=fulfillTradeOffer (someone else's).",
+                },
+                ["unitPrice"] = new JsonObject
+                {
+                    ["type"] = new JsonArray("number", "null"),
+                    ["description"] = "The exact price you offer, within the offer's price range, for kind=fulfillTradeOffer.",
                 },
                 ["annotation"] = new JsonObject
                 {

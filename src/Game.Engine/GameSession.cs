@@ -433,6 +433,91 @@ public sealed class GameSession
     }
 
     /// <summary>
+    /// Публикует заявку на доске публичных заявок (запрос пользователя 2026-08-17): в отличие от
+    /// <see cref="PostNeed"/> — не слух, а твёрдое предложение сделки, которое можно исполнить как
+    /// есть (см. <see cref="FulfillTradeOffer"/>), поэтому, как и остальные экономические решения,
+    /// допустима только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> PostTradeOffer(
+        Ulid teamId, TradeOfferDirection direction, string materialId, ContractType type,
+        decimal volume, decimal minPrice, decimal maxPrice)
+    {
+        EnsureDecisionsAllowed();
+        GetTeam(teamId);
+        if (!State.Config.Materials.ContainsKey(materialId))
+        {
+            throw new ArgumentException($"Unknown material '{materialId}'.", nameof(materialId));
+        }
+        if (volume <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(volume), volume, "Trade offer volume must be positive.");
+        }
+        if (minPrice <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(minPrice), minPrice, "Minimum price must be positive.");
+        }
+        if (maxPrice < minPrice)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxPrice), maxPrice, "Maximum price must not be below the minimum price.");
+        }
+
+        return _log.Append(new TradeOfferPosted
+        {
+            Id = Ulid.NewUlid(),
+            TeamId = teamId,
+            TradeOfferId = Ulid.NewUlid(),
+            Direction = direction,
+            MaterialId = materialId,
+            Type = type,
+            Volume = volume,
+            MinPrice = minPrice,
+            MaxPrice = maxPrice,
+        });
+    }
+
+    /// <summary>Отзывает собственную заявку команды с доски публичных заявок (запрос пользователя 2026-08-17).</summary>
+    public EventLogEntry<GameSessionState> WithdrawTradeOffer(Ulid teamId, Ulid tradeOfferId)
+    {
+        EnsureDecisionsAllowed();
+
+        var offer = GetTradeOffer(tradeOfferId);
+        if (offer.TeamId != teamId)
+        {
+            throw new ArgumentException("Only the posting team can withdraw its own trade offer.", nameof(teamId));
+        }
+
+        return _log.Append(new TradeOfferWithdrawn { Id = Ulid.NewUlid(), TradeOfferId = tradeOfferId });
+    }
+
+    /// <summary>
+    /// Фиксирует, что заявка на доске публичных заявок исполнена (запрос пользователя 2026-08-17) —
+    /// только смена статуса самой заявки; сведение и подтверждение контракта на её условиях —
+    /// отдельные вызовы (<see cref="SubmitContractProposals"/>/<see cref="ConfirmContract"/>), которые
+    /// делает вызывающий код тем же приёмом, что и <c>Game.Bots.OrderBook.SignContract</c> для
+    /// механического стакана SimpleBot — здесь нарочно не объединено в один метод, чтобы каждый метод
+    /// сессии по-прежнему писал ровно одно событие.
+    /// </summary>
+    public EventLogEntry<GameSessionState> MarkTradeOfferFulfilled(Ulid tradeOfferId, Ulid fulfillingTeamId)
+    {
+        EnsureDecisionsAllowed();
+
+        var offer = GetTradeOffer(tradeOfferId);
+        if (offer.TeamId == fulfillingTeamId)
+        {
+            throw new ArgumentException("A team cannot fulfill its own trade offer.", nameof(fulfillingTeamId));
+        }
+        if (!offer.IsOpenOn(State.CurrentTurn))
+        {
+            throw new InvalidOperationException(
+                offer.Status == TradeOfferStatus.Open
+                    ? $"Trade offer '{tradeOfferId}' expired after turn {offer.ExpiresAfterTurn}."
+                    : $"Cannot fulfill a trade offer in status '{offer.Status}'.");
+        }
+
+        return _log.Append(new TradeOfferFulfilled { Id = Ulid.NewUlid(), TradeOfferId = tradeOfferId, FulfillingTeamId = fulfillingTeamId });
+    }
+
+    /// <summary>
     /// Объявляет желаемый объём аварийной закупки материала на ближайший расчёт (SPEC §4, §5.3:
     /// решения не применяются сразу — только на расчёте; цена — текущая рыночная котировка ×
     /// множитель, служит потолком монопольных цен). Само объявление бесплатно и мгновенно, тем же
@@ -1005,6 +1090,16 @@ public sealed class GameSession
         }
 
         return need;
+    }
+
+    private TradeOffer GetTradeOffer(Ulid tradeOfferId)
+    {
+        if (!State.TradeOffers.TryGetValue(tradeOfferId, out var offer))
+        {
+            throw new ArgumentException($"Unknown trade offer '{tradeOfferId}'.", nameof(tradeOfferId));
+        }
+
+        return offer;
     }
 
     private Team GetTeam(Ulid teamId)

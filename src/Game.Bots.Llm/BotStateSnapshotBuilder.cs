@@ -36,6 +36,7 @@ public static class BotStateSnapshotBuilder
         AppendWarehouse(text, team);
         AppendMarket(text, state, team.Sector);
         AppendContracts(text, state, teamId);
+        AppendTradeOffers(text, state, teamId);
         AppendRanking(text, session);
 
         return text.ToString();
@@ -213,6 +214,44 @@ public static class BotStateSnapshotBuilder
             text.AppendLine($"- contractId={contract.Id} status={contract.Status} you={role} counterparty={counterpartyName} " +
                 $"materialId={contract.Terms.Material.Id} volume={Quantity(contract.Terms.Volume)} " +
                 $"unit_price={Money(contract.Terms.UnitPrice)}");
+        }
+    }
+
+    /// <summary>
+    /// Доска публичных заявок (запрос пользователя 2026-08-17) — видна всем командам, включая
+    /// собственные заявки автора (помечены <c>(you)</c>), чтобы можно было решить, отзывать ли).
+    /// Только реально ещё исполнимые (<see cref="TradeOffer.IsOpenOn"/>) — просроченные и уже
+    /// исполненные/отозванные не занимают место в промпте.
+    /// </summary>
+    private static void AppendTradeOffers(StringBuilder text, GameSessionState state, Ulid teamId)
+    {
+        text.AppendLine();
+        text.AppendLine($"PUBLIC TRADE OFFERS (each disappears after {TradeOffer.MaxAgeInTurns} turns if unfulfilled)");
+
+        var offers = state.TradeOffers.Values
+            .Where(offer => offer.IsOpenOn(state.CurrentTurn))
+            .OrderBy(offer => offer.PostedTurn)
+            .ThenBy(offer => offer.Id)
+            .ToList();
+
+        if (offers.Count == 0)
+        {
+            text.AppendLine("(none open right now)");
+            return;
+        }
+
+        foreach (var offer in offers)
+        {
+            var authorName = state.Teams.TryGetValue(offer.TeamId, out var author) ? author.Name : offer.TeamId.ToString();
+            var you = offer.TeamId == teamId ? " (you)" : string.Empty;
+            var direction = offer.Direction == TradeOfferDirection.Sell ? "selling" : "buying";
+            var cadence = offer.Type == ContractType.Recurring ? "every turn" : "one-off";
+            var turnsLeft = offer.ExpiresAfterTurn - state.CurrentTurn + 1;
+
+            text.AppendLine(
+                $"- tradeOfferId={offer.Id} {authorName}{you} {direction} materialId={offer.Material.Id} " +
+                $"volume={Quantity(offer.Volume)} ({cadence}) price={Money(offer.MinPrice)}-{Money(offer.MaxPrice)} " +
+                $"turns_left={turnsLeft}");
         }
     }
 

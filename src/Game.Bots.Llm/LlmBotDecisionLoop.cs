@@ -133,12 +133,14 @@ public sealed class LlmBotDecisionLoop
         string initialUserPrompt,
         BotDecisionLog log,
         int maxActionsPerTurn,
+        Random random,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(systemPrompt);
         ArgumentNullException.ThrowIfNull(initialUserPrompt);
         ArgumentNullException.ThrowIfNull(log);
+        ArgumentNullException.ThrowIfNull(random);
 
         var botLabel = session.State.Teams.TryGetValue(teamId, out var team) ? team.Name : teamId.ToString();
         var turn = session.State.CurrentTurn;
@@ -172,7 +174,7 @@ public sealed class LlmBotDecisionLoop
             }
 
             log.Record(botLabel, turn, 0, attempt, userPrompt, raw, $"Parsed {batch!.Actions.Count} action(s)");
-            return ExecuteBatch(batch, session, teamId, log, botLabel, turn, attempt, maxActionsPerTurn);
+            return ExecuteBatch(batch, session, teamId, log, botLabel, turn, attempt, maxActionsPerTurn, random);
         }
 
         log.Record(botLabel, turn, 0, _maxAttempts, userPrompt, string.Empty, "Exhausted");
@@ -180,7 +182,7 @@ public sealed class LlmBotDecisionLoop
     }
 
     private IReadOnlyList<LlmBotTurnResult> ExecuteBatch(
-        BotCommandBatch batch, GameSession session, Ulid teamId, BotDecisionLog log, string botLabel, int turn, int attempt, int maxActionsPerTurn)
+        BotCommandBatch batch, GameSession session, Ulid teamId, BotDecisionLog log, string botLabel, int turn, int attempt, int maxActionsPerTurn, Random random)
     {
         if (batch.Actions.Count == 0)
         {
@@ -218,7 +220,7 @@ public sealed class LlmBotDecisionLoop
                 continue;
             }
 
-            var executionResult = _executor.Execute(command, session, teamId);
+            var executionResult = _executor.Execute(command, session, teamId, random);
             if (executionResult is BotCommandExecutionResult.DomainError error)
             {
                 log.Record(botLabel, turn, actionIndex, attempt, string.Empty, Describe(command), $"Skipped: domain error: {error.Message}");

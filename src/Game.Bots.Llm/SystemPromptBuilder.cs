@@ -66,6 +66,24 @@ public static class SystemPromptBuilder
             "one call. If a factory isn't producing because it has 0 workers, emergencyPurchase will NOT " +
             "fix that — material just piles up unused; the fix is setWorkerCount, then wait for it to " +
             "actually run.",
+        [BotCommandKind.PostSellOffer] =
+            "postSellOffer(materialId, volume, minPrice, maxPrice, recurring?) — publish a firm public " +
+            "offer to SELL a material to any other team; it shows up for everyone under 'PUBLIC TRADE " +
+            "OFFERS' below. volume is per delivery; recurring=true repeats every turn until someone fulfills or you " +
+            "withdraw it, otherwise it's a one-off. minPrice/maxPrice is the price range you'd accept — " +
+            "there is no back-and-forth negotiation, whoever fulfills it picks the exact price within " +
+            "that range. The offer disappears after 3 turns if nobody takes it.",
+        [BotCommandKind.PostBuyOffer] =
+            "postBuyOffer(materialId, volume, minPrice, maxPrice, recurring?) — same as postSellOffer, but " +
+            "you are looking to BUY the material instead.",
+        [BotCommandKind.WithdrawTradeOffer] =
+            "withdrawTradeOffer(tradeOfferId) — cancel one of your own still-open public trade offers " +
+            "early, before someone fulfills it or it expires on its own.",
+        [BotCommandKind.FulfillTradeOffer] =
+            "fulfillTradeOffer(tradeOfferId, volume, unitPrice) — accept someone ELSE's open public trade " +
+            "offer as-is: pick a volume up to the offer's volume and a unitPrice within its stated range. " +
+            "This immediately forms a real contract (delivery happens at the next settlement, same as any " +
+            "other contract) and removes the offer from the board — you cannot fulfill your own offer.",
     };
 
     /// <summary>

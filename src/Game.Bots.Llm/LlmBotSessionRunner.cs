@@ -77,7 +77,7 @@ public static class LlmBotSessionRunner
                 case TurnPhase.Decision:
                     foreach (var bot in bots)
                     {
-                        var report = await bot.TakeTurnAsync(session, log, metricsLog, onStatusLine, cancellationToken).ConfigureAwait(false);
+                        var report = await bot.TakeTurnAsync(session, log, random, metricsLog, onStatusLine, cancellationToken).ConfigureAwait(false);
 
                         if (!report.IsFullyFailedTurn)
                         {

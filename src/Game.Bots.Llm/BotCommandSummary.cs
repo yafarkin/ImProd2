@@ -39,6 +39,10 @@ internal static class BotCommandSummary
         BotCommandKind.PostNeed => $"postNeed({command.MaterialId}, {command.Direction}, {command.VolumeOrder})",
         BotCommandKind.WithdrawNeed => $"withdrawNeed({command.NeedId})",
         BotCommandKind.EmergencyPurchase => $"emergencyPurchase({command.MaterialId}, {command.Volume})",
+        BotCommandKind.PostSellOffer => $"postSellOffer({command.MaterialId}, {command.Volume}, {command.MinPrice}-{command.MaxPrice})",
+        BotCommandKind.PostBuyOffer => $"postBuyOffer({command.MaterialId}, {command.Volume}, {command.MinPrice}-{command.MaxPrice})",
+        BotCommandKind.WithdrawTradeOffer => $"withdrawTradeOffer({command.TradeOfferId})",
+        BotCommandKind.FulfillTradeOffer => $"fulfillTradeOffer({command.TradeOfferId}, {command.Volume} @ {command.UnitPrice})",
         BotCommandKind.Nop => "nop",
         _ => command.Kind.ToString(),
     };

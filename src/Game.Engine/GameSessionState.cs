@@ -84,6 +84,17 @@ public sealed class GameSessionState
         _needs.Add(need.Id, need);
     }
 
+    private readonly Dictionary<Ulid, TradeOffer> _tradeOffers = new();
+
+    /// <summary>Заявки доски публичных заявок по идентификатору (запрос пользователя 2026-08-17) — наполняется событием <see cref="TradeOfferPosted"/>.</summary>
+    public IReadOnlyDictionary<Ulid, TradeOffer> TradeOffers => _tradeOffers;
+
+    /// <summary>Регистрирует заявку доски публичных заявок; вызывается только из <see cref="TradeOfferPosted.Apply"/>.</summary>
+    internal void AddTradeOffer(TradeOffer offer)
+    {
+        _tradeOffers.Add(offer.Id, offer);
+    }
+
     /// <summary>
     /// Контент-хеш конфига, с которым начата сессия (продублирован из <see cref="Config"/> для
     /// самодостаточного экспорта/дебрифа §12) — заполняется событием <see cref="SessionStarted"/>.

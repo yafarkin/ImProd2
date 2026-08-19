@@ -15,7 +15,7 @@ public sealed class LlmBotTests
         var client = new ScriptedLlmClient("""{"actions":[]}""");
         var bot = new LlmBot(teamId, "Cautious and risk-averse.", client);
 
-        await bot.TakeTurnAsync(session, new BotDecisionLog());
+        await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
 
         Assert.Single(client.ReceivedUserPrompts); // ровно один вызов LLM на весь ход
         var userPrompt = client.ReceivedUserPrompts[0];
@@ -31,7 +31,7 @@ public sealed class LlmBotTests
         var client = new ScriptedLlmClient("""{"actions":[]}""");
         var bot = new LlmBot(teamId, "persona", client);
 
-        var report = await bot.TakeTurnAsync(session, new BotDecisionLog());
+        var report = await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
 
         Assert.Single(report.Actions);
         Assert.Equal(LlmBotTurnOutcome.Nop, report.Actions[0].Outcome);
@@ -50,7 +50,7 @@ public sealed class LlmBotTests
             """{"actions":[{"kind":"takeLoan","amount":1000,"annotation":"bootstrap capital"},{"kind":"buildFactory","factoryDefinitionId":"iron-mine"}]}""");
         var bot = new LlmBot(teamId, "persona", client);
 
-        var report = await bot.TakeTurnAsync(session, new BotDecisionLog());
+        var report = await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
 
         Assert.Single(client.ReceivedUserPrompts); // по-прежнему ровно один вызов
         Assert.Equal(2, report.Actions.Count);
@@ -70,7 +70,7 @@ public sealed class LlmBotTests
             """{"actions":[{"kind":"setGenerationResearchCommitment","amount":1},{"kind":"setGenerationResearchCommitment","amount":2},{"kind":"setGenerationResearchCommitment","amount":3}]}""");
         var bot = new LlmBot(teamId, "persona", client, maxActionsPerTurn: 2);
 
-        var report = await bot.TakeTurnAsync(session, new BotDecisionLog());
+        var report = await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
 
         Assert.Equal(2, report.Actions.Count);
         Assert.All(report.Actions, a => Assert.Equal(LlmBotTurnOutcome.Success, a.Outcome));
@@ -86,7 +86,7 @@ public sealed class LlmBotTests
         var writer = new StringWriter();
         using var metrics = new BotMetricsLog(writer);
 
-        await bot.TakeTurnAsync(session, new BotDecisionLog(), metrics);
+        await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1), metrics);
 
         var lines = writer.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         Assert.Equal(2, lines.Length); // header + 1 действие (buildFactory)
@@ -107,7 +107,7 @@ public sealed class LlmBotTests
         var client = new ScriptedLlmClient("""{"actions":[]}""");
         var bot = new LlmBot(teamId, "persona", client);
 
-        var report = await bot.TakeTurnAsync(session, new BotDecisionLog());
+        var report = await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
 
         Assert.Equal(LlmBotTurnOutcome.Nop, report.Actions[^1].Outcome);
     }
@@ -120,7 +120,7 @@ public sealed class LlmBotTests
             """{"actions":[{"kind":"buildFactory","factoryDefinitionId":"iron-mine","annotation":"starting the ore chain"}]}""");
         var bot = new LlmBot(teamId, "persona", client);
 
-        var report = await bot.TakeTurnAsync(session, new BotDecisionLog());
+        var report = await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
 
         Assert.Equal(LlmBotTurnOutcome.Success, report.Actions[0].Outcome);
         Assert.Single(bot.History);
@@ -139,8 +139,8 @@ public sealed class LlmBotTests
             """{"actions":[{"kind":"buildFactory","factoryDefinitionId":"steel-mill","annotation":"next in the chain"}]}""");
         var bot = new LlmBot(teamId, "persona", client);
 
-        await bot.TakeTurnAsync(session, new BotDecisionLog());
-        await bot.TakeTurnAsync(session, new BotDecisionLog());
+        await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
+        await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
 
         Assert.Equal(2, bot.History.Count);
         Assert.Equal(2, client.ReceivedUserPrompts.Count); // всё ещё ровно один вызов на ход
@@ -155,7 +155,7 @@ public sealed class LlmBotTests
         var client = new ScriptedLlmClient("not json 1", "not json 2");
         var bot = new LlmBot(teamId, "persona", client, maxAttempts: 2);
 
-        var report = await bot.TakeTurnAsync(session, new BotDecisionLog());
+        var report = await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
 
         Assert.Equal(LlmBotTurnOutcome.Exhausted, report.Actions[^1].Outcome);
         Assert.True(report.IsFullyFailedTurn);
@@ -174,7 +174,7 @@ public sealed class LlmBotTests
             """{"actions":[{"kind":"takeLoan","amount":1000},{"kind":"buildFactory","factoryDefinitionId":"unknown"}]}""");
         var bot = new LlmBot(teamId, "persona", client);
 
-        var report = await bot.TakeTurnAsync(session, new BotDecisionLog());
+        var report = await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
 
         Assert.Equal(1, report.SuccessfulActionCount);
         Assert.Equal(LlmBotTurnOutcome.Skipped, report.Actions[^1].Outcome);
@@ -189,7 +189,7 @@ public sealed class LlmBotTests
             """{"actions":[{"kind":"buildFactory","factoryDefinitionId":"unknown-1"},{"kind":"buildFactory","factoryDefinitionId":"unknown-2"}]}""");
         var bot = new LlmBot(teamId, "persona", client);
 
-        var report = await bot.TakeTurnAsync(session, new BotDecisionLog());
+        var report = await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
 
         Assert.Equal(0, report.SuccessfulActionCount);
         Assert.All(report.Actions, a => Assert.Equal(LlmBotTurnOutcome.Skipped, a.Outcome));
@@ -204,7 +204,7 @@ public sealed class LlmBotTests
         var bot = new LlmBot(teamId, "persona", client);
         var lines = new List<string>();
 
-        await bot.TakeTurnAsync(session, new BotDecisionLog(), onStatusLine: lines.Add);
+        await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1), onStatusLine: lines.Add);
 
         Assert.Equal(2, lines.Count); // запрос к LLM (один на весь ход) + итог единственного действия
         Assert.Contains("запрос к LLM", lines[0]);

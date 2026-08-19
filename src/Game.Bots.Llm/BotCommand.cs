@@ -50,6 +50,18 @@ public enum BotCommandKind
 
     /// <summary>См. <see cref="Game.Engine.GameSession.EmergencyPurchase"/>.</summary>
     EmergencyPurchase,
+
+    /// <summary>Публикует заявку на продажу материала. См. <see cref="Game.Engine.GameSession.PostTradeOffer"/>.</summary>
+    PostSellOffer,
+
+    /// <summary>Публикует заявку на покупку материала. См. <see cref="Game.Engine.GameSession.PostTradeOffer"/>.</summary>
+    PostBuyOffer,
+
+    /// <summary>См. <see cref="Game.Engine.GameSession.WithdrawTradeOffer"/>.</summary>
+    WithdrawTradeOffer,
+
+    /// <summary>Исполняет чужую заявку с доски публичных заявок. См. <see cref="Game.Engine.GameSession.MarkTradeOfferFulfilled"/>.</summary>
+    FulfillTradeOffer,
 }
 
 /// <summary>
@@ -87,10 +99,17 @@ public sealed record BotCommand
     /// <summary>Число рабочих — для <see cref="BotCommandKind.SetWorkerCount"/>.</summary>
     public int? Count { get; init; }
 
-    /// <summary>Идентификатор материала — для <see cref="BotCommandKind.SellToSystem"/>, <see cref="BotCommandKind.EmergencyPurchase"/> и <see cref="BotCommandKind.PostNeed"/>.</summary>
+    /// <summary>
+    /// Идентификатор материала — для <see cref="BotCommandKind.SellToSystem"/>, <see cref="BotCommandKind.EmergencyPurchase"/>,
+    /// <see cref="BotCommandKind.PostNeed"/>, <see cref="BotCommandKind.PostSellOffer"/> и <see cref="BotCommandKind.PostBuyOffer"/>.
+    /// </summary>
     public string? MaterialId { get; init; }
 
-    /// <summary>Объём материала — для <see cref="BotCommandKind.SellToSystem"/> и <see cref="BotCommandKind.EmergencyPurchase"/>.</summary>
+    /// <summary>
+    /// Объём материала — для <see cref="BotCommandKind.SellToSystem"/>, <see cref="BotCommandKind.EmergencyPurchase"/>,
+    /// <see cref="BotCommandKind.PostSellOffer"/>/<see cref="BotCommandKind.PostBuyOffer"/> (за одну поставку) и
+    /// <see cref="BotCommandKind.FulfillTradeOffer"/> (сколько из заявки исполняется).
+    /// </summary>
     public decimal? Volume { get; init; }
 
     /// <summary>Включить/выключить запрос — для <see cref="BotCommandKind.SetOverhaulRequested"/>.</summary>
@@ -113,6 +132,30 @@ public sealed record BotCommand
 
     /// <summary>Идентификатор записи на доске потребностей — для <see cref="BotCommandKind.WithdrawNeed"/>.</summary>
     public Ulid? NeedId { get; init; }
+
+    /// <summary>
+    /// <see langword="true"/> — регулярная заявка (поставка каждый ход, пока не исполнят или не
+    /// отзовут), <see langword="false"/>/не задано — разовая. Для <see cref="BotCommandKind.PostSellOffer"/>
+    /// и <see cref="BotCommandKind.PostBuyOffer"/>.
+    /// </summary>
+    public bool? Recurring { get; init; }
+
+    /// <summary>
+    /// Минимально приемлемая цена за единицу — публикующая сторона называет вилку вместо торга
+    /// (у ботов его не будет). Для <see cref="BotCommandKind.PostSellOffer"/> и <see cref="BotCommandKind.PostBuyOffer"/>.
+    /// </summary>
+    public decimal? MinPrice { get; init; }
+
+    /// <summary>Максимально приемлемая цена за единицу. Для <see cref="BotCommandKind.PostSellOffer"/> и <see cref="BotCommandKind.PostBuyOffer"/>.</summary>
+    public decimal? MaxPrice { get; init; }
+
+    /// <summary>Идентификатор заявки с доски публичных заявок — для <see cref="BotCommandKind.WithdrawTradeOffer"/> и <see cref="BotCommandKind.FulfillTradeOffer"/>.</summary>
+    public Ulid? TradeOfferId { get; init; }
+
+    /// <summary>
+    /// Точная цена за единицу, в пределах диапазона исполняемой заявки — для <see cref="BotCommandKind.FulfillTradeOffer"/>.
+    /// </summary>
+    public decimal? UnitPrice { get; init; }
 
     /// <summary>
     /// Свободная заметка, которую модель оставляет сама себе, — по запросу пользователя, чтобы бот

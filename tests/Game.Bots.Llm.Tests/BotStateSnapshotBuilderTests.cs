@@ -1,3 +1,5 @@
+using Game.Engine;
+
 namespace Game.Bots.Llm.Tests;
 
 /// <summary>Проверяет текстовый срез состояния (шаг 4 плана LLM-ботов) на реальной сессии, без единого обращения к LLM.</summary>
@@ -20,8 +22,26 @@ public sealed class BotStateSnapshotBuilderTests
         Assert.Contains("MARKET (your sector", snapshot);
         Assert.Contains("CONTRACTS INVOLVING YOU", snapshot);
         Assert.Contains("(none)", snapshot);
+        Assert.Contains("PUBLIC TRADE OFFERS", snapshot);
+        Assert.Contains("(none open right now)", snapshot);
         Assert.Contains("TEAM RANKING", snapshot);
         Assert.Contains("Команда", snapshot);
+    }
+
+    [Fact]
+    public void Build_AfterPostingATradeOffer_ShowsItWithASelfMarker()
+    {
+        // Запрос пользователя 2026-08-17: доска публичных заявок должна быть видна всем ботам, а не
+        // только автору (в отличие от старой доски потребностей, которую до этого никто не читал).
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+        var posted = session.PostTradeOffer(teamId, Game.Domain.TradeOfferDirection.Sell, "ore", Game.Domain.ContractType.Spot, 20m, 5m, 8m);
+        var offerId = ((TradeOfferPosted)posted.Change).TradeOfferId;
+
+        var snapshot = BotStateSnapshotBuilder.Build(session, teamId);
+
+        Assert.Contains($"tradeOfferId={offerId} Команда (you) selling materialId=ore", snapshot);
+        Assert.Contains("volume=20 (one-off) price=5.00-8.00", snapshot);
+        Assert.Contains("turns_left=3", snapshot);
     }
 
     [Fact]

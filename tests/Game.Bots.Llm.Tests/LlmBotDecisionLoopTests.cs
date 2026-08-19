@@ -20,7 +20,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Single(results);
         Assert.Equal(LlmBotTurnOutcome.Success, results[0].Outcome);
@@ -50,7 +50,7 @@ public sealed class LlmBotDecisionLoopTests
             using (var log = BotDecisionLog.CreateFile(path))
             {
                 var loop = CreateLoop(client);
-                await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+                await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
                 // Ещё до Dispose — файл уже должен содержать все попытки: неудачный разбор, затем
                 // успешный разбор второй попытки (отдельная строка) и итог самого действия.
@@ -80,7 +80,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Equal(2, results.Count);
         Assert.Equal(LlmBotTurnOutcome.Skipped, results[0].Outcome);
@@ -100,7 +100,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client, maxAttempts: 3);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Single(results);
         Assert.Equal(LlmBotTurnOutcome.Exhausted, results[0].Outcome);
@@ -120,7 +120,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Single(results);
         Assert.Equal(LlmBotTurnOutcome.Nop, results[0].Outcome);
@@ -135,7 +135,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Single(results);
         Assert.Equal(LlmBotTurnOutcome.Nop, results[0].Outcome);
@@ -150,7 +150,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Single(results);
         Assert.Equal(LlmBotTurnOutcome.Nop, results[0].Outcome);
@@ -170,7 +170,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Single(results);
         Assert.Equal(LlmBotTurnOutcome.Nop, results[0].Outcome);
@@ -193,7 +193,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client, maxAttempts: 3);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Single(results);
         Assert.Equal(LlmBotTurnOutcome.Exhausted, results[0].Outcome);
@@ -210,7 +210,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Single(results);
         Assert.Equal(LlmBotTurnOutcome.Success, results[0].Outcome);
@@ -229,7 +229,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Equal(2, results.Count);
         Assert.Equal(LlmBotTurnOutcome.Success, results[0].Outcome);
@@ -248,7 +248,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Equal(2, results.Count);
         Assert.All(results, r => Assert.Equal(LlmBotTurnOutcome.Success, r.Outcome));
@@ -268,7 +268,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Equal(2, results.Count);
         Assert.Equal(LlmBotTurnOutcome.Success, results[0].Outcome);
@@ -286,7 +286,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 5, random: new Random(1));
 
         Assert.Equal(2, results.Count);
         Assert.All(results, r => Assert.Equal(LlmBotTurnOutcome.Success, r.Outcome));
@@ -301,7 +301,7 @@ public sealed class LlmBotDecisionLoopTests
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 
-        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 2);
+        var results = await loop.RunTurnAsync(session, teamId, "system", "user", log, maxActionsPerTurn: 2, random: new Random(1));
 
         Assert.Equal(2, results.Count);
         Assert.All(results, r => Assert.Equal(LlmBotTurnOutcome.Success, r.Outcome));
