@@ -58,15 +58,20 @@ public sealed class SystemPromptBuilderTests
     }
 
     [Fact]
-    public void Build_MultipleSectors_AddsCrossSectorTradeHintDemotingSellToSystem()
+    public void Build_MultipleSectors_AddsCrossSectorTradeHintAsABonusNotAReplacement()
     {
         // Прямой запрос пользователя 2026-08-20, по следам первого прогона стадии 2
         // (_2bot_gpt_oss_20b_2stage_v1): обе доски заявок технически сработали, но ни одна сделка не
         // случилась — боты использовали postSellOffer как ещё один sellToSystem, не целевой инструмент.
+        // v3 (тот же день) показал обратную крайность прежней формулировки "LAST resort": Бот 2 почти
+        // перестал вызывать sellToSystem вовсе (16 раз на ходах 1-25 → 0 раз на ходах 76-90), уйдя в
+        // postSellOffer, которые почти никогда не исполнялись — 40 ходов подряд падения net worth.
+        // Переформулировано: sellToSystem остаётся действием по умолчанию, доска — бонус сверху.
         var prompt = SystemPromptBuilder.Build("persona", hasMultipleSectors: true);
 
         Assert.Contains("CROSS-SECTOR TRADE", prompt);
-        Assert.Contains("LAST resort", prompt);
+        Assert.Contains("BONUS", prompt);
+        Assert.Contains("not a replacement", prompt);
         Assert.Contains("CROSS-SECTOR DEMAND", prompt);
     }
 
