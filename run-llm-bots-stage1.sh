@@ -113,4 +113,4 @@ echo "Script finished. Result files (log, metrics, raw decision log) are next"
 echo "to the executable; their paths were printed above at the very start of"
 echo "the output."
 echo
-read -r -p "Press Enter to exit..."
+# read -r -p "Press Enter to exit..."
