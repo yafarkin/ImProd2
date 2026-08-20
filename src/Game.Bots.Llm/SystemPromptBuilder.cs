@@ -89,9 +89,12 @@ public static class SystemPromptBuilder
             "withdrawTradeOffer(tradeOfferId) — cancel one of your own still-open public trade offers " +
             "early, before someone fulfills it or it expires on its own.",
         [BotCommandKind.FulfillTradeOffer] =
-            "fulfillTradeOffer(tradeOfferId, volume, unitPrice) — accept someone ELSE's open public trade " +
-            "offer as-is: pick a volume up to the offer's volume and a unitPrice within its stated range. " +
-            "This immediately forms a real contract (delivery happens at the next settlement, same as any " +
+            "fulfillTradeOffer(tradeOfferId, volume?, unitPrice?) — accept someone ELSE's open public " +
+            "trade offer. Only tradeOfferId is required; volume and unitPrice are optional — omit either " +
+            "one (or both) and it defaults to the offer's full volume and the middle of its price range, " +
+            "so a bare fulfillTradeOffer(tradeOfferId) already works. Set them explicitly only if you " +
+            "want less than the full volume or a specific price within the offer's range. This " +
+            "immediately forms a real contract (delivery happens at the next settlement, same as any " +
             "other contract) and removes the offer from the board — you cannot fulfill your own offer " +
             "(it will be rejected); to take one of YOUR OWN offers off the board, use withdrawTradeOffer " +
             "instead, not fulfillTradeOffer.",

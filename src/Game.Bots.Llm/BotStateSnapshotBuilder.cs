@@ -331,13 +331,15 @@ public static class BotStateSnapshotBuilder
             {
                 suggestions.Add(
                     $"FULFILL tradeOfferId={offer.Id}: {authorName} is selling {offer.Material.Id}, which your own " +
-                    $"recipes need (see CROSS-SECTOR DEMAND above) — consider fulfillTradeOffer now, {turnsLeft} turn(s) left.");
+                    "recipes need (see CROSS-SECTOR DEMAND above) — just call " +
+                    $"fulfillTradeOffer(tradeOfferId=\"{offer.Id}\"), volume/unitPrice are optional, {turnsLeft} turn(s) left.");
             }
             else if (offer.Direction == TradeOfferDirection.Buy && cross.SellCandidates.Contains(offer.Material))
             {
                 suggestions.Add(
                     $"FULFILL tradeOfferId={offer.Id}: {authorName} wants to buy {offer.Material.Id}, which your sector " +
-                    $"produces — consider fulfillTradeOffer now, {turnsLeft} turn(s) left.");
+                    "produces — just call " +
+                    $"fulfillTradeOffer(tradeOfferId=\"{offer.Id}\"), volume/unitPrice are optional, {turnsLeft} turn(s) left.");
             }
         }
 

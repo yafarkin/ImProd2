@@ -245,4 +245,52 @@ public sealed class BotCommandExecutorTests
         var error = Assert.IsType<BotCommandExecutionResult.DomainError>(result);
         Assert.Contains("own trade offer", error.Message);
     }
+
+    [Fact]
+    public void FulfillTradeOffer_VolumeAndUnitPriceOmitted_DefaultsToFullVolumeAndMidpointPrice()
+    {
+        // Прямой запрос пользователя 2026-08-20, по следам _2bot_gpt_oss_20b_2stage_v4: 37/37 живых
+        // попыток fulfillTradeOffer в одном прогоне провалились ровно на этой паре полей — модель
+        // называла tradeOfferId верно каждый раз, но систематически теряла volume или unitPrice (то
+        // одно, то другое). tradeOfferId остался единственным обязательным полем.
+        var (session, sellerId, buyerId) = TestSession.StartTwoTeamSession();
+        var posted = session.PostTradeOffer(sellerId, TradeOfferDirection.Sell, "ore", ContractType.Spot, 20m, 5m, 8m);
+        var offerId = ((TradeOfferPosted)posted.Change).TradeOfferId;
+        var command = new BotCommand { Kind = BotCommandKind.FulfillTradeOffer, TradeOfferId = offerId };
+
+        var result = Executor.Execute(command, session, buyerId, new Random(1));
+
+        Assert.IsType<BotCommandExecutionResult.Success>(result);
+        var contract = Assert.Single(session.State.Contracts.Values);
+        Assert.Equal(20m, contract.Terms.Volume); // вся заявка целиком
+        Assert.Equal(6.5m, contract.Terms.UnitPrice); // середина 5-8
+    }
+
+    [Fact]
+    public void FulfillTradeOffer_OnlyUnitPriceOmitted_KeepsTheExplicitVolume()
+    {
+        var (session, sellerId, buyerId) = TestSession.StartTwoTeamSession();
+        var posted = session.PostTradeOffer(sellerId, TradeOfferDirection.Sell, "ore", ContractType.Spot, 20m, 5m, 8m);
+        var offerId = ((TradeOfferPosted)posted.Change).TradeOfferId;
+        var command = new BotCommand { Kind = BotCommandKind.FulfillTradeOffer, TradeOfferId = offerId, Volume = 12m };
+
+        var result = Executor.Execute(command, session, buyerId, new Random(1));
+
+        Assert.IsType<BotCommandExecutionResult.Success>(result);
+        var contract = Assert.Single(session.State.Contracts.Values);
+        Assert.Equal(12m, contract.Terms.Volume);
+        Assert.Equal(6.5m, contract.Terms.UnitPrice);
+    }
+
+    [Fact]
+    public void FulfillTradeOffer_TradeOfferIdMissing_ReturnsDomainError()
+    {
+        var (session, _, buyerId) = TestSession.StartTwoTeamSession();
+        var command = new BotCommand { Kind = BotCommandKind.FulfillTradeOffer, Volume = 15m, UnitPrice = 6m };
+
+        var result = Executor.Execute(command, session, buyerId, new Random(1));
+
+        var error = Assert.IsType<BotCommandExecutionResult.DomainError>(result);
+        Assert.Contains("tradeOfferId", error.Message);
+    }
 }
