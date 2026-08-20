@@ -68,6 +68,9 @@ public static class ProductionCostLevelReportWriter
                     text.AppendLine($"    ИТОГО:         {FormatMoney(row.TotalCost)}");
                     text.AppendLine($"  Себестоимость единицы {row.OutputMaterialId}: {FormatUnitCost(row.UnitCost)}");
                     text.AppendLine($"  Итого по фабрике: {FormatMoney(row.TotalCost)} /ход");
+                    text.AppendLine(
+                        $"  Себестоимость на 1 рабочего: {FormatMoney(row.CostPerWorker)} /ход (БЕЗ цены/margin — это расход, не доход; " +
+                        "сам по себе не доказывает выгоду верхних уровней, см. Прибыль на 1 рабочего ниже)");
 
                     if (row.NaiveRevenue is { } naiveRevenue && row.NaiveProfit is { } naiveProfit)
                     {
@@ -103,7 +106,10 @@ public static class ProductionCostLevelReportWriter
 
                 var levelTotalCost = levelGroup.Sum(r => r.TotalCost);
                 var levelUnitCostSum = levelGroup.Sum(r => r.UnitCost);
+                var levelWorkersSumAll = levelGroup.Sum(r => r.Workers);
+                var levelCostPerWorker = levelWorkersSumAll > 0 ? levelTotalCost / levelWorkersSumAll : 0m;
                 text.AppendLine($"Итого на уровень {levelGroup.Key}: {FormatMoney(levelTotalCost)} /ход, сумма себестоимостей единиц: {FormatUnitCost(levelUnitCostSum)}");
+                text.AppendLine($"Себестоимость на 1 рабочего, уровень {levelGroup.Key}: {FormatMoney(levelCostPerWorker)} /ход (всего {levelWorkersSumAll} рабочих на {levelGroup.Count()} фабрик(ах))");
                 var levelNaiveProfitRows = levelGroup.Where(r => r.NaiveProfit.HasValue).ToList();
                 if (levelNaiveProfitRows.Count > 0)
                 {
@@ -143,11 +149,15 @@ public static class ProductionCostLevelReportWriter
                 .GroupBy(r => (r.SectorId, r.SectorName))
                 .Select(g =>
                 {
+                    var totalCost = g.Sum(r => r.TotalCost);
+                    var workersAll = g.Sum(r => r.Workers);
+                    var costPerWorker = workersAll > 0 ? totalCost / workersAll : 0m;
                     var profitRows = g.Where(r => r.NaiveProfit.HasValue).ToList();
                     var naiveProfit = profitRows.Count > 0 ? (decimal?)profitRows.Sum(r => r.NaiveProfit!.Value) : null;
-                    var workersSum = profitRows.Sum(r => r.Workers);
-                    var profitPerWorker = naiveProfit.HasValue && workersSum > 0 ? (decimal?)(naiveProfit.Value / workersSum) : null;
-                    return (g.Key.SectorId, g.Key.SectorName, Total: g.Sum(r => r.TotalCost), NaiveProfit: naiveProfit, NaiveProfitPerWorker: profitPerWorker);
+                    var profitWorkersSum = profitRows.Sum(r => r.Workers);
+                    var profitPerWorker = naiveProfit.HasValue && profitWorkersSum > 0 ? (decimal?)(naiveProfit.Value / profitWorkersSum) : null;
+                    return (g.Key.SectorId, g.Key.SectorName, Total: totalCost, CostPerWorker: costPerWorker,
+                            NaiveProfit: naiveProfit, NaiveProfitPerWorker: profitPerWorker);
                 })
                 .OrderBy(x => x.SectorId, StringComparer.Ordinal);
 
@@ -156,7 +166,9 @@ public static class ProductionCostLevelReportWriter
                 var profitSuffix = entry.NaiveProfit.HasValue
                     ? $", оценка прибыли {FormatMoney(entry.NaiveProfit.Value)} /ход, {FormatMoney(entry.NaiveProfitPerWorker!.Value)} на рабочего (без ёмкости рынка!)"
                     : "";
-                text.AppendLine($"    Отрасль {entry.SectorId} ({entry.SectorName}) - {FormatMoney(entry.Total)} /ход{profitSuffix}");
+                text.AppendLine(
+                    $"    Отрасль {entry.SectorId} ({entry.SectorName}) - {FormatMoney(entry.Total)} /ход, " +
+                    $"{FormatMoney(entry.CostPerWorker)} себестоимость на рабочего{profitSuffix}");
             }
 
             text.AppendLine();

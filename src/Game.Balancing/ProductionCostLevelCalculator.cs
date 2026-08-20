@@ -47,6 +47,18 @@ public static class ProductionCostLevelCalculator
         public required decimal UnitCost { get; init; }
 
         /// <summary>
+        /// = <see cref="TotalCost"/> / <see cref="Workers"/> — та же логика, что <see
+        /// cref="NaiveProfitPerWorker"/> (честная единица сравнения между фабриками/уровнями с разным
+        /// числом параллельных фабрик), но БЕЗ цены/margin — чисто по расходам, без допущений о
+        /// продажной цене (запрос пользователя). Не путать с прибылью: это деньги, которые фабрика
+        /// ТРАТИТ на одного рабочего за ход, не зарабатывает — растёт с уровнем почти механически
+        /// (рецепты выше по цепочке комбинируют несколько уже дорогих входов в один результат), само по
+        /// себе НЕ доказывает, что развивать уровень выгодно — для этого нужна выручка, см.
+        /// <see cref="NaiveProfitPerWorker"/>.
+        /// </summary>
+        public required decimal CostPerWorker { get; init; }
+
+        /// <summary>
         /// Сколько сырья (материалов уровня 0) нужно рекурсивно на 1 единицу выпуска этого рецепта —
         /// развёрнуто до самых первых, добывающих фабрик, включая межотраслевые связи (запрос
         /// пользователя: «сколько в итоге надо породы для 1 автомобиля, рекурсивно»). Ключ — Id
@@ -205,6 +217,7 @@ public static class ProductionCostLevelCalculator
                 ElectricityCost = electricityCost,
                 TotalCost = totalCost,
                 UnitCost = unitCost,
+                CostPerWorker = totalCost / workersPerFactory,
                 RawMaterialsPerUnit = rawMaterialsPerUnit,
                 NaiveBasePrice = naiveBasePrice,
                 NaiveMarginMultiplier = naiveMargin,
