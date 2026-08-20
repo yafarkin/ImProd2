@@ -37,7 +37,7 @@ set -euo pipefail
 #  the same executable folder and checkpoint file name.
 # ==================================================================
 
-export LM_STUDIO_BASE_URL="http://192.168.0.2:1234/v1/"
+export LM_STUDIO_BASE_URL="http://localhost:1234/v1/"
 export LLM_BOT_MODEL="openai/gpt-oss-20b"
 
 # Stage 2 production model (metallurgy A + petrochemistry B, see
