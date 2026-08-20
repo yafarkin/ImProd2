@@ -12,6 +12,19 @@ using Game.Engine;
 // (docs/balancing-bots.md §2): по-прежнему прогоняет сетку leverage×profile, не одну стратегию.
 var cliArguments = CliArguments.Parse(args);
 var config = ConfigSelector.Load(cliArguments);
+
+// Блок «аналитический расчёт себестоимости» — статический срез без хода/рынка/ботов, поэтому выходит
+// раньше пресета/сессии/остальной инфраструктуры прогона (ей ничего из этого не нужно).
+if (cliArguments.Mode == RunMode.CostLevels)
+{
+    var costRows = ProductionCostLevelCalculator.Calculate(config, cliArguments.Workers);
+    var reportText = ProductionCostLevelReportWriter.Format(costRows);
+    var costLevelsOutPath = cliArguments.OutPath == "balancing-report.json" ? "cost-level-report.txt" : cliArguments.OutPath;
+    await File.WriteAllTextAsync(costLevelsOutPath, reportText);
+    Console.WriteLine($"Отчёт себестоимости по уровням записан: {Path.GetFullPath(costLevelsOutPath)}");
+    return;
+}
+
 var preset = config.Raw.SessionPresets.Single(p => p.Id == cliArguments.PresetId);
 
 if (cliArguments.TeamsPerSector <= 0)

@@ -45,8 +45,16 @@ internal sealed record CliArguments
     /// <summary>Путь для JSON-отчёта прогона (Блок 7.3.6, <see cref="BalancingRunReport"/>).</summary>
     public string OutPath { get; init; } = "balancing-report.json";
 
-    /// <summary>Что считать этим запуском (Блок 7.3.4) — сетку ботовых стратегий или идеальный зал.</summary>
+    /// <summary>Что считать этим запуском (Блок 7.3.4) — сетку ботовых стратегий, идеальный зал или статическую себестоимость по уровням.</summary>
     public RunMode Mode { get; init; } = RunMode.Grid;
+
+    /// <summary>
+    /// Число рабочих, которое ставится на КАЖДУЮ фабрику при <see cref="RunMode.CostLevels"/> — единая
+    /// «линейка» рабочих для сравнения себестоимости между отраслями (запрос пользователя: «10 рабочих
+    /// на фабрике 1 уровня и 10 рабочих на фабрике 8 уровня — это некий коэффициент мощности выпуска»),
+    /// не влияет на другие режимы.
+    /// </summary>
+    public int Workers { get; init; } = 10;
 
     /// <summary>Разбирает пары <c>--флаг значение</c>; неизвестный флаг или флаг без значения — <see cref="ArgumentException"/> (лучше упасть сразу, чем молча проигнорировать опечатку в многочасовом прогоне).</summary>
     public static CliArguments Parse(IReadOnlyList<string> args)
@@ -79,7 +87,8 @@ internal sealed record CliArguments
                 "--maintain-factories" => result with { MaintainFactories = bool.Parse(NextValue()) },
                 "--out" => result with { OutPath = NextValue() },
                 "--mode" => result with { Mode = ParseMode(NextValue()) },
-                _ => throw new ArgumentException($"Unknown argument '{flag}'. Known flags: --config, --session, --preset, --sessions-per-cell, --grid-steps, --teams-per-sector, --maintain-factories, --out, --mode."),
+                "--workers" => result with { Workers = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                _ => throw new ArgumentException($"Unknown argument '{flag}'. Known flags: --config, --session, --preset, --sessions-per-cell, --grid-steps, --teams-per-sector, --maintain-factories, --out, --mode, --workers."),
             };
         }
 
@@ -90,7 +99,8 @@ internal sealed record CliArguments
     {
         "grid" => RunMode.Grid,
         "ideal-hall" => RunMode.IdealHall,
-        _ => throw new ArgumentException($"Unknown '--mode' value '{value}'. Expected 'grid' or 'ideal-hall'."),
+        "cost-levels" => RunMode.CostLevels,
+        _ => throw new ArgumentException($"Unknown '--mode' value '{value}'. Expected 'grid', 'ideal-hall' or 'cost-levels'."),
     };
 }
 
@@ -102,4 +112,10 @@ internal enum RunMode
 
     /// <summary>Идеальный зал X(t) (Блок 7.3.4, <c>docs/production-balance.md</c> §4) — детерминированный расчёт без ботов.</summary>
     IdealHall,
+
+    /// <summary>
+    /// Статическая себестоимость по (сектор, уровень, фабрика, рецепт) при фиксированном числе
+    /// рабочих на каждой фабрике — без хода, без рынка, без ботов (<see cref="ProductionCostLevelCalculator"/>).
+    /// </summary>
+    CostLevels,
 }
