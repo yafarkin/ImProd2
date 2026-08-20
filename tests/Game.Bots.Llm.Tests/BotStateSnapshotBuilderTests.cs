@@ -185,4 +185,111 @@ public sealed class BotStateSnapshotBuilderTests
         Assert.Contains("Materials YOUR OWN recipes need that come from another sector", snapshotB);
         Assert.Contains("a-part", snapshotB);
     }
+
+    [Fact]
+    public void Build_SomeoneElseSellsSomethingYourRecipesNeed_SuggestsFulfilling()
+    {
+        // Прямой запрос пользователя 2026-08-20: «модели простые, будем в коде им активнее
+        // подсказывать» — по следам v3, где Бот 1 один раз попытался закрыть чужую заявку, но
+        // перепутал направление. Здесь Б продаёт a-part — ровно то, что нужно рецептам Б... то есть
+        // наоборот: А продаёт a-part, а Б его покупает (Б зависит от a-part, см. BuildTwoSectorConfig).
+        var config = CrossSectorConfigBuilder.Build();
+        var teamAId = Ulid.NewUlid();
+        var teamBId = Ulid.NewUlid();
+        var teams = new List<TeamSpec>
+        {
+            new() { Id = teamAId, Name = "Команда А", SectorId = "A" },
+            new() { Id = teamBId, Name = "Команда Б", SectorId = "B" },
+        };
+        var session = GameSession.StartWithEndTurn(config, "short", 15, teams);
+        session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
+        var posted = session.PostTradeOffer(teamAId, Game.Domain.TradeOfferDirection.Sell, "a-part", Game.Domain.ContractType.Spot, 10m, 5m, 8m);
+        var offerId = ((TradeOfferPosted)posted.Change).TradeOfferId;
+
+        var snapshotB = BotStateSnapshotBuilder.Build(session, teamBId);
+
+        Assert.Contains("ACTION SUGGESTIONS", snapshotB);
+        Assert.Contains($"FULFILL tradeOfferId={offerId}", snapshotB);
+        Assert.Contains("your own recipes need", snapshotB);
+    }
+
+    [Fact]
+    public void Build_SomeoneElseWantsToBuySomethingYouProduce_SuggestsFulfilling()
+    {
+        var config = CrossSectorConfigBuilder.Build();
+        var teamAId = Ulid.NewUlid();
+        var teamBId = Ulid.NewUlid();
+        var teams = new List<TeamSpec>
+        {
+            new() { Id = teamAId, Name = "Команда А", SectorId = "A" },
+            new() { Id = teamBId, Name = "Команда Б", SectorId = "B" },
+        };
+        var session = GameSession.StartWithEndTurn(config, "short", 15, teams);
+        session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
+        // Б покупает a-part — то, что производит А (a-part входит в sellCandidates у А).
+        var posted = session.PostTradeOffer(teamBId, Game.Domain.TradeOfferDirection.Buy, "a-part", Game.Domain.ContractType.Spot, 10m, 5m, 8m);
+        var offerId = ((TradeOfferPosted)posted.Change).TradeOfferId;
+
+        var snapshotA = BotStateSnapshotBuilder.Build(session, teamAId);
+
+        Assert.Contains("ACTION SUGGESTIONS", snapshotA);
+        Assert.Contains($"FULFILL tradeOfferId={offerId}", snapshotA);
+        Assert.Contains("wants to buy a-part", snapshotA);
+    }
+
+    [Fact]
+    public void Build_NoOpenOffersAndNoSurplus_ActionSuggestionsSectionSaysNoneRightNow()
+    {
+        var (session, teamAId, _) = TestSession.StartTwoSectorSession();
+
+        var snapshot = BotStateSnapshotBuilder.Build(session, teamAId);
+
+        Assert.Contains("ACTION SUGGESTIONS", snapshot);
+        Assert.Contains("(none right now)", snapshot);
+    }
+
+    [Fact]
+    public void Build_HasUnofferedSurplusOfSomethingTheOtherSectorNeeds_SuggestsPostingASellOffer()
+    {
+        // Прямой запрос пользователя 2026-08-20: если материал реально лежит на складе и нужен
+        // соседу, а заявки на него ещё нет — подсказка должна назвать это явно, не полагаться на то,
+        // что бот сам сопоставит CROSS-SECTOR DEMAND со своим же складом.
+        var config = CrossSectorConfigBuilder.Build();
+        var teamAId = Ulid.NewUlid();
+        var teamBId = Ulid.NewUlid();
+        var teams = new List<TeamSpec>
+        {
+            new() { Id = teamAId, Name = "Команда А", SectorId = "A" },
+            new() { Id = teamBId, Name = "Команда Б", SectorId = "B" },
+        };
+        var session = GameSession.StartWithEndTurn(config, "short", 15, teams);
+        session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
+
+        session.BuildFactory(teamAId, "mine-a");
+        session.BuildFactory(teamAId, "plant-a");
+        var mineId = session.State.Teams[teamAId].Factories[0].Id;
+        var plantId = session.State.Teams[teamAId].Factories[1].Id;
+        session.SetWorkerCount(teamAId, mineId, 5);
+        session.SetWorkerCount(teamAId, plantId, 5);
+
+        var random = new Random(1);
+        for (var i = 0; i < 5; i++)
+        {
+            TestSession.SettleOneTurn(session, random);
+        }
+
+        var stock = session.State.Teams[teamAId].Warehouse.Stock.FirstOrDefault(s => s.Material.Id == "a-part");
+        Assert.NotNull(stock); // без запаса на складе подсказка о продаже не должна появиться — тест бы соврал
+
+        var snapshot = BotStateSnapshotBuilder.Build(session, teamAId);
+
+        Assert.Contains("ACTION SUGGESTIONS", snapshot);
+        Assert.Contains("POST a sell offer for a-part", snapshot);
+
+        // Как только заявка на a-part уже выставлена — подсказка "POST" для того же материала пропадает.
+        session.PostTradeOffer(teamAId, Game.Domain.TradeOfferDirection.Sell, "a-part", Game.Domain.ContractType.Spot, 10m, 5m, 8m);
+        var snapshotAfterPosting = BotStateSnapshotBuilder.Build(session, teamAId);
+
+        Assert.DoesNotContain("POST a sell offer for a-part", snapshotAfterPosting);
+    }
 }

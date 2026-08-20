@@ -130,6 +130,10 @@ public static class SystemPromptBuilder
                 fee below. Likewise, if you need a material another sector produces, check 'PUBLIC TRADE
                 OFFERS' for it or post a buy offer (postBuyOffer), but don't wait on that if a working
                 alternative (building your own supply, or the system market) is available right now.
+                The 'ACTION SUGGESTIONS' section below has already done this matching for you — a
+                concrete fulfillTradeOffer or postSellOffer to consider this turn, computed from your
+                own recipes and warehouse against the current board. Treat it as a strong hint, not a
+                command you must follow blindly, but don't ignore it either.
 
                 """
             : string.Empty;
