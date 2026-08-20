@@ -25,6 +25,20 @@ public sealed class LlmBotTests
     }
 
     [Fact]
+    public async Task TakeTurnAsync_TwoSectorsOccupied_SystemPromptGetsTheCrossSectorTradeHint()
+    {
+        // Запрос пользователя 2026-08-20: подсказка про межсекторную торговлю должна реально дойти
+        // до системного промпта на живом GameSession, не только в изолированном SystemPromptBuilderTests.
+        var (session, teamAId, _) = TestSession.StartTwoSectorSession();
+        var client = new ScriptedLlmClient("""{"actions":[]}""");
+        var bot = new LlmBot(teamAId, "Cautious and risk-averse.", client);
+
+        await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
+
+        Assert.Contains("CROSS-SECTOR TRADE", client.ReceivedSystemPrompts[0]);
+    }
+
+    [Fact]
     public async Task TakeTurnAsync_ConstructedWithInitialHistory_SeesItOnTheVeryFirstPrompt()
     {
         // Запрос пользователя 2026-08-19: после Ctrl+C и возобновления бот не должен просыпаться с

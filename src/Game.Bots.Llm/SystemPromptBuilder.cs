@@ -97,8 +97,13 @@ public static class SystemPromptBuilder
     /// и любые другие устойчивые черты). <paramref name="maxActionsPerTurn"/> — реальный потолок длины
     /// массива действий (запрос пользователя 2026-08-16: один вызов LLM на весь ход) — называется
     /// моделью прямо числом, не абстрактным «hard limit», чтобы она планировала под него.
+    /// <paramref name="hasMultipleSectors"/> — прямой запрос пользователя (2026-08-20), по следам
+    /// первого прогона стадии 2 (<c>_2bot_gpt_oss_20b_2stage_v1</c>): при одном секторе (стадия 1)
+    /// торговать физически не с кем, промпт не трогается вовсе; при нескольких — добавляется абзац,
+    /// поднимающий значимость торговли между секторами и явно понижающий <c>sellToSystem</c> до
+    /// запасного варианта, см. doc-comment на добавленном абзаце ниже.
     /// </summary>
-    public static string Build(string personaDescription, int maxActionsPerTurn = 5)
+    public static string Build(string personaDescription, int maxActionsPerTurn = 5, bool hasMultipleSectors = false)
     {
         if (string.IsNullOrWhiteSpace(personaDescription))
         {
@@ -106,6 +111,22 @@ public static class SystemPromptBuilder
         }
 
         var commandReference = string.Join('\n', Enum.GetValues<BotCommandKind>().Select(kind => $"- {CommandDescriptions[kind]}"));
+        var crossSectorTradeHint = hasMultipleSectors
+            ? """
+                CROSS-SECTOR TRADE
+                This session has more than one sector. Selling straight to the system (sellToSystem) is
+                the LAST resort, not your default — the system price and capacity are fixed regardless
+                of who actually needs the material, while a real trade partner in another sector may pay
+                better and genuinely needs what you produce. Before dumping a material to the system,
+                check the 'CROSS-SECTOR DEMAND' section below: if it's a material another sector's
+                recipes actually consume, post it as a sell offer (postSellOffer) instead — likewise, if
+                you need a material another sector produces, look at 'PUBLIC TRADE OFFERS' for it or
+                post a buy offer (postBuyOffer) rather than assuming you have to make it yourself. Only
+                fall back to sellToSystem for a material nobody else needs, or when you've genuinely
+                checked the board and nothing fits your timing.
+
+                """
+            : string.Empty;
 
         return $"""
             You are an autonomous team manager in an economic production simulation game. Each call you
@@ -149,7 +170,7 @@ public static class SystemPromptBuilder
             flat), building MORE of that same factory type will not help — the market cannot absorb more
             of it. Look at the 'FACTORY TYPES IN YOUR SECTOR' catalog below for a DIFFERENT product to
             diversify into instead of piling up idle cash.
-
+            {crossSectorTradeHint}
             The "=== DERIVED METRICS ===" section below is already computed for you: trends over the
             last several turns compared to the turns before that (loan interest/principal paid, cash
             flow, warehouse overage fee, idle/underperforming factories with reasons, factory

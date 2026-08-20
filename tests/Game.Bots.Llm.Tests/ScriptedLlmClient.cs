@@ -20,6 +20,9 @@ internal sealed class ScriptedLlmClient : ILlmClient
 
     public List<string> ReceivedUserPrompts { get; } = new();
 
+    /// <summary>Системные промпты по тем же вызовам, что и <see cref="ReceivedUserPrompts"/> — нужно проверить, например, что подсказка про межсекторную торговлю появилась/не появилась (запрос пользователя 2026-08-20).</summary>
+    public List<string> ReceivedSystemPrompts { get; } = new();
+
     /// <summary>Ставит в очередь исключение вместо ответа — для проверки устойчивости <see cref="LlmBotDecisionLoop"/> к сетевым/HTTP-ошибкам клиента (живая проверка 2026-08-16).</summary>
     public void EnqueueException(Exception exception)
     {
@@ -34,6 +37,7 @@ internal sealed class ScriptedLlmClient : ILlmClient
 
     public Task<string> CompleteAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
     {
+        ReceivedSystemPrompts.Add(systemPrompt);
         ReceivedUserPrompts.Add(userPrompt);
 
         if (_responses.Count == 0)

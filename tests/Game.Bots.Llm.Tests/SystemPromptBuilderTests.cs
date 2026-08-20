@@ -36,6 +36,29 @@ public sealed class SystemPromptBuilderTests
     }
 
     [Fact]
+    public void Build_SingleSectorByDefault_OmitsCrossSectorTradeHint()
+    {
+        // Стадия 1: торговать физически не с кем, промпт не должен упоминать доску заявок как
+        // приоритет над sellToSystem — это сбивало бы с толку без причины.
+        var prompt = SystemPromptBuilder.Build("persona");
+
+        Assert.DoesNotContain("CROSS-SECTOR TRADE", prompt);
+    }
+
+    [Fact]
+    public void Build_MultipleSectors_AddsCrossSectorTradeHintDemotingSellToSystem()
+    {
+        // Прямой запрос пользователя 2026-08-20, по следам первого прогона стадии 2
+        // (_2bot_gpt_oss_20b_2stage_v1): обе доски заявок технически сработали, но ни одна сделка не
+        // случилась — боты использовали postSellOffer как ещё один sellToSystem, не целевой инструмент.
+        var prompt = SystemPromptBuilder.Build("persona", hasMultipleSectors: true);
+
+        Assert.Contains("CROSS-SECTOR TRADE", prompt);
+        Assert.Contains("LAST resort", prompt);
+        Assert.Contains("CROSS-SECTOR DEMAND", prompt);
+    }
+
+    [Fact]
     public void Build_MentionsOneCallPerTurnAndTheActualActionCap()
     {
         // Запрос пользователя 2026-08-16: "только раз за ход обращаться к LLM, и чтобы он сразу

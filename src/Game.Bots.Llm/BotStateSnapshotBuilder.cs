@@ -36,6 +36,7 @@ public static class BotStateSnapshotBuilder
         AppendWarehouse(text, team);
         AppendMarket(text, state, team.Sector);
         AppendContracts(text, state, teamId);
+        AppendCrossSectorDemand(text, state, team);
         AppendTradeOffers(text, state, teamId);
         AppendRanking(text, session);
 
@@ -215,6 +216,60 @@ public static class BotStateSnapshotBuilder
                 $"materialId={contract.Terms.Material.Id} volume={Quantity(contract.Terms.Volume)} " +
                 $"unit_price={Money(contract.Terms.UnitPrice)}");
         }
+    }
+
+    /// <summary>
+    /// Что реально нужно/производится другим сектором — прямой запрос пользователя (2026-08-20), по
+    /// следам первого прогона стадии 2 (<c>_2bot_gpt_oss_20b_2stage_v1</c>): оба бота выставили на
+    /// доску заявок материал, который потребляется ТОЛЬКО внутри их же сектора (pig-iron у А,
+    /// pvc-resin у Б) — ни один рецепт другого сектора его не ест, так что сделка была невозможна в
+    /// принципе, а модель об этом не думала («видим общую картину, а бот — нет»). Секция считается
+    /// напрямую из графа рецептов (не из production-staging.md — та же логика верна для любого числа
+    /// секторов, включая стадии 3-4), без домыслов: материалы своего сектора, которые ест хоть один
+    /// рецепт ЧУЖОГО сектора (кандидаты на продажу через <see cref="BotCommandKind.PostSellOffer"/> —
+    /// не сброс), и материалы чужих секторов, которые ест хоть один свой рецепт (кандидаты на
+    /// <see cref="BotCommandKind.PostBuyOffer"/> — на что смотреть на доске). В однoceкторной сессии
+    /// (стадия 1) секция не показывается вовсе — там взаимодействовать физически не с кем.
+    /// </summary>
+    private static void AppendCrossSectorDemand(StringBuilder text, GameSessionState state, Team team)
+    {
+        // Не по каталогу конфига (state.Config.Sectors) — по реально занятым секторам среди команд
+        // ЭТОЙ сессии: тестовый gameconfig.pilot.json объявляет оба сектора A/Б даже там, где играет
+        // только сектор A (см. TestSession.StartSingleTeamSession), а стадия 1 (metallurgy.json) при
+        // этом сама по себе однoceкторная. Секция должна появляться ровно тогда, когда есть с кем
+        // реально торговать, а не когда где-то в справочнике описан ещё один сектор.
+        var occupiedSectors = state.Teams.Values.Select(t => t.Sector).Distinct().Count();
+        if (occupiedSectors <= 1)
+        {
+            return;
+        }
+
+        var ownRecipes = state.Config.FactoryDefinitions.Where(fd => fd.Sector == team.Sector).SelectMany(fd => fd.Recipes);
+        var foreignRecipes = state.Config.FactoryDefinitions.Where(fd => fd.Sector != team.Sector).SelectMany(fd => fd.Recipes);
+
+        var sellCandidates = foreignRecipes
+            .SelectMany(recipe => recipe.DirectInputMaterials)
+            .Where(material => material.Sector == team.Sector)
+            .Distinct()
+            .OrderBy(material => material.Id, StringComparer.Ordinal)
+            .ToList();
+        var buyCandidates = ownRecipes
+            .SelectMany(recipe => recipe.DirectInputMaterials)
+            .Where(material => material.Sector != team.Sector)
+            .Distinct()
+            .OrderBy(material => material.Id, StringComparer.Ordinal)
+            .ToList();
+
+        text.AppendLine();
+        text.AppendLine("CROSS-SECTOR DEMAND (other sectors exist this session — a real trade beats dumping everything on the system market)");
+        text.AppendLine(sellCandidates.Count > 0
+            ? "Materials YOUR sector produces that another sector's recipes actually consume — good " +
+              $"postSellOffer candidates: {string.Join(", ", sellCandidates.Select(m => m.Id))}"
+            : "No other sector's recipe currently consumes a material your sector produces.");
+        text.AppendLine(buyCandidates.Count > 0
+            ? "Materials YOUR OWN recipes need that come from another sector — watch the board for " +
+              $"these, or postBuyOffer for them: {string.Join(", ", buyCandidates.Select(m => m.Id))}"
+            : "None of your recipes need a material from another sector.");
     }
 
     /// <summary>

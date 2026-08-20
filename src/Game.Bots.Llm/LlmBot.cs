@@ -123,7 +123,9 @@ public sealed class LlmBot
         var turn = session.State.CurrentTurn;
         var botLabel = session.State.Teams.TryGetValue(TeamId, out var teamAtStart) ? teamAtStart.Name : TeamId.ToString();
 
-        var systemPrompt = SystemPromptBuilder.Build(PersonaDescription, _maxActionsPerTurn);
+        // По занятым секторам, не по каталогу конфига — см. doc-comment BotStateSnapshotBuilder.AppendCrossSectorDemand.
+        var hasMultipleSectors = session.State.Teams.Values.Select(t => t.Sector).Distinct().Count() > 1;
+        var systemPrompt = SystemPromptBuilder.Build(PersonaDescription, _maxActionsPerTurn, hasMultipleSectors);
         var stateSnapshot = BotStateSnapshotBuilder.Build(session, TeamId);
         var derivedMetrics = BotDerivedMetricsBuilder.Build(session, TeamId, _historySampleInterval);
         var historySeries = BotHistorySeriesBuilder.Build(session, TeamId, _historySampleInterval);
