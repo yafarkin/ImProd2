@@ -125,4 +125,64 @@ public sealed class BotStateSnapshotBuilderTests
 
         Assert.Throws<ArgumentException>(() => BotStateSnapshotBuilder.Build(session, Ulid.NewUlid()));
     }
+
+    [Fact]
+    public void Build_OnlyOneSectorOccupied_OmitsCrossSectorDemandSection()
+    {
+        // gameconfig.pilot.json объявляет сектор Б в справочнике, но StartSingleTeamSession сажает
+        // ВСЕ команды в А — секция должна судить по реально занятым секторам, не по каталогу конфига
+        // (см. doc-comment BotStateSnapshotBuilder.AppendCrossSectorDemand).
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+
+        var snapshot = BotStateSnapshotBuilder.Build(session, teamId);
+
+        Assert.DoesNotContain("CROSS-SECTOR DEMAND", snapshot);
+    }
+
+    [Fact]
+    public void Build_TwoSectorsOccupiedButNoCrossDependency_ShowsSectionWithBothFallbackLines()
+    {
+        // Сектора А/Б пилотного конфига (ore→sheet→rebar, oil→plastic) не зависят друг от друга ни в
+        // одном рецепте — секция должна появиться (кто-то в другом секторе есть), но честно сказать,
+        // что торговать нечем, а не молчать и не выдумывать несуществующую зависимость.
+        var (session, teamAId, teamBId) = TestSession.StartTwoSectorSession();
+
+        var snapshot = BotStateSnapshotBuilder.Build(session, teamAId);
+
+        Assert.Contains("CROSS-SECTOR DEMAND", snapshot);
+        Assert.Contains("No other sector's recipe currently consumes a material your sector produces.", snapshot);
+        Assert.Contains("None of your recipes need a material from another sector.", snapshot);
+    }
+
+    [Fact]
+    public void Build_TwoSectorsWithARealCrossDependency_ListsTheExactMaterialsOnBothSides()
+    {
+        // Прямой запрос пользователя 2026-08-20, по следам первого прогона стадии 2
+        // (_2bot_gpt_oss_20b_2stage_v1, см. _bots_llm/NOTES.md): оба бота выставили на доску заявок
+        // материал, который другому сектору физически не нужен — эта секция должна называть РОВНО те
+        // материалы, которые другой сектор реально потребляет, не весь ассортимент своего сектора.
+        var config = CrossSectorConfigBuilder.Build();
+        var teamAId = Ulid.NewUlid();
+        var teamBId = Ulid.NewUlid();
+        var teams = new List<TeamSpec>
+        {
+            new() { Id = teamAId, Name = "Команда А", SectorId = "A" },
+            new() { Id = teamBId, Name = "Команда Б", SectorId = "B" },
+        };
+        var session = GameSession.StartWithEndTurn(config, "short", 15, teams);
+        session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
+
+        var snapshotA = BotStateSnapshotBuilder.Build(session, teamAId);
+        var snapshotB = BotStateSnapshotBuilder.Build(session, teamBId);
+
+        // А производит a-part, которое ест рецепт Б — должно попасть в "продать" у А.
+        Assert.Contains("Materials YOUR sector produces that another sector's recipes actually consume", snapshotA);
+        Assert.Contains("a-part", snapshotA);
+        Assert.Contains("None of your recipes need a material from another sector.", snapshotA);
+
+        // Б, наоборот, само ничего не продаёт А (нет обратной зависимости), но ЗАВИСИТ от a-part.
+        Assert.Contains("No other sector's recipe currently consumes a material your sector produces.", snapshotB);
+        Assert.Contains("Materials YOUR OWN recipes need that come from another sector", snapshotB);
+        Assert.Contains("a-part", snapshotB);
+    }
 }

@@ -43,6 +43,27 @@ internal static class TestSession
         return (session, teamAId, teamBId);
     }
 
+    /// <summary>
+    /// По одной команде в КАЖДОМ из двух секторов пилотного конфига (в отличие от
+    /// <see cref="StartTwoTeamSession"/>, где обе — в А) — нужен реальный сосед в другом секторе для
+    /// проверок <c>BotStateSnapshotBuilder.AppendCrossSectorDemand</c> (запрос пользователя 2026-08-20).
+    /// </summary>
+    public static (GameSession Session, Ulid TeamAId, Ulid TeamBId) StartTwoSectorSession(int endTurn = 20)
+    {
+        var config = GameConfigLoader.LoadFromFile(ConfigPath);
+        var teamAId = Ulid.NewUlid();
+        var teamBId = Ulid.NewUlid();
+        var teams = new List<TeamSpec>
+        {
+            new() { Id = teamAId, Name = "Команда А", SectorId = "A" },
+            new() { Id = teamBId, Name = "Команда Б", SectorId = "B" },
+        };
+
+        var session = GameSession.StartWithEndTurn(config, "short", endTurn, teams);
+        session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
+        return (session, teamAId, teamBId);
+    }
+
     /// <summary>Decision → Settlement → RunTick → Decision — тот же приём, что и <c>BotSessionRunner</c>, для тестов, которым нужна реальная история по нескольким ходам.</summary>
     public static void SettleOneTurn(GameSession session, Random random)
     {
