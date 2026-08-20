@@ -28,6 +28,8 @@ public static class BotStateSnapshotBuilder
             throw new ArgumentException($"Unknown team '{teamId}'.", nameof(teamId));
         }
 
+        var cross = GetCrossSectorMaterials(state, team);
+
         var text = new StringBuilder();
         AppendHeader(text, state);
         AppendTeamFinancials(text, state, team);
@@ -36,8 +38,9 @@ public static class BotStateSnapshotBuilder
         AppendWarehouse(text, team);
         AppendMarket(text, state, team.Sector);
         AppendContracts(text, state, teamId);
-        AppendCrossSectorDemand(text, state, team);
+        AppendCrossSectorDemand(text, state, team, cross);
         AppendTradeOffers(text, state, teamId);
+        AppendActionSuggestions(text, state, teamId, team, cross);
         AppendRanking(text, session);
 
         return text.ToString();
@@ -231,17 +234,41 @@ public static class BotStateSnapshotBuilder
     /// <see cref="BotCommandKind.PostBuyOffer"/> — на что смотреть на доске). В однoceкторной сессии
     /// (стадия 1) секция не показывается вовсе — там взаимодействовать физически не с кем.
     /// </summary>
-    private static void AppendCrossSectorDemand(StringBuilder text, GameSessionState state, Team team)
+    private static void AppendCrossSectorDemand(StringBuilder text, GameSessionState state, Team team, CrossSectorMaterials cross)
     {
-        // Не по каталогу конфига (state.Config.Sectors) — по реально занятым секторам среди команд
-        // ЭТОЙ сессии: тестовый gameconfig.pilot.json объявляет оба сектора A/Б даже там, где играет
-        // только сектор A (см. TestSession.StartSingleTeamSession), а стадия 1 (metallurgy.json) при
-        // этом сама по себе однoceкторная. Секция должна появляться ровно тогда, когда есть с кем
-        // реально торговать, а не когда где-то в справочнике описан ещё один сектор.
+        if (cross.SellCandidates.Count == 0 && cross.BuyCandidates.Count == 0 && !cross.SectorsOccupied)
+        {
+            return;
+        }
+
+        text.AppendLine();
+        text.AppendLine("CROSS-SECTOR DEMAND (other sectors exist this session — a real trade beats dumping everything on the system market)");
+        text.AppendLine(cross.SellCandidates.Count > 0
+            ? "Materials YOUR sector produces that another sector's recipes actually consume — good " +
+              $"postSellOffer candidates: {string.Join(", ", cross.SellCandidates.Select(m => m.Id))}"
+            : "No other sector's recipe currently consumes a material your sector produces.");
+        text.AppendLine(cross.BuyCandidates.Count > 0
+            ? "Materials YOUR OWN recipes need that come from another sector — watch the board for " +
+              $"these, or postBuyOffer for them: {string.Join(", ", cross.BuyCandidates.Select(m => m.Id))}"
+            : "None of your recipes need a material from another sector.");
+    }
+
+    /// <summary>
+    /// Не по каталогу конфига (<c>state.Config.Sectors</c>) — по реально занятым секторам среди
+    /// команд ЭТОЙ сессии: тестовый <c>gameconfig.pilot.json</c> объявляет оба сектора A/Б даже там,
+    /// где играет только сектор A (см. <c>TestSession.StartSingleTeamSession</c>), а стадия 1
+    /// (<c>metallurgy.json</c>) при этом сама по себе однoceкторная. Общий источник для <see
+    /// cref="AppendCrossSectorDemand"/> и <see cref="AppendActionSuggestions"/> — второй секции нужны
+    /// те же списки, чтобы не искать межсекторную связь дважды по-разному.
+    /// </summary>
+    private readonly record struct CrossSectorMaterials(bool SectorsOccupied, IReadOnlyList<Material> SellCandidates, IReadOnlyList<Material> BuyCandidates);
+
+    private static CrossSectorMaterials GetCrossSectorMaterials(GameSessionState state, Team team)
+    {
         var occupiedSectors = state.Teams.Values.Select(t => t.Sector).Distinct().Count();
         if (occupiedSectors <= 1)
         {
-            return;
+            return new CrossSectorMaterials(false, [], []);
         }
 
         var ownRecipes = state.Config.FactoryDefinitions.Where(fd => fd.Sector == team.Sector).SelectMany(fd => fd.Recipes);
@@ -260,16 +287,86 @@ public static class BotStateSnapshotBuilder
             .OrderBy(material => material.Id, StringComparer.Ordinal)
             .ToList();
 
+        return new CrossSectorMaterials(true, sellCandidates, buyCandidates);
+    }
+
+    /// <summary>
+    /// Прямая наводка на конкретное действие прямо сейчас — прямой запрос пользователя (2026-08-20):
+    /// «модели простые, будем в коде им активнее подсказывать», по следам v3
+    /// (<c>_2bot_gpt_oss_20b_2stage_v3</c>): Бот 1 один раз попытался закрыть чужую заявку (спутав
+    /// направление), Бот 2 держал полезный для соседа материал на складе, но ни разу не выставил его
+    /// заново, когда предыдущая заявка истекла. Секции CROSS-SECTOR DEMAND/PUBLIC TRADE OFFERS дают
+    /// боту сырые данные и полагаются на то, что он сам сопоставит одно с другим — здесь то же
+    /// сопоставление уже сделано в коде и явно названо: конкретная заявка + конкретная причина, почему
+    /// она подходит именно этой команде. Не подменяет решение бота (он всё равно вправе не
+    /// последовать совету), только снижает нагрузку на «сложи два факта в голове».
+    /// <para>
+    /// Два вида наводок, оба симметричны направлению: (1) чужая открытая заявка, которую эта команда
+    /// может исполнить прямо сейчас (продаёт то, что нужно её рецептам, или покупает то, что она сама
+    /// производит) — <see cref="BotCommandKind.FulfillTradeOffer"/>; (2) материал, который нужен
+    /// соседнему сектору (см. <see cref="CrossSectorMaterials.SellCandidates"/>), реально лежит на
+    /// складе этой команды, но заявки на его продажу от неё сейчас нет — <see
+    /// cref="BotCommandKind.PostSellOffer"/>. Оба списка — не более нескольких строк на ход по
+    /// конструкции (доска ограничена 3 ходами жизни заявки, склад — не бесконечный ассортимент), капа
+    /// на число строк не потребовалось.
+    /// </para>
+    /// </summary>
+    private static void AppendActionSuggestions(StringBuilder text, GameSessionState state, Ulid teamId, Team team, CrossSectorMaterials cross)
+    {
+        if (!cross.SectorsOccupied)
+        {
+            return;
+        }
+
+        var openOffers = state.TradeOffers.Values.Where(offer => offer.IsOpenOn(state.CurrentTurn)).ToList();
+
+        var suggestions = new List<string>();
+
+        foreach (var offer in openOffers.Where(offer => offer.TeamId != teamId))
+        {
+            var authorName = state.Teams.TryGetValue(offer.TeamId, out var author) ? author.Name : offer.TeamId.ToString();
+            var turnsLeft = offer.ExpiresAfterTurn - state.CurrentTurn + 1;
+
+            if (offer.Direction == TradeOfferDirection.Sell && cross.BuyCandidates.Contains(offer.Material))
+            {
+                suggestions.Add(
+                    $"FULFILL tradeOfferId={offer.Id}: {authorName} is selling {offer.Material.Id}, which your own " +
+                    $"recipes need (see CROSS-SECTOR DEMAND above) — consider fulfillTradeOffer now, {turnsLeft} turn(s) left.");
+            }
+            else if (offer.Direction == TradeOfferDirection.Buy && cross.SellCandidates.Contains(offer.Material))
+            {
+                suggestions.Add(
+                    $"FULFILL tradeOfferId={offer.Id}: {authorName} wants to buy {offer.Material.Id}, which your sector " +
+                    $"produces — consider fulfillTradeOffer now, {turnsLeft} turn(s) left.");
+            }
+        }
+
+        var ownOpenSellMaterials = openOffers
+            .Where(offer => offer.TeamId == teamId && offer.Direction == TradeOfferDirection.Sell)
+            .Select(offer => offer.Material)
+            .ToHashSet();
+
+        foreach (var material in cross.SellCandidates)
+        {
+            if (ownOpenSellMaterials.Contains(material))
+            {
+                continue;
+            }
+
+            var stock = team.Warehouse.Stock.FirstOrDefault(s => s.Material == material);
+            if (stock is null || stock.Quantity <= 0m)
+            {
+                continue;
+            }
+
+            suggestions.Add(
+                $"POST a sell offer for {material.Id}: you have {Quantity(stock.Quantity)} in your warehouse, another " +
+                "sector's recipes need it, and you don't currently have an open sell offer for it — consider postSellOffer.");
+        }
+
         text.AppendLine();
-        text.AppendLine("CROSS-SECTOR DEMAND (other sectors exist this session — a real trade beats dumping everything on the system market)");
-        text.AppendLine(sellCandidates.Count > 0
-            ? "Materials YOUR sector produces that another sector's recipes actually consume — good " +
-              $"postSellOffer candidates: {string.Join(", ", sellCandidates.Select(m => m.Id))}"
-            : "No other sector's recipe currently consumes a material your sector produces.");
-        text.AppendLine(buyCandidates.Count > 0
-            ? "Materials YOUR OWN recipes need that come from another sector — watch the board for " +
-              $"these, or postBuyOffer for them: {string.Join(", ", buyCandidates.Select(m => m.Id))}"
-            : "None of your recipes need a material from another sector.");
+        text.AppendLine("ACTION SUGGESTIONS (computed from your recipes, warehouse, and the board — a nudge, not a command)");
+        text.AppendLine(suggestions.Count > 0 ? string.Join('\n', suggestions.Select(s => $"- {s}")) : "(none right now)");
     }
 
     /// <summary>
