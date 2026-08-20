@@ -92,7 +92,9 @@ public static class SystemPromptBuilder
             "fulfillTradeOffer(tradeOfferId, volume, unitPrice) — accept someone ELSE's open public trade " +
             "offer as-is: pick a volume up to the offer's volume and a unitPrice within its stated range. " +
             "This immediately forms a real contract (delivery happens at the next settlement, same as any " +
-            "other contract) and removes the offer from the board — you cannot fulfill your own offer.",
+            "other contract) and removes the offer from the board — you cannot fulfill your own offer " +
+            "(it will be rejected); to take one of YOUR OWN offers off the board, use withdrawTradeOffer " +
+            "instead, not fulfillTradeOffer.",
     };
 
     /// <summary>
@@ -117,16 +119,17 @@ public static class SystemPromptBuilder
         var crossSectorTradeHint = hasMultipleSectors
             ? """
                 CROSS-SECTOR TRADE
-                This session has more than one sector. Selling straight to the system (sellToSystem) is
-                the LAST resort, not your default — the system price and capacity are fixed regardless
-                of who actually needs the material, while a real trade partner in another sector may pay
-                better and genuinely needs what you produce. Before dumping a material to the system,
-                check the 'CROSS-SECTOR DEMAND' section below: if it's a material another sector's
-                recipes actually consume, post it as a sell offer (postSellOffer) instead — likewise, if
-                you need a material another sector produces, look at 'PUBLIC TRADE OFFERS' for it or
-                post a buy offer (postBuyOffer) rather than assuming you have to make it yourself. Only
-                fall back to sellToSystem for a material nobody else needs, or when you've genuinely
-                checked the board and nothing fits your timing.
+                This session has more than one sector. sellToSystem always works and pays immediately —
+                keep using it every turn as your default way to turn surplus into cash; it's not
+                something to phase out. postSellOffer is a BONUS on top of that, not a replacement: it
+                sits on the board for up to 3 turns and pays you NOTHING if nobody fulfills it (this has
+                happened — offers routinely expire unfulfilled). Check the 'CROSS-SECTOR DEMAND' section
+                below and post a sell offer for a material another sector's recipes actually consume
+                ALONGSIDE your normal sellToSystem sales, not instead of them — never let material sit
+                unsold waiting on an offer while it piles up in your warehouse racking up the overage
+                fee below. Likewise, if you need a material another sector produces, check 'PUBLIC TRADE
+                OFFERS' for it or post a buy offer (postBuyOffer), but don't wait on that if a working
+                alternative (building your own supply, or the system market) is available right now.
 
                 """
             : string.Empty;
