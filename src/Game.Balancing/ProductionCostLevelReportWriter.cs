@@ -55,6 +55,7 @@ public static class ProductionCostLevelReportWriter
                                 $"    {input.MaterialId} × {FormatQuantity(input.Quantity)} " +
                                 $"(себестоимость единицы {FormatUnitCost(input.UnitCost)}) = {FormatMoney(input.LineCost)}");
                         }
+                        text.AppendLine($"    Сумма себестоимостей единиц входов: {FormatUnitCost(row.Inputs.Sum(i => i.UnitCost))}");
                     }
 
                     text.AppendLine("  Расходы:");
@@ -72,6 +73,7 @@ public static class ProductionCostLevelReportWriter
                         {
                             text.AppendLine($"    {raw.Key} × {FormatQuantity(raw.Value)}");
                         }
+                        text.AppendLine($"    Сумма (физических единиц сырья, не ¤): {FormatQuantity(row.RawMaterialsPerUnit.Values.Sum())}");
                     }
 
                     text.AppendLine();
