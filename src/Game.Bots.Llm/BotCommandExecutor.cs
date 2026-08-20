@@ -256,12 +256,26 @@ public sealed class BotCommandExecutor
     /// механического стакана SimpleBot — продавец «подаёт» заявку A (инициатор), покупатель
     /// подтверждает; здесь эта роль всегда достаётся стороне, исполняющей чужое предложение, не
     /// автору заявки (он уже выразил согласие самим фактом публикации).
+    /// <para>
+    /// <paramref name="command"/>.Volume/UnitPrice — опциональны, а не обязательны, хотя раньше были
+    /// обязательными: живой прогон 2026-08-20 (<c>_2bot_gpt_oss_20b_2stage_v4</c>) — 37 попыток
+    /// <c>fulfillTradeOffer</c> за один прогон (ACTION SUGGESTIONS сработала, модель явно захотела
+    /// закрывать сделки), и ВСЕ 37 отклонены одной и той же ошибкой «требуются tradeOfferId, volume и
+    /// unitPrice»: <c>tradeOfferId</c> модель называла верно каждый раз, а из оставшихся двух полей
+    /// упорно теряла то одно, то другое в одном вызове. Три обязательных поля разом оказались
+    /// систематически недостижимы для этой модели, не единичный сбой. Раз почти вся нужная информация
+    /// уже публична (сама заявка целиком видна на доске), не наказываем недописанный вызов отказом —
+    /// достраиваем разумным умолчанием: <c>volume</c> — вся заявка целиком, <c>unitPrice</c> —
+    /// середина её ценового диапазона (никого не обделяет специально, ни автора заявки, ни того, кто
+    /// её исполняет). <c>tradeOfferId</c> по-прежнему обязателен — единственное поле, которое нельзя
+    /// вывести ни из чего другого, и единственное, с которым модель ни разу не ошиблась.
+    /// </para>
     /// </summary>
     private static BotCommandExecutionResult ExecuteFulfillTradeOffer(BotCommand command, GameSession session, Ulid teamId, Random random)
     {
-        if (command.TradeOfferId is not { } tradeOfferId || command.Volume is not { } volume || command.UnitPrice is not { } unitPrice)
+        if (command.TradeOfferId is not { } tradeOfferId)
         {
-            return new BotCommandExecutionResult.DomainError("FulfillTradeOffer requires tradeOfferId, volume, and unitPrice.");
+            return new BotCommandExecutionResult.DomainError("FulfillTradeOffer requires tradeOfferId.");
         }
         if (!session.State.TradeOffers.TryGetValue(tradeOfferId, out var offer))
         {
@@ -275,6 +289,10 @@ public sealed class BotCommandExecutor
         {
             return new BotCommandExecutionResult.DomainError("A team cannot fulfill its own trade offer.");
         }
+
+        var volume = command.Volume ?? offer.Volume;
+        var unitPrice = command.UnitPrice ?? (offer.MinPrice + offer.MaxPrice) / 2m;
+
         if (volume <= 0 || volume > offer.Volume)
         {
             return new BotCommandExecutionResult.DomainError($"FulfillTradeOffer volume must be positive and at most the offer's volume ({offer.Volume}).");
