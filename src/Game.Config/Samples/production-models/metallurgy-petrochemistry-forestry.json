@@ -303,56 +303,56 @@
       "OutputMaterialId": "iron-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 4318.7446
+      "ProductionRate": 2397
     },
     {
       "Id": "coking-coal-mining",
       "OutputMaterialId": "coking-coal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 3617.872
+      "ProductionRate": 2008
     },
     {
       "Id": "limestone-quarrying",
       "OutputMaterialId": "limestone",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 2904.3873
+      "ProductionRate": 1612
     },
     {
       "Id": "scrap-collection",
       "OutputMaterialId": "scrap-metal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 702.6743
+      "ProductionRate": 390
     },
     {
       "Id": "oil-drilling",
       "OutputMaterialId": "oil",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 10801.6241
+      "ProductionRate": 22800
     },
     {
       "Id": "natural-gas-drilling",
       "OutputMaterialId": "natural-gas",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 194.7135
+      "ProductionRate": 411
     },
     {
       "Id": "logging",
       "OutputMaterialId": "timber",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 4342.8026
+      "ProductionRate": 3600
     },
     {
       "Id": "cotton-picking",
       "OutputMaterialId": "raw-cotton",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 5925.5129
+      "ProductionRate": 4912
     },
     {
       "Id": "coke-from-coal",
@@ -364,7 +364,7 @@
           "Quantity": 1.5
         }
       ],
-      "ProductionRate": 497.7355
+      "ProductionRate": 363
     },
     {
       "Id": "wire-rod-from-scrap",
@@ -376,7 +376,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 205.6758
+      "ProductionRate": 150
     },
     {
       "Id": "quicklime-from-limestone",
@@ -388,7 +388,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1508.2894
+      "ProductionRate": 1100
     },
     {
       "Id": "coal-tar-from-coking-coal",
@@ -400,7 +400,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1371.1722
+      "ProductionRate": 1000
     },
     {
       "Id": "iron-powder-from-ore",
@@ -412,7 +412,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1508.2894
+      "ProductionRate": 1100
     },
     {
       "Id": "gasoline-from-oil",
@@ -424,7 +424,7 @@
           "Quantity": 1.5
         }
       ],
-      "ProductionRate": 138.8171
+      "ProductionRate": 180
     },
     {
       "Id": "ethylene-from-oil",
@@ -436,7 +436,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 262.9812
+      "ProductionRate": 341
     },
     {
       "Id": "synthetic-rubber-from-oil",
@@ -448,7 +448,7 @@
           "Quantity": 2.5
         }
       ],
-      "ProductionRate": 1783.7992
+      "ProductionRate": 2313
     },
     {
       "Id": "methanol-from-gas",
@@ -460,7 +460,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 80.9766
+      "ProductionRate": 105
     },
     {
       "Id": "carbon-black-from-oil",
@@ -472,7 +472,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 1250.1248
+      "ProductionRate": 1621
     },
     {
       "Id": "lumber-from-timber",
@@ -484,7 +484,7 @@
           "Quantity": 1.3
         }
       ],
-      "ProductionRate": 124.7111
+      "ProductionRate": 130
     },
     {
       "Id": "fabric-from-cotton",
@@ -496,7 +496,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 1332.4905
+      "ProductionRate": 1389
     },
     {
       "Id": "sawdust-from-timber",
@@ -508,7 +508,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1534.9062
+      "ProductionRate": 1600
     },
     {
       "Id": "tree-resin-from-timber",
@@ -520,7 +520,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 959.3164
+      "ProductionRate": 1000
     },
     {
       "Id": "cotton-seed-from-cotton",
@@ -532,7 +532,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 959.3164
+      "ProductionRate": 1000
     },
     {
       "Id": "pig-iron-from-ore",
@@ -552,7 +552,7 @@
           "Quantity": 0.3
         }
       ],
-      "ProductionRate": 757.2037
+      "ProductionRate": 465
     },
     {
       "Id": "fasteners-from-wire-rod",
@@ -564,7 +564,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 2305.8074
+      "ProductionRate": 1416
     },
     {
       "Id": "paint-from-ethylene",
@@ -576,7 +576,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 25.0163
+      "ProductionRate": 55
     },
     {
       "Id": "pvc-component-from-ethylene",
@@ -588,7 +588,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 24.1066
+      "ProductionRate": 53
     },
     {
       "Id": "rubber-compound-from-synthetic-rubber",
@@ -604,7 +604,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 269.7213
+      "ProductionRate": 593
     },
     {
       "Id": "wood-frame-from-lumber",
@@ -616,7 +616,7 @@
           "Quantity": 1.2
         }
       ],
-      "ProductionRate": 96.9342
+      "ProductionRate": 70
     },
     {
       "Id": "technical-fabric-from-fabric",
@@ -628,7 +628,7 @@
           "Quantity": 1.3
         }
       ],
-      "ProductionRate": 1082.8934
+      "ProductionRate": 782
     },
     {
       "Id": "upholstery-from-fabric",
@@ -640,7 +640,7 @@
           "Quantity": 1.3
         }
       ],
-      "ProductionRate": 55.391
+      "ProductionRate": 40
     },
     {
       "Id": "engine-parts-from-pig-iron",
@@ -652,7 +652,7 @@
           "Quantity": 1.3
         }
       ],
-      "ProductionRate": 26.9962
+      "ProductionRate": 22
     },
     {
       "Id": "steel-stock-from-pig-iron",
@@ -664,7 +664,7 @@
           "Quantity": 1.3
         }
       ],
-      "ProductionRate": 310.4567
+      "ProductionRate": 253
     },
     {
       "Id": "tire-cord-from-rubber-and-fabric",
@@ -680,7 +680,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 58.015
+      "ProductionRate": 183
     },
     {
       "Id": "house-frame-from-wood-and-fabric",
@@ -700,7 +700,7 @@
           "Quantity": 4
         }
       ],
-      "ProductionRate": 63.4725
+      "ProductionRate": 18
     },
     {
       "Id": "machined-parts-from-steel-stock",
@@ -712,7 +712,7 @@
           "Quantity": 1.2
         }
       ],
-      "ProductionRate": 113.1274
+      "ProductionRate": 72
     },
     {
       "Id": "stamped-panels-from-steel-stock",
@@ -724,7 +724,7 @@
           "Quantity": 1.2
         }
       ],
-      "ProductionRate": 73.8471
+      "ProductionRate": 47
     },
     {
       "Id": "composite-material-from-pvc-and-cord",
@@ -740,7 +740,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 3.8504
+      "ProductionRate": 20
     },
     {
       "Id": "tire-carcass-from-tire-cord",
@@ -764,7 +764,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 7.8934
+      "ProductionRate": 41
     },
     {
       "Id": "house-assembly",
@@ -784,7 +784,7 @@
           "Quantity": 15
         }
       ],
-      "ProductionRate": 15.951
+      "ProductionRate": 3
     },
     {
       "Id": "gearbox-assembly-from-parts",
@@ -800,7 +800,7 @@
           "Quantity": 30
         }
       ],
-      "ProductionRate": 13.7121
+      "ProductionRate": 6
     },
     {
       "Id": "welded-body-from-panels",
@@ -816,7 +816,7 @@
           "Quantity": 50
         }
       ],
-      "ProductionRate": 13.7121
+      "ProductionRate": 6
     },
     {
       "Id": "engine-from-parts",
@@ -836,7 +836,7 @@
           "Quantity": 60
         }
       ],
-      "ProductionRate": 13.7121
+      "ProductionRate": 6
     },
     {
       "Id": "hull-from-composite-and-steel",
@@ -852,7 +852,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 3.4773
+      "ProductionRate": 6
     },
     {
       "Id": "tires-from-tire-carcass",
@@ -864,7 +864,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 9.2727
+      "ProductionRate": 16
     },
     {
       "Id": "automobile-assembly",
@@ -904,7 +904,7 @@
           "Quantity": 6
         }
       ],
-      "ProductionRate": 1.7864
+      "ProductionRate": 2
     },
     {
       "Id": "boat-assembly",
@@ -936,7 +936,7 @@
           "Quantity": 4
         }
       ],
-      "ProductionRate": 2.2453
+      "ProductionRate": 2
     }
   ],
   "FactoryDefinitions": [

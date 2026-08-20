@@ -367,70 +367,70 @@
       "OutputMaterialId": "iron-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 992.7312
+      "ProductionRate": 534
     },
     {
       "Id": "coking-coal-mining",
       "OutputMaterialId": "coking-coal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 2498.5595
+      "ProductionRate": 1344
     },
     {
       "Id": "limestone-quarrying",
       "OutputMaterialId": "limestone",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 2136.0453
+      "ProductionRate": 1149
     },
     {
       "Id": "scrap-collection",
       "OutputMaterialId": "scrap-metal",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 1981.7443
+      "ProductionRate": 1066
     },
     {
       "Id": "rare-metal-mining",
       "OutputMaterialId": "rare-metal-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 3532.1946
+      "ProductionRate": 2602
     },
     {
       "Id": "oil-drilling",
       "OutputMaterialId": "oil",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 7154.8281
+      "ProductionRate": 15479
     },
     {
       "Id": "natural-gas-drilling",
       "OutputMaterialId": "natural-gas",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 180.2689
+      "ProductionRate": 390
     },
     {
       "Id": "logging",
       "OutputMaterialId": "timber",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 2863.5025
+      "ProductionRate": 3287
     },
     {
       "Id": "cotton-picking",
       "OutputMaterialId": "raw-cotton",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 3824.3919
+      "ProductionRate": 4390
     },
     {
       "Id": "silicon-smelting",
       "OutputMaterialId": "silicon",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 3450.7451
+      "ProductionRate": 2542
     },
     {
       "Id": "coke-from-coal",
@@ -442,7 +442,7 @@
           "Quantity": 1.5
         }
       ],
-      "ProductionRate": 330.6643
+      "ProductionRate": 273
     },
     {
       "Id": "wire-rod-from-scrap",
@@ -454,7 +454,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 181.6837
+      "ProductionRate": 150
     },
     {
       "Id": "copper-wire-from-scrap",
@@ -466,7 +466,7 @@
           "Quantity": 2.5
         }
       ],
-      "ProductionRate": 397.2816
+      "ProductionRate": 328
     },
     {
       "Id": "quicklime-from-limestone",
@@ -478,7 +478,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1332.347
+      "ProductionRate": 1100
     },
     {
       "Id": "coal-tar-from-coking-coal",
@@ -490,7 +490,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1211.2245
+      "ProductionRate": 1000
     },
     {
       "Id": "rare-metal-concentrate-from-ore",
@@ -502,7 +502,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 293.0204
+      "ProductionRate": 163
     },
     {
       "Id": "gasoline-from-oil",
@@ -514,7 +514,7 @@
           "Quantity": 1.5
         }
       ],
-      "ProductionRate": 128.0604
+      "ProductionRate": 180
     },
     {
       "Id": "ethylene-from-oil",
@@ -526,7 +526,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 1898.1403
+      "ProductionRate": 2668
     },
     {
       "Id": "synthetic-rubber-from-oil",
@@ -538,7 +538,7 @@
           "Quantity": 2.5
         }
       ],
-      "ProductionRate": 324.4198
+      "ProductionRate": 456
     },
     {
       "Id": "methanol-from-gas",
@@ -550,7 +550,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 71.1447
+      "ProductionRate": 100
     },
     {
       "Id": "carbon-black-from-oil",
@@ -562,7 +562,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 261.101
+      "ProductionRate": 367
     },
     {
       "Id": "lumber-from-timber",
@@ -574,7 +574,7 @@
           "Quantity": 1.3
         }
       ],
-      "ProductionRate": 84.6923
+      "ProductionRate": 130
     },
     {
       "Id": "fabric-from-cotton",
@@ -586,7 +586,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 878.8452
+      "ProductionRate": 1349
     },
     {
       "Id": "sawdust-from-timber",
@@ -598,7 +598,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1042.3664
+      "ProductionRate": 1600
     },
     {
       "Id": "tree-resin-from-timber",
@@ -610,7 +610,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 651.479
+      "ProductionRate": 1000
     },
     {
       "Id": "cotton-seed-from-cotton",
@@ -622,7 +622,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 651.479
+      "ProductionRate": 1000
     },
     {
       "Id": "semiconductor-wafer-from-silicon",
@@ -634,7 +634,7 @@
           "Quantity": 1.4
         }
       ],
-      "ProductionRate": 587.8386
+      "ProductionRate": 327
     },
     {
       "Id": "niobium-powder-from-ore",
@@ -646,7 +646,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1528.0207
+      "ProductionRate": 850
     },
     {
       "Id": "silica-fume-from-silicon",
@@ -658,7 +658,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1528.0207
+      "ProductionRate": 850
     },
     {
       "Id": "pig-iron-from-ore",
@@ -678,7 +678,7 @@
           "Quantity": 0.3
         }
       ],
-      "ProductionRate": 277.408
+      "ProductionRate": 350
     },
     {
       "Id": "fasteners-from-wire-rod",
@@ -690,7 +690,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1096.9503
+      "ProductionRate": 1384
     },
     {
       "Id": "paint-from-ethylene",
@@ -702,7 +702,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 11.1941
+      "ProductionRate": 55
     },
     {
       "Id": "pvc-component-from-ethylene",
@@ -714,7 +714,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 13.2294
+      "ProductionRate": 65
     },
     {
       "Id": "rubber-compound-from-synthetic-rubber",
@@ -730,7 +730,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 23.813
+      "ProductionRate": 117
     },
     {
       "Id": "textolite-from-ethylene-and-fabric",
@@ -746,7 +746,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 88.9424
+      "ProductionRate": 437
     },
     {
       "Id": "wood-frame-from-lumber",
@@ -758,7 +758,7 @@
           "Quantity": 1.2
         }
       ],
-      "ProductionRate": 149.2729
+      "ProductionRate": 47
     },
     {
       "Id": "technical-fabric-from-fabric",
@@ -770,7 +770,7 @@
           "Quantity": 1.3
         }
       ],
-      "ProductionRate": 273.1376
+      "ProductionRate": 86
     },
     {
       "Id": "upholstery-from-fabric",
@@ -782,7 +782,7 @@
           "Quantity": 1.3
         }
       ],
-      "ProductionRate": 127.0408
+      "ProductionRate": 40
     },
     {
       "Id": "chip-from-wafer-and-rare-metals",
@@ -798,7 +798,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 276.8066
+      "ProductionRate": 125
     },
     {
       "Id": "steel-stock-from-pig-iron",
@@ -810,7 +810,7 @@
           "Quantity": 1.4
         }
       ],
-      "ProductionRate": 227.0315
+      "ProductionRate": 192
     },
     {
       "Id": "composite-material-from-pvc-and-rubber",
@@ -826,7 +826,7 @@
           "Quantity": 2.5
         }
       ],
-      "ProductionRate": 16.83
+      "ProductionRate": 20
     },
     {
       "Id": "circuit-board-from-textolite-and-copper",
@@ -842,7 +842,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 19.6512
+      "ProductionRate": 84
     },
     {
       "Id": "wall-panel-from-frame-and-fabric",
@@ -858,7 +858,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 106.5419
+      "ProductionRate": 18
     },
     {
       "Id": "gearbox-assembly-from-parts",
@@ -874,7 +874,7 @@
           "Quantity": 30
         }
       ],
-      "ProductionRate": 12.4883
+      "ProductionRate": 6
     },
     {
       "Id": "welded-body-from-parts",
@@ -890,7 +890,7 @@
           "Quantity": 50
         }
       ],
-      "ProductionRate": 12.4883
+      "ProductionRate": 6
     },
     {
       "Id": "engine-from-parts",
@@ -906,7 +906,7 @@
           "Quantity": 60
         }
       ],
-      "ProductionRate": 12.4883
+      "ProductionRate": 6
     },
     {
       "Id": "radiator-from-steel-stock",
@@ -918,7 +918,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 16.6511
+      "ProductionRate": 8
     },
     {
       "Id": "hull-from-composite-and-steel",
@@ -934,7 +934,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 8.4351
+      "ProductionRate": 6
     },
     {
       "Id": "tires-from-rubber-and-fabric",
@@ -962,7 +962,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 22.4937
+      "ProductionRate": 16
     },
     {
       "Id": "house-assembly",
@@ -986,7 +986,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 4.1542
+      "ProductionRate": 3
     },
     {
       "Id": "electronic-module-from-chip-and-board",
@@ -1002,7 +1002,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 12.2402
+      "ProductionRate": 32
     },
     {
       "Id": "car-multimedia-from-module",
@@ -1014,7 +1014,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 2.295
+      "ProductionRate": 6
     },
     {
       "Id": "home-media-from-module",
@@ -1026,7 +1026,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 2.295
+      "ProductionRate": 6
     },
     {
       "Id": "boat-navigation-from-module",
@@ -1038,7 +1038,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 2.295
+      "ProductionRate": 6
     },
     {
       "Id": "automobile-assembly",
@@ -1082,7 +1082,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1.3422
+      "ProductionRate": 2
     },
     {
       "Id": "boat-assembly",
@@ -1118,7 +1118,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1.7215
+      "ProductionRate": 2
     },
     {
       "Id": "computing-complex-assembly",
@@ -1134,7 +1134,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 2.5093
+      "ProductionRate": 2
     }
   ],
   "FactoryDefinitions": [
