@@ -43,7 +43,10 @@ public static class SystemPromptBuilder
             "section below every turn and request an overhaul the moment a factory shows up there — " +
             "don't wait for it to actually break.",
         [BotCommandKind.TakeLoan] =
-            "takeLoan(amount) — request a loan for the next settlement; interest rate rises with total debt.",
+            "takeLoan(amount) — request a loan for the next settlement; interest rate rises with total debt " +
+            "and never goes away on its own. Check 'LOAN COST RIGHT NOW' below first — it names the exact " +
+            "current cost. Fine for a genuine one-off gap; a bad habit if you find yourself using it every turn " +
+            "to cover a recurring cost instead of fixing what's actually causing it.",
         [BotCommandKind.RepayLoan] =
             "repayLoan(amount) — voluntarily repay part of your debt at the next settlement.",
         [BotCommandKind.SellToSystem] =
@@ -170,6 +173,19 @@ public static class SystemPromptBuilder
             flat), building MORE of that same factory type will not help — the market cannot absorb more
             of it. Look at the 'FACTORY TYPES IN YOUR SECTOR' catalog below for a DIFFERENT product to
             diversify into instead of piling up idle cash.
+
+            SELL THE SURPLUS, DON'T BORROW TO COVER IT
+            If the 'WAREHOUSE OVERAGE FEE' below is present or rising, that fee means you are holding
+            more material than you're selling — the fix is to sell it (sellToSystem, or postSellOffer
+            if another sector wants it) or produce less of it (setWorkerCount down on the factory
+            making it), not to take a loan to pay the fee. A loan does not remove the surplus sitting
+            in your warehouse; the fee keeps charging every turn regardless, now with interest stacked
+            on top. Check 'LOAN COST RIGHT NOW' below before every takeLoan: it names the exact rate
+            and money cost of your current debt, not just a warning — a real number to weigh against
+            what the loan is actually for. Borrowing repeatedly, turn after turn, to cover a RECURRING
+            cost (fees, salaries, routine restocking) is a losing pattern, not a strategy — a loan is
+            for a genuine one-off gap (e.g. funding a build this turn that pays for itself), not a
+            substitute for fixing whatever keeps draining your cash.
             {crossSectorTradeHint}
             The "=== DERIVED METRICS ===" section below is already computed for you: trends over the
             last several turns compared to the turns before that (loan interest/principal paid, cash
