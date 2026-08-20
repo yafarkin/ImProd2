@@ -36,6 +36,18 @@ public sealed class SystemPromptBuilderTests
     }
 
     [Fact]
+    public void Build_AlwaysIncludesSellSurplusBeforeBorrowingHint()
+    {
+        // Прямой запрос пользователя 2026-08-20, по следам _2bot_gpt_oss_20b_2stage_v2 (оба бота 45
+        // ходов подряд брали заём вместо того, чтобы продать излишек) — эта подсказка не завязана на
+        // число секторов, в отличие от CROSS-SECTOR TRADE, должна быть в промпте всегда.
+        var prompt = SystemPromptBuilder.Build("persona");
+
+        Assert.Contains("SELL THE SURPLUS, DON'T BORROW TO COVER IT", prompt);
+        Assert.Contains("LOAN COST RIGHT NOW", prompt);
+    }
+
+    [Fact]
     public void Build_SingleSectorByDefault_OmitsCrossSectorTradeHint()
     {
         // Стадия 1: торговать физически не с кем, промпт не должен упоминать доску заявок как

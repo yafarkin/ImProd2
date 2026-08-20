@@ -65,6 +65,7 @@ public static class BotDerivedMetricsBuilder
             : $"=== DERIVED METRICS (recent: turns {recentWindow.Start}-{recentWindow.End}, not enough history yet for a prior window) ===");
 
         AppendLoanService(text, financeOps, recentWindow, priorWindow);
+        AppendLoanCostRightNow(text, session, teamId, team);
         var recentNet = AppendCashFlow(text, financeOps, recentWindow, priorWindow);
         AppendWarehouseFee(text, financeOps, recentWindow, priorWindow);
         AppendIdleFactories(text, team, productionPoints);
@@ -100,6 +101,40 @@ public static class BotDerivedMetricsBuilder
 
         text.AppendLine(interestLine);
         text.AppendLine(principalLine);
+    }
+
+    /// <summary>
+    /// Реальная стоимость долга прямо сейчас, числом, а не абстрактным "проценты растут" — прямой
+    /// запрос пользователя (2026-08-20), по следам прогона <c>_2bot_gpt_oss_20b_2stage_v2</c>: оба
+    /// бота 45 ходов подряд брали заём с формулировкой в `reason` буквально «cover warehouse overage
+    /// fee», ни разу не связав это с тем, что сам заём тоже стоит денег (а после нескольких таких
+    /// ходов — уже дорого). "LOAN SERVICE" выше показывает, сколько процентов УЖЕ заплачено за окно
+    /// — это про прошлое; здесь — сколько будет стоить долг НА СЛЕДУЮЩЕМ ходу при текущей ставке,
+    /// чтобы решение "занять ещё" сравнивалось с конкретной ценой, а не игнорировало её.
+    /// </summary>
+    private static void AppendLoanCostRightNow(StringBuilder text, GameSession session, Ulid teamId, Team team)
+    {
+        text.AppendLine();
+        text.AppendLine("LOAN COST RIGHT NOW");
+
+        if (team.Debt <= 0m)
+        {
+            text.AppendLine("No debt — a new loan would start at the base rate.");
+            return;
+        }
+
+        var loanConfig = session.State.Config.Raw.StartingConditions;
+        var reputation = session.GetReputation(teamId);
+        var rate = FinanceCalculator.CalculateEffectiveLoanRate(team, loanConfig, reputation.Percentage);
+        var interest = FinanceCalculator.CalculateInterest(team, loanConfig, reputation.Percentage);
+
+        text.AppendLine(
+            $"Effective rate: {Percent(rate)}/turn on your current debt of {Money(team.Debt)} — that alone costs " +
+            $"{Money(interest)} in interest NEXT turn, before any new loan or mandatory repayment. Borrowing MORE " +
+            "raises this rate further and compounds every turn it isn't repaid — a loan is one of the most " +
+            "expensive ways to cover a recurring cost like the warehouse overage fee below; selling the surplus " +
+            "(sellToSystem/postSellOffer) or producing less (setWorkerCount down) fixes the actual cause instead " +
+            "of just delaying it at a growing price.");
     }
 
     private static bool IsPrincipalRepayment(FinanceHistoryCalculator.FinanceOperation op) =>

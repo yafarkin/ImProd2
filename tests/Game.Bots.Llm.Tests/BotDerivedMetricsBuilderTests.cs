@@ -16,6 +16,8 @@ public sealed class BotDerivedMetricsBuilderTests
 
         Assert.Contains("not enough history yet for a prior window", metrics);
         Assert.Contains("LOAN SERVICE", metrics);
+        Assert.Contains("LOAN COST RIGHT NOW", metrics);
+        Assert.Contains("No debt", metrics);
         Assert.Contains("CASH FLOW", metrics);
         Assert.Contains("WAREHOUSE OVERAGE FEE", metrics);
         Assert.Contains("IDLE / UNDERPERFORMING FACTORIES", metrics);
@@ -26,6 +28,24 @@ public sealed class BotDerivedMetricsBuilderTests
         Assert.Contains("RUNWAY", metrics);
         Assert.Contains("MARKET POSITION", metrics);
         Assert.Contains("You are currently the net worth leader", metrics);
+    }
+
+    [Fact]
+    public void Build_WithDebt_ShowsTheExactRateAndNextTurnInterestCost()
+    {
+        // Прямой запрос пользователя 2026-08-20, по следам _2bot_gpt_oss_20b_2stage_v2: боту нужна
+        // конкретная цена долга ЧИСЛОМ, не абстрактное "ставка растёт" — иначе он берёт заём на заём
+        // не замечая, что это уже дорого.
+        var (session, teamId) = TestSession.StartSingleTeamSession();
+        session.TakeLoan(teamId, 100_000m);
+        TestSession.SettleOneTurn(session, new Random(1));
+
+        var metrics = BotDerivedMetricsBuilder.Build(session, teamId);
+
+        Assert.Contains("LOAN COST RIGHT NOW", metrics);
+        Assert.Contains("Effective rate:", metrics);
+        Assert.Contains("interest NEXT turn", metrics);
+        Assert.DoesNotContain("No debt", metrics);
     }
 
     [Fact]
