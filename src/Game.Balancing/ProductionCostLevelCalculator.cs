@@ -47,14 +47,13 @@ public static class ProductionCostLevelCalculator
         public required decimal UnitCost { get; init; }
 
         /// <summary>
-        /// = <see cref="TotalCost"/> / <see cref="Workers"/> — та же логика, что <see
-        /// cref="NaiveProfitPerWorker"/> (честная единица сравнения между фабриками/уровнями с разным
-        /// числом параллельных фабрик), но БЕЗ цены/margin — чисто по расходам, без допущений о
-        /// продажной цене (запрос пользователя). Не путать с прибылью: это деньги, которые фабрика
-        /// ТРАТИТ на одного рабочего за ход, не зарабатывает — растёт с уровнем почти механически
-        /// (рецепты выше по цепочке комбинируют несколько уже дорогих входов в один результат), само по
-        /// себе НЕ доказывает, что развивать уровень выгодно — для этого нужна выручка, см.
-        /// <see cref="NaiveProfitPerWorker"/>.
+        /// = <see cref="TotalCost"/> / <see cref="Workers"/> — честная единица сравнения между
+        /// фабриками/уровнями с разным числом параллельных фабрик (запрос пользователя: «Итого на
+        /// уровень»/«Итого по фабрике» напрямую сравнивать нельзя — искажает картина, если на одном
+        /// уровне 3 фабрики, а на другом 1). Это расход (деньги, которые фабрика ТРАТИТ на одного
+        /// рабочего за ход), не доход — сам факт роста этой величины с уровнем не доказывает, что
+        /// развивать уровень выгодно (для этого нужна была бы цена продажи, а её здесь принципиально
+        /// нет — см. doc-comment класса).
         /// </summary>
         public required decimal CostPerWorker { get; init; }
 
@@ -66,37 +65,6 @@ public static class ProductionCostLevelCalculator
         /// {себя же: 1}.
         /// </summary>
         public required IReadOnlyDictionary<string, decimal> RawMaterialsPerUnit { get; init; }
-
-        /// <summary>
-        /// Наивная оценка выручки/прибыли — рынок специально исключён из себестоимости (см. doc-comment
-        /// класса), но пользователь отдельно попросил проверить гипотезу «выгодно ли качаться до конца
-        /// цепочки» (SPEC-история про подкову/иголку/пружину): <c>BasePrice материала × margin по
-        /// уровню передела (<see cref="Game.Config.Economy.EconomyConfig.MarginMultiplierByProcessingLevel"/>)
-        /// × выпуск</c> — та же формула, что <see cref="Game.Engine.MarketSaleCalculator"/> использует
-        /// при продаже системе, но по БАЗОВОЙ цене/ёмкости, без текущей рыночной котировки, тренда и
-        /// штрафа за превышение ёмкости рынка (`MarketCapacityOverflowDiscount`) — то есть верхняя
-        /// граница, оптимистичная оценка, не прогноз реальной выручки. <c>null</c>, если для материала
-        /// нет записи в <c>BaseMarketPerMaterial</c>.
-        /// </summary>
-        public decimal? NaiveBasePrice { get; init; }
-
-        /// <summary>Множитель маржи по уровню передела этого материала (1 — уровень без записи в конфиге).</summary>
-        public required decimal NaiveMarginMultiplier { get; init; }
-
-        /// <summary>= <see cref="OutputQuantity"/> × <see cref="NaiveBasePrice"/> × <see cref="NaiveMarginMultiplier"/>, см. doc-comment <see cref="NaiveBasePrice"/>.</summary>
-        public decimal? NaiveRevenue { get; init; }
-
-        /// <summary>= <see cref="NaiveRevenue"/> − <see cref="TotalCost"/>.</summary>
-        public decimal? NaiveProfit { get; init; }
-
-        /// <summary>
-        /// = <see cref="NaiveProfit"/> / <see cref="Workers"/> — честная мера для сравнения фабрик и
-        /// уровней между собой (запрос пользователя): «Итого на уровень»/«Итого по фабрике» нельзя
-        /// сравнивать напрямую между уровнями/секторами с разным числом параллельных фабрик — рабочие
-        /// же на каждой фабрике одинаковы (общий параметр всего расчёта), поэтому именно они —
-        /// сопоставимая единица вложения.
-        /// </summary>
-        public decimal? NaiveProfitPerWorker { get; init; }
     }
 
     /// <summary>
@@ -119,8 +87,6 @@ public static class ProductionCostLevelCalculator
         var electricityPrice = config.Raw.Economy.ElectricityBasePrice;
         var productivity = config.Raw.WorkerProductivity;
         var rnd = config.Raw.Rnd;
-        var basePriceByMaterialId = config.Raw.Economy.BaseMarketPerMaterial.ToDictionary(m => m.MaterialId, m => m.BasePrice);
-        var marginByLevel = config.Raw.Economy.MarginMultiplierByProcessingLevel.ToDictionary(m => m.Level, m => m.MarginMultiplier);
 
         var producerByMaterialId = new Dictionary<string, (FactoryDefinition FactoryDef, Recipe Recipe)>();
         foreach (var factoryDef in config.FactoryDefinitions)
@@ -194,12 +160,6 @@ public static class ProductionCostLevelCalculator
             var totalCost = inputCost + fixedCostPerTurn + electricityCost;
             var unitCost = outputQuantity > 0 ? totalCost / outputQuantity : 0m;
 
-            var naiveMargin = marginByLevel.GetValueOrDefault(recipe.Output.Level, 1m);
-            var naiveBasePrice = basePriceByMaterialId.TryGetValue(materialId, out var basePrice) ? basePrice : (decimal?)null;
-            var naiveRevenue = naiveBasePrice.HasValue ? outputQuantity * naiveBasePrice.Value * naiveMargin : (decimal?)null;
-            var naiveProfit = naiveRevenue.HasValue ? naiveRevenue.Value - totalCost : (decimal?)null;
-            var naiveProfitPerWorker = naiveProfit.HasValue ? naiveProfit.Value / workersPerFactory : (decimal?)null;
-
             var row = new FactoryRecipeCost
             {
                 SectorId = factoryDef.Sector.Id,
@@ -219,11 +179,6 @@ public static class ProductionCostLevelCalculator
                 UnitCost = unitCost,
                 CostPerWorker = totalCost / workersPerFactory,
                 RawMaterialsPerUnit = rawMaterialsPerUnit,
-                NaiveBasePrice = naiveBasePrice,
-                NaiveMarginMultiplier = naiveMargin,
-                NaiveRevenue = naiveRevenue,
-                NaiveProfit = naiveProfit,
-                NaiveProfitPerWorker = naiveProfitPerWorker,
             };
 
             inProgress.Remove(materialId);
