@@ -100,7 +100,50 @@ public static class ProductionCostLevelReportWriter
 
         AppendLevelSummary(text, rows);
         AppendByLevelBySectorView(text, rows);
+        AppendMonotonicityCheck(text, rows);
         return text.ToString();
+    }
+
+    /// <summary>
+    /// Проверка «себестоимость единицы по цепочке не должна падать» (запрос пользователя): для
+    /// каждого рецепта с входами — себестоимость единицы выхода должна быть не меньше самого дорогого
+    /// из прямых входов (вход + содержание + электричество ≥ вход). Формально это НЕ математическая
+    /// гарантия (зависит от <c>Recipe.OutputQuantity</c> — рецепт может «размножать» дешёвые единицы
+    /// из дорогого сырья), поэтому это диагностика подозрительных мест в конкретном контенте, не
+    /// проверка корректности расчёта. Не путать с «Себестоимость на 1 рабочего» — та величина
+    /// (= себестоимость единицы × <c>ProductionRate</c>) НЕ обязана расти по уровням, потому что
+    /// <c>ProductionRate</c> задаётся вручную по каждому рецепту независимо от себестоимости (это и
+    /// есть основной рычаг балансировки между отраслями, см. пункт «перебалансировка
+    /// metallurgy-petrochemistry.json» в docs/TODO.md #22) — себестоимость единицы обязана расти,
+    /// произведение с ней — нет.
+    /// </summary>
+    private static void AppendMonotonicityCheck(StringBuilder text, IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows)
+    {
+        text.AppendLine("=== Монотонность себестоимости по цепочке (себестоимость единицы выхода vs самый дорогой прямой вход) ===");
+
+        var violations = rows
+            .Where(r => r.Inputs.Count > 0)
+            .Select(r => (Row: r, MaxInputUnitCost: r.Inputs.Max(i => i.UnitCost)))
+            .Where(x => x.Row.UnitCost < x.MaxInputUnitCost)
+            .OrderBy(x => x.Row.SectorId, StringComparer.Ordinal)
+            .ThenBy(x => x.Row.Level)
+            .ToList();
+
+        if (violations.Count == 0)
+        {
+            text.AppendLine("  Нарушений нет — себестоимость единицы нигде не падает ниже самого дорогого прямого входа.");
+            text.AppendLine();
+            return;
+        }
+
+        foreach (var (row, maxInputUnitCost) in violations)
+        {
+            text.AppendLine(
+                $"  ⚠ {row.SectorId}, уровень {row.Level}, {row.FactoryId} ({row.RecipeId}): себестоимость единицы {row.OutputMaterialId} " +
+                $"{FormatUnitCost(row.UnitCost)} < самый дорогой вход {FormatUnitCost(maxInputUnitCost)}");
+        }
+
+        text.AppendLine();
     }
 
     /// <summary>
