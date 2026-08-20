@@ -45,6 +45,15 @@ public static class ProductionCostLevelCalculator
         public required decimal ElectricityCost { get; init; }
         public required decimal TotalCost { get; init; }
         public required decimal UnitCost { get; init; }
+
+        /// <summary>
+        /// Сколько сырья (материалов уровня 0) нужно рекурсивно на 1 единицу выпуска этого рецепта —
+        /// развёрнуто до самых первых, добывающих фабрик, включая межотраслевые связи (запрос
+        /// пользователя: «сколько в итоге надо породы для 1 автомобиля, рекурсивно»). Ключ — Id
+        /// сырьевого материала, значение — количество на единицу; для самого сырья это тривиально
+        /// {себя же: 1}.
+        /// </summary>
+        public required IReadOnlyDictionary<string, decimal> RawMaterialsPerUnit { get; init; }
     }
 
     /// <summary>
@@ -112,12 +121,27 @@ public static class ProductionCostLevelCalculator
             var outputQuantity = breakdown.TheoreticalMaxOutput;
             var batches = outputQuantity / recipe.OutputQuantity;
 
-            var inputLines = recipe.Inputs.Select(input =>
+            var inputLines = new List<InputLine>();
+            var rawMaterialsPerUnit = new Dictionary<string, decimal>();
+            if (recipe.Inputs.Count == 0)
+            {
+                // Сырьё уровня 0 — рекурсия дна: на 1 единицу себя же нужна 1 единица себя же.
+                rawMaterialsPerUnit[materialId] = 1m;
+            }
+
+            foreach (var input in recipe.Inputs)
             {
                 var inputRow = Resolve(input.Material.Id);
                 var quantity = input.Quantity * batches;
-                return new InputLine(input.Material.Id, quantity, inputRow.UnitCost, quantity * inputRow.UnitCost);
-            }).ToList();
+                inputLines.Add(new InputLine(input.Material.Id, quantity, inputRow.UnitCost, quantity * inputRow.UnitCost));
+
+                var perUnitOfOutput = input.Quantity / recipe.OutputQuantity;
+                foreach (var (rawMaterialId, rawQuantityPerUnitOfInput) in inputRow.RawMaterialsPerUnit)
+                {
+                    rawMaterialsPerUnit.TryGetValue(rawMaterialId, out var existing);
+                    rawMaterialsPerUnit[rawMaterialId] = existing + perUnitOfOutput * rawQuantityPerUnitOfInput;
+                }
+            }
 
             var inputCost = inputLines.Sum(line => line.LineCost);
             var fixedCostPerTurn = fixedCostByFactoryId[factoryDef.Id];
@@ -142,6 +166,7 @@ public static class ProductionCostLevelCalculator
                 ElectricityCost = electricityCost,
                 TotalCost = totalCost,
                 UnitCost = unitCost,
+                RawMaterialsPerUnit = rawMaterialsPerUnit,
             };
 
             inProgress.Remove(materialId);

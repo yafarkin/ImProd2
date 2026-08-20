@@ -63,13 +63,61 @@ public static class ProductionCostLevelReportWriter
                     text.AppendLine($"    Электричество: {FormatMoney(row.ElectricityCost)}");
                     text.AppendLine($"    ИТОГО:         {FormatMoney(row.TotalCost)}");
                     text.AppendLine($"  Себестоимость единицы {row.OutputMaterialId}: {FormatUnitCost(row.UnitCost)}");
+                    text.AppendLine($"  Итого по фабрике: {FormatMoney(row.TotalCost)} /ход");
+
+                    if (row.Inputs.Count > 0)
+                    {
+                        text.AppendLine($"  Сырьё рекурсивно, на 1 ед. {row.OutputMaterialId} (до самых первых фабрик, включая межотраслевые связи):");
+                        foreach (var raw in row.RawMaterialsPerUnit.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key, StringComparer.Ordinal))
+                        {
+                            text.AppendLine($"    {raw.Key} × {FormatQuantity(raw.Value)}");
+                        }
+                    }
+
                     text.AppendLine();
                 }
+
+                var levelTotalCost = levelGroup.Sum(r => r.TotalCost);
+                var levelUnitCostSum = levelGroup.Sum(r => r.UnitCost);
+                text.AppendLine($"Итого на уровень {levelGroup.Key}: {FormatMoney(levelTotalCost)} /ход, сумма себестоимостей единиц: {FormatUnitCost(levelUnitCostSum)}");
+                text.AppendLine();
             }
         }
 
         AppendLevelSummary(text, rows);
+        AppendByLevelBySectorView(text, rows);
         return text.ToString();
+    }
+
+    /// <summary>
+    /// Тот же итог по уровням, что и <see cref="AppendLevelSummary"/>, но перегруппированный — сначала
+    /// уровень, внутри него все секторы — так удобнее сравнивать отрасли глазами на одном уровне, не
+    /// листая сектора по отдельности (запрос пользователя).
+    /// </summary>
+    private static void AppendByLevelBySectorView(StringBuilder text, IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows)
+    {
+        text.AppendLine("=== По уровням, по секторам ===");
+        text.AppendLine();
+
+        var byLevel = rows
+            .GroupBy(r => r.Level)
+            .OrderBy(g => g.Key);
+
+        foreach (var levelGroup in byLevel)
+        {
+            text.AppendLine($"Уровень {levelGroup.Key}");
+            var bySector = levelGroup
+                .GroupBy(r => (r.SectorId, r.SectorName))
+                .Select(g => (g.Key.SectorId, g.Key.SectorName, Total: g.Sum(r => r.TotalCost)))
+                .OrderBy(x => x.SectorId, StringComparer.Ordinal);
+
+            foreach (var entry in bySector)
+            {
+                text.AppendLine($"    Отрасль {entry.SectorId} ({entry.SectorName}) - {FormatMoney(entry.Total)} /ход");
+            }
+
+            text.AppendLine();
+        }
     }
 
     /// <summary>
