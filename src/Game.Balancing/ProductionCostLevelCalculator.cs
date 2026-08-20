@@ -54,6 +54,37 @@ public static class ProductionCostLevelCalculator
         /// {себя же: 1}.
         /// </summary>
         public required IReadOnlyDictionary<string, decimal> RawMaterialsPerUnit { get; init; }
+
+        /// <summary>
+        /// Наивная оценка выручки/прибыли — рынок специально исключён из себестоимости (см. doc-comment
+        /// класса), но пользователь отдельно попросил проверить гипотезу «выгодно ли качаться до конца
+        /// цепочки» (SPEC-история про подкову/иголку/пружину): <c>BasePrice материала × margin по
+        /// уровню передела (<see cref="Game.Config.Economy.EconomyConfig.MarginMultiplierByProcessingLevel"/>)
+        /// × выпуск</c> — та же формула, что <see cref="Game.Engine.MarketSaleCalculator"/> использует
+        /// при продаже системе, но по БАЗОВОЙ цене/ёмкости, без текущей рыночной котировки, тренда и
+        /// штрафа за превышение ёмкости рынка (`MarketCapacityOverflowDiscount`) — то есть верхняя
+        /// граница, оптимистичная оценка, не прогноз реальной выручки. <c>null</c>, если для материала
+        /// нет записи в <c>BaseMarketPerMaterial</c>.
+        /// </summary>
+        public decimal? NaiveBasePrice { get; init; }
+
+        /// <summary>Множитель маржи по уровню передела этого материала (1 — уровень без записи в конфиге).</summary>
+        public required decimal NaiveMarginMultiplier { get; init; }
+
+        /// <summary>= <see cref="OutputQuantity"/> × <see cref="NaiveBasePrice"/> × <see cref="NaiveMarginMultiplier"/>, см. doc-comment <see cref="NaiveBasePrice"/>.</summary>
+        public decimal? NaiveRevenue { get; init; }
+
+        /// <summary>= <see cref="NaiveRevenue"/> − <see cref="TotalCost"/>.</summary>
+        public decimal? NaiveProfit { get; init; }
+
+        /// <summary>
+        /// = <see cref="NaiveProfit"/> / <see cref="Workers"/> — честная мера для сравнения фабрик и
+        /// уровней между собой (запрос пользователя): «Итого на уровень»/«Итого по фабрике» нельзя
+        /// сравнивать напрямую между уровнями/секторами с разным числом параллельных фабрик — рабочие
+        /// же на каждой фабрике одинаковы (общий параметр всего расчёта), поэтому именно они —
+        /// сопоставимая единица вложения.
+        /// </summary>
+        public decimal? NaiveProfitPerWorker { get; init; }
     }
 
     /// <summary>
@@ -76,6 +107,8 @@ public static class ProductionCostLevelCalculator
         var electricityPrice = config.Raw.Economy.ElectricityBasePrice;
         var productivity = config.Raw.WorkerProductivity;
         var rnd = config.Raw.Rnd;
+        var basePriceByMaterialId = config.Raw.Economy.BaseMarketPerMaterial.ToDictionary(m => m.MaterialId, m => m.BasePrice);
+        var marginByLevel = config.Raw.Economy.MarginMultiplierByProcessingLevel.ToDictionary(m => m.Level, m => m.MarginMultiplier);
 
         var producerByMaterialId = new Dictionary<string, (FactoryDefinition FactoryDef, Recipe Recipe)>();
         foreach (var factoryDef in config.FactoryDefinitions)
@@ -149,6 +182,12 @@ public static class ProductionCostLevelCalculator
             var totalCost = inputCost + fixedCostPerTurn + electricityCost;
             var unitCost = outputQuantity > 0 ? totalCost / outputQuantity : 0m;
 
+            var naiveMargin = marginByLevel.GetValueOrDefault(recipe.Output.Level, 1m);
+            var naiveBasePrice = basePriceByMaterialId.TryGetValue(materialId, out var basePrice) ? basePrice : (decimal?)null;
+            var naiveRevenue = naiveBasePrice.HasValue ? outputQuantity * naiveBasePrice.Value * naiveMargin : (decimal?)null;
+            var naiveProfit = naiveRevenue.HasValue ? naiveRevenue.Value - totalCost : (decimal?)null;
+            var naiveProfitPerWorker = naiveProfit.HasValue ? naiveProfit.Value / workersPerFactory : (decimal?)null;
+
             var row = new FactoryRecipeCost
             {
                 SectorId = factoryDef.Sector.Id,
@@ -167,6 +206,11 @@ public static class ProductionCostLevelCalculator
                 TotalCost = totalCost,
                 UnitCost = unitCost,
                 RawMaterialsPerUnit = rawMaterialsPerUnit,
+                NaiveBasePrice = naiveBasePrice,
+                NaiveMarginMultiplier = naiveMargin,
+                NaiveRevenue = naiveRevenue,
+                NaiveProfit = naiveProfit,
+                NaiveProfitPerWorker = naiveProfitPerWorker,
             };
 
             inProgress.Remove(materialId);

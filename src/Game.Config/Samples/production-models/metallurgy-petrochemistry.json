@@ -239,14 +239,14 @@
       "OutputMaterialId": "iron-ore",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 9812
+      "ProductionRate": 15106.01
     },
     {
       "Id": "oil-drilling",
       "OutputMaterialId": "oil",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 26600
+      "ProductionRate": 17309.58
     },
     {
       "Id": "coke-from-ore",
@@ -258,7 +258,7 @@
           "Quantity": 1.5
         }
       ],
-      "ProductionRate": 1105
+      "ProductionRate": 1690.51
     },
     {
       "Id": "wire-rod-from-ore",
@@ -270,7 +270,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 150
+      "ProductionRate": 229.48
     },
     {
       "Id": "quicklime-from-ore",
@@ -282,7 +282,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1000
+      "ProductionRate": 1529.88
     },
     {
       "Id": "coal-tar-from-ore",
@@ -294,7 +294,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 900
+      "ProductionRate": 1376.89
     },
     {
       "Id": "iron-powder-from-ore",
@@ -306,7 +306,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1000
+      "ProductionRate": 1529.88
     },
     {
       "Id": "gasoline-from-oil",
@@ -318,7 +318,7 @@
           "Quantity": 1.5
         }
       ],
-      "ProductionRate": 180
+      "ProductionRate": 119.24
     },
     {
       "Id": "ethylene-from-oil",
@@ -330,7 +330,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 1263
+      "ProductionRate": 836.65
     },
     {
       "Id": "synthetic-rubber-from-oil",
@@ -342,7 +342,7 @@
           "Quantity": 2.5
         }
       ],
-      "ProductionRate": 2635
+      "ProductionRate": 1745.52
     },
     {
       "Id": "methanol-from-oil",
@@ -354,7 +354,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 274
+      "ProductionRate": 181.51
     },
     {
       "Id": "carbon-black-from-oil",
@@ -366,7 +366,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 1836
+      "ProductionRate": 1216.23
     },
     {
       "Id": "pig-iron-from-ore",
@@ -382,7 +382,7 @@
           "Quantity": 0.6
         }
       ],
-      "ProductionRate": 1416
+      "ProductionRate": 2038.52
     },
     {
       "Id": "fasteners-from-wire-rod",
@@ -394,7 +394,7 @@
           "Quantity": 1
         }
       ],
-      "ProductionRate": 1160
+      "ProductionRate": 1669.98
     },
     {
       "Id": "paint-from-ethylene",
@@ -406,7 +406,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 55
+      "ProductionRate": 37.6
     },
     {
       "Id": "polyethylene-from-ethylene",
@@ -418,7 +418,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 60
+      "ProductionRate": 41.01
     },
     {
       "Id": "pvc-resin-from-ethylene",
@@ -430,7 +430,7 @@
           "Quantity": 3
         }
       ],
-      "ProductionRate": 247
+      "ProductionRate": 168.84
     },
     {
       "Id": "rubber-compound-from-synthetic-rubber",
@@ -446,7 +446,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 676
+      "ProductionRate": 462.08
     },
     {
       "Id": "cord-adhesive-from-methanol",
@@ -458,7 +458,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 105
+      "ProductionRate": 71.77
     },
     {
       "Id": "crude-steel-from-pig-iron",
@@ -470,7 +470,7 @@
           "Quantity": 1.1
         }
       ],
-      "ProductionRate": 955
+      "ProductionRate": 1471.2
     },
     {
       "Id": "cast-iron-from-pig-iron",
@@ -482,7 +482,7 @@
           "Quantity": 1.1
         }
       ],
-      "ProductionRate": 35
+      "ProductionRate": 53.92
     },
     {
       "Id": "pvc-profile-from-pvc-resin",
@@ -494,7 +494,7 @@
           "Quantity": 2.5
         }
       ],
-      "ProductionRate": 76
+      "ProductionRate": 50.04
     },
     {
       "Id": "tire-cord-from-rubber-compound",
@@ -506,7 +506,7 @@
           "Quantity": 2.5
         }
       ],
-      "ProductionRate": 208
+      "ProductionRate": 136.96
     },
     {
       "Id": "steel-stock-from-crude-steel",
@@ -518,7 +518,7 @@
           "Quantity": 1.1
         }
       ],
-      "ProductionRate": 668
+      "ProductionRate": 570.64
     },
     {
       "Id": "engine-block-rough-from-cast-iron",
@@ -530,7 +530,7 @@
           "Quantity": 1.2
         }
       ],
-      "ProductionRate": 20
+      "ProductionRate": 17.09
     },
     {
       "Id": "composite-material-from-pvc-and-cord",
@@ -546,7 +546,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 29
+      "ProductionRate": 33.29
     },
     {
       "Id": "machined-parts-from-steel-stock",
@@ -558,7 +558,7 @@
           "Quantity": 1.15
         }
       ],
-      "ProductionRate": 67
+      "ProductionRate": 221.64
     },
     {
       "Id": "stamped-panels-from-steel-stock",
@@ -570,7 +570,7 @@
           "Quantity": 1.15
         }
       ],
-      "ProductionRate": 39
+      "ProductionRate": 129.02
     },
     {
       "Id": "engine-block-finished-from-rough",
@@ -582,7 +582,7 @@
           "Quantity": 1.15
         }
       ],
-      "ProductionRate": 11
+      "ProductionRate": 36.39
     },
     {
       "Id": "tire-carcass-from-tire-cord",
@@ -606,7 +606,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 41
+      "ProductionRate": 18.81
     },
     {
       "Id": "hull-from-composite-and-steel",
@@ -622,7 +622,7 @@
           "Quantity": 39
         }
       ],
-      "ProductionRate": 9
+      "ProductionRate": 4.13
     },
     {
       "Id": "gearbox-assembly-from-parts",
@@ -638,7 +638,7 @@
           "Quantity": 30
         }
       ],
-      "ProductionRate": 5
+      "ProductionRate": 6.38
     },
     {
       "Id": "welded-body-from-panels",
@@ -654,7 +654,7 @@
           "Quantity": 50
         }
       ],
-      "ProductionRate": 5
+      "ProductionRate": 6.38
     },
     {
       "Id": "engine-from-parts",
@@ -674,7 +674,7 @@
           "Quantity": 60
         }
       ],
-      "ProductionRate": 6
+      "ProductionRate": 7.65
     },
     {
       "Id": "tires-from-tire-carcass",
@@ -686,7 +686,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 16
+      "ProductionRate": 14.04
     },
     {
       "Id": "automobile-assembly",
@@ -722,7 +722,7 @@
           "Quantity": 40
         }
       ],
-      "ProductionRate": 2
+      "ProductionRate": 1.72
     },
     {
       "Id": "boat-assembly",
@@ -750,7 +750,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 2
+      "ProductionRate": 2.34
     }
   ],
   "FactoryDefinitions": [
