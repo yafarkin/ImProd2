@@ -25,6 +25,14 @@ if (cliArguments.Mode == RunMode.CostLevels)
     return;
 }
 
+// Блок «трассировка ботов» (rebalance/2-sector-stepwise) — одна партия с построчным логом решений,
+// не JSON-отчёт по сетке, поэтому тоже выходит раньше остальной инфраструктуры грида.
+if (cliArguments.Mode == RunMode.Trace)
+{
+    await TraceRun.RunAsync(config, cliArguments);
+    return;
+}
+
 var preset = config.Raw.SessionPresets.Single(p => p.Id == cliArguments.PresetId);
 
 if (cliArguments.TeamsPerSector <= 0)

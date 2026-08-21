@@ -56,6 +56,12 @@ internal sealed record CliArguments
     /// </summary>
     public int Workers { get; init; } = 10;
 
+    /// <summary><c>leverage</c> ботов при <see cref="RunMode.Trace"/> — одна партия, не сетка (см. doc-comment конструктора <see cref="Game.Bots.SimpleBot"/>).</summary>
+    public decimal Leverage { get; init; } = 1m;
+
+    /// <summary><c>profile</c> ботов при <see cref="RunMode.Trace"/> — см. <see cref="Leverage"/>.</summary>
+    public decimal Profile { get; init; }
+
     /// <summary>Разбирает пары <c>--флаг значение</c>; неизвестный флаг или флаг без значения — <see cref="ArgumentException"/> (лучше упасть сразу, чем молча проигнорировать опечатку в многочасовом прогоне).</summary>
     public static CliArguments Parse(IReadOnlyList<string> args)
     {
@@ -88,7 +94,9 @@ internal sealed record CliArguments
                 "--out" => result with { OutPath = NextValue() },
                 "--mode" => result with { Mode = ParseMode(NextValue()) },
                 "--workers" => result with { Workers = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
-                _ => throw new ArgumentException($"Unknown argument '{flag}'. Known flags: --config, --session, --preset, --sessions-per-cell, --grid-steps, --teams-per-sector, --maintain-factories, --out, --mode, --workers."),
+                "--leverage" => result with { Leverage = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--profile" => result with { Profile = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                _ => throw new ArgumentException($"Unknown argument '{flag}'. Known flags: --config, --session, --preset, --sessions-per-cell, --grid-steps, --teams-per-sector, --maintain-factories, --out, --mode, --workers, --leverage, --profile."),
             };
         }
 
@@ -100,7 +108,8 @@ internal sealed record CliArguments
         "grid" => RunMode.Grid,
         "ideal-hall" => RunMode.IdealHall,
         "cost-levels" => RunMode.CostLevels,
-        _ => throw new ArgumentException($"Unknown '--mode' value '{value}'. Expected 'grid', 'ideal-hall' or 'cost-levels'."),
+        "trace" => RunMode.Trace,
+        _ => throw new ArgumentException($"Unknown '--mode' value '{value}'. Expected 'grid', 'ideal-hall', 'cost-levels' or 'trace'."),
     };
 }
 
@@ -118,4 +127,13 @@ internal enum RunMode
     /// рабочих на каждой фабрике — без хода, без рынка, без ботов (<see cref="ProductionCostLevelCalculator"/>).
     /// </summary>
     CostLevels,
+
+    /// <summary>
+    /// Одна партия (не сетка) — идеальный зал и настоящие боты (<see cref="CliArguments.Leverage"/>/
+    /// <see cref="CliArguments.Profile"/>) прогоняются с построчной трассировкой решений в два
+    /// отдельных текстовых файла (Блок «трассировка ботов», rebalance/2-sector-stepwise) — понять,
+    /// «когда начинаются проблемы» и почему конкретное решение бота разошлось с идеалом, без ручного
+    /// расковыривания кода на каждый такой случай (как раньше — временный, не закоммиченный код).
+    /// </summary>
+    Trace,
 }

@@ -52,8 +52,32 @@ namespace Game.Engine;
 public static class IdealHallCalculator
 {
     /// <summary>
+    /// Приёмник построчной трассировки расчёта (Блок «трассировка ботов», rebalance/2-sector-stepwise,
+    /// диагностика для <c>--mode trace</c> в <c>Game.Balancing</c>) — <c>null</c> по умолчанию, тогда
+    /// <see cref="Calculate"/> остаётся чистой функцией без побочных эффектов, как и было. Не
+    /// потокобезопасно и не переиспользуется параллельно (единственный вызывающий — CLI-режим
+    /// трассировки, который считает X(t) один раз последовательно) — статическое поле, а не параметр
+    /// <see cref="Calculate"/>, чтобы не менять сигнатуру уже вызывающего кода, который трассировку не
+    /// просит (грид/обычный <c>--mode ideal-hall</c>).
+    /// </summary>
+    public static Action<string>? Trace;
+
+    /// <summary>Печатает склад и кассу ветки в лог трассировки (см. <see cref="Trace"/>) — сырьё для сравнения с трассировкой реального бота построчно.</summary>
+    private static void TraceWarehouse(BranchState branch, string phase)
+    {
+        if (Trace is null)
+        {
+            return;
+        }
+
+        var stock = string.Join(" ", branch.Team.Warehouse.Stock.Select(s => $"{s.Material.Id}={s.Quantity:F1}"));
+        Trace($"[ideal] {branch.Sector.Id,-8} {phase,-14} cash={branch.Cash,10:F1} {stock}");
+    }
+
+    /// <summary>
     /// Считает X(t) для каждого сектора <paramref name="config"/> на <paramref name="maxTurns"/>
-    /// ходов. Чистая функция (без рандома) — два вызова с одним и тем же конфигом дают одно и то же.
+    /// ходов. Чистая функция (без рандома) — два вызова с одним и тем же конфигом дают одно и то же
+    /// (если не считать <see cref="Trace"/> — побочный эффект только на приёмник лога, не на сам результат).
     /// </summary>
     public static IdealHallResult Calculate(ResolvedGameConfig config, int maxTurns)
     {
@@ -71,6 +95,7 @@ public static class IdealHallCalculator
 
         for (var turn = 1; turn <= maxTurns; turn++)
         {
+            Trace?.Invoke($"=== TURN {turn} ===");
             var marketUpdate = MarketCalculator.Calculate(turn, config.Raw.Economy);
             market.ReplaceQuotes(marketUpdate.Quotes, marketUpdate.ElectricityPrice);
 
@@ -82,12 +107,14 @@ public static class IdealHallCalculator
                 AdvanceFactoryLevelsAndChargeRnd(branch, config, turn);
                 RunProduction(branch, config);
                 ChargeOperatingCosts(branch, config);
+                TraceWarehouse(branch, "post-production");
             }
 
             TransferAcrossBranches(branches, config, rawMaterialCosts, market);
 
             foreach (var branch in branches)
             {
+                TraceWarehouse(branch, "post-transfer");
                 branch.ValueByTurn.Add(ComputeValue(branch, config, basePriceByMaterialId));
             }
         }
@@ -282,7 +309,9 @@ public static class IdealHallCalculator
                 continue;
             }
 
-            var remainingSurplus = surplus - TransferToBuyers(seller, branches, material, surplus, config, rawMaterialCosts);
+            var transferred = TransferToBuyers(seller, branches, material, surplus, config, rawMaterialCosts);
+            var remainingSurplus = surplus - transferred;
+            Trace?.Invoke($"[ideal] transfer {material.Id,-12} продавец={seller.Sector.Id} излишек={surplus:F1} передано={transferred:F1} продано системе={remainingSurplus:F1}");
             SellRemainingSurplusToSystem(seller, material, remainingSurplus, config, market);
         }
     }
@@ -304,6 +333,9 @@ public static class IdealHallCalculator
 
         var totalDeficit = buyers.Sum(entry => entry.Deficit);
         var fillRatio = Math.Min(1m, surplus / totalDeficit);
+        Trace?.Invoke(fillRatio < 1m
+            ? $"[ideal] transfer {material.Id,-12} покупатели=[{string.Join(", ", buyers.Select(b => $"{b.Branch.Sector.Id}:дефицит={b.Deficit:F1}"))}] fillRatio={fillRatio:P0} — излишка не хватает на весь спрос"
+            : $"[ideal] transfer {material.Id,-12} покупатели=[{string.Join(", ", buyers.Select(b => $"{b.Branch.Sector.Id}:дефицит={b.Deficit:F1}"))}] fillRatio={fillRatio:P0}");
         if (fillRatio <= 0m || !TryCalculateUnitCost(material, config.RecipeBook, rawMaterialCosts, out var unitCost))
         {
             return 0m;
