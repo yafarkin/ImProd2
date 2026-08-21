@@ -1,13 +1,6 @@
 {
   "StartingConditions": {
-    "MaxStartingLoanAmount": 10000,
-    "BaseLoanInterestRate": 0.005,
-    "LoanInterestRateGrowthPerUnitBorrowed": 1e-07,
-    "ForcedLoanPenaltyRatePerOccurrence": 0.05,
-    "MaxReputationRatePenalty": 0.1,
-    "MandatoryRepaymentRatePerTurn": 0.005,
-    "MaxTotalDebt": 10000000,
-    "MaxLoanInterestRate": 0.03
+    "MaxInitialBuildBudget": 10000
   },
   "SessionPresets": [
     {
@@ -207,9 +200,6 @@
     "PropertyTaxRatePerTurn": 0.01,
     "SalesTaxRate": 0.05
   },
-  "Deposits": {
-    "InterestRatePerTurn": 0.01
-  },
   "News": [
     {
       "Id": "news-up-1",
@@ -234,7 +224,6 @@
   ],
   "FeatureFlags": {
     "TaxesEnabled": false,
-    "DepositsEnabled": false,
     "EmergencyPurchaseEnabled": true
   }
 }

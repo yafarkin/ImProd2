@@ -16,14 +16,14 @@ public class FinanceHistoryCalculatorTests
     }
 
     [Fact]
-    public void Summarize_Captures_LoanTaken()
+    public void Summarize_Captures_GrantReceived()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        var entry = log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 500m });
+        var entry = log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 500m });
 
         var operation = Assert.Single(FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id));
 
-        Assert.Equal(FinanceHistoryCalculator.OperationType.LoanTaken, operation.Type);
+        Assert.Equal(FinanceHistoryCalculator.OperationType.GrantReceived, operation.Type);
         Assert.Equal(500m, operation.Amount);
         Assert.Null(operation.Rate);
         // Точное время записи в журнал (запрос пользователя: видеть, когда реально было совершено
@@ -32,77 +32,21 @@ public class FinanceHistoryCalculatorTests
     }
 
     [Fact]
-    public void Summarize_Captures_ForcedLoanTaken()
-    {
-        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        log.Append(new ForcedLoanTaken { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 40m, NewPenaltyRateSurcharge = 0.1m });
-
-        var operation = Assert.Single(FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id));
-
-        Assert.Equal(FinanceHistoryCalculator.OperationType.ForcedLoan, operation.Type);
-        Assert.Equal(40m, operation.Amount);
-    }
-
-    [Fact]
-    public void Summarize_Captures_LoanInterestCharged_With_Its_Rate()
-    {
-        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        log.Append(new LoanInterestCharged { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 50m, Rate = 0.05m });
-
-        var operation = Assert.Single(FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id));
-
-        Assert.Equal(FinanceHistoryCalculator.OperationType.InterestCharged, operation.Type);
-        Assert.Equal(50m, operation.Amount);
-        Assert.Equal(0.05m, operation.Rate);
-    }
-
-    [Fact]
-    public void Summarize_Captures_MandatoryLoanRepaymentCharged_With_Its_Rate()
-    {
-        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 1000m });
-        log.Append(new MandatoryLoanRepaymentCharged { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 100m, Rate = 0.1m });
-
-        var operation = Assert.Single(
-            FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id),
-            o => o.Type == FinanceHistoryCalculator.OperationType.MandatoryRepayment);
-
-        Assert.Equal(FinanceHistoryCalculator.OperationType.MandatoryRepayment, operation.Type);
-        Assert.Equal(100m, operation.Amount);
-        Assert.Equal(0.1m, operation.Rate);
-    }
-
-    [Fact]
-    public void Summarize_Captures_LoanRepaid()
-    {
-        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 500m });
-        log.Append(new LoanRepaid { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 200m });
-
-        var operations = FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id);
-
-        Assert.Equal(2, operations.Count);
-        Assert.Equal(FinanceHistoryCalculator.OperationType.VoluntaryRepayment, operations[1].Type);
-        Assert.Equal(200m, operations[1].Amount);
-        Assert.Null(operations[1].Rate);
-    }
-
-    [Fact]
     public void Summarize_Preserves_Chronological_Order()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 500m });
-        log.Append(new LoanInterestCharged { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 25m, Rate = 0.05m });
-        log.Append(new LoanRepaid { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 100m });
+        log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 500m });
+        log.Append(new SalariesPaid { Id = Ulid.NewUlid(), TeamId = team.Id, TotalWorkers = 5, Amount = 25m });
+        log.Append(new WarehouseFeeCharged { Id = Ulid.NewUlid(), TeamId = team.Id, OverageQuantity = 10m, Amount = 20m });
 
         var operations = FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id);
 
         Assert.Equal(
             new[]
             {
-                FinanceHistoryCalculator.OperationType.LoanTaken,
-                FinanceHistoryCalculator.OperationType.InterestCharged,
-                FinanceHistoryCalculator.OperationType.VoluntaryRepayment,
+                FinanceHistoryCalculator.OperationType.GrantReceived,
+                FinanceHistoryCalculator.OperationType.SalariesPaid,
+                FinanceHistoryCalculator.OperationType.WarehouseFee,
             },
             operations.Select(o => o.Type));
     }
@@ -111,8 +55,8 @@ public class FinanceHistoryCalculatorTests
     public void Summarize_Only_Reports_The_Requested_Teams_Operations()
     {
         var (log, buyer, seller) = TestGameConfig.StartSessionWithTwoTeams();
-        log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = buyer.Id, Amount = 500m });
-        log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = seller.Id, Amount = 700m });
+        log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = buyer.Id, Amount = 500m });
+        log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = seller.Id, Amount = 700m });
 
         var buyerOperations = FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, buyer.Id);
 
@@ -123,34 +67,28 @@ public class FinanceHistoryCalculatorTests
     [Fact]
     public void Summarize_Tags_Each_Operation_With_The_Turn_It_Happened_On()
     {
-        // TakeLoan/RepayLoan теперь только объявляют намерение (SPEC §4, §5.9) — LoanTaken/LoanRepaid
-        // порождаются расчётом следующего тика, поэтому каждой заявке соответствует свой RunTick.
-        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(startingLoan: 0m);
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(startingCash: 0m);
+        session.GrantToTeam(teamId, 500m); // ход 1
+
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 1
-        session.TakeLoan(teamId, 500m);
-
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
-        session.RunTick(new Random(1)); // LoanTaken применяется здесь — тег хода 2
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 2
-        session.RepayLoan(teamId, 50m);
-
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 3
-        session.RunTick(new Random(1)); // LoanRepaid применяется здесь — тег хода 3
+        session.RunTick(new Random(1));
+        session.GrantToTeam(teamId, 200m); // ход 2
 
         var operations = FinanceHistoryCalculator.Summarize(session.Entries, TestGameConfig.Resolved, teamId);
 
-        var loanTaken = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.LoanTaken);
-        Assert.Equal(2, loanTaken.Turn);
-        var repaid = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.VoluntaryRepayment);
-        Assert.Equal(3, repaid.Turn);
+        var grants = operations.Where(o => o.Type == FinanceHistoryCalculator.OperationType.GrantReceived).ToList();
+        Assert.Equal(2, grants.Count);
+        Assert.Equal(1, grants[0].Turn);
+        Assert.Equal(2, grants[1].Turn);
     }
 
     [Fact]
-    public void Summarize_Marks_A_Loan_As_Income_And_Interest_As_Expense()
+    public void Summarize_Marks_A_Grant_As_Income_And_Salaries_As_Expense()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 500m });
-        log.Append(new LoanInterestCharged { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 25m, Rate = 0.05m });
+        log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 500m });
+        log.Append(new SalariesPaid { Id = Ulid.NewUlid(), TeamId = team.Id, TotalWorkers = 5, Amount = 25m });
 
         var operations = FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id);
 
@@ -326,25 +264,6 @@ public class FinanceHistoryCalculatorTests
         Assert.Equal(FinanceHistoryCalculator.OperationType.GrantReceived, operation.Type);
         Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Income, operation.Direction);
         Assert.Equal(300m, operation.Amount);
-    }
-
-    [Fact]
-    public void Summarize_Captures_GrantReceived_With_RepayDebtFirst_As_Income_Plus_Repayment()
-    {
-        var (log, team) = TestGameConfig.StartSessionWithOneTeam(startingLoan: 200m);
-        log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 300m, RepayDebtFirst = true });
-
-        var operations = FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id)
-            .Where(o => o.Type is FinanceHistoryCalculator.OperationType.GrantReceived or FinanceHistoryCalculator.OperationType.VoluntaryRepayment)
-            .ToList();
-
-        var grant = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.GrantReceived);
-        Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Income, grant.Direction);
-        Assert.Equal(300m, grant.Amount);
-
-        var repayment = Assert.Single(operations, o => o.Type == FinanceHistoryCalculator.OperationType.VoluntaryRepayment);
-        Assert.Equal(FinanceHistoryCalculator.MoneyDirection.Expense, repayment.Direction);
-        Assert.Equal(200m, repayment.Amount); // урезано до реального долга (300 гранта > 200 долга)
     }
 
     private static ContractSpec SheetSpot(Ulid buyerId, Ulid sellerId, decimal volume = 10m, decimal unitPrice = 20m, decimal penaltyRate = 0.1m)

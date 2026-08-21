@@ -24,8 +24,8 @@ public sealed record MaterialSoldToSystem : Change<GameSessionState>
     /// Общий проданный объём (<see cref="WithinCapacityVolume"/> + <see cref="OverflowVolume"/>) —
     /// уже урезанный на расчёте до реального остатка на складе на тот момент (<see
     /// cref="SystemSaleStep"/>), может быть меньше заявленного в <see cref="MaterialSaleRequested"/>
-    /// и даже 0. Тот же приём, что и у <see cref="LoanRepaid.Amount"/>: заявка проверяется по факту
-    /// на расчёте, а не по значению, видимому в момент решения; событие всё равно порождается даже
+    /// и даже 0 — заявка проверяется по факту на расчёте, а не по значению, видимому в момент
+    /// решения; событие всё равно порождается даже
     /// при нулевом остатке, чтобы корректно снять заявку, а не оставить её висеть на будущее.
     /// </summary>
     public required decimal Volume { get; init; }

@@ -48,7 +48,7 @@ else
         @if (!_isDecisionPhase)
         {
             <p class="mb-1">
-                <strong>Решения сейчас недоступны</strong> — постройка, наём, продажи, кредиты и контракты
+                <strong>Решения сейчас недоступны</strong> — постройка, наём, продажи и контракты
                 заблокированы, пока не начнётся фаза «Решения». Дождитесь её.
             </p>
         }
@@ -109,21 +109,6 @@ else
     <ul class="list-unstyled">
         <li>Баланс: <strong class="@(_balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_balance)</strong></li>
         <li>
-            Долг: @DashboardDisplay.FormatMoney(_debt)
-            @if (_debt > 0)
-            {
-                <text> · ставка: <strong class="@(IsLoanRateDangerous ? "text-danger" : null)">@DashboardDisplay.FormatRate(_currentLoanRate)</strong></text>
-                @if (IsLoanRateDangerous)
-                {
-                    <text> — опасно высокая, проценты уже съедают значительную часть баланса каждый ход, гасите долг</text>
-                }
-            }
-        </li>
-        @if (_penaltyRateSurcharge > 0)
-        {
-            <li>Штрафная надбавка к ставке (от принудительных займов): @_penaltyRateSurcharge.ToString("P1")</li>
-        }
-        <li>
             Репутация: @_reputationPercentage.ToString("F0")%
             (@_reputationSampleCount @(_reputationSampleCount == 1 ? "факт" : "фактов"))
             @if (_reputationSampleCount < 3)
@@ -139,7 +124,7 @@ else
     }
     else
     {
-        <h4 class="h6 mt-4">Баланс за вычетом долга по ходам</h4>
+        <h4 class="h6 mt-4">Баланс по ходам</h4>
         @ChartRenderer.Render(BuildBalanceChartLayout())
         <h4 class="h6 mt-4">Репутация по ходам</h4>
         @ChartRenderer.Render(BuildReputationChartLayout())
@@ -170,13 +155,12 @@ else
                         <option value="@definition.Id">@definition.Name (постройка @DashboardDisplay.FormatMoney(definition.BuildCost), обслуживание @DashboardDisplay.FormatMoney(definition.FixedCostPerTurn)/ход)</option>
                     }
                 </select>
-                <button type="button" class="btn btn-primary" disabled="@(!CanAffordSelectedBuild)" @onclick="BuildFactory">Построить</button>
+                <button type="button" class="btn btn-primary" @onclick="BuildFactory">Построить</button>
             </div>
             @if (!CanAffordSelectedBuild && SelectedBuildableDefinition is { } selectedForBuild)
             {
-                <p class="text-danger mb-3">
-                    Не хватает @DashboardDisplay.FormatMoney(selectedForBuild.BuildCost - _balance) —
-                    <button type="button" class="btn btn-link p-0 align-baseline" @onclick='() => _activePageTab = "finance"'>возьмите кредит в Финансах</button>.
+                <p class="text-muted mb-3">
+                    Баланс уйдёт в минус на @DashboardDisplay.FormatMoney(selectedForBuild.BuildCost - _balance) — это не проблема, просто число.
                 </p>
             }
         }
@@ -398,7 +382,7 @@ else
                                 <p class="text-muted small mb-2">
                                     Списывается автоматически каждый ход, до @_maxRndCommitmentPerTurn.ToString("0.##") ¤/ход на одну
                                     фабрику. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
-                                    всё сразу за счёт кредита.
+                                    всё сразу одним крупным платежом.
                                 </p>
                             }
                         }
@@ -684,7 +668,7 @@ else
             <p class="text-muted small">
                 Списывается автоматически каждый ход, до @_maxGenerationResearchCommitmentPerTurn.ToString("0.##") ¤/ход
                 на команду. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
-                всё сразу за счёт кредита.
+                всё сразу одним крупным платежом.
             </p>
         }
     }
@@ -756,7 +740,7 @@ else
                 }
             </select>
             <input type="number" min="0" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_emergencyPurchaseVolume" />
-            <button type="button" class="btn btn-secondary" disabled="@(!CanAffordEmergencyPurchase)" @onclick="EmergencyPurchase">Купить</button>
+            <button type="button" class="btn btn-secondary" @onclick="EmergencyPurchase">Купить</button>
             @if (_emergencyPurchaseMaterialId is not null && _pendingEmergencyPurchaseVolumeByMaterial.GetValueOrDefault(_emergencyPurchaseMaterialId) > 0)
             {
                 <button type="button" class="btn btn-link p-0" @onclick="CancelEmergencyPurchase">Отменить</button>
@@ -777,9 +761,8 @@ else
         }
         @if (!CanAffordEmergencyPurchase)
         {
-            <p class="text-danger small mb-2">
-                Не хватает @DashboardDisplay.FormatMoney(EmergencyPurchaseCost - _balance) —
-                <button type="button" class="btn btn-link p-0 align-baseline" @onclick='() => _activePageTab = "finance"'>возьмите кредит в Финансах</button>.
+            <p class="text-muted small mb-2">
+                Баланс уйдёт в минус на @DashboardDisplay.FormatMoney(EmergencyPurchaseCost - _balance) — это не проблема, просто число.
             </p>
         }
     }
@@ -797,68 +780,18 @@ else
 <div style="display:@(_activePageTab == "finance" ? "" : "none")">
     <h3>Финансы</h3>
     <p>
-        Баланс: <strong class="@(_balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_balance)</strong> ·
-        долг: @DashboardDisplay.FormatMoney(_debt), текущая ставка:
-        <strong class="@(IsLoanRateDangerous ? "text-danger" : null)">@DashboardDisplay.FormatRate(_currentLoanRate)</strong>
-        @if (_penaltyRateSurcharge > 0)
-        {
-            <text> (включая штрафную надбавку @_penaltyRateSurcharge.ToString("P1") от принудительных займов)</text>
-        }
+        Баланс: <strong class="@(_balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_balance)</strong>
     </p>
-    @if (IsLoanRateDangerous)
+    @if (_balance < 0)
     {
-        <p class="text-danger small mb-2">
-            Ставка уже близка к максимуму сессии — проценты съедают значительную часть баланса каждый
-            ход, независимо от того, сколько вы берёте новых займов. Гасите долг («Погасить досрочно»
-            ниже), а не занимайте больше.
+        <p class="text-muted small mb-2">
+            Отрицательный баланс — это просто число, никакого штрафа или займа за этим не стоит; он
+            выправится сам, как только вы продадите излишки или сократите расходы.
         </p>
-    }
-    @if (_canManage)
-    {
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-            <input type="number" min="0" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_loanAmount" @bind:event="oninput" />
-            <button type="button" class="btn btn-secondary" @onclick="TakeLoan">Взять кредит</button>
-            @if (_pendingLoanTakeAmount > 0)
-            {
-                <button type="button" class="btn btn-link btn-sm p-0" @onclick="CancelLoanRequest">Отменить</button>
-            }
-        </div>
-        @if (_pendingLoanTakeAmount > 0)
-        {
-            <p class="text-muted small mb-2">Заявлено на расчёт: @DashboardDisplay.FormatMoney(_pendingLoanTakeAmount) — деньги поступят на баланс на следующем расчёте.</p>
-        }
-        <p>
-            <em>
-                Предпросмотр: ставка @DashboardDisplay.FormatRate(LoanPreview().Rate),
-                платёж за следующий ход @DashboardDisplay.FormatMoney(LoanPreview().Payment)
-            </em>
-        </p>
-
-        @if (_debt > 0)
-        {
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                <input type="number" min="0" max="@_debt" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_repayAmount" />
-                <button type="button" class="btn btn-secondary" @onclick="RepayLoan">Погасить досрочно</button>
-                @if (_pendingLoanRepayAmount > 0)
-                {
-                    <button type="button" class="btn btn-link btn-sm p-0" @onclick="CancelLoanRepaymentRequest">Отменить</button>
-                }
-            </div>
-            @if (_pendingLoanRepayAmount > 0)
-            {
-                <p class="text-muted small mb-2">Заявлено на расчёт: @DashboardDisplay.FormatMoney(_pendingLoanRepayAmount) — спишется на следующем расчёте.</p>
-            }
-            <p class="text-muted small">
-                <em>
-                    Сверх этого с баланса каждый ход и так автоматически списываются обязательный
-                    платёж по телу долга (сейчас — @DashboardDisplay.FormatMoney(_debt * _mandatoryRepaymentRate) при текущем долге) и проценты.
-                </em>
-            </p>
-        }
     }
 
     <h4 class="mt-4">История операций</h4>
-    <p class="text-muted small">Всё, что двигает баланс или долг команды: кредиты, постройка фабрик, наём и зарплаты, R&amp;D, продажи и закупки, исполнение контрактов.</p>
+    <p class="text-muted small">Всё, что двигает баланс команды: постройка фабрик, наём и зарплаты, R&amp;D, продажи и закупки, исполнение контрактов.</p>
     @if (_financeHistory.Count == 0)
     {
         <p><em>Операций пока не было.</em></p>
@@ -1087,7 +1020,7 @@ else
     private string _phaseExplanation = string.Empty;
     private bool _isDecisionPhase;
     /// <summary>
-    /// Может принимать решения (строить, нанимать, вкладывать в R&amp;D, продавать, брать кредит) —
+    /// Может принимать решения (строить, нанимать, вкладывать в R&amp;D, продавать) —
     /// фаза «Решения» и роль «Управляющий»; переговорщик видит все те же панели, но в режиме чтения
     /// (запрос пользователя: «у переговорщика были те же права, что и у управляющего» — по факту
     /// действие раньше проверялось только по фазе, не по роли). Вкладка «Контракты» — исключение,
@@ -1101,10 +1034,6 @@ else
     private Timer? _tickTimer;
 
     private decimal _balance;
-    private decimal _debt;
-    private decimal _pendingLoanTakeAmount;
-    private decimal _pendingLoanRepayAmount;
-    private decimal _penaltyRateSurcharge;
     private decimal _reputationPercentage;
     private int _reputationSampleCount;
 
@@ -1162,20 +1091,6 @@ else
     private string? _emergencyPurchaseMaterialId;
     private decimal _emergencyPurchaseVolume = 1m;
 
-    private Game.Config.Session.StartingConditionsConfig? _loanConfig;
-    private decimal _currentLoanRate;
-
-    /// <summary>
-    /// Ставка уже проела больше половины расстояния до <see cref="Game.Config.Session.StartingConditionsConfig.MaxLoanInterestRate"/>
-    /// (docs/TODO.md #21: без явной подсветки цифра ставки — просто ещё одно число среди многих,
-    /// команда могла не заметить, что она уже опасно высока, пока принудительный заём не ударил по
-    /// балансу). Порог — половина от потолка конфига, а не жёсткое число: масштабируется вместе с
-    /// тем, что сессия вообще считает «максимумом».
-    /// </summary>
-    private bool IsLoanRateDangerous => _loanConfig is not null && _currentLoanRate >= _loanConfig.MaxLoanInterestRate / 2m;
-    private decimal _loanAmount = 100m;
-    private decimal _repayAmount = 100m;
-    private decimal _mandatoryRepaymentRate;
     private IReadOnlyList<FinanceHistoryCalculator.FinanceOperation> _financeHistory = Array.Empty<FinanceHistoryCalculator.FinanceOperation>();
 
     protected override async Task OnInitializedAsync()
@@ -1231,9 +1146,9 @@ else
             _currentTurn = state.CurrentTurn;
             // Полный реплей журнала — не бесплатная операция, а страница обновляется раз в секунду:
             // пересчитываем только когда в журнале появились новые записи, а не на каждый тик
-            // таймера. Раньше ключом кеша был текущий ход — но решения (взять кредит, погасить
-            // долг) добавляют события внутри одного и того же хода, поэтому кеш по ходу не замечал
-            // их до следующего хода: свежевзятый кредит не появлялся в истории операций сразу же.
+            // таймера. Раньше ключом кеша был текущий ход — но решения (продать, построить фабрику)
+            // добавляют события внутри одного и того же хода, поэтому кеш по ходу не замечал
+            // их до следующего хода: свежее действие не появлялось в истории операций сразу же.
             var entryCount = Host.Session!.Entries.Count;
             if (_history is null || _historyEntryCount != entryCount)
             {
@@ -1248,9 +1163,6 @@ else
             _phaseDuration = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.TotalDuration(Host.Session!));
             _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session!, DateTimeOffset.UtcNow));
             _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session!);
-            var loanConfig = state.Config.Raw.StartingConditions;
-            _loanConfig = loanConfig;
-            _mandatoryRepaymentRate = loanConfig.MandatoryRepaymentRatePerTurn;
             _freeCapacity = state.Config.Raw.Warehouse.FreeCapacity;
             _emergencyPurchaseEnabled = state.Config.Raw.FeatureFlags.EmergencyPurchaseEnabled;
             _emergencyPurchaseMaterials = state.Config.Materials.Values
@@ -1275,17 +1187,12 @@ else
                 .ToList();
 
             _balance = team.Balance;
-            _debt = team.Debt;
-            _pendingLoanTakeAmount = team.PendingLoanTakeAmount;
-            _pendingLoanRepayAmount = team.PendingLoanRepayAmount;
             _pendingSaleVolumeByMaterial = team.PendingSaleVolumeByMaterial;
             _pendingEmergencyPurchaseVolumeByMaterial = team.PendingEmergencyPurchaseVolumeByMaterial;
-            _penaltyRateSurcharge = team.PenaltyRateSurcharge;
 
             var reputation = Host.Session!.GetReputation(_teamId);
             _reputationPercentage = reputation.Percentage;
             _reputationSampleCount = reputation.SampleCount;
-            _currentLoanRate = FinanceCalculator.CalculateEffectiveLoanRate(team, loanConfig, _reputationPercentage);
 
             _market = state.Market;
             _economyConfig = state.Config.Raw.Economy;
@@ -1497,12 +1404,15 @@ else
     private BuildableDefinition? SelectedBuildableDefinition =>
         _buildableDefinitions.FirstOrDefault(d => d.Id == _selectedFactoryDefinitionId);
 
-    /// <summary>Управляет и disabled-состоянием кнопки «Построить», и текстом-пояснением рядом с ней — единый источник правды, чтобы они не разъезжались.</summary>
+    /// <summary>
+    /// Не блокирует постройку (баланс может свободно уйти в минус, docs/TODO.md #23) — только
+    /// управляет информационной подсказкой рядом с кнопкой «Построить».
+    /// </summary>
     private bool CanAffordSelectedBuild => SelectedBuildableDefinition is not { } definition || _balance >= definition.BuildCost;
 
     private void BuildFactory()
     {
-        if (_selectedFactoryDefinitionId is null || !CanAffordSelectedBuild)
+        if (_selectedFactoryDefinitionId is null)
         {
             return;
         }
@@ -1654,13 +1564,12 @@ else
     }
 
     /// <summary>
-    /// Чистая стоимость команды (баланс минус долг) по ходам (вкладка «Обзор») — не сырой баланс:
-    /// принудительный кредит держит баланс у нуля, пряча реальное ухудшение дел за растущим долгом,
-    /// поэтому график обязан уметь уходить ниже нуля (запрос пользователя).
+    /// Баланс команды по ходам (вкладка «Обзор») — может уходить ниже нуля, это не ошибка (SPEC
+    /// §5.1/§5.9, пересмотрено — банковский заём убран как класс механики, docs/TODO.md #23).
     /// </summary>
     private LineChartDiagram.ChartLayout BuildBalanceChartLayout()
     {
-        var series = new[] { new LineChartDiagram.ChartSeries("Баланс за вычетом долга", SectorColors.Palette[0], _history!.NetWorthByTurn) };
+        var series = new[] { new LineChartDiagram.ChartSeries("Баланс", SectorColors.Palette[0], _history!.NetWorthByTurn) };
 
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
     }
@@ -1781,11 +1690,12 @@ else
         }
     }
 
+    /// <summary>Не блокирует покупку (баланс может свободно уйти в минус, docs/TODO.md #23) — только управляет информационной подсказкой рядом с кнопкой «Купить».</summary>
     private bool CanAffordEmergencyPurchase => EmergencyPurchaseCost <= _balance;
 
     private void EmergencyPurchase()
     {
-        if (_emergencyPurchaseMaterialId is null || !CanAffordEmergencyPurchase)
+        if (_emergencyPurchaseMaterialId is null)
         {
             return;
         }
@@ -1829,38 +1739,6 @@ else
     {
         var share = _allocationShares.GetValueOrDefault(factoryId, 1m);
         RunAction(() => Host.Session!.SetFactoryAllocationShare(_teamId, factoryId, share));
-    }
-
-    private void TakeLoan()
-    {
-        RunAction(() => Host.Session!.TakeLoan(_teamId, _loanAmount));
-    }
-
-    private void RepayLoan()
-    {
-        RunAction(() => Host.Session!.RepayLoan(_teamId, _repayAmount));
-    }
-
-    /// <summary>Снимает заявку на заём этого хода (SPEC §4, §5.9) — объявление 0 отменяет предыдущее.</summary>
-    private void CancelLoanRequest()
-    {
-        RunAction(() => Host.Session!.TakeLoan(_teamId, 0m));
-    }
-
-    /// <summary>Снимает заявку на добровольное погашение этого хода — симметрично <see cref="CancelLoanRequest"/>.</summary>
-    private void CancelLoanRepaymentRequest()
-    {
-        RunAction(() => Host.Session!.RepayLoan(_teamId, 0m));
-    }
-
-    private (decimal Rate, decimal Payment) LoanPreview()
-    {
-        if (_loanConfig is null)
-        {
-            return (0m, 0m);
-        }
-
-        return DashboardDisplay.PreviewLoan(_debt, _penaltyRateSurcharge, _reputationPercentage, _loanAmount, _loanConfig);
     }
 
     /// <summary>

@@ -27,12 +27,6 @@ public enum BotCommandKind
     /// <summary>См. <see cref="Game.Engine.GameSession.SetOverhaulRequested"/>.</summary>
     SetOverhaulRequested,
 
-    /// <summary>См. <see cref="Game.Engine.GameSession.TakeLoan"/>.</summary>
-    TakeLoan,
-
-    /// <summary>См. <see cref="Game.Engine.GameSession.RepayLoan"/>.</summary>
-    RepayLoan,
-
     /// <summary>См. <see cref="Game.Engine.GameSession.SellToSystem"/>.</summary>
     SellToSystem,
 
@@ -93,7 +87,7 @@ public sealed record BotCommand
     /// </summary>
     public string? RecipeId { get; init; }
 
-    /// <summary>Денежная сумма — для займа, погашения, R&amp;D и исследования поколения.</summary>
+    /// <summary>Денежная сумма — для R&amp;D и исследования поколения.</summary>
     public decimal? Amount { get; init; }
 
     /// <summary>Число рабочих — для <see cref="BotCommandKind.SetWorkerCount"/>.</summary>

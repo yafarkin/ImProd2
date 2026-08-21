@@ -65,14 +65,7 @@ internal static class CrossSectorConfigBuilder
             ],
             StartingConditions = new StartingConditionsConfig
             {
-                MaxStartingLoanAmount = 100_000m,
-                BaseLoanInterestRate = 0.05m,
-                LoanInterestRateGrowthPerUnitBorrowed = 0m,
-                ForcedLoanPenaltyRatePerOccurrence = 0.1m,
-                MaxReputationRatePenalty = 0.1m,
-                MandatoryRepaymentRatePerTurn = 0m,
-                MaxTotalDebt = 1_000_000_000m,
-                MaxLoanInterestRate = 1_000_000_000m,
+                MaxInitialBuildBudget = 100_000m,
             },
             SessionPresets = [new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 15, MaxTurns = 15, TurnDurationMinutes = 1 }],
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
@@ -142,12 +135,10 @@ internal static class CrossSectorConfigBuilder
                 MaxActiveContractsPerTeam = null,
             },
             Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
-            Deposits = new DepositsConfig { InterestRatePerTurn = 0m },
             News = [],
             FeatureFlags = new FeatureFlagsConfig
             {
                 TaxesEnabled = false,
-                DepositsEnabled = false,
                 EmergencyPurchaseEnabled = true,
             },
         };

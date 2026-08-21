@@ -19,41 +19,21 @@ public sealed class Team
     public Warehouse Warehouse { get; }
 
     /// <summary>
-    /// Денежный остаток команды. В отличие от склада может уходить в минус — именно это и есть
-    /// сигнал для принудительного кредита (SPEC §5.9), а не отдельная проверка сверху.
+    /// Денежный остаток команды. В отличие от склада может свободно уходить в минус — это просто
+    /// число, никакого штрафа/займа/процента с этим не связано (SPEC §5.1/§5.9, пересмотрено —
+    /// решение убрать банковский заём как класс механики, docs/TODO.md #23).
     /// </summary>
     public decimal Balance { get; private set; }
-
-    /// <summary>Непогашенная сумма долга (стартовый кредит + любые последующие займы, включая принудительные).</summary>
-    public decimal Debt { get; private set; }
-
-    /// <summary>
-    /// Сумма, которую команда объявила занять на ближайшем расчёте (SPEC §4, §5.9: решения не
-    /// применяются сразу — только на расчёте) — само объявление бесплатно и мгновенно, реальное
-    /// зачисление и рост долга происходят один раз, на расчёте (<see cref="Game.Engine.VoluntaryLoanStep"/>).
-    /// Последнее объявление в пределах хода замещает предыдущее, а не суммируется с ним (тот же
-    /// приём, что и у <see cref="Game.Domain.Factory.DesiredWorkers"/>); 0 — заявка снята.
-    /// </summary>
-    public decimal PendingLoanTakeAmount { get; private set; }
-
-    /// <summary>
-    /// Сумма, которую команда объявила добровольно погасить на ближайшем расчёте, сверх
-    /// обязательного платежа. Реальный остаток долга на момент расчёта может отличаться от того, что
-    /// было видно в момент решения (проценты, обязательный платёж — уже применены тем же расчётом
-    /// раньше) — поэтому потолок «нельзя погасить больше реального долга» считается на расчёте, не
-    /// здесь (см. <see cref="Game.Engine.VoluntaryLoanStep"/>).
-    /// </summary>
-    public decimal PendingLoanRepayAmount { get; private set; }
 
     private readonly Dictionary<string, decimal> _pendingEmergencyPurchaseVolumeByMaterial = new();
 
     /// <summary>
     /// Заявленные на ближайший расчёт объёмы аварийной закупки, по коду материала (SPEC §4, §5.3:
-    /// решения не применяются сразу) — тем же приёмом, что и <see cref="PendingLoanTakeAmount"/>:
-    /// последнее объявление по материалу замещает предыдущее (упрощение — команда, желающая купить
-    /// несколько раз за ход, теперь просто объявляет итоговый объём один раз; штраф «давления» за
-    /// дробление внутри одного хода этим убран, штраф за растягивание закупок по нескольким ходам —
-    /// нет, он считается на расчёте по фактической истории, см. <see cref="Game.Engine.EmergencyPurchaseStep"/>).
+    /// решения не применяются сразу) — последнее объявление по материалу замещает предыдущее
+    /// (упрощение — команда, желающая купить несколько раз за ход, теперь просто объявляет итоговый
+    /// объём один раз; штраф «давления» за дробление внутри одного хода этим убран, штраф за
+    /// растягивание закупок по нескольким ходам — нет, он считается на расчёте по фактической
+    /// истории, см. <see cref="Game.Engine.EmergencyPurchaseStep"/>).
     /// </summary>
     public IReadOnlyDictionary<string, decimal> PendingEmergencyPurchaseVolumeByMaterial => _pendingEmergencyPurchaseVolumeByMaterial;
 
@@ -66,13 +46,6 @@ public sealed class Team
     /// считается там же, не здесь.
     /// </summary>
     public IReadOnlyDictionary<string, decimal> PendingSaleVolumeByMaterial => _pendingSaleVolumeByMaterial;
-
-    /// <summary>
-    /// Накопленная штрафная надбавка к ставке по кредиту — растёт с каждым принудительным займом
-    /// (SPEC §5.9: «ставка принудительного займа заведомо хуже любого добровольного») и применяется
-    /// ко всему долгу команды, а не только к принудительно взятой части.
-    /// </summary>
-    public decimal PenaltyRateSurcharge { get; private set; }
 
     private readonly List<Factory> _factories = new();
 
@@ -142,7 +115,7 @@ public sealed class Team
         _factories.Remove(factory);
     }
 
-    /// <summary>Начисляет деньги на баланс (выручка, полученный заём и т.п.).</summary>
+    /// <summary>Начисляет деньги на баланс (выручка и т.п.).</summary>
     public void Credit(decimal amount)
     {
         if (amount <= 0)
@@ -154,8 +127,8 @@ public sealed class Team
     }
 
     /// <summary>
-    /// Списывает деньги с баланса (расход). Баланс может уйти в минус — это ожидаемый сигнал для
-    /// принудительного кредита, а не ошибка.
+    /// Списывает деньги с баланса (расход). Баланс может свободно уйти в минус — это не ошибка и не
+    /// требует отдельного оформления (SPEC §5.1/§5.9, пересмотрено).
     /// </summary>
     public void Debit(decimal amount)
     {
@@ -165,95 +138,6 @@ public sealed class Team
         }
 
         Balance -= amount;
-    }
-
-    /// <summary>
-    /// Оформляет заём: зачисляет сумму на баланс и одновременно увеличивает долг на ту же сумму.
-    /// Заодно снимает <see cref="PendingLoanTakeAmount"/> — заявка, из которой взята эта сумма,
-    /// исполнена (единственный вызывающий код — <see cref="Game.Engine.LoanTaken.Apply"/>, всегда с
-    /// уже разрешённой на расчёте суммой).
-    /// </summary>
-    public void TakeLoan(decimal amount)
-    {
-        if (amount <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Loan amount must be positive.");
-        }
-
-        Balance += amount;
-        Debt += amount;
-        PendingLoanTakeAmount = 0;
-    }
-
-    /// <summary>
-    /// Объявляет желаемую сумму займа на ближайший расчёт (см. <see cref="PendingLoanTakeAmount"/>).
-    /// В отличие от <see cref="TakeLoan"/> ничего не зачисляет — это только намерение.
-    /// </summary>
-    public void RequestLoan(decimal amount)
-    {
-        if (amount < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Requested loan amount must not be negative.");
-        }
-
-        PendingLoanTakeAmount = amount;
-    }
-
-    /// <summary>
-    /// Уменьшает тело долга на сумму погашения. Баланс эта операция сама не трогает — списание с
-    /// баланса делает вызывающее событие отдельным вызовом <see cref="Debit"/> (тот же приём
-    /// разделения «стоимость» / «сам факт», что и в <c>FactoryBuilt.Apply</c>, который отдельно
-    /// зовёт <c>BuildFactory</c> и <see cref="Debit"/>). Нельзя погасить больше, чем реально должны —
-    /// долг не уходит в минус. Используется и обязательным платежом (<see
-    /// cref="Game.Engine.MandatoryLoanRepaymentCharged"/>), и добровольным (<see
-    /// cref="Game.Engine.LoanRepaid"/>) — поэтому сама не трогает <see
-    /// cref="PendingLoanRepayAmount"/>: обязательный платёж случается в начале каждого хода, а
-    /// заявка на добровольное погашение разрешается только в конце того же хода (<see
-    /// cref="Game.Engine.VoluntaryLoanStep"/>); если бы этот метод её сбрасывал, обязательный платёж
-    /// молча стирал бы ещё не рассмотренную заявку. Снятие заявки — забота вызывающей стороны (см.
-    /// <see cref="Game.Engine.LoanRepaid.Apply"/>).
-    /// </summary>
-    public void RepayLoan(decimal amount)
-    {
-        if (amount <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Repayment amount must be positive.");
-        }
-        if (amount > Debt)
-        {
-            throw new InvalidOperationException($"Cannot repay {amount}, team '{Id}' only owes {Debt}.");
-        }
-
-        Debt -= amount;
-    }
-
-    /// <summary>
-    /// Объявляет желаемую сумму добровольного погашения на ближайший расчёт (см.
-    /// <see cref="PendingLoanRepayAmount"/>). В отличие от <see cref="RepayLoan"/> ничего не
-    /// списывает — это только намерение, и, в отличие от него же, не ограничена текущим <see
-    /// cref="Debt"/> (реальный остаток долга на момент расчёта может быть другим — см. doc-comment
-    /// <see cref="PendingLoanRepayAmount"/>).
-    /// </summary>
-    public void RequestLoanRepayment(decimal amount)
-    {
-        if (amount < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Requested repayment amount must not be negative.");
-        }
-
-        PendingLoanRepayAmount = amount;
-    }
-
-    /// <summary>
-    /// Снимает заявку на добровольное погашение без самого погашения — расчёт решил, что реально
-    /// гасить нечего (например, долг успел обнулиться обязательным платежом раньше в этом же
-    /// расчёте, см. <see cref="Game.Engine.VoluntaryLoanStep"/>). Без этого метода заявка осталась бы
-    /// висеть и могла бы неожиданно исполниться следующим ходом, если у команды к тому времени
-    /// появится новый долг, который она не имела в виду гасить.
-    /// </summary>
-    public void ClearPendingLoanRepayRequest()
-    {
-        PendingLoanRepayAmount = 0;
     }
 
     /// <summary>
@@ -305,17 +189,6 @@ public sealed class Team
 
     /// <summary>Снимает заявку на продажу материала системе — вызывается после её разрешения на расчёте (см. <see cref="Game.Engine.MaterialSoldToSystem.Apply"/>).</summary>
     public void ClearPendingSaleToSystem(string materialId) => _pendingSaleVolumeByMaterial.Remove(materialId);
-
-    /// <summary>Увеличивает штрафную надбавку к ставке по кредиту (после принудительного займа).</summary>
-    public void IncreasePenaltyRateSurcharge(decimal amount)
-    {
-        if (amount <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Penalty rate surcharge increase must be positive.");
-        }
-
-        PenaltyRateSurcharge += amount;
-    }
 
     /// <summary>
     /// Меняет сумму, выделяемую на исследование следующего поколения фабрик за ход (см.

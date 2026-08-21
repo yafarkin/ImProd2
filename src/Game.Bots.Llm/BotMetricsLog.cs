@@ -4,7 +4,7 @@ namespace Game.Bots.Llm;
 
 /// <summary>
 /// CSV-файл метрик по ходам LLM-бота (запрос пользователя 2026-08-16): бот, ход, время ответа,
-/// размер запроса в байтах, отвеченная команда, плюс баланс/долг/net worth/число фабрик сразу после
+/// размер запроса в байтах, отвеченная команда, плюс баланс/число фабрик сразу после
 /// хода — сырьё и для перцентилей (p50/p85 времени ответа — «как долго бот думает»; p50/p85/макс и
 /// рост размера запроса между ходами — как быстро растёт промпт с историей), и для быстрого разбора
 /// самой партии: «файл с ходами», который можно отдать на анализ целиком, не вчитываясь в сырые
@@ -19,15 +19,15 @@ namespace Game.Bots.Llm;
 /// постоянный довесок, не искажает тренд по ходам), см. doc-comment <see cref="LlmBot"/>.
 /// </para>
 /// <para>
-/// Баланс/долг/фабрики — состояние сразу после того, как решение хода исполнено, но ДО расчёта
-/// (Settlement) — мгновенные эффекты (например, постройка фабрики) уже видны, отложенные (заём,
-/// продажа системе — SPEC §4) появятся в строке следующего хода той же команды, когда расчёт между
-/// ходами их применит. Не баг — так устроен сам движок (решение/расчёт разнесены).
+/// Баланс/фабрики — состояние сразу после того, как решение хода исполнено, но ДО расчёта
+/// (Settlement) — мгновенные эффекты (например, постройка фабрики) уже видны, отложенные (продажа
+/// системе — SPEC §4) появятся в строке следующего хода той же команды, когда расчёт между ходами их
+/// применит. Не баг — так устроен сам движок (решение/расчёт разнесены).
 /// </para>
 /// </summary>
 public sealed class BotMetricsLog : IDisposable
 {
-    private const string Header = "bot,turn,action_index,response_time_ms,request_size_bytes,command,balance,debt,net_worth,factory_count";
+    private const string Header = "bot,turn,action_index,response_time_ms,request_size_bytes,command,balance,factory_count";
 
     private readonly TextWriter _writer;
     private readonly bool _ownsWriter;
@@ -75,7 +75,7 @@ public sealed class BotMetricsLog : IDisposable
     /// <summary>Добавляет одну строку — одно реальное действие в одном ходу одного бота (ход может состоять из нескольких действий подряд, см. <see cref="LlmBot"/>).</summary>
     public void Record(
         string botLabel, int turn, int actionIndex, TimeSpan responseTime, int requestSizeBytes, string command,
-        decimal balance, decimal debt, int factoryCount)
+        decimal balance, int factoryCount)
     {
         ArgumentNullException.ThrowIfNull(botLabel);
         ArgumentNullException.ThrowIfNull(command);
@@ -93,8 +93,6 @@ public sealed class BotMetricsLog : IDisposable
             requestSizeBytes.ToString(CultureInfo.InvariantCulture),
             EscapeCsvField(command),
             balance.ToString("0.00", CultureInfo.InvariantCulture),
-            debt.ToString("0.00", CultureInfo.InvariantCulture),
-            (balance - debt).ToString("0.00", CultureInfo.InvariantCulture),
             factoryCount.ToString(CultureInfo.InvariantCulture),
         };
 

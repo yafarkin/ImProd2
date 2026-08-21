@@ -29,14 +29,14 @@ internal static class TestGameConfig
     /// <summary>
     /// Начинает сессию с одной зарегистрированной командой сектора А — то, что раньше в тестах
     /// делалось через `new Team(...)` напрямую, теперь обязано пройти через <see cref="SessionStarted"/>,
-    /// как и в реальной сессии (AGENTS §2, правило 5). <paramref name="startingLoan"/> — заём для
-    /// сценария теста (SPEC §5.1: в реальной игре команда берёт его сама, без предустановки) —
-    /// применяется настоящим журналируемым событием <see cref="LoanTaken"/> через сам <paramref name="log"/>-эквивалент
-    /// (не через <see cref="GameSession.TakeLoan"/> — тут вообще нет обёртки <see cref="GameSession"/>
-    /// с её проверкой фазы), чтобы реплей-калькуляторы видели его как обычную сделку, а не только
-    /// живое состояние команды.
+    /// как и в реальной сессии (AGENTS §2, правило 5). <paramref name="startingCash"/> — стартовые
+    /// деньги для сценария теста (баланс в реальной игре стартует с 0 и может свободно уходить в
+    /// минус — банковский заём убран как класс механики, docs/TODO.md #23) — зачисляется настоящим
+    /// журналируемым событием <see cref="GrantIssued"/> через сам <paramref name="log"/>-эквивалент
+    /// (не через <see cref="Team.Credit"/> напрямую), чтобы реплей-калькуляторы видели его как
+    /// обычную операцию, а не только живое состояние команды.
     /// </summary>
-    public static (EventLog<GameSessionState> Log, Team Team) StartSessionWithOneTeam(decimal startingLoan = 0m)
+    public static (EventLog<GameSessionState> Log, Team Team) StartSessionWithOneTeam(decimal startingCash = 0m)
     {
         var state = new GameSessionState(Resolved);
         var log = new EventLog<GameSessionState>(state);
@@ -54,16 +54,16 @@ internal static class TestGameConfig
             },
         });
 
-        if (startingLoan > 0)
+        if (startingCash > 0)
         {
-            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = teamId, Amount = startingLoan });
+            log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = teamId, Amount = startingCash });
         }
 
         return (log, state.Teams[teamId]);
     }
 
-    /// <summary>Журнал сессии с двумя командами сектора А (для событий контрактов на уровне Apply); про <paramref name="startingLoan"/> — см. <see cref="StartSessionWithOneTeam"/>.</summary>
-    public static (EventLog<GameSessionState> Log, Team Buyer, Team Seller) StartSessionWithTwoTeams(decimal startingLoan = 0m)
+    /// <summary>Журнал сессии с двумя командами сектора А (для событий контрактов на уровне Apply); про <paramref name="startingCash"/> — см. <see cref="StartSessionWithOneTeam"/>.</summary>
+    public static (EventLog<GameSessionState> Log, Team Buyer, Team Seller) StartSessionWithTwoTeams(decimal startingCash = 0m)
     {
         var state = new GameSessionState(Resolved);
         var log = new EventLog<GameSessionState>(state);
@@ -83,10 +83,10 @@ internal static class TestGameConfig
             },
         });
 
-        if (startingLoan > 0)
+        if (startingCash > 0)
         {
-            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = buyerId, Amount = startingLoan });
-            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = sellerId, Amount = startingLoan });
+            log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = buyerId, Amount = startingCash });
+            log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = sellerId, Amount = startingCash });
         }
 
         return (log, state.Teams[buyerId], state.Teams[sellerId]);
@@ -94,14 +94,14 @@ internal static class TestGameConfig
 
     /// <summary>
     /// Полноценная сессия с одной командой сектора А (для сквозных сценариев через GameSession).
-    /// <paramref name="startingLoan"/> — заём для сценария теста (SPEC §5.1: в реальной игре
-    /// команда берёт его сама) — применяется как настоящее журналируемое событие
-    /// <see cref="LoanTaken"/> через сам <see cref="EventLog{TState}"/> (не через
-    /// <see cref="GameSession.TakeLoan"/> — та требует фазу решений, а сессия здесь возвращается
-    /// ровно в фазе расчёта первого хода, как и раньше), чтобы реплей-калькуляторы
-    /// (<see cref="TurnHistoryCalculator"/>, экспорт журнала) видели его как обычную сделку.
+    /// <paramref name="startingCash"/> — стартовые деньги для сценария теста — зачисляется как
+    /// настоящее журналируемое событие <see cref="GrantIssued"/> через сам
+    /// <see cref="EventLog{TState}"/> (не через <see cref="GameSession.GrantToTeam"/> — та требует
+    /// фазу решений, а сессия здесь возвращается ровно в фазе расчёта первого хода, как и раньше),
+    /// чтобы реплей-калькуляторы (<see cref="TurnHistoryCalculator"/>, экспорт журнала) видели его
+    /// как обычную операцию.
     /// </summary>
-    public static (GameSession Session, Ulid TeamId) StartGameSessionWithOneTeam(decimal startingLoan = 100_000m, ResolvedGameConfig? config = null)
+    public static (GameSession Session, Ulid TeamId) StartGameSessionWithOneTeam(decimal startingCash = 100_000m, ResolvedGameConfig? config = null)
     {
         var teamId = Ulid.NewUlid();
         var log = new EventLog<GameSessionState>(new GameSessionState(config ?? Resolved));
@@ -114,16 +114,16 @@ internal static class TestGameConfig
                 new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = SectorA.Id },
             });
 
-        if (startingLoan > 0)
+        if (startingCash > 0)
         {
-            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = teamId, Amount = startingLoan });
+            log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = teamId, Amount = startingCash });
         }
 
         return (session, teamId);
     }
 
-    /// <summary>Полноценная сессия с двумя командами сектора А (для сквозных сценариев через GameSession); про <paramref name="startingLoan"/> — см. <see cref="StartGameSessionWithOneTeam"/>.</summary>
-    public static (GameSession Session, Ulid BuyerId, Ulid SellerId) StartGameSessionWithTwoTeams(decimal startingLoan = 100_000m)
+    /// <summary>Полноценная сессия с двумя командами сектора А (для сквозных сценариев через GameSession); про <paramref name="startingCash"/> — см. <see cref="StartGameSessionWithOneTeam"/>.</summary>
+    public static (GameSession Session, Ulid BuyerId, Ulid SellerId) StartGameSessionWithTwoTeams(decimal startingCash = 100_000m)
     {
         var buyerId = Ulid.NewUlid();
         var sellerId = Ulid.NewUlid();
@@ -138,10 +138,10 @@ internal static class TestGameConfig
                 new TeamSpec { Id = sellerId, Name = "Продавец", SectorId = SectorA.Id },
             });
 
-        if (startingLoan > 0)
+        if (startingCash > 0)
         {
-            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = buyerId, Amount = startingLoan });
-            log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = sellerId, Amount = startingLoan });
+            log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = buyerId, Amount = startingCash });
+            log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = sellerId, Amount = startingCash });
         }
 
         return (session, buyerId, sellerId);
@@ -218,15 +218,6 @@ internal static class TestGameConfig
     public static ResolvedGameConfig BuildWithEmergencyPurchasePressure(decimal pressureMultiplierPerUnit) =>
         Build(emergencyPurchasePressureMultiplierPerUnit: pressureMultiplierPerUnit);
 
-    /// <summary>
-    /// Собирает вариант базового конфига с ненулевым обязательным платежом по телу долга (<see
-    /// cref="StartingConditionsConfig.MandatoryRepaymentRatePerTurn"/>) — для тестов на
-    /// взаимодействие обязательного и добровольного погашения (<see cref="Resolved"/> держит его
-    /// нулевым, чтобы не менять ожидания у остальных тестов этого файла, не про кредит).
-    /// </summary>
-    public static ResolvedGameConfig BuildWithMandatoryRepayment(decimal mandatoryRepaymentRatePerTurn) =>
-        Build(mandatoryRepaymentRatePerTurn: mandatoryRepaymentRatePerTurn);
-
     private static ResolvedGameConfig Build(
         IReadOnlyList<NewsItemConfig>? news = null,
         IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null,
@@ -237,8 +228,7 @@ internal static class TestGameConfig
         decimal electricityConsumptionPerOutputUnit = 0m,
         bool addThirdLevelFactory = false,
         GenerationResearchConfig? generationResearch = null,
-        decimal emergencyPurchasePressureMultiplierPerUnit = 0m,
-        decimal mandatoryRepaymentRatePerTurn = 0m)
+        decimal emergencyPurchasePressureMultiplierPerUnit = 0m)
     {
         // Третий передел («катанка» из «листов», уровень 2) — только для BuildWithGenerationResearch,
         // остальные тесты этого файла его не видят вообще (Concat с пустым массивом — no-op).
@@ -327,16 +317,7 @@ internal static class TestGameConfig
             }.Concat(thirdLevelFactoryDefinitions).ToArray(),
             StartingConditions = new StartingConditionsConfig
             {
-                MaxStartingLoanAmount = 100_000m,
-                BaseLoanInterestRate = 0.05m,
-                LoanInterestRateGrowthPerUnitBorrowed = 0m,
-                ForcedLoanPenaltyRatePerOccurrence = 0.1m,
-                MaxReputationRatePenalty = 0.1m,
-                MandatoryRepaymentRatePerTurn = mandatoryRepaymentRatePerTurn,
-                // Огромный — этот общий тестовый конфиг не про потолок долга, существующие тесты не
-                // должны неожиданно словить недостачу принудительного займа.
-                MaxTotalDebt = 1_000_000_000m,
-                MaxLoanInterestRate = 1_000_000_000m,
+                MaxInitialBuildBudget = 100_000m,
             },
             SessionPresets = new[]
             {
@@ -434,12 +415,10 @@ internal static class TestGameConfig
                 MaxActiveContractsPerTeam = null,
             },
             Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
-            Deposits = new DepositsConfig { InterestRatePerTurn = 0m },
             News = news ?? Array.Empty<NewsItemConfig>(),
             FeatureFlags = new FeatureFlagsConfig
             {
                 TaxesEnabled = false,
-                DepositsEnabled = false,
                 EmergencyPurchaseEnabled = true,
             },
         };

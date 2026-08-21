@@ -119,11 +119,11 @@ var results = StrategyGridRunner.Run(leverageLevels, profileLevels, cliArguments
 // сходимость Score(T)/X(T) по всем секторам и партиям ячейки; клетки заметно ниже соседних — мёртвая
 // зона стратегии, заметно выше — доминирующая.
 Console.WriteLine();
-Console.WriteLine("Leverage Profile  Доля дефолтов  Доля вын.ремонтов  Ср.разброс итоговых счетов  Ср.сходимость  Разброс сходимости");
+Console.WriteLine("Leverage Profile  Доля вын.ремонтов  Ср.разброс итоговых счетов  Ср.сходимость  Разброс сходимости");
 foreach (var cell in results)
 {
     Console.WriteLine(
-        $"{cell.Leverage,8:0.00} {cell.Profile,7:0.00} {cell.Report.ForcedLoanShare,14:P1} " +
+        $"{cell.Leverage,8:0.00} {cell.Profile,7:0.00} " +
         $"{cell.Report.ForcedRepairEventShare,18:P1} {cell.Report.AverageFinalScoreSpread,26:N0} " +
         $"{FormatNullable(cell.Report.OverallAverageFinalConvergence, "P1"),14} {FormatNullable(cell.Report.AverageFinalConvergenceSpread, "P1"),19}");
 }
@@ -138,7 +138,6 @@ var gridSection = new GridSection
         Leverage = cell.Leverage,
         Profile = cell.Profile,
         SessionCount = cell.Report.SessionCount,
-        ForcedLoanShare = cell.Report.ForcedLoanShare,
         ForcedRepairEventShare = cell.Report.ForcedRepairEventShare,
         AverageFinalScoreSpread = cell.Report.AverageFinalScoreSpread,
         OverallAverageFinalConvergence = cell.Report.OverallAverageFinalConvergence,

@@ -183,7 +183,7 @@ public class GameSessionMarketTests
         var session = GameSession.StartWithEndTurn(
             log, "test", endTurn: 999,
             new[] { new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id } });
-        log.Append(new LoanTaken { Id = Ulid.NewUlid(), TeamId = teamId, Amount = 100_000m });
+        log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = teamId, Amount = 100_000m });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
 
         return (session, teamId);
@@ -234,9 +234,9 @@ public class GameSessionMarketTests
     [Fact]
     public void EmergencyPurchase_Requests_For_The_Same_Turn_Collapse_Into_One_Declared_Volume()
     {
-        // Прямое следствие упрощения (SET-семантика, как и у заявки на заём): несколько заявок по
-        // одному материалу за один ход больше не суммируются и не эскалируют цену друг для друга —
-        // считается только последняя.
+        // Прямое следствие упрощения (SET-семантика, как и у заявки на аварийную закупку/продажу
+        // системе): несколько заявок по одному материалу за один ход больше не суммируются и не
+        // эскалируют цену друг для друга — считается только последняя.
         var (session, teamId) = StartWithEmergencyPurchasePressure(pressureMultiplierPerUnit: 1m);
         session.EmergencyPurchase(teamId, "ore", volume: 5m);
         session.EmergencyPurchase(teamId, "ore", volume: 8m); // передумали — считается только это

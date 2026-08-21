@@ -57,7 +57,7 @@ public class ContractEventsTests
 
         Assert.Equal(0m, seller.Warehouse.QuantityOf(TestGameConfig.Sheet));
         Assert.Equal(10m, buyer.Warehouse.QuantityOf(TestGameConfig.Sheet));
-        Assert.Equal(-200m, buyer.Balance); // 10 * 20 списано (уйдёт в принудительный кредит на финансовом шаге)
+        Assert.Equal(-200m, buyer.Balance); // 10 * 20 списано — баланс уходит в минус, это не ошибка
         Assert.Equal(200m, seller.Balance);
         Assert.Equal(ContractStatus.Completed, log.State.Contracts[spec.ContractId].Status); // spot завершён
     }

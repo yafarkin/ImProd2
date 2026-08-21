@@ -60,10 +60,9 @@ public static class BotStateSnapshotBuilder
 
     private static void AppendTeamFinancials(StringBuilder text, GameSessionState state, Team team)
     {
-        var netWorth = team.Balance - team.Debt;
         text.AppendLine();
         text.AppendLine($"YOUR TEAM (sector {team.Sector.Id})");
-        text.AppendLine($"Balance: {Money(team.Balance)} | Debt: {Money(team.Debt)} | Net worth: {Money(netWorth)}");
+        text.AppendLine($"Balance: {Money(team.Balance)}");
         text.AppendLine($"Unlocked generation: {team.UnlockedGeneration} | " +
             $"Generation research: {Money(team.GenerationResearchCommitmentPerTurn)}/turn " +
             $"(max {Money(state.Config.Raw.GenerationResearch.MaxCommitmentPerTurn)})");
@@ -412,10 +411,10 @@ public static class BotStateSnapshotBuilder
     private static void AppendRanking(StringBuilder text, GameSession session)
     {
         text.AppendLine();
-        text.AppendLine("TEAM RANKING (net worth = balance - debt)");
+        text.AppendLine("TEAM RANKING (net worth = balance)");
 
         var ranked = session.State.Teams.Values
-            .Select(team => (team.Name, team.Sector.Id, NetWorth: team.Balance - team.Debt, Reputation: session.GetReputation(team.Id)))
+            .Select(team => (team.Name, team.Sector.Id, NetWorth: team.Balance, Reputation: session.GetReputation(team.Id)))
             .OrderByDescending(row => row.NetWorth)
             .ToList();
 

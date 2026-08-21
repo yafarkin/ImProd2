@@ -27,17 +27,7 @@ internal static class GameConfigTestBuilder
             FactoryDefinitions = factoryDefinitions ?? Array.Empty<FactoryDefinitionConfig>(),
             StartingConditions = new StartingConditionsConfig
             {
-                MaxStartingLoanAmount = 1000m,
-                BaseLoanInterestRate = 0.05m,
-                LoanInterestRateGrowthPerUnitBorrowed = 0m,
-                ForcedLoanPenaltyRatePerOccurrence = 0.05m,
-                MaxReputationRatePenalty = 0.1m,
-                MandatoryRepaymentRatePerTurn = 0.05m,
-                // Огромный — существующие тесты этого билдера не про потолок долга и не должны
-                // неожиданно словить недостачу принудительного займа.
-                MaxTotalDebt = 1_000_000_000m,
-                // Огромный по той же причине — не про потолок ставки (docs/TODO.md #21).
-                MaxLoanInterestRate = 1_000_000m,
+                MaxInitialBuildBudget = 1000m,
             },
             SessionPresets = new[]
             {
@@ -121,12 +111,10 @@ internal static class GameConfigTestBuilder
                 MaxActiveContractsPerTeam = null,
             },
             Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
-            Deposits = new DepositsConfig { InterestRatePerTurn = 0m },
             News = Array.Empty<NewsItemConfig>(),
             FeatureFlags = new FeatureFlagsConfig
             {
                 TaxesEnabled = false,
-                DepositsEnabled = false,
                 EmergencyPurchaseEnabled = true,
             },
         };

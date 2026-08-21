@@ -56,9 +56,6 @@ public sealed record SessionConfig
     /// <summary>Параметры налогов (используются, если включены флагом).</summary>
     public required TaxesConfig Taxes { get; init; }
 
-    /// <summary>Параметры депозитов (используются, если включены флагом).</summary>
-    public required DepositsConfig Deposits { get; init; }
-
     /// <summary>Библиотека заголовков новостной ленты.</summary>
     public required IReadOnlyList<NewsItemConfig> News { get; init; }
 

@@ -43,42 +43,15 @@ public class GameSessionFacilitatorTests
     }
 
     [Fact]
-    public void GrantToTeam_Credits_Balance_Without_Increasing_Debt()
+    public void GrantToTeam_Credits_Balance()
     {
         var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
         var balanceBefore = session.State.Teams[teamId].Balance;
-        var debtBefore = session.State.Teams[teamId].Debt;
 
         var entry = session.GrantToTeam(teamId, 500m);
 
         Assert.IsType<GrantIssued>(entry.Change);
         Assert.Equal(balanceBefore + 500m, session.State.Teams[teamId].Balance);
-        Assert.Equal(debtBefore, session.State.Teams[teamId].Debt);
-    }
-
-    [Fact]
-    public void GrantToTeam_With_RepayDebtFirst_Reduces_Debt_And_Credits_Only_The_Remainder()
-    {
-        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(); // startingLoan: 100_000m по умолчанию
-        var balanceBefore = session.State.Teams[teamId].Balance;
-
-        session.GrantToTeam(teamId, 100_500m, repayDebtFirst: true);
-
-        Assert.Equal(0m, session.State.Teams[teamId].Debt);
-        Assert.Equal(balanceBefore + 500m, session.State.Teams[teamId].Balance); // остаток сверх долга
-    }
-
-    [Fact]
-    public void GrantToTeam_With_RepayDebtFirst_Smaller_Than_Debt_Leaves_Balance_Unchanged()
-    {
-        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(); // startingLoan: 100_000m по умолчанию
-        var balanceBefore = session.State.Teams[teamId].Balance;
-        var debtBefore = session.State.Teams[teamId].Debt;
-
-        session.GrantToTeam(teamId, 500m, repayDebtFirst: true);
-
-        Assert.Equal(debtBefore - 500m, session.State.Teams[teamId].Debt);
-        Assert.Equal(balanceBefore, session.State.Teams[teamId].Balance); // грант целиком ушёл в погашение
     }
 
     [Fact]

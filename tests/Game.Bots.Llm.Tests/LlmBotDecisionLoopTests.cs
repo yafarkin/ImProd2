@@ -297,7 +297,7 @@ public sealed class LlmBotDecisionLoopTests
     {
         var (session, teamId) = TestSession.StartSingleTeamSession();
         var client = new ScriptedLlmClient(
-            """{"actions":[{"kind":"takeLoan","amount":1},{"kind":"takeLoan","amount":2},{"kind":"takeLoan","amount":3}]}""");
+            """{"actions":[{"kind":"setGenerationResearchCommitment","amount":1},{"kind":"setGenerationResearchCommitment","amount":2},{"kind":"setGenerationResearchCommitment","amount":3}]}""");
         var log = new BotDecisionLog();
         var loop = CreateLoop(client);
 

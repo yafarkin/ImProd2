@@ -6,7 +6,7 @@ public class TurnHistoryCalculatorTests
     [Fact]
     public void Summarize_Returns_A_Row_For_The_Current_Turn_Even_Before_It_Ends()
     {
-        var (session, _) = TestGameConfig.StartGameSessionWithOneTeam(startingLoan: 500m);
+        var (session, _) = TestGameConfig.StartGameSessionWithOneTeam(startingCash: 500m);
 
         var summary = TurnHistoryCalculator.Summarize(session.Entries, session.State.Config);
 
@@ -14,7 +14,6 @@ public class TurnHistoryCalculatorTests
         Assert.Equal(1, row.Turn);
         Assert.Equal(500m, row.TotalCash);
         Assert.Equal(0m, row.VolumeSoldToSystem);
-        Assert.Equal(0, row.ForcedLoanCount);
     }
 
     /// <summary>
@@ -44,17 +43,5 @@ public class TurnHistoryCalculatorTests
         Assert.Equal(20m, summary[0].VolumeSoldToSystem);
         Assert.Equal(2, summary[1].Turn);
         Assert.Equal(0m, summary[1].VolumeSoldToSystem);
-    }
-
-    [Fact]
-    public void Summarize_Counts_Forced_Loans_In_The_Turn_They_Were_Taken()
-    {
-        var (log, team) = TestGameConfig.StartSessionWithOneTeam();
-        log.Append(new ForcedLoanTaken { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 80m, NewPenaltyRateSurcharge = 0.1m });
-
-        var summary = TurnHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved);
-
-        var row = Assert.Single(summary);
-        Assert.Equal(1, row.ForcedLoanCount);
     }
 }

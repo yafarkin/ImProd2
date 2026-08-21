@@ -62,11 +62,7 @@ public class GameConfigDeserializationTests
     {
         var config = LoadSampleConfig();
 
-        Assert.Equal(10000m, config.StartingConditions.MaxStartingLoanAmount);
-        Assert.Equal(0.005m, config.StartingConditions.BaseLoanInterestRate);
-        Assert.Equal(0.05m, config.StartingConditions.ForcedLoanPenaltyRatePerOccurrence);
-        Assert.Equal(0.1m, config.StartingConditions.MaxReputationRatePenalty);
-        Assert.Equal(0.005m, config.StartingConditions.MandatoryRepaymentRatePerTurn);
+        Assert.Equal(10000m, config.StartingConditions.MaxInitialBuildBudget);
 
         Assert.Equal(3, config.SessionPresets.Count);
         var shortPreset = Assert.Single(config.SessionPresets, preset => preset.Id == "short");
@@ -133,7 +129,6 @@ public class GameConfigDeserializationTests
         Assert.Null(config.Contracts.MaxActiveContractsPerTeam);
 
         Assert.Equal(0.01m, config.Taxes.PropertyTaxRatePerTurn);
-        Assert.Equal(0.01m, config.Deposits.InterestRatePerTurn);
     }
 
     [Fact]
@@ -145,7 +140,6 @@ public class GameConfigDeserializationTests
         Assert.Equal(2, config.News.Count(item => item.Trend == EconomyTrend.Down));
 
         Assert.False(config.FeatureFlags.TaxesEnabled);
-        Assert.False(config.FeatureFlags.DepositsEnabled);
         Assert.True(config.FeatureFlags.EmergencyPurchaseEnabled);
     }
 }
