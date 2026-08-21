@@ -475,7 +475,8 @@ public sealed class SimpleBot
             }
 
             var limitPrice = unitCost * (1m + MinSellMarginRate);
-            _trace?.Invoke($"[{Sector.Id}] sellOrder {material.Id} объём={sellable:F1} себестоимость={unitCost:F4} лимит={limitPrice:F4}");
+            var quote = session.State.Market.HasQuote(material.Id) ? session.State.Market.QuoteOf(material.Id).Price.ToString("F4") : "нет";
+            _trace?.Invoke($"[{Sector.Id}] sellOrder {material.Id} объём={sellable:F1} себестоимость={unitCost:F4} лимит={limitPrice:F4} котировка={quote}");
             orders.Add(new TradeOrder
             {
                 TeamId = TeamId,
@@ -530,7 +531,8 @@ public sealed class SimpleBot
             }
 
             var limitPrice = unitCost * (1m + MaxBuyPremiumRate);
-            _trace?.Invoke($"[{Sector.Id}] buyOrder {material.Id} объём={deficit:F1} себестоимость={unitCost:F4} лимит={limitPrice:F4}");
+            var quote = session.State.Market.HasQuote(material.Id) ? session.State.Market.QuoteOf(material.Id).Price.ToString("F4") : "нет";
+            _trace?.Invoke($"[{Sector.Id}] buyOrder {material.Id} объём={deficit:F1} себестоимость={unitCost:F4} лимит={limitPrice:F4} котировка={quote}");
             orders.Add(new TradeOrder
             {
                 TeamId = TeamId,
