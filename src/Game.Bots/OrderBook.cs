@@ -6,18 +6,20 @@ namespace Game.Bots;
 /// <summary>
 /// Упрощённый биржевой стакан для ботов (Блок 7.3.1, <c>docs/balancing-bots.md</c> §1) — не
 /// переговоры (это по-прежнему прерогатива живых людей, SPEC §1), а механическое сведение заявок в
-/// мозге ботов: заявки на покупку по убыванию предельной цены, на продажу — по возрастанию, сделка —
-/// по текущей рыночной котировке материала, тем же путём, что и раньше единственная жёстко заданная
-/// пара (<c>SubmitContractProposals</c>/<c>ConfirmContract</c>), просто для многих контрагентов и
-/// многих материалов сразу, не привязанная к сектору. Пересчитывается заново каждый ход решений —
-/// непокрытый остаток заявки не переносится (см. doc-comment <see cref="TradeOrder"/>).
+/// мозге ботов: продавцы по возрастанию предельной цены, покупатели по убыванию — классический
+/// двойной аукцион, сделка по средней цене между продавцом и покупателем в конкретной паре. Никакой
+/// рыночной котировки здесь больше нет (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-21:
+/// «НЕТ НИКАКОЙ РЫНОЧНОЙ ЦЕНЫ») — цена целиком берётся из самих заявок, обе стороны которых уже
+/// привязаны к себестоимости (<see cref="SimpleBot.ComputeSellOrders"/>/<see
+/// cref="SimpleBot.ComputeBuyOrders"/>). Пересчитывается заново каждый ход решений — непокрытый
+/// остаток заявки не переносится (см. doc-comment <see cref="TradeOrder"/>).
 /// </summary>
 public static class OrderBook
 {
     /// <summary>
     /// Сводит заявки на продажу и покупку по каждому материалу отдельно и подписывает сделки на то,
-    /// что сошлось. Детерминированный порядок сведения (по <see cref="Ulid"/> команды) — та же
-    /// дисциплина, что и у остального движка (AGENTS правило 6).
+    /// что сошлось. Детерминированный порядок сведения (по цене, при равенстве — по <see
+    /// cref="Ulid"/> команды) — та же дисциплина, что и у остального движка (AGENTS правило 6).
     /// </summary>
     public static void Match(
         GameSession session,
@@ -39,23 +41,18 @@ public static class OrderBook
 
         foreach (var material in materials)
         {
-            if (!session.State.Market.HasQuote(material.Id))
-            {
-                continue;
-            }
-
-            var price = session.State.Market.QuoteOf(material.Id).Price;
-
             // Остаток непокрытого объёма каждой заявки — заявка может закрыться несколькими
-            // встречными сделками за один ход, если контрагентов несколько.
+            // встречными сделками за один ход, если контрагентов несколько. Самые дешёвые продавцы и
+            // самые щедрые покупатели сводятся первыми (классический приоритет двойного аукциона) —
+            // максимизирует объём сведённых сделок, не только их число.
             var sellers = sellOrders
-                .Where(o => o.Material == material && price >= o.LimitPrice)
-                .OrderBy(o => o.TeamId)
+                .Where(o => o.Material == material)
+                .OrderBy(o => o.LimitPrice).ThenBy(o => o.TeamId)
                 .Select(o => (Order: o, Remaining: o.Volume))
                 .ToList();
             var buyers = buyOrders
-                .Where(o => o.Material == material && price <= o.LimitPrice)
-                .OrderBy(o => o.TeamId)
+                .Where(o => o.Material == material)
+                .OrderByDescending(o => o.LimitPrice).ThenBy(o => o.TeamId)
                 .Select(o => (Order: o, Remaining: o.Volume))
                 .ToList();
 
@@ -66,6 +63,13 @@ public static class OrderBook
                 var (sellOrder, sellRemaining) = sellers[sellerIndex];
                 var (buyOrder, buyRemaining) = buyers[buyerIndex];
 
+                if (sellOrder.LimitPrice > buyOrder.LimitPrice)
+                {
+                    // Отсортировано по цене в обе стороны — раз этот продавец дороже этого покупателя,
+                    // то и все дальнейшие пары (продавцы дороже, покупатели скупее) тоже не сойдутся.
+                    break;
+                }
+
                 if (sellOrder.TeamId == buyOrder.TeamId)
                 {
                     // Одна и та же команда не может быть у себя и продавцом, и покупателем разом —
@@ -74,6 +78,10 @@ public static class OrderBook
                     continue;
                 }
 
+                // Средняя цена между конкретной парой — не подарок ни одной из сторон и не рыночная
+                // котировка, а честная середина между тем, что попросил продавец, и тем, что был
+                // готов заплатить покупатель.
+                var price = (sellOrder.LimitPrice + buyOrder.LimitPrice) / 2m;
                 var volume = Math.Min(sellRemaining, buyRemaining);
                 if (volume > 0m)
                 {

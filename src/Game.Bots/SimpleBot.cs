@@ -447,17 +447,15 @@ public sealed class SimpleBot
     /// материалу, который команда сама производит: настоящий свободный остаток сверх
     /// законтрактованного и сверх собственной потребности (<see cref="ComputeSurplus"/> — тот же
     /// расчёт, что и у <see cref="SellSurplusToSystem"/>, не оголяет свою цепочку ради продажи на
-    /// сторону). Цена — себестоимость (<see cref="RawMaterialCosts"/>, у сырья — настоящая, по
-    /// живой фабрике команды, не рыночная котировка, см. её doc-comment) плюс минимальная маржа
-    /// (<see cref="MinSellMarginRate"/>).
+    /// сторону). Цена — себестоимость (<see cref="MaterialCosts"/>) плюс минимальная маржа (<see
+    /// cref="MinSellMarginRate"/>).
     /// </summary>
     public IReadOnlyList<TradeOrder> ComputeSellOrders(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var recipeBook = session.State.Config.RecipeBook;
-        var rawMaterialCosts = RawMaterialCosts(session, team);
+        var materialCosts = MaterialCosts(session);
 
         var orders = new List<TradeOrder>();
         foreach (var material in team.Factories.Select(f => f.SelectedRecipe.Output).Distinct())
@@ -468,15 +466,14 @@ public sealed class SimpleBot
                 _trace?.Invoke($"[{Sector.Id}] не продаю {material.Id}: излишек {sellable:F1} < минимального объёма {MinOrderVolume:F1}");
                 continue;
             }
-            if (!TryCalculateUnitCost(material, recipeBook, rawMaterialCosts, out var unitCost))
+            if (!materialCosts.TryGetValue(material.Id, out var unitCost))
             {
-                _trace?.Invoke($"[{Sector.Id}] не продаю {material.Id}: себестоимость не посчиталась (нет котировки где-то в цепочке входов)");
+                _trace?.Invoke($"[{Sector.Id}] не продаю {material.Id}: себестоимость не посчиталась");
                 continue;
             }
 
             var limitPrice = unitCost * (1m + MinSellMarginRate);
-            var quote = session.State.Market.HasQuote(material.Id) ? session.State.Market.QuoteOf(material.Id).Price.ToString("F4") : "нет";
-            _trace?.Invoke($"[{Sector.Id}] sellOrder {material.Id} объём={sellable:F1} себестоимость={unitCost:F4} лимит={limitPrice:F4} котировка={quote}");
+            _trace?.Invoke($"[{Sector.Id}] sellOrder {material.Id} объём={sellable:F1} себестоимость={unitCost:F4} лимит={limitPrice:F4}");
             orders.Add(new TradeOrder
             {
                 TeamId = TeamId,
@@ -504,8 +501,7 @@ public sealed class SimpleBot
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var recipeBook = session.State.Config.RecipeBook;
-        var rawMaterialCosts = RawMaterialCosts(session, team);
+        var materialCosts = MaterialCosts(session);
         var ownProducedMaterials = team.Factories.Select(f => f.SelectedRecipe.Output).ToHashSet();
 
         var neededMaterials = team.Factories
@@ -524,15 +520,14 @@ public sealed class SimpleBot
                 _trace?.Invoke($"[{Sector.Id}] не покупаю {material.Id}: буфер {targetBuffer:F1} - склад {team.Warehouse.QuantityOf(material):F1} = {deficit:F1} < минимального объёма {MinOrderVolume:F1}");
                 continue;
             }
-            if (!TryCalculateUnitCost(material, recipeBook, rawMaterialCosts, out var unitCost))
+            if (!materialCosts.TryGetValue(material.Id, out var unitCost))
             {
-                _trace?.Invoke($"[{Sector.Id}] не покупаю {material.Id}: себестоимость не посчиталась (нет котировки где-то в цепочке входов)");
+                _trace?.Invoke($"[{Sector.Id}] не покупаю {material.Id}: себестоимость не посчиталась");
                 continue;
             }
 
             var limitPrice = unitCost * (1m + MaxBuyPremiumRate);
-            var quote = session.State.Market.HasQuote(material.Id) ? session.State.Market.QuoteOf(material.Id).Price.ToString("F4") : "нет";
-            _trace?.Invoke($"[{Sector.Id}] buyOrder {material.Id} объём={deficit:F1} себестоимость={unitCost:F4} лимит={limitPrice:F4} котировка={quote}");
+            _trace?.Invoke($"[{Sector.Id}] buyOrder {material.Id} объём={deficit:F1} себестоимость={unitCost:F4} лимит={limitPrice:F4}");
             orders.Add(new TradeOrder
             {
                 TeamId = TeamId,
@@ -596,75 +591,18 @@ public sealed class SimpleBot
     }
 
     /// <summary>
-    /// Себестоимость каждого сырьевого материала — вход для <see cref="CostCalculator.CalculateUnitCost"/>
-    /// (рекурсия для передела упирается в эти значения). Настоящая себестоимость (<see
-    /// cref="FactoryProfitabilityCalculator"/> — та же формула, что реально спишет тик: зарплата +
-    /// содержание, делённые на потолок выпуска), посчитанная по СОБСТВЕННОЙ живой фабрике команды,
-    /// если она такое сырьё производит; рыночная котировка — только запасной вариант для сырья, которое
-    /// команда сама не производит (тогда «сколько это мне стоило бы» просто неоткуда взять, ближайшая
-    /// оценка — то, что за него просят на рынке).
-    ///
-    /// <para>
-    /// Раньше здесь ВСЕГДА была рыночная котировка, даже для своего же сырья (найдено 2026-08-21,
-    /// rebalance/2-sector-stepwise, трассировкой реальной партии) — тогда «себестоимость» продавца
-    /// сырья была равна той же котировке, по которой <see cref="OrderBook.Match"/> сводит сделку, и пол
-    /// заявки «себестоимость + маржа» получался строго выше самой котировки на любом ходу: заявка
-    /// продавца сырья никогда не проходила фильтр <c>price &gt;= LimitPrice</c>. Первым фиксом было
-    /// просто занулить маржу для сырья (тот же коммит) — работало, но не по-настоящему: получалось, что
-    /// себестоимость и рыночная цена — одно и то же, хотя это разные вещи (запрос пользователя:
-    /// «произвести мне стоит определённых расходов, а продать — смотря по какой цене готовы купить»).
-    /// Эта версия разводит их по-настоящему, маржа для сырья снова осмысленна.
-    /// </para>
+    /// Себестоимость каждого материала конфига — единая, статическая (<see
+    /// cref="MaterialCostCalculator"/>, не рыночная котировка и не по своей же живой фабрике — запрос
+    /// пользователя, rebalance/2-sector-stepwise, 2026-08-21: «НЕТ НИКАКОЙ РЫНОЧНОЙ ЦЕНЫ! Есть
+    /// себестоимость материала, которую мы прекрасно можем посчитать»). Раньше здесь была
+    /// команда-специфичная оценка (<c>FactoryProfitabilityCalculator</c> по своей фабрике, рыночная
+    /// котировка как запасной вариант) — из-за этого продавец и покупатель одного и того же материала
+    /// могли получить РАЗНЫЕ числа для одной и той же вещи; теперь все команды и система смотрят на
+    /// одну и ту же величину, поэтому пол продавца (<see cref="MinSellMarginRate"/> над себестоимостью)
+    /// заведомо ниже потолка покупателя (<see cref="MaxBuyPremiumRate"/> над той же себестоимостью) —
+    /// сделка между двумя честными командами больше не может провалиться из-за рассинхрона в том, что
+    /// каждая сторона считает «себестоимостью».
     /// </summary>
-    private static IReadOnlyDictionary<Material, decimal> RawMaterialCosts(GameSession session, Team team)
-    {
-        var market = session.State.Market;
-        var factoryDefinitions = session.State.Config.Raw.FactoryDefinitions;
-        var productivity = session.State.Config.Raw.WorkerProductivity;
-        var rnd = session.State.Config.Raw.Rnd;
-        var electricityRate = session.State.Config.Raw.Economy.ElectricityConsumptionPerOutputUnit;
-
-        var costs = new Dictionary<Material, decimal>();
-        foreach (var material in session.State.Config.Materials.Values.Where(m => m.IsRawMaterial))
-        {
-            var ownFactory = team.Factories.FirstOrDefault(f => f.SelectedRecipe.Output == material);
-            if (ownFactory is not null
-                && FactoryProfitabilityCalculator.TryCalculate(
-                    ownFactory, team.Factories, team.Warehouse, market, productivity, rnd, out var estimate,
-                    fixedCostPerTurn: factoryDefinitions.First(d => d.Id == ownFactory.Definition.Id).FixedCostPerTurn,
-                    electricityConsumptionPerOutputUnit: electricityRate)
-                && estimate.CapacityLimitedOutputQuantity > 0m)
-            {
-                costs[material] = estimate.MaxUnitCost;
-                continue;
-            }
-
-            if (market.HasQuote(material.Id))
-            {
-                costs[material] = market.QuoteOf(material.Id).Price;
-            }
-        }
-
-        return costs;
-    }
-
-    /// <summary>
-    /// Обёртка над <see cref="CostCalculator.CalculateUnitCost"/>, не падающая, если по какому-то
-    /// сырью в цепочке ещё нет котировки (например, самый первый ход) — заявка в этом случае просто
-    /// не подаётся в этот раз, а не роняет весь прогон.
-    /// </summary>
-    private static bool TryCalculateUnitCost(
-        Material material, RecipeBook recipeBook, IReadOnlyDictionary<Material, decimal> rawMaterialCosts, out decimal unitCost)
-    {
-        try
-        {
-            unitCost = CostCalculator.CalculateUnitCost(material, recipeBook, rawMaterialCosts);
-            return true;
-        }
-        catch (ArgumentException)
-        {
-            unitCost = 0m;
-            return false;
-        }
-    }
+    private static IReadOnlyDictionary<string, decimal> MaterialCosts(GameSession session) =>
+        Engine.MaterialCostCalculator.CalculateAll(session.State.Config);
 }
