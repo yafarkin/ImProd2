@@ -1,0 +1,51 @@
+{
+  "Sectors": [
+    {
+      "Id": "sector1",
+      "Name": "Сектор 1"
+    }
+  ],
+  "Materials": [
+    {
+      "Id": "material1",
+      "Name": "Материал 1",
+      "SectorId": "sector1",
+      "Level": 0
+    }
+  ],
+  "Recipes": [
+    {
+      "Id": "recipe1",
+      "OutputMaterialId": "material1",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 100
+    }
+  ],
+  "FactoryDefinitions": [
+    {
+      "Id": "factory1",
+      "Name": "Фабрика 1",
+      "SectorId": "sector1",
+      "RecipeIds": [
+        "recipe1"
+      ],
+      "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
+    }
+  ],
+  "BaseMarketPerMaterial": [
+    {
+      "MaterialId": "material1",
+      "BasePrice": 1,
+      "BaseCapacity": 200
+    }
+  ],
+  "GenerationResearch": {
+    "StartingGeneration": 1,
+    "ResearchPointThresholdsByGeneration": [],
+    "DiminishingReturnsExponent": 0.5,
+    "MaxCommitmentPerTurn": 300
+  }
+}
