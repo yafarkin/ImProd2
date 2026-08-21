@@ -17,6 +17,12 @@
       "Name": "Материал 2",
       "SectorId": "sector1",
       "Level": 1
+    },
+    {
+      "Id": "material3",
+      "Name": "Материал 3",
+      "SectorId": "sector1",
+      "Level": 2
     }
   ],
   "Recipes": [
@@ -38,6 +44,18 @@
         }
       ],
       "ProductionRate": 40
+    },
+    {
+      "Id": "recipe3",
+      "OutputMaterialId": "material3",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "material2",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 15
     }
   ],
   "FactoryDefinitions": [
@@ -62,6 +80,17 @@
       "BuildCost": 1500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 30
+    },
+    {
+      "Id": "factory3",
+      "Name": "Фабрика 3",
+      "SectorId": "sector1",
+      "RecipeIds": [
+        "recipe3"
+      ],
+      "BuildCost": 4000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 70
     }
   ],
   "BaseMarketPerMaterial": [
@@ -74,11 +103,18 @@
       "MaterialId": "material2",
       "BasePrice": 25,
       "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "material3",
+      "BasePrice": 60,
+      "BaseCapacity": 60
     }
   ],
   "GenerationResearch": {
     "StartingGeneration": 1,
-    "ResearchPointThresholdsByGeneration": [],
+    "ResearchPointThresholdsByGeneration": [
+      50
+    ],
     "DiminishingReturnsExponent": 0.5,
     "MaxCommitmentPerTurn": 300
   }
