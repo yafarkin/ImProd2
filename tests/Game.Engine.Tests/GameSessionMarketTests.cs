@@ -234,9 +234,9 @@ public class GameSessionMarketTests
     [Fact]
     public void EmergencyPurchase_Requests_For_The_Same_Turn_Collapse_Into_One_Declared_Volume()
     {
-        // Прямое следствие упрощения (SET-семантика, как и у заявки на заём): несколько заявок по
-        // одному материалу за один ход больше не суммируются и не эскалируют цену друг для друга —
-        // считается только последняя.
+        // Прямое следствие упрощения (SET-семантика, как и у заявки на аварийную закупку/продажу
+        // системе): несколько заявок по одному материалу за один ход больше не суммируются и не
+        // эскалируют цену друг для друга — считается только последняя.
         var (session, teamId) = StartWithEmergencyPurchasePressure(pressureMultiplierPerUnit: 1m);
         session.EmergencyPurchase(teamId, "ore", volume: 5m);
         session.EmergencyPurchase(teamId, "ore", volume: 8m); // передумали — считается только это

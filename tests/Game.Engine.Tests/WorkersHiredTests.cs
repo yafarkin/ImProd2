@@ -24,6 +24,6 @@ public class WorkersHiredTests
         log.Append(new WorkersHired { Id = Ulid.NewUlid(), TeamId = team.Id, FactoryId = factory.Id, Count = 2, Cost = 100m });
 
         Assert.Equal(2, factory.Workers);
-        Assert.Equal(-100m, team.Balance); // найм мгновенный — принудительный кредит разберётся с этим на финансовом шаге
+        Assert.Equal(-100m, team.Balance); // найм мгновенный — баланс просто уходит в минус, это не ошибка
     }
 }

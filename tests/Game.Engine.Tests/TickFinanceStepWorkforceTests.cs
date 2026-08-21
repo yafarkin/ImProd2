@@ -63,9 +63,7 @@ public class TickFinanceStepWorkforceTests
         }
 
         var hired = Assert.IsType<WorkersHired>(changes[0]);
-        Assert.Equal(5 * 50m, hired.Cost); // не урезается из-за нехватки баланса
-        // Принудительный заём, который раньше покрывал эту дыру здесь же, теперь отдельный, самый
-        // последний шаг всего тика (ForcedLoanStep, см. doc-comment TickFinanceStep и ForcedLoanStepTests).
+        Assert.Equal(5 * 50m, hired.Cost); // не урезается из-за нехватки баланса — баланс уходит в минус
         Assert.Equal(-(5 * 50m + 5 * 5m), team.Balance); // наём (250) + зарплата (25) за те же 5 голов
     }
 }
