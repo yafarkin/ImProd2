@@ -22,10 +22,9 @@ public static class FactoryHistoryCalculator
     /// ходов — оба ряда пополняются из одного и того же события <see cref="FactoryProduced"/>.
     /// <see cref="NetWorthByTurn"/> и <see cref="ReputationByTurn"/> — те же значения, что показывает
     /// вкладка «Обзор» сейчас (чистая стоимость и <see cref="ReputationCalculator"/>), просто по
-    /// ходам, а не только на текущий момент. <see cref="NetWorthByTurn"/> — баланс минус долг (та же
-    /// величина, что уже используется для рейтинга команд на большом экране в Game.Web), а не сырой
-    /// баланс: принудительный кредит держит баланс искусственно у нуля, пряча реальное ухудшение дел
-    /// за растущим долгом — график поэтому обязан уметь уходить ниже нуля (запрос пользователя).
+    /// ходам, а не только на текущий момент. <see cref="NetWorthByTurn"/> — сырой баланс (та же
+    /// величина, что уже используется для рейтинга команд на большом экране в Game.Web) — может
+    /// уходить ниже нуля, это не ошибка (SPEC §5.1/§5.9, пересмотрено).
     /// </summary>
     public sealed record TeamFactoryHistory(
         IReadOnlyDictionary<string, IReadOnlyList<(int Turn, decimal Quantity)>> StockByMaterialId,
@@ -121,7 +120,7 @@ public static class FactoryHistoryCalculator
             return;
         }
 
-        netWorthByTurn.Add((completedTurn, team.Balance - team.Debt));
+        netWorthByTurn.Add((completedTurn, team.Balance));
 
         var reputation = ReputationCalculator.Calculate(processedEntries, scratch.Contracts, teamId, completedTurn, config.Raw.Reputation);
         reputationByTurn.Add((completedTurn, reputation.Percentage));

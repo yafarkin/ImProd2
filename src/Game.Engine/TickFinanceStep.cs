@@ -1,21 +1,17 @@
 using Game.Config.Catalog;
 using Game.Config.Economy;
-using Game.Config.Session;
 using Game.Domain;
 
 namespace Game.Engine;
 
 /// <summary>
 /// Финансовая часть расчёта тика (Блок 4.3; SPEC §4 — «финансы» идут первым шагом расчёта):
-/// проценты по долгу → обязательный платёж по телу долга → наём/увольнение рабочих по объявленной
-/// численности → зарплаты → капитальные затраты на фабрики → износ/капремонт фабрик (SPEC §5.6, <see
-/// cref="WearStep"/>) → R&amp;D по фабрикам → исследование следующего поколения → плата за склад, в
-/// этом фиксированном порядке. Списывает всё целиком, никогда
-/// не урезая из-за нехватки баланса — вплоть до отрицательного баланса на выходе. Принудительный
-/// кредит сюда НЕ входит: это отдельный, самый последний шаг всего тика (<see
-/// cref="ForcedLoanStep"/>, вызывается <see cref="GameSession.RunTick"/> после производства и
-/// исполнения контрактов — баг-репорт пользователя, см. doc-comment <see cref="ForcedLoanStep"/>), а
-/// не часть этой функции. Возвращает готовые события, но не применяет их — вызывающий код (тесты
+/// наём/увольнение рабочих по объявленной численности → зарплаты → капитальные затраты на фабрики →
+/// износ/капремонт фабрик (SPEC §5.6, <see cref="WearStep"/>) → R&amp;D по фабрикам → исследование
+/// следующего поколения → плата за склад, в этом фиксированном порядке. Списывает всё целиком,
+/// никогда не урезая из-за нехватки баланса — вплоть до отрицательного баланса на выходе, который
+/// ничем не наказывается (SPEC §5.1/§5.9, пересмотрено — банковский заём убран как класс механики,
+/// docs/TODO.md #23). Возвращает готовые события, но не применяет их — вызывающий код (тесты
 /// сейчас, оркестровка полного тика в Блоке 4.4) сам решает, куда и как их дописать в журнал, как и
 /// <see cref="ProductionCalculator"/> в Блоке 4.2.
 /// </summary>
@@ -24,7 +20,7 @@ public static class TickFinanceStep
     /// <summary>
     /// (Опц.) налоги и депозиты (SPEC §5.9-§5.10) в этот шаг не входят — сознательно отложены, см.
     /// AGENTS-память. Плата за превышение склада (Блок 9.2, SPEC §5.7) уже входит — считается по
-    /// остатку склада на начало хода, тем же порядком, что проценты (по долгу) и зарплата (по числу
+    /// остатку склада на начало хода, тем же порядком, что и зарплата (по числу
     /// рабочих). Переменная часть затрат на работу фабрик (энергия, растёт вместе с объёмом
     /// выпуска — см. <see cref="FactoryProduced.OverheadCost"/>) сюда не входит: этот шаг идёт до
     /// расчёта производства за ход, объём выпуска ещё не известен — списывается отдельно, вместе с
@@ -40,18 +36,14 @@ public static class TickFinanceStep
     /// численности — наём/увольнение идёт первым, до расчёта зарплаты этого же хода (см. также
     /// doc-comment <see cref="Factory.DesiredWorkers"/>: сразу после найма/увольнения оно совпадает с
     /// фактическим, так что читать его безопасно, не дожидаясь применения событий).
-    /// <paramref name="reputationPercentage"/> — репутация команды на момент начала этого хода (Блок
-    /// 6.2), посчитанная вызывающим кодом по истории журнала <em>до</em> событий этого же тика:
-    /// собственные поставки/срывы текущего хода ещё не должны влиять на его же ставку.
     /// </summary>
     public static IReadOnlyList<Change<GameSessionState>> Run(
-        Team team, StartingConditionsConfig loanConfig, WorkerProductivityConfig workerConfig,
+        Team team, WorkerProductivityConfig workerConfig,
         WarehouseConfig warehouseConfig, IReadOnlyList<FactoryDefinitionConfig> factoryDefinitions,
-        RndConfig rndConfig, GenerationResearchConfig generationResearchConfig, decimal reputationPercentage,
+        RndConfig rndConfig, GenerationResearchConfig generationResearchConfig,
         WearConfig wearConfig, int currentTurn)
     {
         ArgumentNullException.ThrowIfNull(team);
-        ArgumentNullException.ThrowIfNull(loanConfig);
         ArgumentNullException.ThrowIfNull(workerConfig);
         ArgumentNullException.ThrowIfNull(warehouseConfig);
         ArgumentNullException.ThrowIfNull(factoryDefinitions);
@@ -60,30 +52,6 @@ public static class TickFinanceStep
         ArgumentNullException.ThrowIfNull(wearConfig);
 
         var changes = new List<Change<GameSessionState>>();
-
-        var interest = FinanceCalculator.CalculateInterest(team, loanConfig, reputationPercentage);
-        if (interest > 0)
-        {
-            changes.Add(new LoanInterestCharged
-            {
-                Id = Ulid.NewUlid(),
-                TeamId = team.Id,
-                Amount = interest,
-                Rate = FinanceCalculator.CalculateEffectiveLoanRate(team, loanConfig, reputationPercentage),
-            });
-        }
-
-        var mandatoryRepayment = FinanceCalculator.CalculateMandatoryRepayment(team, loanConfig);
-        if (mandatoryRepayment > 0)
-        {
-            changes.Add(new MandatoryLoanRepaymentCharged
-            {
-                Id = Ulid.NewUlid(),
-                TeamId = team.Id,
-                Amount = mandatoryRepayment,
-                Rate = loanConfig.MandatoryRepaymentRatePerTurn,
-            });
-        }
 
         foreach (var factory in team.Factories)
         {

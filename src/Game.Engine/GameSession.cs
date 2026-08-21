@@ -521,7 +521,7 @@ public sealed class GameSession
     /// Объявляет желаемый объём аварийной закупки материала на ближайший расчёт (SPEC §4, §5.3:
     /// решения не применяются сразу — только на расчёте; цена — текущая рыночная котировка ×
     /// множитель, служит потолком монопольных цен). Само объявление бесплатно и мгновенно, тем же
-    /// приёмом, что и <see cref="TakeLoan"/>: реальная покупка (склад, деньги) происходит один раз,
+    /// приёмом, что и <see cref="SetWorkerCount"/>: реальная покупка (склад, деньги) происходит один раз,
     /// на расчёте (<see cref="EmergencyPurchaseStep"/>), считая цену уже по фактической истории на тот
     /// момент. Последнее объявление по этому материалу в пределах хода замещает предыдущее; 0 снимает
     /// заявку. Требует включённого флага и фазы решений.
@@ -596,55 +596,6 @@ public sealed class GameSession
             MaterialId = materialId,
             Volume = volume,
         });
-    }
-
-    /// <summary>
-    /// Объявляет желаемую сумму займа на ближайший расчёт (SPEC §4, §5.9: решения не применяются
-    /// сразу — только на расчёте; ставка — кривая из <see cref="FinanceCalculator"/>) — единственный
-    /// способ получить деньги, первый он для команды или очередной: никакого отдельного
-    /// «стартового» кредита с иными правилами больше нет (команда сама решает, сколько и когда
-    /// занять — это её первое финансовое решение в игре, а не предустановка администратора). Само
-    /// объявление бесплатно и мгновенно, тем же приёмом, что и <see cref="SetWorkerCount"/>: реальное
-    /// зачисление денег и рост долга происходят один раз, на расчёте (<see
-    /// cref="VoluntaryLoanStep"/>, самым последним шагом тика перед принудительным займом). Последнее
-    /// объявление в пределах хода замещает предыдущее — сколько раз команда ни передумала бы,
-    /// действует только оно; 0 снимает заявку. Ничем не ограничена по сумме — риск команды
-    /// самонаказывающийся через растущую ставку, а не через жёсткий потолок. Требует фазы решений.
-    /// </summary>
-    public EventLogEntry<GameSessionState> TakeLoan(Ulid teamId, decimal amount)
-    {
-        EnsureDecisionsAllowed();
-
-        if (amount < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Loan amount must not be negative.");
-        }
-        GetTeam(teamId);
-
-        return _log.Append(new LoanTakeRequested { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
-    }
-
-    /// <summary>
-    /// Объявляет желаемую сумму добровольного погашения долга на ближайший расчёт, сверх
-    /// обязательного платежа, который и без того списывается каждый ход (<see
-    /// cref="MandatoryLoanRepaymentCharged"/>) — симметрично <see cref="TakeLoan"/>, тем же приёмом
-    /// «объявление сейчас, применение на расчёте» (SPEC §4). Реальное списание и урезание до
-    /// фактического остатка долга происходят на расчёте (<see cref="VoluntaryLoanStep"/>) — долг на
-    /// тот момент может уже отличаться от того, что видно сейчас (проценты, обязательный платёж),
-    /// поэтому здесь, в отличие от прежней немедленной версии, потолок не проверяется вовсе. Последнее
-    /// объявление в пределах хода замещает предыдущее; 0 снимает заявку. Требует фазы решений.
-    /// </summary>
-    public EventLogEntry<GameSessionState> RepayLoan(Ulid teamId, decimal amount)
-    {
-        EnsureDecisionsAllowed();
-
-        if (amount < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Repayment amount must not be negative.");
-        }
-        GetTeam(teamId);
-
-        return _log.Append(new LoanRepaymentRequested { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
     }
 
     /// <summary>
@@ -941,10 +892,9 @@ public sealed class GameSession
 
     /// <summary>
     /// Ведущий выдаёт безвозмездный грант отстающей команде (Блок 9.6, SPEC §9.5). Не привязано к
-    /// фазе решений — это действие ведущего, а не команды. <paramref name="repayDebtFirst"/> — см.
-    /// <see cref="GrantIssued.RepayDebtFirst"/>.
+    /// фазе решений — это действие ведущего, а не команды.
     /// </summary>
-    public EventLogEntry<GameSessionState> GrantToTeam(Ulid teamId, decimal amount, bool repayDebtFirst = false)
+    public EventLogEntry<GameSessionState> GrantToTeam(Ulid teamId, decimal amount)
     {
         if (amount <= 0)
         {
@@ -952,7 +902,7 @@ public sealed class GameSession
         }
         GetTeam(teamId);
 
-        return _log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount, RepayDebtFirst = repayDebtFirst });
+        return _log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
     }
 
     /// <summary>
@@ -1124,19 +1074,12 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Прогоняет расчёт одного тика в фиксированном порядке (SPEC §4): для всех команд финансы (по
-    /// репутации, накопленной за все предыдущие ходы, — Блок 6.2) → производство снизу вверх по
-    /// уровню материала, затем исполнение контрактов, затем для всех команд принудительный заём, если
-    /// баланс всё ещё отрицательный (<see cref="ForcedLoanStep"/>), затем обновление рынка (Блок 6.1),
-    /// затем новости по тренду (Блок 6.3) — оба публикуются даже без единой команды в сессии, они не
-    /// зависят от них. Принудительный заём намеренно в самом конце, а не внутри финансового шага
-    /// (баг-репорт пользователя: раньше решение принималось до переменных затрат на работу фабрики и
-    /// исполнения контрактов — команда могла закрыть дыру займом и тут же снова уйти в минус от того,
-    /// что на тот момент ещё не было посчитано, и это не покрывалось до следующего хода). События
-    /// дописываются в журнал сразу по мере расчёта — не собираются заранее единым списком, — чтобы
-    /// фабрика более высокого уровня видела в складе выход нижней в этом же тике, а последующая
-    /// поставка — склад после предыдущей, и (для финансов) чтобы собственные срывы/расторжения этого
-    /// же хода не успевали ударить по ставке, начисленной в его начале.
+    /// Прогоняет расчёт одного тика в фиксированном порядке (SPEC §4): для всех команд финансы →
+    /// производство снизу вверх по уровню материала, затем исполнение контрактов, затем обновление
+    /// рынка (Блок 6.1), затем новости по тренду (Блок 6.3) — оба публикуются даже без единой команды
+    /// в сессии, они не зависят от них. События дописываются в журнал сразу по мере расчёта — не
+    /// собираются заранее единым списком, — чтобы фабрика более высокого уровня видела в складе выход
+    /// нижней в этом же тике, а последующая поставка — склад после предыдущей.
     /// <paramref name="newsRandom"/> — случайность подбора заголовка (AGENTS §2, правило 6:
     /// никакой случайности без явного, при необходимости засеянного, экземпляра); если пул
     /// заголовков текущего тренда в этой сессии исчерпан, новости в этот ход не будет. Вызывается
@@ -1156,10 +1099,9 @@ public sealed class GameSession
 
         foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
         {
-            var reputation = GetReputation(team.Id);
             foreach (var change in TickFinanceStep.Run(
-                team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-                config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputation.Percentage,
+                team, config.Raw.WorkerProductivity, config.Raw.Warehouse,
+                config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch,
                 config.Raw.Wear, State.CurrentTurn))
             {
                 appended.Add(_log.Append(change));
@@ -1217,26 +1159,6 @@ public sealed class GameSession
         }
 
         ExecuteContracts(appended);
-
-        // Добровольные решения по кредиту (SPEC §4, §5.9) — после производства и контрактов, перед
-        // принудительным займом (см. doc-comment VoluntaryLoanStep): последний шанс команды закрыть
-        // дыру в балансе по хорошей ставке до того, как это сделает система по штрафной.
-        // Принудительный заём — самый последний шаг тика (см. doc-comment выше) — только теперь
-        // известны все возможные причины отрицательного баланса: финансы, переменные затраты на
-        // производство, исполнение контрактов и сами добровольные решения по кредиту.
-        foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
-        {
-            foreach (var change in VoluntaryLoanStep.Run(team))
-            {
-                appended.Add(_log.Append(change));
-            }
-
-            var forcedLoan = ForcedLoanStep.Run(team, config.Raw.StartingConditions);
-            if (forcedLoan is not null)
-            {
-                appended.Add(_log.Append(forcedLoan));
-            }
-        }
 
         var marketUpdate = MarketCalculator.Calculate(State.CurrentTurn, config.Raw.Economy);
         appended.Add(_log.Append(new MarketUpdated
