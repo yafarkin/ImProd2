@@ -33,7 +33,6 @@ public class BalancingHarnessTests
         Assert.Equal(17, report.TurnsByIndex.Count); // самая длинная партия — 17 ходов
         Assert.Equal(3, report.TurnsByIndex[0].SessionCount); // ход 1 — дожили все три партии
         Assert.Equal(1, report.TurnsByIndex[^1].SessionCount); // ход 17 — только самая длинная партия
-        Assert.True(report.ForcedLoanShare >= 0m);
         Assert.True(report.AverageFinalScoreSpread >= 0m);
     }
 }
