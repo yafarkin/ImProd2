@@ -3,6 +3,10 @@
     {
       "Id": "sector1",
       "Name": "Сектор 1"
+    },
+    {
+      "Id": "sector2",
+      "Name": "Сектор 2"
     }
   ],
   "Materials": [
@@ -22,6 +26,24 @@
       "Id": "material3",
       "Name": "Материал 3",
       "SectorId": "sector1",
+      "Level": 2
+    },
+    {
+      "Id": "material4",
+      "Name": "Материал 4",
+      "SectorId": "sector2",
+      "Level": 0
+    },
+    {
+      "Id": "material5",
+      "Name": "Материал 5",
+      "SectorId": "sector2",
+      "Level": 1
+    },
+    {
+      "Id": "material6",
+      "Name": "Материал 6",
+      "SectorId": "sector2",
       "Level": 2
     }
   ],
@@ -52,6 +74,45 @@
       "Inputs": [
         {
           "MaterialId": "material2",
+          "Quantity": 2
+        },
+        {
+          "MaterialId": "material5",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 15
+    },
+    {
+      "Id": "recipe4",
+      "OutputMaterialId": "material4",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 100
+    },
+    {
+      "Id": "recipe5",
+      "OutputMaterialId": "material5",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "material4",
+          "Quantity": 2
+        },
+        {
+          "MaterialId": "material1",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 40
+    },
+    {
+      "Id": "recipe6",
+      "OutputMaterialId": "material6",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "material5",
           "Quantity": 2
         }
       ],
@@ -91,6 +152,39 @@
       "BuildCost": 4000,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 70
+    },
+    {
+      "Id": "factory4",
+      "Name": "Фабрика 4",
+      "SectorId": "sector2",
+      "RecipeIds": [
+        "recipe4"
+      ],
+      "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
+    },
+    {
+      "Id": "factory5",
+      "Name": "Фабрика 5",
+      "SectorId": "sector2",
+      "RecipeIds": [
+        "recipe5"
+      ],
+      "BuildCost": 1500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 30
+    },
+    {
+      "Id": "factory6",
+      "Name": "Фабрика 6",
+      "SectorId": "sector2",
+      "RecipeIds": [
+        "recipe6"
+      ],
+      "BuildCost": 4000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 70
     }
   ],
   "BaseMarketPerMaterial": [
@@ -106,6 +200,21 @@
     },
     {
       "MaterialId": "material3",
+      "BasePrice": 60,
+      "BaseCapacity": 60
+    },
+    {
+      "MaterialId": "material4",
+      "BasePrice": 1,
+      "BaseCapacity": 200
+    },
+    {
+      "MaterialId": "material5",
+      "BasePrice": 25,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "material6",
       "BasePrice": 60,
       "BaseCapacity": 60
     }

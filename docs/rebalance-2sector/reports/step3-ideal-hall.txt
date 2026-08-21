@@ -1,0 +1,4 @@
+Unhandled exception. System.ArgumentException: Unknown argument '--json'. Known flags: --config, --session, --preset, --sessions-per-cell, --grid-steps, --teams-per-sector, --maintain-factories, --out, --mode, --workers.
+   at Game.Balancing.CliArguments.Parse(IReadOnlyList`1 args) in /Users/yafarkin/Documents/dev/im_prod/src/Game.Balancing/CliArguments.cs:line 91
+   at Program.<Main>$(String[] args) in /Users/yafarkin/Documents/dev/im_prod/src/Game.Balancing/Program.cs:line 13
+   at Program.<Main>(String[] args)
