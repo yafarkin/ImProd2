@@ -1,0 +1,317 @@
+=== TURN 1 ===
+[bot] sector1  post-tick      balance=       0.0 
+[bot] sector2  post-tick      balance=       0.0 
+[bot] sector3  post-tick      balance=       0.0 
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -2000.0 
+[bot] sector2  post-decision  balance=   -2000.0 
+[bot] sector3  post-decision  balance=   -2000.0 
+=== TURN 2 ===
+[bot] sector1  produced       material1_1: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=400.0 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=400.0 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=400.0 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -3860.0 material1_1=1000.0
+[bot] sector2  post-tick      balance=   -3860.0 material1_2=1000.0
+[bot] sector3  post-tick      balance=   -3860.0 material1_3=1000.0
+[bot] sector1  buyOrder       material1_3  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] sector2  buyOrder       material1_1  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] sector3  buyOrder       material1_2  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -3860.0 material1_1=1000.0
+[bot] sector2  post-decision  balance=   -3860.0 material1_2=1000.0
+[bot] sector3  post-decision  balance=   -3860.0 material1_3=1000.0
+=== TURN 3 ===
+[bot] sector1  produced       material1_1: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=400.0 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=400.0 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=400.0 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -4770.0 material1_1=2000.0
+[bot] sector2  post-tick      balance=   -4770.0 material1_2=2000.0
+[bot] sector3  post-tick      balance=   -4770.0 material1_3=2000.0
+[bot] sector1  sellOrder      material1_1  vol=400.0 limit=1.0500 quote=1.0000
+[bot] sector2  sellOrder      material1_2  vol=400.0 limit=1.0500 quote=1.0000
+[bot] sector3  sellOrder      material1_3  vol=400.0 limit=1.0500 quote=1.0000
+[bot] sector1  buyOrder       material1_3  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] sector2  buyOrder       material1_1  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] sector3  buyOrder       material1_2  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -4770.0 material1_1=2000.0
+[bot] sector2  post-decision  balance=   -4770.0 material1_2=2000.0
+[bot] sector3  post-decision  balance=   -4770.0 material1_3=2000.0
+=== TURN 4 ===
+[bot] sector1  produced       material1_1: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=400.0 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=400.0 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=400.0 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -5480.0 material1_1=2600.0
+[bot] sector2  post-tick      balance=   -5480.0 material1_2=2600.0
+[bot] sector3  post-tick      balance=   -5480.0 material1_3=2600.0
+[bot] sector1  sellOrder      material1_1  vol=1000.0 limit=1.0500 quote=1.0000
+[bot] sector2  sellOrder      material1_2  vol=1000.0 limit=1.0500 quote=1.0000
+[bot] sector3  sellOrder      material1_3  vol=1000.0 limit=1.0500 quote=1.0000
+[bot] sector1  buyOrder       material1_3  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] sector2  buyOrder       material1_1  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] sector3  buyOrder       material1_2  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -5480.0 material1_1=2600.0
+[bot] sector2  post-decision  balance=   -5480.0 material1_2=2600.0
+[bot] sector3  post-decision  balance=   -5480.0 material1_3=2600.0
+=== TURN 5 ===
+[bot] sector1  produced       material1_1: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=400.0 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=400.0 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=400.0 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -5950.0 material1_1=2600.0
+[bot] sector2  post-tick      balance=   -5950.0 material1_2=2600.0
+[bot] sector3  post-tick      balance=   -5950.0 material1_3=2600.0
+[bot] sector1  sellOrder      material1_1  vol=1000.0 limit=1.0500 quote=1.0000
+[bot] sector2  sellOrder      material1_2  vol=1000.0 limit=1.0500 quote=1.0000
+[bot] sector3  sellOrder      material1_3  vol=1000.0 limit=1.0500 quote=1.0000
+[bot] sector1  buyOrder       material1_3  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] sector2  buyOrder       material1_1  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] sector3  buyOrder       material1_2  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -5950.0 material1_1=2600.0
+[bot] sector2  post-decision  balance=   -5950.0 material1_2=2600.0
+[bot] sector3  post-decision  balance=   -5950.0 material1_3=2600.0
+=== TURN 6 ===
+[bot] sector1  produced       material1_1: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=400.0 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=400.0 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1000.0 actual=1000.0 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=400.0 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -6245.0 material1_1=2600.0
+[bot] sector2  post-tick      balance=   -6245.0 material1_2=2600.0
+[bot] sector3  post-tick      balance=   -6245.0 material1_3=2600.0
+[bot] sector1  sellOrder      material1_1  vol=1000.0 limit=1.0500 quote=1.0000
+[bot] sector2  sellOrder      material1_2  vol=1000.0 limit=1.0500 quote=1.0000
+[bot] sector3  sellOrder      material1_3  vol=1000.0 limit=1.0500 quote=1.0000
+[bot] sector1  buyOrder       material1_3  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] sector2  buyOrder       material1_1  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] sector3  buyOrder       material1_2  vol=2400.0 limit=1.2000 quote=1.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -6245.0 material1_1=2600.0
+[bot] sector2  post-decision  balance=   -6245.0 material1_2=2600.0
+[bot] sector3  post-decision  balance=   -6245.0 material1_3=2600.0
+=== TURN 7 ===
+[bot] sector1  produced       material1_1: capLimit=1100.0 actual=1100.0 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=440.0 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1100.0 actual=1100.0 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=440.0 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1100.0 actual=1100.0 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=440.0 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -6367.0 material1_1=2700.0
+[bot] sector2  post-tick      balance=   -6367.0 material1_2=2700.0
+[bot] sector3  post-tick      balance=   -6367.0 material1_3=2700.0
+[bot] sector1  sellOrder      material1_1  vol=940.0 limit=1.0500 quote=1.0000
+[bot] sector2  sellOrder      material1_2  vol=940.0 limit=1.0500 quote=1.0000
+[bot] sector3  sellOrder      material1_3  vol=940.0 limit=1.0500 quote=1.0000
+[bot] sector1  buyOrder       material1_3  vol=2640.0 limit=1.2000 quote=1.0000
+[bot] sector2  buyOrder       material1_1  vol=2640.0 limit=1.2000 quote=1.0000
+[bot] sector3  buyOrder       material1_2  vol=2640.0 limit=1.2000 quote=1.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -6367.0 material1_1=2700.0
+[bot] sector2  post-decision  balance=   -6367.0 material1_2=2700.0
+[bot] sector3  post-decision  balance=   -6367.0 material1_3=2700.0
+=== TURN 8 ===
+[bot] sector1  produced       material1_1: capLimit=1100.0 actual=1100.0 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=440.0 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1100.0 actual=1100.0 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=440.0 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1100.0 actual=1100.0 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=440.0 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -6354.0 material1_1=2860.0
+[bot] sector2  post-tick      balance=   -6354.0 material1_2=2860.0
+[bot] sector3  post-tick      balance=   -6354.0 material1_3=2860.0
+[bot] sector1  sellOrder      material1_1  vol=1100.0 limit=1.0500 quote=1.0000
+[bot] sector2  sellOrder      material1_2  vol=1100.0 limit=1.0500 quote=1.0000
+[bot] sector3  sellOrder      material1_3  vol=1100.0 limit=1.0500 quote=1.0000
+[bot] sector1  buyOrder       material1_3  vol=2640.0 limit=1.2000 quote=1.0000
+[bot] sector2  buyOrder       material1_1  vol=2640.0 limit=1.2000 quote=1.0000
+[bot] sector3  buyOrder       material1_2  vol=2640.0 limit=1.2000 quote=1.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -6354.0 material1_1=2860.0
+[bot] sector2  post-decision  balance=   -6354.0 material1_2=2860.0
+[bot] sector3  post-decision  balance=   -6354.0 material1_3=2860.0
+=== TURN 9 ===
+[bot] sector1  produced       material1_1: capLimit=1100.0 actual=1100.0 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=440.0 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1100.0 actual=1100.0 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=440.0 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1100.0 actual=1100.0 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=440.0 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -6452.0 material1_1=2860.0
+[bot] sector2  post-tick      balance=   -6452.0 material1_2=2860.0
+[bot] sector3  post-tick      balance=   -6452.0 material1_3=2860.0
+[bot] sector1  sellOrder      material1_1  vol=1100.0 limit=1.0500 quote=1.0000
+[bot] sector2  sellOrder      material1_2  vol=1100.0 limit=1.0500 quote=1.0000
+[bot] sector3  sellOrder      material1_3  vol=1100.0 limit=1.0500 quote=1.0000
+[bot] sector1  buyOrder       material1_3  vol=2640.0 limit=1.2000 quote=1.0000
+[bot] sector2  buyOrder       material1_1  vol=2640.0 limit=1.2000 quote=1.0000
+[bot] sector3  buyOrder       material1_2  vol=2640.0 limit=1.2000 quote=1.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -6452.0 material1_1=2860.0
+[bot] sector2  post-decision  balance=   -6452.0 material1_2=2860.0
+[bot] sector3  post-decision  balance=   -6452.0 material1_3=2860.0
+=== TURN 10 ===
+[bot] sector1  produced       material1_1: capLimit=1084.6 actual=1084.6 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=433.8 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1084.6 actual=1084.6 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=433.8 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1084.6 actual=1084.6 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=433.8 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -6724.7 material1_1=2844.6
+[bot] sector2  post-tick      balance=   -6724.7 material1_2=2844.6
+[bot] sector3  post-tick      balance=   -6724.7 material1_3=2844.6
+[bot] sector1  sellOrder      material1_1  vol=1109.2 limit=1.0500 quote=1.0000
+[bot] sector2  sellOrder      material1_2  vol=1109.2 limit=1.0500 quote=1.0000
+[bot] sector3  sellOrder      material1_3  vol=1109.2 limit=1.0500 quote=1.0000
+[bot] sector1  buyOrder       material1_3  vol=2603.0 limit=1.2000 quote=1.0000
+[bot] sector2  buyOrder       material1_1  vol=2603.0 limit=1.2000 quote=1.0000
+[bot] sector3  buyOrder       material1_2  vol=2603.0 limit=1.2000 quote=1.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -6724.7 material1_1=2844.6
+[bot] sector2  post-decision  balance=   -6724.7 material1_2=2844.6
+[bot] sector3  post-decision  balance=   -6724.7 material1_3=2844.6
+=== TURN 11 ===
+[bot] sector1  produced       material1_1: capLimit=1064.8 actual=1064.8 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=425.9 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1064.8 actual=1064.8 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=425.9 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1064.8 actual=1064.8 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=425.9 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -7166.2 material1_1=2800.2
+[bot] sector2  post-tick      balance=   -7166.2 material1_2=2800.2
+[bot] sector3  post-tick      balance=   -7166.2 material1_3=2800.2
+[bot] sector1  sellOrder      material1_1  vol=1096.5 limit=1.5750 quote=1.5000
+[bot] sector2  sellOrder      material1_2  vol=1096.5 limit=1.5750 quote=1.5000
+[bot] sector3  sellOrder      material1_3  vol=1096.5 limit=1.5750 quote=1.5000
+[bot] sector1  buyOrder       material1_3  vol=2555.5 limit=1.8000 quote=1.5000
+[bot] sector2  buyOrder       material1_1  vol=2555.5 limit=1.8000 quote=1.5000
+[bot] sector3  buyOrder       material1_2  vol=2555.5 limit=1.8000 quote=1.5000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -7166.2 material1_1=2800.2
+[bot] sector2  post-decision  balance=   -7166.2 material1_2=2800.2
+[bot] sector3  post-decision  balance=   -7166.2 material1_3=2800.2
+=== TURN 12 ===
+[bot] sector1  produced       material1_1: capLimit=1040.6 actual=1040.6 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=416.2 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1040.6 actual=1040.6 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=416.2 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1040.6 actual=1040.6 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=416.2 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -7289.1 material1_1=2744.3
+[bot] sector2  post-tick      balance=   -7289.1 material1_2=2744.3
+[bot] sector3  post-tick      balance=   -7289.1 material1_3=2744.3
+[bot] sector1  sellOrder      material1_1  vol=1079.3 limit=2.1000 quote=2.0000
+[bot] sector2  sellOrder      material1_2  vol=1079.3 limit=2.1000 quote=2.0000
+[bot] sector3  sellOrder      material1_3  vol=1079.3 limit=2.1000 quote=2.0000
+[bot] sector1  buyOrder       material1_3  vol=2497.4 limit=2.4000 quote=2.0000
+[bot] sector2  buyOrder       material1_1  vol=2497.4 limit=2.4000 quote=2.0000
+[bot] sector3  buyOrder       material1_2  vol=2497.4 limit=2.4000 quote=2.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -7289.1 material1_1=2744.3
+[bot] sector2  post-decision  balance=   -7289.1 material1_2=2744.3
+[bot] sector3  post-decision  balance=   -7289.1 material1_3=2744.3
+=== TURN 13 ===
+[bot] sector1  produced       material1_1: capLimit=1012.0 actual=1012.0 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=404.8 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=1012.0 actual=1012.0 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=404.8 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=1012.0 actual=1012.0 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=404.8 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -6702.0 material1_1=2677.0
+[bot] sector2  post-tick      balance=   -6702.0 material1_2=2677.0
+[bot] sector3  post-tick      balance=   -6702.0 material1_3=2677.0
+[bot] sector1  sellOrder      material1_1  vol=1057.8 limit=2.6250 quote=2.5000
+[bot] sector2  sellOrder      material1_2  vol=1057.8 limit=2.6250 quote=2.5000
+[bot] sector3  sellOrder      material1_3  vol=1057.8 limit=2.6250 quote=2.5000
+[bot] sector1  buyOrder       material1_3  vol=2428.8 limit=3.0000 quote=2.5000
+[bot] sector2  buyOrder       material1_1  vol=2428.8 limit=3.0000 quote=2.5000
+[bot] sector3  buyOrder       material1_2  vol=2428.8 limit=3.0000 quote=2.5000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -6702.0 material1_1=2677.0
+[bot] sector2  post-decision  balance=   -6702.0 material1_2=2677.0
+[bot] sector3  post-decision  balance=   -6702.0 material1_3=2677.0
+=== TURN 14 ===
+[bot] sector1  produced       material1_1: capLimit=979.0 actual=979.0 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=391.6 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector3  produced       material1_3: capLimit=979.0 actual=979.0 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=391.6 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector2  produced       material1_2: capLimit=979.0 actual=979.0 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=391.6 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector1  post-tick      balance=   -5916.2 material1_1=2598.2
+[bot] sector2  post-tick      balance=   -5916.2 material1_2=2598.2
+[bot] sector3  post-tick      balance=   -5916.2 material1_3=2598.2
+[bot] sector1  sellOrder      material1_1  vol=1031.8 limit=3.1500 quote=3.0000
+[bot] sector2  sellOrder      material1_2  vol=1031.8 limit=3.1500 quote=3.0000
+[bot] sector3  sellOrder      material1_3  vol=1031.8 limit=3.1500 quote=3.0000
+[bot] sector1  buyOrder       material1_3  vol=2349.6 limit=3.6000 quote=3.0000
+[bot] sector2  buyOrder       material1_1  vol=2349.6 limit=3.6000 quote=3.0000
+[bot] sector3  buyOrder       material1_2  vol=2349.6 limit=3.6000 quote=3.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -9916.2 material1_1=2598.2
+[bot] sector2  post-decision  balance=   -9916.2 material1_2=2598.2
+[bot] sector3  post-decision  balance=   -9916.2 material1_3=2598.2
+=== TURN 15 ===
+[bot] sector1  produced       material1_1: capLimit=941.6 actual=941.6 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=376.6 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector1  produced       material3_1: capLimit=150.0 actual=0.0 consumed=[material2_1=0.0,material2_2=0.0]
+[bot] sector3  produced       material1_3: capLimit=941.6 actual=941.6 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=376.6 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector3  produced       material3_3: capLimit=150.0 actual=0.0 consumed=[material2_3=0.0,material2_1=0.0]
+[bot] sector2  produced       material1_2: capLimit=941.6 actual=941.6 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=376.6 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector2  produced       material3_2: capLimit=150.0 actual=0.0 consumed=[material2_2=0.0,material2_3=0.0]
+[bot] sector1  post-tick      balance=   -9666.8 material1_1=2508.0
+[bot] sector2  post-tick      balance=   -9666.8 material1_2=2508.0
+[bot] sector3  post-tick      balance=   -9666.8 material1_3=2508.0
+[bot] sector1  sellOrder      material1_1  vol=1001.4 limit=3.6750 quote=3.5000
+[bot] sector2  sellOrder      material1_2  vol=1001.4 limit=3.6750 quote=3.5000
+[bot] sector3  sellOrder      material1_3  vol=1001.4 limit=3.6750 quote=3.5000
+[bot] sector1  buyOrder       material1_3  vol=2259.8 limit=4.2000 quote=3.5000
+[bot] sector1  buyOrder       material2_2  vol=900.0 limit=16.8000 quote=27.5000
+[bot] sector2  buyOrder       material1_1  vol=2259.8 limit=4.2000 quote=3.5000
+[bot] sector2  buyOrder       material2_3  vol=900.0 limit=16.8000 quote=27.5000
+[bot] sector3  buyOrder       material1_2  vol=2259.8 limit=4.2000 quote=3.5000
+[bot] sector3  buyOrder       material2_1  vol=900.0 limit=16.8000 quote=27.5000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -9666.8 material1_1=2508.0
+[bot] sector2  post-decision  balance=   -9666.8 material1_2=2508.0
+[bot] sector3  post-decision  balance=   -9666.8 material1_3=2508.0
+=== TURN 16 ===
+[bot] sector1  produced       material1_1: capLimit=899.8 actual=899.8 consumed=[]
+[bot] sector1  produced       material2_1: capLimit=359.9 actual=0.0 consumed=[material1_1=0.0,material1_3=0.0]
+[bot] sector1  produced       material3_1: capLimit=150.0 actual=0.0 consumed=[material2_1=0.0,material2_2=0.0]
+[bot] sector3  produced       material1_3: capLimit=899.8 actual=899.8 consumed=[]
+[bot] sector3  produced       material2_3: capLimit=359.9 actual=0.0 consumed=[material1_3=0.0,material1_2=0.0]
+[bot] sector3  produced       material3_3: capLimit=150.0 actual=0.0 consumed=[material2_3=0.0,material2_1=0.0]
+[bot] sector2  produced       material1_2: capLimit=899.8 actual=899.8 consumed=[]
+[bot] sector2  produced       material2_2: capLimit=359.9 actual=0.0 consumed=[material1_2=0.0,material1_1=0.0]
+[bot] sector2  produced       material3_2: capLimit=150.0 actual=0.0 consumed=[material2_2=0.0,material2_3=0.0]
+[bot] sector1  post-tick      balance=   -8651.6 material1_1=2406.4
+[bot] sector2  post-tick      balance=   -8651.6 material1_2=2406.4
+[bot] sector3  post-tick      balance=   -8651.6 material1_3=2406.4
+[bot] sector1  sellOrder      material1_1  vol=966.7 limit=4.2000 quote=4.0000
+[bot] sector2  sellOrder      material1_2  vol=966.7 limit=4.2000 quote=4.0000
+[bot] sector3  sellOrder      material1_3  vol=966.7 limit=4.2000 quote=4.0000
+[bot] sector1  buyOrder       material1_3  vol=2159.5 limit=4.8000 quote=4.0000
+[bot] sector1  buyOrder       material2_2  vol=900.0 limit=19.2000 quote=28.0000
+[bot] sector2  buyOrder       material1_1  vol=2159.5 limit=4.8000 quote=4.0000
+[bot] sector2  buyOrder       material2_3  vol=900.0 limit=19.2000 quote=28.0000
+[bot] sector3  buyOrder       material1_2  vol=2159.5 limit=4.8000 quote=4.0000
+[bot] sector3  buyOrder       material2_1  vol=900.0 limit=19.2000 quote=28.0000
+[bot] matched 0 new contract(s) this turn
+[bot] sector1  post-decision  balance=   -8651.6 material1_1=2406.4
+[bot] sector2  post-decision  balance=   -8651.6 material1_2=2406.4
+[bot] sector3  post-decision  balance=   -8651.6 material1_3=2406.4

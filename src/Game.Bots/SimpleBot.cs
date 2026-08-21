@@ -430,7 +430,15 @@ public sealed class SimpleBot
     /// материалу, который команда сама производит: настоящий свободный остаток сверх
     /// законтрактованного и сверх собственной потребности (<see cref="ComputeSurplus"/> — тот же
     /// расчёт, что и у <see cref="SellSurplusToSystem"/>, не оголяет свою цепочку ради продажи на
-    /// сторону). Цена — себестоимость плюс минимальная маржа (<see cref="MinSellMarginRate"/>).
+    /// сторону). Цена — себестоимость плюс минимальная маржа (<see cref="MinSellMarginRate"/>) для
+    /// передела; для сырья (<see cref="Material.IsRawMaterial"/>) — без наценки, ровно себестоимость
+    /// (найдено 2026-08-21, rebalance/2-sector-stepwise, трассировкой реальной партии): у сырья
+    /// «себестоимость» в <see cref="RawMaterialCosts"/> — это ТА ЖЕ живая котировка рынка, по которой
+    /// <see cref="OrderBook.Match"/> и сводит сделку, поэтому пол «котировка + маржа» строго выше
+    /// самой котировки на любом ходу — заявка продавца сырья никогда не проходит фильтр
+    /// <c>price >= LimitPrice</c>, сколько бы ни стоил материал. Для передела это не так — там
+    /// себестоимость считается рекурсивно по рецепту (<see cref="CostCalculator.CalculateUnitCost"/>),
+    /// не равна котировке, маржа сверху осмысленна.
     /// </summary>
     public IReadOnlyList<TradeOrder> ComputeSellOrders(GameSession session)
     {
@@ -449,12 +457,13 @@ public sealed class SimpleBot
                 continue;
             }
 
+            var margin = material.IsRawMaterial ? 0m : MinSellMarginRate;
             orders.Add(new TradeOrder
             {
                 TeamId = TeamId,
                 Material = material,
                 Volume = sellable,
-                LimitPrice = unitCost * (1m + MinSellMarginRate),
+                LimitPrice = unitCost * (1m + margin),
             });
         }
 

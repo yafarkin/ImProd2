@@ -1,0 +1,347 @@
+=== TURN 1 ===
+[ideal] sector1  post-production cash=   -2840.0 material1_1=1000.0
+[ideal] sector2  post-production cash=   -2840.0 material1_2=1000.0
+[ideal] sector3  post-production cash=   -2840.0 material1_3=1000.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=800.0] fillRatio=25 %
+[ideal] transfer material1_1  seller=sector1 surplus=200.0 transferred=200.0 soldToSystem=0.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=800.0] fillRatio=25 %
+[ideal] transfer material1_2  seller=sector2 surplus=200.0 transferred=200.0 soldToSystem=0.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=800.0] fillRatio=25 %
+[ideal] transfer material1_3  seller=sector3 surplus=200.0 transferred=200.0 soldToSystem=0.0
+[ideal] sector1  post-transfer  cash=   -2840.0 material1_1=800.0 material1_3=200.0
+[ideal] sector2  post-transfer  cash=   -2840.0 material1_1=200.0 material1_2=800.0
+[ideal] sector3  post-transfer  cash=   -2840.0 material1_2=200.0 material1_3=800.0
+=== TURN 2 ===
+[ideal] sector1  post-production cash=   -3680.0 material1_1=1600.0 material1_3=0.0 material2_1=100.0
+[ideal] sector2  post-production cash=   -3680.0 material1_1=0.0 material1_2=1600.0 material2_2=100.0
+[ideal] sector3  post-production cash=   -3680.0 material1_2=0.0 material1_3=1600.0 material2_3=100.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=800.0] fillRatio=100 %
+[ideal] transfer material1_1  seller=sector1 surplus=800.0 transferred=800.0 soldToSystem=0.0
+[ideal] transfer material2_1  seller=sector1 surplus=100.0 transferred=0.0 soldToSystem=100.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=800.0] fillRatio=100 %
+[ideal] transfer material1_2  seller=sector2 surplus=800.0 transferred=800.0 soldToSystem=0.0
+[ideal] transfer material2_2  seller=sector2 surplus=100.0 transferred=0.0 soldToSystem=100.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=800.0] fillRatio=100 %
+[ideal] transfer material1_3  seller=sector3 surplus=800.0 transferred=800.0 soldToSystem=0.0
+[ideal] transfer material2_3  seller=sector3 surplus=100.0 transferred=0.0 soldToSystem=100.0
+[ideal] sector1  post-transfer  cash=   -1180.0 material1_1=800.0 material1_3=800.0 material2_1=0.0
+[ideal] sector2  post-transfer  cash=   -1180.0 material1_1=800.0 material1_2=800.0 material2_2=0.0
+[ideal] sector3  post-transfer  cash=   -1180.0 material1_2=800.0 material1_3=800.0 material2_3=0.0
+=== TURN 3 ===
+[ideal] sector1  post-production cash=   -2020.0 material1_1=1000.0 material1_3=0.0 material2_1=400.0
+[ideal] sector2  post-production cash=   -2020.0 material1_1=0.0 material1_2=1000.0 material2_2=400.0
+[ideal] sector3  post-production cash=   -2020.0 material1_2=0.0 material1_3=1000.0 material2_3=400.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=800.0] fillRatio=25 %
+[ideal] transfer material1_1  seller=sector1 surplus=200.0 transferred=200.0 soldToSystem=0.0
+[ideal] transfer material2_1  seller=sector1 surplus=400.0 transferred=0.0 soldToSystem=400.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=800.0] fillRatio=25 %
+[ideal] transfer material1_2  seller=sector2 surplus=200.0 transferred=200.0 soldToSystem=0.0
+[ideal] transfer material2_2  seller=sector2 surplus=400.0 transferred=0.0 soldToSystem=400.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=800.0] fillRatio=25 %
+[ideal] transfer material1_3  seller=sector3 surplus=200.0 transferred=200.0 soldToSystem=0.0
+[ideal] transfer material2_3  seller=sector3 surplus=400.0 transferred=0.0 soldToSystem=400.0
+[ideal] sector1  post-transfer  cash=    4480.0 material1_1=800.0 material1_3=200.0 material2_1=0.0
+[ideal] sector2  post-transfer  cash=    4480.0 material1_1=200.0 material1_2=800.0 material2_2=0.0
+[ideal] sector3  post-transfer  cash=    4480.0 material1_2=200.0 material1_3=800.0 material2_3=0.0
+=== TURN 4 ===
+[ideal] sector1  post-production cash=    3640.0 material1_1=1600.0 material1_3=0.0 material2_1=100.0
+[ideal] sector2  post-production cash=    3640.0 material1_1=0.0 material1_2=1600.0 material2_2=100.0
+[ideal] sector3  post-production cash=    3640.0 material1_2=0.0 material1_3=1600.0 material2_3=100.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=800.0] fillRatio=100 %
+[ideal] transfer material1_1  seller=sector1 surplus=800.0 transferred=800.0 soldToSystem=0.0
+[ideal] transfer material2_1  seller=sector1 surplus=100.0 transferred=0.0 soldToSystem=100.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=800.0] fillRatio=100 %
+[ideal] transfer material1_2  seller=sector2 surplus=800.0 transferred=800.0 soldToSystem=0.0
+[ideal] transfer material2_2  seller=sector2 surplus=100.0 transferred=0.0 soldToSystem=100.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=800.0] fillRatio=100 %
+[ideal] transfer material1_3  seller=sector3 surplus=800.0 transferred=800.0 soldToSystem=0.0
+[ideal] transfer material2_3  seller=sector3 surplus=100.0 transferred=0.0 soldToSystem=100.0
+[ideal] sector1  post-transfer  cash=    6140.0 material1_1=800.0 material1_3=800.0 material2_1=0.0
+[ideal] sector2  post-transfer  cash=    6140.0 material1_1=800.0 material1_2=800.0 material2_2=0.0
+[ideal] sector3  post-transfer  cash=    6140.0 material1_2=800.0 material1_3=800.0 material2_3=0.0
+=== TURN 5 ===
+[ideal] sector1  post-production cash=    5300.0 material1_1=1000.0 material1_3=0.0 material2_1=400.0
+[ideal] sector2  post-production cash=    5300.0 material1_1=0.0 material1_2=1000.0 material2_2=400.0
+[ideal] sector3  post-production cash=    5300.0 material1_2=0.0 material1_3=1000.0 material2_3=400.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=800.0] fillRatio=25 %
+[ideal] transfer material1_1  seller=sector1 surplus=200.0 transferred=200.0 soldToSystem=0.0
+[ideal] transfer material2_1  seller=sector1 surplus=400.0 transferred=0.0 soldToSystem=400.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=800.0] fillRatio=25 %
+[ideal] transfer material1_2  seller=sector2 surplus=200.0 transferred=200.0 soldToSystem=0.0
+[ideal] transfer material2_2  seller=sector2 surplus=400.0 transferred=0.0 soldToSystem=400.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=800.0] fillRatio=25 %
+[ideal] transfer material1_3  seller=sector3 surplus=200.0 transferred=200.0 soldToSystem=0.0
+[ideal] transfer material2_3  seller=sector3 surplus=400.0 transferred=0.0 soldToSystem=400.0
+[ideal] sector1  post-transfer  cash=   11800.0 material1_1=800.0 material1_3=200.0 material2_1=0.0
+[ideal] sector2  post-transfer  cash=   11800.0 material1_1=200.0 material1_2=800.0 material2_2=0.0
+[ideal] sector3  post-transfer  cash=   11800.0 material1_2=200.0 material1_3=800.0 material2_3=0.0
+=== TURN 6 ===
+[ideal] sector1  post-production cash=   10960.0 material1_1=1700.0 material1_3=0.0 material2_1=100.0
+[ideal] sector2  post-production cash=   10960.0 material1_1=0.0 material1_2=1700.0 material2_2=100.0
+[ideal] sector3  post-production cash=   10960.0 material1_2=0.0 material1_3=1700.0 material2_3=100.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_1  seller=sector1 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material2_1  seller=sector1 surplus=100.0 transferred=0.0 soldToSystem=100.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_2  seller=sector2 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material2_2  seller=sector2 surplus=100.0 transferred=0.0 soldToSystem=100.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_3  seller=sector3 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material2_3  seller=sector3 surplus=100.0 transferred=0.0 soldToSystem=100.0
+[ideal] sector1  post-transfer  cash=   13460.0 material1_1=880.0 material1_3=820.0 material2_1=0.0
+[ideal] sector2  post-transfer  cash=   13460.0 material1_1=820.0 material1_2=880.0 material2_2=0.0
+[ideal] sector3  post-transfer  cash=   13460.0 material1_2=820.0 material1_3=880.0 material2_3=0.0
+=== TURN 7 ===
+[ideal] sector1  post-production cash=   12620.0 material1_1=1160.0 material1_3=0.0 material2_1=410.0
+[ideal] sector2  post-production cash=   12620.0 material1_1=0.0 material1_2=1160.0 material2_2=410.0
+[ideal] sector3  post-production cash=   12620.0 material1_2=0.0 material1_3=1160.0 material2_3=410.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_1  seller=sector1 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_1  seller=sector1 surplus=410.0 transferred=0.0 soldToSystem=410.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_2  seller=sector2 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_2  seller=sector2 surplus=410.0 transferred=0.0 soldToSystem=410.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_3  seller=sector3 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_3  seller=sector3 surplus=410.0 transferred=0.0 soldToSystem=410.0
+[ideal] sector1  post-transfer  cash=   19245.0 material1_1=880.0 material1_3=280.0 material2_1=0.0
+[ideal] sector2  post-transfer  cash=   19245.0 material1_1=280.0 material1_2=880.0 material2_2=0.0
+[ideal] sector3  post-transfer  cash=   19245.0 material1_2=280.0 material1_3=880.0 material2_3=0.0
+=== TURN 8 ===
+[ideal] sector1  post-production cash=   18405.0 material1_1=1700.0 material1_3=0.0 material2_1=140.0
+[ideal] sector2  post-production cash=   18405.0 material1_1=0.0 material1_2=1700.0 material2_2=140.0
+[ideal] sector3  post-production cash=   18405.0 material1_2=0.0 material1_3=1700.0 material2_3=140.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_1  seller=sector1 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material2_1  seller=sector1 surplus=140.0 transferred=0.0 soldToSystem=140.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_2  seller=sector2 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material2_2  seller=sector2 surplus=140.0 transferred=0.0 soldToSystem=140.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_3  seller=sector3 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material2_3  seller=sector3 surplus=140.0 transferred=0.0 soldToSystem=140.0
+[ideal] sector1  post-transfer  cash=   21655.0 material1_1=880.0 material1_3=820.0 material2_1=0.0
+[ideal] sector2  post-transfer  cash=   21655.0 material1_1=820.0 material1_2=880.0 material2_2=0.0
+[ideal] sector3  post-transfer  cash=   21655.0 material1_2=820.0 material1_3=880.0 material2_3=0.0
+=== TURN 9 ===
+[ideal] sector1  post-production cash=   16495.0 material1_1=1160.0 material1_3=0.0 material2_1=410.0
+[ideal] sector2  post-production cash=   16495.0 material1_1=0.0 material1_2=1160.0 material2_2=410.0
+[ideal] sector3  post-production cash=   16495.0 material1_2=0.0 material1_3=1160.0 material2_3=410.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_1  seller=sector1 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_1  buyers=[sector3:deficit=300.0] fillRatio=37 %
+[ideal] transfer material2_1  seller=sector1 surplus=110.0 transferred=110.0 soldToSystem=0.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_2  seller=sector2 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_2  buyers=[sector1:deficit=300.0] fillRatio=37 %
+[ideal] transfer material2_2  seller=sector2 surplus=110.0 transferred=110.0 soldToSystem=0.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_3  seller=sector3 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_3  buyers=[sector2:deficit=300.0] fillRatio=37 %
+[ideal] transfer material2_3  seller=sector3 surplus=110.0 transferred=110.0 soldToSystem=0.0
+[ideal] sector1  post-transfer  cash=   16495.0 material1_1=880.0 material1_3=280.0 material2_1=300.0 material2_2=110.0
+[ideal] sector2  post-transfer  cash=   16495.0 material1_1=280.0 material1_2=880.0 material2_2=300.0 material2_3=110.0
+[ideal] sector3  post-transfer  cash=   16495.0 material1_2=280.0 material1_3=880.0 material2_1=110.0 material2_3=300.0
+=== TURN 10 ===
+[ideal] sector1  post-production cash=   15635.0 material1_1=1700.0 material1_3=0.0 material2_1=330.0 material2_2=0.0 material3_1=55.0
+[ideal] sector2  post-production cash=   15635.0 material1_1=0.0 material1_2=1700.0 material2_2=330.0 material2_3=0.0 material3_2=55.0
+[ideal] sector3  post-production cash=   15635.0 material1_2=0.0 material1_3=1700.0 material2_1=0.0 material2_3=330.0 material3_3=55.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_1  seller=sector1 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material2_1  buyers=[sector3:deficit=300.0] fillRatio=10 %
+[ideal] transfer material2_1  seller=sector1 surplus=30.0 transferred=30.0 soldToSystem=0.0
+[ideal] transfer material3_1  seller=sector1 surplus=55.0 transferred=0.0 soldToSystem=55.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_2  seller=sector2 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material2_2  buyers=[sector1:deficit=300.0] fillRatio=10 %
+[ideal] transfer material2_2  seller=sector2 surplus=30.0 transferred=30.0 soldToSystem=0.0
+[ideal] transfer material3_2  seller=sector2 surplus=55.0 transferred=0.0 soldToSystem=55.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_3  seller=sector3 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material2_3  buyers=[sector2:deficit=300.0] fillRatio=10 %
+[ideal] transfer material2_3  seller=sector3 surplus=30.0 transferred=30.0 soldToSystem=0.0
+[ideal] transfer material3_3  seller=sector3 surplus=55.0 transferred=0.0 soldToSystem=55.0
+[ideal] sector1  post-transfer  cash=   19430.0 material1_1=880.0 material1_3=820.0 material2_1=300.0 material2_2=30.0 material3_1=0.0
+[ideal] sector2  post-transfer  cash=   19430.0 material1_1=820.0 material1_2=880.0 material2_2=300.0 material2_3=30.0 material3_2=0.0
+[ideal] sector3  post-transfer  cash=   19430.0 material1_2=820.0 material1_3=880.0 material2_1=30.0 material2_3=300.0 material3_3=0.0
+=== TURN 11 ===
+[ideal] sector1  post-production cash=   18570.0 material1_1=1160.0 material1_3=0.0 material2_1=680.0 material2_2=0.0 material3_1=15.0
+[ideal] sector2  post-production cash=   18570.0 material1_1=0.0 material1_2=1160.0 material2_2=680.0 material2_3=0.0 material3_2=15.0
+[ideal] sector3  post-production cash=   18570.0 material1_2=0.0 material1_3=1160.0 material2_1=0.0 material2_3=680.0 material3_3=15.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_1  seller=sector1 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_1  buyers=[sector3:deficit=300.0] fillRatio=100 %
+[ideal] transfer material2_1  seller=sector1 surplus=380.0 transferred=300.0 soldToSystem=80.0
+[ideal] transfer material3_1  seller=sector1 surplus=15.0 transferred=0.0 soldToSystem=15.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_2  seller=sector2 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_2  buyers=[sector1:deficit=300.0] fillRatio=100 %
+[ideal] transfer material2_2  seller=sector2 surplus=380.0 transferred=300.0 soldToSystem=80.0
+[ideal] transfer material3_2  seller=sector2 surplus=15.0 transferred=0.0 soldToSystem=15.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_3  seller=sector3 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_3  buyers=[sector2:deficit=300.0] fillRatio=100 %
+[ideal] transfer material2_3  seller=sector3 surplus=380.0 transferred=300.0 soldToSystem=80.0
+[ideal] transfer material3_3  seller=sector3 surplus=15.0 transferred=0.0 soldToSystem=15.0
+[ideal] sector1  post-transfer  cash=   21653.6 material1_1=880.0 material1_3=280.0 material2_1=300.0 material2_2=300.0 material3_1=0.0
+[ideal] sector2  post-transfer  cash=   21653.6 material1_1=280.0 material1_2=880.0 material2_2=300.0 material2_3=300.0 material3_2=0.0
+[ideal] sector3  post-transfer  cash=   21653.6 material1_2=280.0 material1_3=880.0 material2_1=300.0 material2_3=300.0 material3_3=0.0
+=== TURN 12 ===
+[ideal] sector1  post-production cash=   20793.6 material1_1=1700.0 material1_3=0.0 material2_1=140.0 material2_2=0.0 material3_1=150.0
+[ideal] sector2  post-production cash=   20793.6 material1_1=0.0 material1_2=1700.0 material2_2=140.0 material2_3=0.0 material3_2=150.0
+[ideal] sector3  post-production cash=   20793.6 material1_2=0.0 material1_3=1700.0 material2_1=0.0 material2_3=140.0 material3_3=150.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_1  seller=sector1 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material3_1  seller=sector1 surplus=150.0 transferred=0.0 soldToSystem=150.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_2  seller=sector2 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material3_2  seller=sector2 surplus=150.0 transferred=0.0 soldToSystem=150.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_3  seller=sector3 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material3_3  seller=sector3 surplus=150.0 transferred=0.0 soldToSystem=150.0
+[ideal] sector1  post-transfer  cash=   28299.7 material1_1=880.0 material1_3=820.0 material2_1=140.0 material2_2=0.0 material3_1=0.0
+[ideal] sector2  post-transfer  cash=   28299.7 material1_1=820.0 material1_2=880.0 material2_2=140.0 material2_3=0.0 material3_2=0.0
+[ideal] sector3  post-transfer  cash=   28299.7 material1_2=820.0 material1_3=880.0 material2_1=0.0 material2_3=140.0 material3_3=0.0
+=== TURN 13 ===
+[ideal] sector1  post-production cash=   27439.7 material1_1=1160.0 material1_3=0.0 material2_1=550.0 material2_2=0.0 material3_1=0.0
+[ideal] sector2  post-production cash=   27439.7 material1_1=0.0 material1_2=1160.0 material2_2=550.0 material2_3=0.0 material3_2=0.0
+[ideal] sector3  post-production cash=   27439.7 material1_2=0.0 material1_3=1160.0 material2_1=0.0 material2_3=550.0 material3_3=0.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_1  seller=sector1 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_1  buyers=[sector3:deficit=300.0] fillRatio=83 %
+[ideal] transfer material2_1  seller=sector1 surplus=250.0 transferred=250.0 soldToSystem=0.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_2  seller=sector2 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_2  buyers=[sector1:deficit=300.0] fillRatio=83 %
+[ideal] transfer material2_2  seller=sector2 surplus=250.0 transferred=250.0 soldToSystem=0.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_3  seller=sector3 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_3  buyers=[sector2:deficit=300.0] fillRatio=83 %
+[ideal] transfer material2_3  seller=sector3 surplus=250.0 transferred=250.0 soldToSystem=0.0
+[ideal] sector1  post-transfer  cash=   27439.7 material1_1=880.0 material1_3=280.0 material2_1=300.0 material2_2=250.0 material3_1=0.0
+[ideal] sector2  post-transfer  cash=   27439.7 material1_1=280.0 material1_2=880.0 material2_2=300.0 material2_3=250.0 material3_2=0.0
+[ideal] sector3  post-transfer  cash=   27439.7 material1_2=280.0 material1_3=880.0 material2_1=250.0 material2_3=300.0 material3_3=0.0
+=== TURN 14 ===
+[ideal] sector1  post-production cash=   26579.7 material1_1=1700.0 material1_3=0.0 material2_1=190.0 material2_2=0.0 material3_1=125.0
+[ideal] sector2  post-production cash=   26579.7 material1_1=0.0 material1_2=1700.0 material2_2=190.0 material2_3=0.0 material3_2=125.0
+[ideal] sector3  post-production cash=   26579.7 material1_2=0.0 material1_3=1700.0 material2_1=0.0 material2_3=190.0 material3_3=125.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_1  seller=sector1 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material3_1  seller=sector1 surplus=125.0 transferred=0.0 soldToSystem=125.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_2  seller=sector2 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material3_2  seller=sector2 surplus=125.0 transferred=0.0 soldToSystem=125.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=880.0] fillRatio=93 %
+[ideal] transfer material1_3  seller=sector3 surplus=820.0 transferred=820.0 soldToSystem=0.0
+[ideal] transfer material3_3  seller=sector3 surplus=125.0 transferred=0.0 soldToSystem=125.0
+[ideal] sector1  post-transfer  cash=   33460.1 material1_1=880.0 material1_3=820.0 material2_1=190.0 material2_2=0.0 material3_1=0.0
+[ideal] sector2  post-transfer  cash=   33460.1 material1_1=820.0 material1_2=880.0 material2_2=190.0 material2_3=0.0 material3_2=0.0
+[ideal] sector3  post-transfer  cash=   33460.1 material1_2=820.0 material1_3=880.0 material2_1=0.0 material2_3=190.0 material3_3=0.0
+=== TURN 15 ===
+[ideal] sector1  post-production cash=   32600.1 material1_1=1160.0 material1_3=0.0 material2_1=600.0 material2_2=0.0 material3_1=0.0
+[ideal] sector2  post-production cash=   32600.1 material1_1=0.0 material1_2=1160.0 material2_2=600.0 material2_3=0.0 material3_2=0.0
+[ideal] sector3  post-production cash=   32600.1 material1_2=0.0 material1_3=1160.0 material2_1=0.0 material2_3=600.0 material3_3=0.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_1  seller=sector1 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_1  buyers=[sector3:deficit=330.0] fillRatio=82 %
+[ideal] transfer material2_1  seller=sector1 surplus=270.0 transferred=270.0 soldToSystem=0.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_2  seller=sector2 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_2  buyers=[sector1:deficit=330.0] fillRatio=82 %
+[ideal] transfer material2_2  seller=sector2 surplus=270.0 transferred=270.0 soldToSystem=0.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=880.0] fillRatio=32 %
+[ideal] transfer material1_3  seller=sector3 surplus=280.0 transferred=280.0 soldToSystem=0.0
+[ideal] transfer material2_3  buyers=[sector2:deficit=330.0] fillRatio=82 %
+[ideal] transfer material2_3  seller=sector3 surplus=270.0 transferred=270.0 soldToSystem=0.0
+[ideal] sector1  post-transfer  cash=   32600.1 material1_1=880.0 material1_3=280.0 material2_1=330.0 material2_2=270.0 material3_1=0.0
+[ideal] sector2  post-transfer  cash=   32600.1 material1_1=280.0 material1_2=880.0 material2_2=330.0 material2_3=270.0 material3_2=0.0
+[ideal] sector3  post-transfer  cash=   32600.1 material1_2=280.0 material1_3=880.0 material2_1=270.0 material2_3=330.0 material3_3=0.0
+=== TURN 16 ===
+[ideal] sector1  post-production cash=   31740.1 material1_1=1800.0 material1_3=0.0 material2_1=200.0 material2_2=0.0 material3_1=135.0
+[ideal] sector2  post-production cash=   31740.1 material1_1=0.0 material1_2=1800.0 material2_2=200.0 material2_3=0.0 material3_2=135.0
+[ideal] sector3  post-production cash=   31740.1 material1_2=0.0 material1_3=1800.0 material2_1=0.0 material2_3=200.0 material3_3=135.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=960.0] fillRatio=88 %
+[ideal] transfer material1_1  seller=sector1 surplus=840.0 transferred=840.0 soldToSystem=0.0
+[ideal] transfer material3_1  seller=sector1 surplus=135.0 transferred=0.0 soldToSystem=135.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=960.0] fillRatio=88 %
+[ideal] transfer material1_2  seller=sector2 surplus=840.0 transferred=840.0 soldToSystem=0.0
+[ideal] transfer material3_2  seller=sector2 surplus=135.0 transferred=0.0 soldToSystem=135.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=960.0] fillRatio=88 %
+[ideal] transfer material1_3  seller=sector3 surplus=840.0 transferred=840.0 soldToSystem=0.0
+[ideal] transfer material3_3  seller=sector3 surplus=135.0 transferred=0.0 soldToSystem=135.0
+[ideal] sector1  post-transfer  cash=   39238.7 material1_1=960.0 material1_3=840.0 material2_1=200.0 material2_2=0.0 material3_1=0.0
+[ideal] sector2  post-transfer  cash=   39238.7 material1_1=840.0 material1_2=960.0 material2_2=200.0 material2_3=0.0 material3_2=0.0
+[ideal] sector3  post-transfer  cash=   39238.7 material1_2=840.0 material1_3=960.0 material2_1=0.0 material2_3=200.0 material3_3=0.0
+=== TURN 17 ===
+[ideal] sector1  post-production cash=   38378.7 material1_1=1320.0 material1_3=0.0 material2_1=620.0 material2_2=0.0 material3_1=0.0
+[ideal] sector2  post-production cash=   38378.7 material1_1=0.0 material1_2=1320.0 material2_2=620.0 material2_3=0.0 material3_2=0.0
+[ideal] sector3  post-production cash=   38378.7 material1_2=0.0 material1_3=1320.0 material2_1=0.0 material2_3=620.0 material3_3=0.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=960.0] fillRatio=38 %
+[ideal] transfer material1_1  seller=sector1 surplus=360.0 transferred=360.0 soldToSystem=0.0
+[ideal] transfer material2_1  buyers=[sector3:deficit=330.0] fillRatio=88 %
+[ideal] transfer material2_1  seller=sector1 surplus=290.0 transferred=290.0 soldToSystem=0.0
+[ideal] transfer material3_1  seller=sector1 surplus=0.0 transferred=0.0 soldToSystem=0.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=960.0] fillRatio=38 %
+[ideal] transfer material1_2  seller=sector2 surplus=360.0 transferred=360.0 soldToSystem=0.0
+[ideal] transfer material2_2  buyers=[sector1:deficit=330.0] fillRatio=88 %
+[ideal] transfer material2_2  seller=sector2 surplus=290.0 transferred=290.0 soldToSystem=0.0
+[ideal] transfer material3_2  seller=sector2 surplus=0.0 transferred=0.0 soldToSystem=0.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=960.0] fillRatio=38 %
+[ideal] transfer material1_3  seller=sector3 surplus=360.0 transferred=360.0 soldToSystem=0.0
+[ideal] transfer material2_3  buyers=[sector2:deficit=330.0] fillRatio=88 %
+[ideal] transfer material2_3  seller=sector3 surplus=290.0 transferred=290.0 soldToSystem=0.0
+[ideal] transfer material3_3  seller=sector3 surplus=0.0 transferred=0.0 soldToSystem=0.0
+[ideal] sector1  post-transfer  cash=   38378.7 material1_1=960.0 material1_3=360.0 material2_1=330.0 material2_2=290.0 material3_1=0.0
+[ideal] sector2  post-transfer  cash=   38378.7 material1_1=360.0 material1_2=960.0 material2_2=330.0 material2_3=290.0 material3_2=0.0
+[ideal] sector3  post-transfer  cash=   38378.7 material1_2=360.0 material1_3=960.0 material2_1=290.0 material2_3=330.0 material3_3=0.0
+=== TURN 18 ===
+[ideal] sector1  post-production cash=   37518.7 material1_1=1800.0 material1_3=0.0 material2_1=220.0 material2_2=0.0 material3_1=145.0
+[ideal] sector2  post-production cash=   37518.7 material1_1=0.0 material1_2=1800.0 material2_2=220.0 material2_3=0.0 material3_2=145.0
+[ideal] sector3  post-production cash=   37518.7 material1_2=0.0 material1_3=1800.0 material2_1=0.0 material2_3=220.0 material3_3=145.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=960.0] fillRatio=88 %
+[ideal] transfer material1_1  seller=sector1 surplus=840.0 transferred=840.0 soldToSystem=0.0
+[ideal] transfer material3_1  seller=sector1 surplus=145.0 transferred=0.0 soldToSystem=145.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=960.0] fillRatio=88 %
+[ideal] transfer material1_2  seller=sector2 surplus=840.0 transferred=840.0 soldToSystem=0.0
+[ideal] transfer material3_2  seller=sector2 surplus=145.0 transferred=0.0 soldToSystem=145.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=960.0] fillRatio=88 %
+[ideal] transfer material1_3  seller=sector3 surplus=840.0 transferred=840.0 soldToSystem=0.0
+[ideal] transfer material3_3  seller=sector3 surplus=145.0 transferred=0.0 soldToSystem=145.0
+[ideal] sector1  post-transfer  cash=   45651.5 material1_1=960.0 material1_3=840.0 material2_1=220.0 material2_2=0.0 material3_1=0.0
+[ideal] sector2  post-transfer  cash=   45651.5 material1_1=840.0 material1_2=960.0 material2_2=220.0 material2_3=0.0 material3_2=0.0
+[ideal] sector3  post-transfer  cash=   45651.5 material1_2=840.0 material1_3=960.0 material2_1=0.0 material2_3=220.0 material3_3=0.0
+=== TURN 19 ===
+[ideal] sector1  post-production cash=   44791.5 material1_1=1320.0 material1_3=0.0 material2_1=640.0 material2_2=0.0 material3_1=0.0
+[ideal] sector2  post-production cash=   44791.5 material1_1=0.0 material1_2=1320.0 material2_2=640.0 material2_3=0.0 material3_2=0.0
+[ideal] sector3  post-production cash=   44791.5 material1_2=0.0 material1_3=1320.0 material2_1=0.0 material2_3=640.0 material3_3=0.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=960.0] fillRatio=38 %
+[ideal] transfer material1_1  seller=sector1 surplus=360.0 transferred=360.0 soldToSystem=0.0
+[ideal] transfer material2_1  buyers=[sector3:deficit=330.0] fillRatio=94 %
+[ideal] transfer material2_1  seller=sector1 surplus=310.0 transferred=310.0 soldToSystem=0.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=960.0] fillRatio=38 %
+[ideal] transfer material1_2  seller=sector2 surplus=360.0 transferred=360.0 soldToSystem=0.0
+[ideal] transfer material2_2  buyers=[sector1:deficit=330.0] fillRatio=94 %
+[ideal] transfer material2_2  seller=sector2 surplus=310.0 transferred=310.0 soldToSystem=0.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=960.0] fillRatio=38 %
+[ideal] transfer material1_3  seller=sector3 surplus=360.0 transferred=360.0 soldToSystem=0.0
+[ideal] transfer material2_3  buyers=[sector2:deficit=330.0] fillRatio=94 %
+[ideal] transfer material2_3  seller=sector3 surplus=310.0 transferred=310.0 soldToSystem=0.0
+[ideal] sector1  post-transfer  cash=   44791.5 material1_1=960.0 material1_3=360.0 material2_1=330.0 material2_2=310.0 material3_1=0.0
+[ideal] sector2  post-transfer  cash=   44791.5 material1_1=360.0 material1_2=960.0 material2_2=330.0 material2_3=310.0 material3_2=0.0
+[ideal] sector3  post-transfer  cash=   44791.5 material1_2=360.0 material1_3=960.0 material2_1=310.0 material2_3=330.0 material3_3=0.0
+=== TURN 20 ===
+[ideal] sector1  post-production cash=   43931.5 material1_1=1800.0 material1_3=0.0 material2_1=200.0 material2_2=0.0 material3_1=155.0
+[ideal] sector2  post-production cash=   43931.5 material1_1=0.0 material1_2=1800.0 material2_2=200.0 material2_3=0.0 material3_2=155.0
+[ideal] sector3  post-production cash=   43931.5 material1_2=0.0 material1_3=1800.0 material2_1=0.0 material2_3=200.0 material3_3=155.0
+[ideal] transfer material1_1  buyers=[sector2:deficit=960.0] fillRatio=88 %
+[ideal] transfer material1_1  seller=sector1 surplus=840.0 transferred=840.0 soldToSystem=0.0
+[ideal] transfer material3_1  seller=sector1 surplus=155.0 transferred=0.0 soldToSystem=155.0
+[ideal] transfer material1_2  buyers=[sector3:deficit=960.0] fillRatio=88 %
+[ideal] transfer material1_2  seller=sector2 surplus=840.0 transferred=840.0 soldToSystem=0.0
+[ideal] transfer material3_2  seller=sector2 surplus=155.0 transferred=0.0 soldToSystem=155.0
+[ideal] transfer material1_3  buyers=[sector1:deficit=960.0] fillRatio=88 %
+[ideal] transfer material1_3  seller=sector3 surplus=840.0 transferred=840.0 soldToSystem=0.0
+[ideal] transfer material3_3  seller=sector3 surplus=155.0 transferred=0.0 soldToSystem=155.0
+[ideal] sector1  post-transfer  cash=   52714.6 material1_1=960.0 material1_3=840.0 material2_1=200.0 material2_2=0.0 material3_1=0.0
+[ideal] sector2  post-transfer  cash=   52714.6 material1_1=840.0 material1_2=960.0 material2_2=200.0 material2_3=0.0 material3_2=0.0
+[ideal] sector3  post-transfer  cash=   52714.6 material1_2=840.0 material1_3=960.0 material2_1=0.0 material2_3=200.0 material3_3=0.0

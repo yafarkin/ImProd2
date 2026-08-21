@@ -72,6 +72,186 @@ public class CrossSectorTradingTests
     }
 
     /// <summary>
+    /// Регрессия на баг, найденный трассировкой (2026-08-21, rebalance/2-sector-stepwise): когда
+    /// сектор Б покупает у сектора А не передел (<c>a-part</c>, себестоимость которого считается
+    /// рекурсивно по рецепту), а СЫРЬЁ напрямую — до фикса <see cref="SimpleBot.ComputeSellOrders"/>
+    /// себестоимость сырья в <see cref="SimpleBot"/> берётся из живой рыночной котировки, а
+    /// «пол+маржа» строился поверх ТОЙ ЖЕ котировки — продавец никогда не проходил фильтр <see
+    /// cref="OrderBook.Match"/> (<c>price &gt;= LimitPrice</c>) ни на одном ходу. Без фикса эта
+    /// партия не сходится вовсе — Б стоит всю партию без единой поставки руды.
+    /// </summary>
+    [Fact]
+    public void Two_Sector_Session_Completes_When_The_Cross_Sector_Input_Is_Raw_Material_Itself()
+    {
+        var config = BuildTwoSectorConfigWithDirectRawMaterialCrossing();
+        var sectorA = config.Sectors.Single(s => s.Id == "A");
+        var sectorB = config.Sectors.Single(s => s.Id == "B");
+        var ore = config.Materials["ore"];
+
+        var teamAId = Ulid.NewUlid();
+        var teamBId = Ulid.NewUlid();
+        var teams = new[]
+        {
+            new TeamSpec { Id = teamAId, Name = "Команда А", SectorId = sectorA.Id },
+            new TeamSpec { Id = teamBId, Name = "Команда Б", SectorId = sectorB.Id },
+        };
+        var bots = new[]
+        {
+            new SimpleBot(teamAId, sectorA, config),
+            new SimpleBot(teamBId, sectorB, config),
+        };
+
+        var session = GameSession.StartWithEndTurn(config, "short", endTurn: 15, teams);
+        BotSessionRunner.RunToCompletion(session, bots, new Random(1));
+
+        Assert.True(session.State.IsFinished);
+        Assert.True(session.VerifyIntegrity());
+
+        var crossSectorRawDelivery = session.Entries.Any(entry =>
+        {
+            if (entry.Change is not ContractDelivered delivered)
+            {
+                return false;
+            }
+
+            var contract = session.State.Contracts[delivered.ContractId];
+            return contract.SellerTeamId == teamAId && contract.BuyerTeamId == teamBId && contract.Terms.Material == ore;
+        });
+        Assert.True(crossSectorRawDelivery, "Ни одна поставка руды (сырья) от А к Б не состоялась — продавец сырья заблокирован собственным полом цены.");
+    }
+
+    /// <summary>Тот же граф, что <see cref="BuildTwoSectorConfig"/>, но Б покупает у А сырьё («ore») напрямую, а не передел («a-part») — сам А сектор больше не производит a-part вообще.</summary>
+    private static ResolvedGameConfig BuildTwoSectorConfigWithDirectRawMaterialCrossing()
+    {
+        var config = new GameConfig
+        {
+            Sectors = new[]
+            {
+                new SectorConfig { Id = "A", Name = "Металлургия" },
+                new SectorConfig { Id = "B", Name = "Нефтегазохимия" },
+            },
+            Materials = new[]
+            {
+                new MaterialConfig { Id = "ore", Name = "Руда", SectorId = "A", Level = 0 },
+                new MaterialConfig { Id = "oil", Name = "Нефть", SectorId = "B", Level = 0 },
+                new MaterialConfig { Id = "b-widget", Name = "Изделие Б", SectorId = "B", Level = 1 },
+            },
+            Recipes = new[]
+            {
+                new RecipeConfig { Id = "ore-mining", OutputMaterialId = "ore", OutputQuantity = 1m, Inputs = Array.Empty<RecipeInputConfig>(), ProductionRate = 1m },
+                new RecipeConfig { Id = "oil-drilling", OutputMaterialId = "oil", OutputQuantity = 1m, Inputs = Array.Empty<RecipeInputConfig>(), ProductionRate = 1m },
+                new RecipeConfig
+                {
+                    Id = "b-widget-from-oil-and-ore", OutputMaterialId = "b-widget", OutputQuantity = 1m,
+                    Inputs = new[]
+                    {
+                        new RecipeInputConfig { MaterialId = "oil", Quantity = 2m },
+                        new RecipeInputConfig { MaterialId = "ore", Quantity = 1m },
+                    },
+                    ProductionRate = 1m,
+                },
+            },
+            FactoryDefinitions = new[]
+            {
+                new FactoryDefinitionConfig { Id = "mine-a", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+                new FactoryDefinitionConfig { Id = "well-b", Name = "Скважина", SectorId = "B", RecipeIds = new[] { "oil-drilling" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+                new FactoryDefinitionConfig { Id = "plant-b", Name = "Завод Б", SectorId = "B", RecipeIds = new[] { "b-widget-from-oil-and-ore" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+            },
+            StartingConditions = new StartingConditionsConfig
+            {
+                MaxInitialBuildBudget = 100_000m,
+            },
+            SessionPresets = new[]
+            {
+                new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 15, MaxTurns = 15, TurnDurationMinutes = 1 },
+            },
+            PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
+            Economy = new EconomyConfig
+            {
+                EmergencyPurchaseBaseMultiplier = 2m,
+                EmergencyPurchasePressureMultiplierPerUnit = 0m,
+                EmergencyPurchasePressureHalfLifeTurns = 3,
+                BaseMarketPerMaterial = new[]
+                {
+                    // Намеренно НЕ в "полосе сведения" (см. doc-comment BuildTwoSectorConfig) — регрессия
+                    // как раз и проверяет, что для сырья это больше не нужно: продавец больше не требует
+                    // маржи сверх собственной котировки (см. фикс ComputeSellOrders).
+                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "oil", BasePrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "b-widget", BasePrice = 40m, BaseCapacity = 100_000m },
+                },
+                MarginMultiplierByProcessingLevel = new[]
+                {
+                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m },
+                },
+                MarketCapacityOverflowDiscount = 0.5m,
+                ElectricityBasePrice = 1m,
+                ElectricityConsumptionPerOutputUnit = 0m,
+                TrendScenario = Array.Empty<EconomyTrendPhaseConfig>(),
+                WarehouseLiquidationRate = 0.5m,
+            },
+            WorkerProductivity = new WorkerProductivityConfig
+            {
+                BaseWorkerCount = 5,
+                DiminishingReturnsFactor = 0.5m,
+                HireCostPerWorker = 50m,
+                FireCostPerWorker = 30m,
+                SalaryPerWorkerPerTurn = 5m,
+                TeamSalaryBaseWorkerCount = 1000,
+                SalaryEscalationFactor = 1.5m,
+            },
+            Rnd = new RndConfig
+            {
+                ResearchPointThresholdsByLevel = new[] { 100m, 300m },
+                DiminishingReturnsExponent = 1m,
+                ProductionRateBonusPerLevel = 0.1m,
+                MaxCommitmentPerTurn = 200m,
+            },
+            Wear = new WearConfig
+            {
+                GracePeriodTurns = 1000,
+                BaseWearRatePerTurn = 0.01m,
+                AccelerationFactorPerTurn = 0.004m,
+                MaxUpkeepPenaltyMultiplier = 0.5m,
+                OverhaulTiers = new[]
+                {
+                    new OverhaulTierConfig { Id = "prevention", Name = "Профилактика", MinCondition = 0.9m, CostFraction = 0.02m, DurationTurns = 1, OutputMultiplier = 0.97m, SalaryRate = 1m, UpkeepRate = 1m },
+                },
+                CriticalConditionThreshold = 0.2m,
+                ForcedRepairDurationTurns = 8,
+                ForcedRepairSalaryRate = 0.66m,
+                ForcedRepairUpkeepRate = 0.5m,
+                PostForcedRepairCondition = 0.85m,
+            },
+            GenerationResearch = new GenerationResearchConfig
+            {
+                StartingGeneration = 1,
+                ResearchPointThresholdsByGeneration = Array.Empty<decimal>(),
+                DiminishingReturnsExponent = 0.5m,
+                MaxCommitmentPerTurn = 300m,
+            },
+            Warehouse = new WarehouseConfig { FreeCapacity = 1_000_000m, OverageFeePerUnit = 0.1m },
+            Reputation = new ReputationConfig { HalfLifeTurns = 10, WarmupTurns = 3, TerminationSeverityMultiplier = 3m },
+            Contracts = new ContractsConfig
+            {
+                DeliveryMissPenaltyRate = 0.1m,
+                TerminationPenaltyRate = 0.5m,
+                VoluntaryTerminationFee = 100m,
+                MaxActiveContractsPerTeam = null,
+            },
+            Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
+            News = Array.Empty<NewsItemConfig>(),
+            FeatureFlags = new FeatureFlagsConfig
+            {
+                TaxesEnabled = false,
+                EmergencyPurchaseEnabled = true,
+            },
+        };
+
+        return GameConfigLoader.Load(config);
+    }
+
+    /// <summary>
     /// Два сектора, один флагман зависит от другого напрямую (не по кругу — А самодостаточен, у Б
     /// прямая зависимость от А), оба генерации 1 (разблокировано с самого начала, без ожидания
     /// исследования поколений — тест должен сходиться за считаные ходы, не десятки):
