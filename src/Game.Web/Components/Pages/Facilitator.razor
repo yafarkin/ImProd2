@@ -60,7 +60,6 @@ else
                 <th>Команда</th>
                 <th>Сектор</th>
                 <th>Баланс</th>
-                <th>Долг</th>
                 <th>Репутация</th>
                 <th>Фабрик</th>
                 <th>Рабочих</th>
@@ -74,7 +73,6 @@ else
                     <td>@team.Name</td>
                     <td>@team.SectorName</td>
                     <td class="@(team.NegativeBalance ? "text-danger" : null)">@DashboardDisplay.FormatMoney(team.Balance)</td>
-                    <td>@DashboardDisplay.FormatMoney(team.Debt)</td>
                     <td>@team.ReputationPercentage.ToString("F0")%</td>
                     <td>@team.FactoryCount</td>
                     <td>@team.WorkerCount</td>
@@ -82,10 +80,6 @@ else
                         @if (team.NegativeBalance)
                         {
                             <span class="badge text-bg-danger">Баланс отрицательный</span>
-                        }
-                        @if (team.HadForcedLoan)
-                        {
-                            <span class="badge text-bg-warning">Был принудительный заём</span>
                         }
                         @if (team.FactoriesUnderRepairCount > 0)
                         {
@@ -111,16 +105,12 @@ else
         }
     </select>
     <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_grantAmount" />
-    <div class="form-check">
-        <input type="checkbox" class="form-check-input" id="grantRepayDebtFirst" @bind="_grantRepayDebtFirst" />
-        <label class="form-check-label" for="grantRepayDebtFirst">Сначала на погашение долга</label>
-    </div>
     <button type="button" class="btn btn-secondary" @onclick="Grant">Выдать грант</button>
 </div>
 @if (SuggestedGrantAmount is { } suggested && suggested > 0)
 {
     <p class="text-muted mb-3">
-        Подсказка: чтобы поднять баланс команды до @DashboardDisplay.FormatMoney(TargetPositiveBalance)@(_grantRepayDebtFirst ? " после погашения долга" : ""),
+        Подсказка: чтобы поднять баланс команды до @DashboardDisplay.FormatMoney(TargetPositiveBalance),
         нужно <strong>@DashboardDisplay.FormatMoney(suggested)</strong>.
         <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @onclick="() => _grantAmount = suggested">Подставить</button>
     </p>
@@ -190,9 +180,9 @@ else
     private string? _errorMessage;
 
     private sealed record TeamRow(
-        Ulid TeamId, string Name, string SectorName, decimal Balance, decimal Debt,
+        Ulid TeamId, string Name, string SectorName, decimal Balance,
         decimal ReputationPercentage, int FactoryCount, int WorkerCount,
-        bool NegativeBalance, bool HadForcedLoan, bool Inactive, int FactoriesUnderRepairCount);
+        bool NegativeBalance, bool Inactive, int FactoriesUnderRepairCount);
 
     private sealed record NewsOption(string Id, string Label);
     private sealed record MaterialOption(string Id, string Name, decimal CurrentPrice);
@@ -206,7 +196,6 @@ else
 
     private Ulid? _grantTeamId;
     private decimal _grantAmount = 100m;
-    private bool _grantRepayDebtFirst;
     private bool _emergencyPurchaseEnabled;
     private string? _newsItemId;
     private string? _priceMaterialId;
@@ -249,10 +238,10 @@ else
 
             _teams = state.Teams.Values
                 .Select(team => new TeamRow(
-                    team.Id, team.Name, team.Sector.Name, team.Balance, team.Debt,
+                    team.Id, team.Name, team.Sector.Name, team.Balance,
                     Host.Session!.GetReputation(team.Id).Percentage,
                     team.Factories.Count, team.Factories.Sum(f => f.Workers),
-                    team.Balance < 0, team.PenaltyRateSurcharge > 0,
+                    team.Balance < 0,
                     team.Factories.Count == 0 && state.CurrentTurn > 1,
                     team.Factories.Count(f => f.IsUnderRepair)))
                 .OrderBy(t => t.Name, StringComparer.Ordinal)
@@ -303,8 +292,7 @@ else
                 return null;
             }
 
-            var topUp = Math.Max(0m, TargetPositiveBalance - team.Balance);
-            return _grantRepayDebtFirst ? topUp + team.Debt : topUp;
+            return Math.Max(0m, TargetPositiveBalance - team.Balance);
         }
     }
 
@@ -315,7 +303,7 @@ else
             return;
         }
 
-        RunAction(() => Host.Session!.GrantToTeam(teamId, _grantAmount, _grantRepayDebtFirst));
+        RunAction(() => Host.Session!.GrantToTeam(teamId, _grantAmount));
     }
 
     private void ToggleEmergencyPurchase() => RunAction(() => Host.Session!.SetEmergencyPurchaseEnabled(!_emergencyPurchaseEnabled));

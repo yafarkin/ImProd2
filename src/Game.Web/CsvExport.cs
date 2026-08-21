@@ -16,14 +16,13 @@ public static class CsvExport
         ArgumentNullException.ThrowIfNull(turns);
 
         var sb = new StringBuilder();
-        sb.AppendLine("Turn,TotalCash,VolumeSoldToSystem,ForcedLoanCount");
+        sb.AppendLine("Turn,TotalCash,VolumeSoldToSystem");
         foreach (var turn in turns)
         {
             sb.AppendLine(string.Join(',',
                 turn.Turn.ToString(CultureInfo.InvariantCulture),
                 turn.TotalCash.ToString(CultureInfo.InvariantCulture),
-                turn.VolumeSoldToSystem.ToString(CultureInfo.InvariantCulture),
-                turn.ForcedLoanCount.ToString(CultureInfo.InvariantCulture)));
+                turn.VolumeSoldToSystem.ToString(CultureInfo.InvariantCulture)));
         }
 
         return sb.ToString();
@@ -34,13 +33,12 @@ public static class CsvExport
         ArgumentNullException.ThrowIfNull(scores);
 
         var sb = new StringBuilder();
-        sb.AppendLine("TeamName,Cash,Debt,WarehouseValue,FactoriesValue,Score");
+        sb.AppendLine("TeamName,Cash,WarehouseValue,FactoriesValue,Score");
         foreach (var (teamName, score) in scores)
         {
             sb.AppendLine(string.Join(',',
                 EscapeCsv(teamName),
                 score.Cash.ToString(CultureInfo.InvariantCulture),
-                score.Debt.ToString(CultureInfo.InvariantCulture),
                 score.WarehouseValue.ToString(CultureInfo.InvariantCulture),
                 score.FactoriesValue.ToString(CultureInfo.InvariantCulture),
                 score.Score.ToString(CultureInfo.InvariantCulture)));
