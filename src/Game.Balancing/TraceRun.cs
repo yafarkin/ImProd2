@@ -110,6 +110,11 @@ internal static class TraceRun
                         bot.SellSurplusToSystem(session);
                     }
 
+                    foreach (var team in session.State.Teams.Values.OrderBy(t => t.Sector.Id).ThenBy(t => t.Name))
+                    {
+                        trace.Add($"баланс {team.Name}: {team.Balance:F0}");
+                    }
+
                     session.AdvancePhase(PhaseTransitionTrigger.Timer);
                     break;
             }
