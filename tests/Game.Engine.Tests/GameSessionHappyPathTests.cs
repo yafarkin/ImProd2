@@ -45,8 +45,8 @@ public class GameSessionHappyPathTests
         var tick = session.RunTick(new Random(1));
 
         var purchased = (EmergencyPurchased)tick.Single(e => e.Change is EmergencyPurchased).Change;
-        Assert.Equal(20m, purchased.UnitPrice); // базовая цена руды 10 x множитель аварийной закупки 2
-        Assert.Equal(200m, purchased.TotalCost);
+        Assert.Equal(10m, purchased.UnitPrice); // себестоимость руды 5 x множитель аварийной закупки 2
+        Assert.Equal(100m, purchased.TotalCost);
 
         var mined = (FactoryProduced)tick.Single(e => e.Change is FactoryProduced p && p.FactoryId == mineBuilt.FactoryId).Change;
         var milled = (FactoryProduced)tick.Single(e => e.Change is FactoryProduced p && p.FactoryId == millBuilt.FactoryId).Change;
@@ -76,8 +76,8 @@ public class GameSessionHappyPathTests
         var tick2 = session.RunTick(new Random(1));
 
         var sale = (MaterialSoldToSystem)tick2.Single(e => e.Change is MaterialSoldToSystem).Change;
-        Assert.Equal(30m, sale.UnitPrice); // базовая цена листа 25 x множитель маржи уровня 1 (1.2)
-        Assert.Equal(150m, sale.TotalRevenue);
+        Assert.Equal(18m, sale.UnitPrice); // себестоимость листа 15 x множитель маржи уровня 1 (1.2)
+        Assert.Equal(90m, sale.TotalRevenue);
 
         var minedTurn3 = (FactoryProduced)tick2.Single(e => e.Change is FactoryProduced p && p.FactoryId == mineBuilt.FactoryId).Change;
         var milledTurn3 = (FactoryProduced)tick2.Single(e => e.Change is FactoryProduced p && p.FactoryId == millBuilt.FactoryId).Change;

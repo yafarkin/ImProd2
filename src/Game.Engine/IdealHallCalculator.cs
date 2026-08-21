@@ -14,12 +14,13 @@ namespace Game.Engine;
 ///
 /// <para><b>Допущения v1</b> (намеренные упрощения, см. §4 «Допущения v1», не итоговый дизайн):</para>
 /// <list type="bullet">
-/// <item>Обмен между ветками — по себестоимости (<see cref="CostCalculator"/>), без переговорной
-/// надбавки; платёж за перевод идёт в обе стороны (продавец получает деньги, покупатель платит) —
-/// перевод не бесплатный подарок, просто без монопольной наценки.</item>
+/// <item>Обмен между ветками — по себестоимости (<see cref="MaterialCostCalculator"/> — не рыночная
+/// котировка, запрос пользователя, rebalance/2-sector-stepwise, 2026-08-21), без переговорной надбавки;
+/// платёж за перевод идёт в обе стороны (продавец получает деньги, покупатель платит) — перевод не
+/// бесплатный подарок, просто без монопольной наценки.</item>
 /// <item>Остаток излишка материала, который не забрала ни одна соседняя ветка (после <see
 /// cref="TransferAcrossBranches"/>), продаётся системе тем же ходом по <see
-/// cref="MarketSaleCalculator"/> (котировка × <see cref="EconomyConfig.MarginMultiplierByProcessingLevel"/>
+/// cref="MarketSaleCalculator"/> (себестоимость × <see cref="EconomyConfig.MarginMultiplierByProcessingLevel"/>
 /// текущего уровня передела, включая понижающий коэффициент за превышение ёмкости) — аналог
 /// <c>SimpleBot.SellSurplusToSystem</c> у реального бота, а не только пассивная оценка склада в конце
 /// хода (см. <see cref="ComputeValue"/>). Добавлено намеренно: без этого X(t) сильно
@@ -87,9 +88,7 @@ public static class IdealHallCalculator
             throw new ArgumentOutOfRangeException(nameof(maxTurns), maxTurns, "Turn count must be positive.");
         }
 
-        var rawMaterialCosts = BuildRawMaterialCosts(config);
-        var basePriceByMaterialId = config.Raw.Economy.BaseMarketPerMaterial
-            .ToDictionary(m => m.MaterialId, m => m.BasePrice);
+        var materialCosts = MaterialCostCalculator.CalculateAll(config);
         var branches = config.Sectors.Select(sector => CreateBranch(config, sector)).ToList();
         var market = new Market();
 
@@ -110,12 +109,12 @@ public static class IdealHallCalculator
                 TraceWarehouse(branch, "post-production");
             }
 
-            TransferAcrossBranches(branches, config, rawMaterialCosts, market);
+            TransferAcrossBranches(branches, config, materialCosts, market);
 
             foreach (var branch in branches)
             {
                 TraceWarehouse(branch, "post-transfer");
-                branch.ValueByTurn.Add(ComputeValue(branch, config, basePriceByMaterialId));
+                branch.ValueByTurn.Add(ComputeValue(branch, config, materialCosts));
             }
         }
 
@@ -292,7 +291,7 @@ public static class IdealHallCalculator
     /// doc-comment класса, «намеренно добавлено») — не откладывается до пассивной оценки склада.
     /// </summary>
     private static void TransferAcrossBranches(
-        IReadOnlyList<BranchState> branches, ResolvedGameConfig config, IReadOnlyDictionary<Material, decimal> rawMaterialCosts,
+        IReadOnlyList<BranchState> branches, ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> materialCosts,
         Market market)
     {
         foreach (var material in config.Materials.Values)
@@ -309,17 +308,17 @@ public static class IdealHallCalculator
                 continue;
             }
 
-            var transferred = TransferToBuyers(seller, branches, material, surplus, config, rawMaterialCosts);
+            var transferred = TransferToBuyers(seller, branches, material, surplus, config, materialCosts);
             var remainingSurplus = surplus - transferred;
             Trace?.Invoke($"[ideal] transfer {material.Id,-12} продавец={seller.Sector.Id} излишек={surplus:F1} передано={transferred:F1} продано системе={remainingSurplus:F1}");
-            SellRemainingSurplusToSystem(seller, material, remainingSurplus, config, market);
+            SellRemainingSurplusToSystem(seller, material, remainingSurplus, config, market, materialCosts);
         }
     }
 
     /// <summary>Раздаёт излишек продавца соседним веткам-покупателям по себестоимости (см. doc-comment <see cref="TransferAcrossBranches"/>). Возвращает фактически переданное количество — остаток после этого не покупателям, а системе (<see cref="SellRemainingSurplusToSystem"/>).</summary>
     private static decimal TransferToBuyers(
         BranchState seller, IReadOnlyList<BranchState> branches, Material material, decimal surplus,
-        ResolvedGameConfig config, IReadOnlyDictionary<Material, decimal> rawMaterialCosts)
+        ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> materialCosts)
     {
         var buyers = branches
             .Where(b => b != seller)
@@ -336,7 +335,7 @@ public static class IdealHallCalculator
         Trace?.Invoke(fillRatio < 1m
             ? $"[ideal] transfer {material.Id,-12} покупатели=[{string.Join(", ", buyers.Select(b => $"{b.Branch.Sector.Id}:дефицит={b.Deficit:F1}"))}] fillRatio={fillRatio:P0} — излишка не хватает на весь спрос"
             : $"[ideal] transfer {material.Id,-12} покупатели=[{string.Join(", ", buyers.Select(b => $"{b.Branch.Sector.Id}:дефицит={b.Deficit:F1}"))}] fillRatio={fillRatio:P0}");
-        if (fillRatio <= 0m || !TryCalculateUnitCost(material, config.RecipeBook, rawMaterialCosts, out var unitCost))
+        if (fillRatio <= 0m || !materialCosts.TryGetValue(material.Id, out var unitCost))
         {
             return 0m;
         }
@@ -367,21 +366,22 @@ public static class IdealHallCalculator
     }
 
     /// <summary>
-    /// Продаёт продавцу-ветке то, что не забрали соседи, системе по рыночной котировке этого хода
+    /// Продаёт продавцу-ветке то, что не забрали соседи, системе по себестоимости этого материала
     /// (<see cref="MarketSaleCalculator"/>, с наценкой уровня передела и понижающим коэффициентом за
     /// превышение ёмкости) — аналог <c>SimpleBot.SellSurplusToSystem</c> реального бота (см.
     /// doc-comment класса). Материал у каждой ветки свой (<see cref="Material.Sector"/>), поэтому
     /// разные ветки никогда не делят одну и ту же ёмкость рынка за один вызов.
     /// </summary>
     private static void SellRemainingSurplusToSystem(
-        BranchState seller, Material material, decimal remainingSurplus, ResolvedGameConfig config, Market market)
+        BranchState seller, Material material, decimal remainingSurplus, ResolvedGameConfig config, Market market,
+        IReadOnlyDictionary<string, decimal> materialCosts)
     {
         if (remainingSurplus <= 0m || !market.HasQuote(material.Id))
         {
             return;
         }
 
-        var sale = MarketSaleCalculator.Calculate(market, config.Raw.Economy, material, remainingSurplus);
+        var sale = MarketSaleCalculator.Calculate(market, materialCosts, config.Raw.Economy, material, remainingSurplus);
         var soldVolume = sale.WithinCapacityVolume + sale.OverflowVolume;
         if (soldVolume <= 0m)
         {
@@ -449,9 +449,9 @@ public static class IdealHallCalculator
         return total;
     }
 
-    /// <summary>X(t) на конец хода — тот же состав слагаемых, что <see cref="FinalScoreCalculator"/>: касса + ликвидационная стоимость фабрик + ликвидационная стоимость склада по базовой рыночной цене (без наценки передела — она относится к активной продаже системе, не к пассивной оценке остатка, тот же принцип, что и в <see cref="FinalScoreCalculator.WarehouseValue"/>).</summary>
+    /// <summary>X(t) на конец хода — тот же состав слагаемых, что <see cref="FinalScoreCalculator"/>: касса + ликвидационная стоимость фабрик + ликвидационная стоимость склада по себестоимости (не наценке передела — она относится к активной продаже системе, не к пассивной оценке остатка, тот же принцип, что и в <see cref="FinalScoreCalculator.WarehouseValue"/>).</summary>
     private static decimal ComputeValue(
-        BranchState branch, ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> basePriceByMaterialId)
+        BranchState branch, ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> materialCosts)
     {
         var factoriesValue = branch.Team.Factories.Sum(factory =>
         {
@@ -461,39 +461,9 @@ public static class IdealHallCalculator
 
         var warehouseValue = branch.Team.Warehouse.Stock.Sum(stock =>
             stock.Quantity
-            * basePriceByMaterialId.GetValueOrDefault(stock.Material.Id, 0m)
+            * materialCosts.GetValueOrDefault(stock.Material.Id, 0m)
             * config.Raw.Economy.WarehouseLiquidationRate);
 
         return branch.Cash + factoriesValue + warehouseValue;
-    }
-
-    private static IReadOnlyDictionary<Material, decimal> BuildRawMaterialCosts(ResolvedGameConfig config)
-    {
-        var costs = new Dictionary<Material, decimal>();
-        foreach (var entry in config.Raw.Economy.BaseMarketPerMaterial)
-        {
-            if (config.Materials.TryGetValue(entry.MaterialId, out var material) && material.IsRawMaterial)
-            {
-                costs[material] = entry.BasePrice;
-            }
-        }
-
-        return costs;
-    }
-
-    /// <summary>Обёртка над <see cref="CostCalculator.CalculateUnitCost"/>, не падающая при отсутствующей базовой цене где-то в цепочке (тот же приём, что <c>SimpleBot.TryCalculateUnitCost</c>) — перевод в этот ход просто не считается, а не роняет весь прогон.</summary>
-    private static bool TryCalculateUnitCost(
-        Material material, RecipeBook recipeBook, IReadOnlyDictionary<Material, decimal> rawMaterialCosts, out decimal unitCost)
-    {
-        try
-        {
-            unitCost = CostCalculator.CalculateUnitCost(material, recipeBook, rawMaterialCosts);
-            return true;
-        }
-        catch (ArgumentException)
-        {
-            unitCost = 0m;
-            return false;
-        }
     }
 }

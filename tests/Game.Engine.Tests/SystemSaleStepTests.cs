@@ -12,7 +12,7 @@ public class SystemSaleStepTests
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
 
-        var changes = SystemSaleStep.Run(team, log.State.Market, TestGameConfig.Resolved.Raw.Economy, TestGameConfig.Resolved.Materials);
+        var changes = SystemSaleStep.Run(team, log.State.Market, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, TestGameConfig.Resolved.Materials);
 
         Assert.Empty(changes);
     }
@@ -24,11 +24,11 @@ public class SystemSaleStepTests
         team.Warehouse.Add(TestGameConfig.Ore, 20m, 0m);
         team.RequestSaleToSystem("ore", 20m);
 
-        var changes = SystemSaleStep.Run(team, log.State.Market, TestGameConfig.Resolved.Raw.Economy, TestGameConfig.Resolved.Materials);
+        var changes = SystemSaleStep.Run(team, log.State.Market, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, TestGameConfig.Resolved.Materials);
 
         var sold = Assert.IsType<MaterialSoldToSystem>(Assert.Single(changes));
         Assert.Equal(20m, sold.Volume);
-        Assert.Equal(200m, sold.TotalRevenue); // ore: цена 10, margin по умолчанию 1
+        Assert.Equal(105m, sold.TotalRevenue); // ore: себестоимость 5, margin по умолчанию 1.05 (DefaultMarginMultiplier)
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class SystemSaleStepTests
         team.Warehouse.Add(TestGameConfig.Ore, 3m, 0m);
         team.RequestSaleToSystem("ore", 20m); // просит больше, чем реально есть
 
-        var changes = SystemSaleStep.Run(team, log.State.Market, TestGameConfig.Resolved.Raw.Economy, TestGameConfig.Resolved.Materials);
+        var changes = SystemSaleStep.Run(team, log.State.Market, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, TestGameConfig.Resolved.Materials);
 
         var sold = Assert.IsType<MaterialSoldToSystem>(Assert.Single(changes));
         Assert.Equal(3m, sold.Volume); // урезано до реального остатка
@@ -50,7 +50,7 @@ public class SystemSaleStepTests
         var (log, team) = TestGameConfig.StartSessionWithOneTeam(); // склада нет вообще
         team.RequestSaleToSystem("ore", 5m);
 
-        var changes = SystemSaleStep.Run(team, log.State.Market, TestGameConfig.Resolved.Raw.Economy, TestGameConfig.Resolved.Materials);
+        var changes = SystemSaleStep.Run(team, log.State.Market, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, TestGameConfig.Resolved.Materials);
 
         var sold = Assert.IsType<MaterialSoldToSystem>(Assert.Single(changes));
         Assert.Equal(0m, sold.Volume);
@@ -65,7 +65,7 @@ public class SystemSaleStepTests
         team.RequestSaleToSystem("sheet", 1m);
         team.RequestSaleToSystem("ore", 1m);
 
-        var changes = SystemSaleStep.Run(team, log.State.Market, TestGameConfig.Resolved.Raw.Economy, TestGameConfig.Resolved.Materials);
+        var changes = SystemSaleStep.Run(team, log.State.Market, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, TestGameConfig.Resolved.Materials);
 
         Assert.Collection(
             changes,

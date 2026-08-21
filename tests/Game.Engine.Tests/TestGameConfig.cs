@@ -20,6 +20,9 @@ internal static class TestGameConfig
 {
     public static readonly ResolvedGameConfig Resolved = Build();
 
+    /// <summary>Себестоимость каждого материала <see cref="Resolved"/> (<see cref="MaterialCostCalculator"/>) — общий вход для тестов шагов, которые раньше брали цену из рыночной котировки.</summary>
+    public static readonly IReadOnlyDictionary<string, decimal> MaterialCosts = MaterialCostCalculator.CalculateAll(Resolved);
+
     public static Sector SectorA => Resolved.Sectors[0];
     public static Material Ore => Resolved.Materials["ore"];
     public static Material Sheet => Resolved.Materials["sheet"];

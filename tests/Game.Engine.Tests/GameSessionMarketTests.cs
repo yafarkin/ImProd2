@@ -52,9 +52,9 @@ public class GameSessionMarketTests
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var appended = session.RunTick(new Random(1));
 
-        // Ore: цена 10, ёмкость 100, margin по умолчанию 1 -> 20 * 10 = 200.
+        // Ore: себестоимость 5, ёмкость 100, margin по умолчанию 1.05 (DefaultMarginMultiplier) -> 20 * 5.25 = 105.
         var sold = Assert.IsType<MaterialSoldToSystem>(Assert.Single(appended, e => e.Change is MaterialSoldToSystem).Change);
-        Assert.Equal(200m, sold.TotalRevenue);
+        Assert.Equal(105m, sold.TotalRevenue);
         Assert.Equal(0m, team.Warehouse.QuantityOf(TestGameConfig.Ore));
         Assert.Empty(team.PendingSaleVolumeByMaterial);
     }
@@ -79,14 +79,14 @@ public class GameSessionMarketTests
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var appended = session.RunTick(new Random(1));
 
-        // Sheet: цена 25, margin (уровень 1) = 1.2 -> unit price 30, скидка за превышение — 0.5 -> 15.
-        // Кто из двух команд по порядку Id обработан первой (получает полную цену за все 5 — 150),
-        // а кто второй (3 * 30 + 2 * 15 = 120) — не фиксируем; фиксируем то, что не зависит от
+        // Sheet: себестоимость 15, margin (уровень 1) = 1.2 -> unit price 18, скидка за превышение — 0.5 -> 9.
+        // Кто из двух команд по порядку Id обработан первой (получает полную цену за все 5 — 90),
+        // а кто второй (3 * 18 + 2 * 9 = 72) — не фиксируем; фиксируем то, что не зависит от
         // порядка: суммарная выручка обеих команд и то, что каждая получила ровно одно из двух значений.
         var sales = appended.Where(e => e.Change is MaterialSoldToSystem).Select(e => (MaterialSoldToSystem)e.Change).ToList();
         Assert.Equal(2, sales.Count);
-        Assert.Equal(270m, sales.Sum(s => s.TotalRevenue)); // 5*30 + (3*30 + 2*15)
-        Assert.Equal(new[] { 120m, 150m }, sales.Select(s => s.TotalRevenue).OrderBy(x => x));
+        Assert.Equal(162m, sales.Sum(s => s.TotalRevenue)); // 5*18 + (3*18 + 2*9)
+        Assert.Equal(new[] { 72m, 90m }, sales.Select(s => s.TotalRevenue).OrderBy(x => x));
     }
 
     [Fact]
@@ -162,7 +162,7 @@ public class GameSessionMarketTests
         // Тот же результат, что и на ходу 1 (тренд в TestGameConfig не задан), но теперь явно через
         // MarketUpdated, а не напрямую из статичного конфига.
         var purchased = Assert.IsType<EmergencyPurchased>(Assert.Single(appended, e => e.Change is EmergencyPurchased).Change);
-        Assert.Equal(100m, purchased.TotalCost);
+        Assert.Equal(50m, purchased.TotalCost);
     }
 
     private static void ToNextSettlement(GameSession session)
@@ -198,10 +198,10 @@ public class GameSessionMarketTests
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var appended = session.RunTick(new Random(1));
 
-        // TestGameConfig: ore BasePrice=10, EmergencyPurchaseBaseMultiplier=2 -> 20/ед., без давления.
+        // TestGameConfig: себестоимость ore = 5, EmergencyPurchaseBaseMultiplier=2 -> 10/ед., без давления.
         var purchased = Assert.IsType<EmergencyPurchased>(Assert.Single(appended, e => e.Change is EmergencyPurchased).Change);
-        Assert.Equal(20m, purchased.UnitPrice);
-        Assert.Equal(100m, purchased.TotalCost);
+        Assert.Equal(10m, purchased.UnitPrice);
+        Assert.Equal(50m, purchased.TotalCost);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public class GameSessionMarketTests
         // полными 5 — раньше (мгновенное применение) это был тот же ход, без затухания вообще.
         // Множитель = база(2) + давление(5 * 0.5^(1/3)) * 1.
         var decay = (decimal)Math.Pow(0.5, 1.0 / 3);
-        var expectedUnitPrice = 10m * (2m + 5m * decay);
+        var expectedUnitPrice = 5m * (2m + 5m * decay);
         var second = Assert.IsType<EmergencyPurchased>(Assert.Single(appended, e => e.Change is EmergencyPurchased).Change);
         Assert.Equal(expectedUnitPrice, second.UnitPrice);
     }
@@ -246,7 +246,7 @@ public class GameSessionMarketTests
 
         var purchased = Assert.IsType<EmergencyPurchased>(Assert.Single(appended, e => e.Change is EmergencyPurchased).Change);
         Assert.Equal(8m, purchased.Volume);
-        Assert.Equal(20m, purchased.UnitPrice); // без давления — это единственная примененная закупка
+        Assert.Equal(10m, purchased.UnitPrice); // без давления — это единственная примененная закупка
     }
 
     [Fact]
@@ -259,10 +259,10 @@ public class GameSessionMarketTests
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var appended = session.RunTick(new Random(1));
 
-        // TestGameConfig: sheet BasePrice=25 * база(2) = 50, без давления от закупок руды.
+        // TestGameConfig: себестоимость sheet = 15 * база(2) = 30, без давления от закупок руды.
         var sheetPurchase = Assert.IsType<EmergencyPurchased>(
             Assert.Single(appended, e => e.Change is EmergencyPurchased p && p.MaterialId == "sheet").Change);
-        Assert.Equal(50m, sheetPurchase.UnitPrice);
+        Assert.Equal(30m, sheetPurchase.UnitPrice);
     }
 
     [Fact]

@@ -9,19 +9,11 @@ public class FinalScoreCalculatorTests
     private static readonly Config.Economy.EconomyConfig Economy = TestGameConfig.Resolved.Raw.Economy;
     private static readonly IReadOnlyList<Config.Catalog.FactoryDefinitionConfig> FactoryDefinitions = TestGameConfig.Resolved.Raw.FactoryDefinitions;
 
-    private static Market NewMarket()
+    private static readonly IReadOnlyDictionary<string, decimal> MaterialCosts = new Dictionary<string, decimal>
     {
-        var market = new Market();
-        market.ReplaceQuotes(
-            new Dictionary<string, MaterialQuote>
-            {
-                [TestGameConfig.Ore.Id] = new(price: 10m, capacity: 100m),
-                [TestGameConfig.Sheet.Id] = new(price: 25m, capacity: 8m),
-            },
-            electricityPrice: 1m);
-
-        return market;
-    }
+        [TestGameConfig.Ore.Id] = 10m,
+        [TestGameConfig.Sheet.Id] = 25m,
+    };
 
     [Fact]
     public void A_Team_With_No_Warehouse_Or_Factories_Scores_Cash()
@@ -29,7 +21,7 @@ public class FinalScoreCalculatorTests
         var team = new Team(Ulid.NewUlid(), "Команда А1", TestGameConfig.SectorA);
         team.Credit(1500m);
 
-        var result = FinalScoreCalculator.Calculate(team, NewMarket(), Economy, FactoryDefinitions);
+        var result = FinalScoreCalculator.Calculate(team, MaterialCosts, Economy, FactoryDefinitions);
 
         Assert.Equal(1500m, result.Cash);
         Assert.Equal(0m, result.WarehouseValue);
@@ -38,13 +30,13 @@ public class FinalScoreCalculatorTests
     }
 
     [Fact]
-    public void Warehouse_Stock_Is_Valued_At_A_Fraction_Of_The_Current_Market_Price()
+    public void Warehouse_Stock_Is_Valued_At_A_Fraction_Of_The_Material_Cost()
     {
         var team = new Team(Ulid.NewUlid(), "Команда А1", TestGameConfig.SectorA);
         team.Warehouse.Add(TestGameConfig.Ore, 10m, 0m); // 10 * 10 * 0.5 = 50
         team.Warehouse.Add(TestGameConfig.Sheet, 4m, 0m); // 4 * 25 * 0.5 = 50
 
-        var result = FinalScoreCalculator.Calculate(team, NewMarket(), Economy, FactoryDefinitions);
+        var result = FinalScoreCalculator.Calculate(team, MaterialCosts, Economy, FactoryDefinitions);
 
         Assert.Equal(100m, result.WarehouseValue);
         Assert.Equal(100m, result.Score); // Cash=0
@@ -57,7 +49,7 @@ public class FinalScoreCalculatorTests
         var mine = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
         mine.InvestInRnd(1000m); // не должно повлиять на итоговый счёт (SPEC §5.11)
 
-        var result = FinalScoreCalculator.Calculate(team, NewMarket(), Economy, FactoryDefinitions);
+        var result = FinalScoreCalculator.Calculate(team, MaterialCosts, Economy, FactoryDefinitions);
 
         Assert.Equal(50m, result.FactoriesValue); // 100 (BuildCost) * 0.5 (LiquidationValueCoefficient)
         Assert.Equal(50m, result.Score);
@@ -72,7 +64,7 @@ public class FinalScoreCalculatorTests
         team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine); // 50
         team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mill); // 50
 
-        var result = FinalScoreCalculator.Calculate(team, NewMarket(), Economy, FactoryDefinitions);
+        var result = FinalScoreCalculator.Calculate(team, MaterialCosts, Economy, FactoryDefinitions);
 
         Assert.Equal(1000m, result.Cash);
         Assert.Equal(50m, result.WarehouseValue);

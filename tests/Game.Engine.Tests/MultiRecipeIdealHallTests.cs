@@ -105,9 +105,14 @@ public class MultiRecipeIdealHallTests
                     new MaterialMarketConfig { MaterialId = "alloy-x", BasePrice = 50m, BaseCapacity = 1_000_000m },
                     new MaterialMarketConfig { MaterialId = "alloy-y", BasePrice = 50m, BaseCapacity = 1_000_000m },
                 },
+                // С 2026-08-21 множитель применяется к себестоимости (MaterialCostCalculator), не к
+                // BasePrice — у неё при ProductionRate=1000/100 получается копеечная (0.005-0.06,
+                // высокая мощность размазывает зарплату/R&D на огромный объём), поэтому даже большой
+                // множитель даёт умеренную абсолютную цену — нужен заметно больше "жизненного" 1.2,
+                // чтобы вторая фабрика (её R&D 200/ход) вообще окупалась.
                 MarginMultiplierByProcessingLevel = new[]
                 {
-                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m },
+                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 20m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,

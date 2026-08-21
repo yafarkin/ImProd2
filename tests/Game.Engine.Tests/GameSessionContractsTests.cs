@@ -151,14 +151,14 @@ public class GameSessionContractsTests
         var (session, buyerId, _) = TestGameConfig.StartGameSessionWithTwoTeams();
         ToDecisionPhase(session);
 
-        // ore: системная цена 10, множитель 2 -> 20 за единицу; 5 единиц -> 100
+        // ore: себестоимость 5, множитель 2 -> 10 за единицу; 5 единиц -> 50
         session.EmergencyPurchase(buyerId, "ore", volume: 5m);
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var appended = session.RunTick(new Random(1));
 
         var purchased = Assert.IsType<EmergencyPurchased>(Assert.Single(appended, e => e.Change is EmergencyPurchased).Change);
-        Assert.Equal(100m, purchased.TotalCost);
+        Assert.Equal(50m, purchased.TotalCost);
         Assert.Equal(5m, session.State.Teams[buyerId].Warehouse.QuantityOf(TestGameConfig.Ore));
     }
 

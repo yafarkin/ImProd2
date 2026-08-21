@@ -1056,6 +1056,8 @@ else
     private readonly Dictionary<string, decimal> _upkeepCosts = new();
     private Market? _market;
     private EconomyConfig? _economyConfig;
+    /// <summary>Себестоимость каждого материала (<see cref="MaterialCostCalculator"/>) — заменяет рыночную котировку как база цены продажи системе/аварийной закупки (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-21).</summary>
+    private IReadOnlyDictionary<string, decimal> _materialCosts = new Dictionary<string, decimal>();
     private readonly Dictionary<string, decimal> _unitCostByMaterialId = new();
     /// <summary>Реальная себестоимость остатка (взвешенное среднее фактических трат, <see cref="Warehouse.AverageCostOf"/>) — для превью продажи, в отличие от рыночной <see cref="_unitCostByMaterialId"/> (для карточки фабрики).</summary>
     private readonly Dictionary<string, decimal> _realUnitCostByMaterialId = new();
@@ -1196,6 +1198,7 @@ else
 
             _market = state.Market;
             _economyConfig = state.Config.Raw.Economy;
+            _materialCosts = MaterialCostCalculator.CalculateAll(state.Config);
             _unitCostByMaterialId.Clear();
             _realUnitCostByMaterialId.Clear();
             _stock = team.Warehouse.Stock.Select(s =>
@@ -1616,7 +1619,7 @@ else
             return new SellPreviewResult(HasQuote: false, 0m, 0m, 0m, 0m, 0m);
         }
 
-        var result = MarketSaleCalculator.Calculate(_market, _economyConfig, row.Material, volume);
+        var result = MarketSaleCalculator.Calculate(_market, _materialCosts, _economyConfig, row.Material, volume);
         var overflowUnitPrice = result.UnitPrice * _economyConfig.MarketCapacityOverflowDiscount;
         var realUnitCost = _realUnitCostByMaterialId.GetValueOrDefault(row.MaterialId);
         var profit = result.TotalRevenue - realUnitCost * volume;
@@ -1679,13 +1682,13 @@ else
     {
         get
         {
-            if (_emergencyPurchaseMaterialId is null || _market is null || _economyConfig is null
-                || !_market.HasQuote(_emergencyPurchaseMaterialId))
+            if (_emergencyPurchaseMaterialId is null || _economyConfig is null
+                || !_materialCosts.TryGetValue(_emergencyPurchaseMaterialId, out var unitCost))
             {
                 return 0m;
             }
 
-            var unitPrice = _market.QuoteOf(_emergencyPurchaseMaterialId).Price * EmergencyPurchaseEffectiveMultiplier;
+            var unitPrice = unitCost * EmergencyPurchaseEffectiveMultiplier;
             return unitPrice * _emergencyPurchaseVolume;
         }
     }

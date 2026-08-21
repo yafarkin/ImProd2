@@ -30,7 +30,21 @@ public class SectorSymmetryRegressionTests
 
         var branchA = idealHall.Branches.Single(b => b.SectorId == "A");
         var branchB = idealHall.Branches.Single(b => b.SectorId == "B");
-        Assert.Equal(branchA.ValueByTurn, branchB.ValueByTurn);
+        // Не строго Assert.Equal с 2026-08-21 (rebalance/2-sector-stepwise, переход на себестоимость
+        // вместо рыночной котировки — MaterialCostCalculator) — себестоимость материала теперь считается
+        // рекурсивным делением, а не берётся литералом из конфига, поэтому у неё длинный, не всегда
+        // круглый десятичный хвост; порядок суммирования decimal чувствителен к этому в последнем
+        // знаке (проверено отдельно — MaterialCostCalculator.CalculateAll сама по себе даёт побитово
+        // одинаковую себестоимость для каждой зеркальной пары материалов, разница возникает только в
+        // бухгалтерии IdealHallCalculator дальше по цепочке) — не содержательная асимметрия, шум на
+        // ~28-м знаке при значениях в десятки тысяч, поэтому сравниваем с допуском, а не побитово.
+        Assert.Equal(branchA.ValueByTurn.Count, branchB.ValueByTurn.Count);
+        for (var turn = 0; turn < branchA.ValueByTurn.Count; turn++)
+        {
+            Assert.True(
+                Math.Abs(branchA.ValueByTurn[turn] - branchB.ValueByTurn[turn]) < 0.0000001m,
+                $"ход {turn + 1}: A={branchA.ValueByTurn[turn]}, Б={branchB.ValueByTurn[turn]}");
+        }
     }
 
     [Fact]

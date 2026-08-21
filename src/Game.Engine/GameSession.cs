@@ -519,12 +519,12 @@ public sealed class GameSession
 
     /// <summary>
     /// Объявляет желаемый объём аварийной закупки материала на ближайший расчёт (SPEC §4, §5.3:
-    /// решения не применяются сразу — только на расчёте; цена — текущая рыночная котировка ×
-    /// множитель, служит потолком монопольных цен). Само объявление бесплатно и мгновенно, тем же
-    /// приёмом, что и <see cref="SetWorkerCount"/>: реальная покупка (склад, деньги) происходит один раз,
-    /// на расчёте (<see cref="EmergencyPurchaseStep"/>), считая цену уже по фактической истории на тот
-    /// момент. Последнее объявление по этому материалу в пределах хода замещает предыдущее; 0 снимает
-    /// заявку. Требует включённого флага и фазы решений.
+    /// решения не применяются сразу — только на расчёте; цена — себестоимость материала (<see
+    /// cref="MaterialCostCalculator"/>) × множитель, намеренно большой, аварийный вариант). Само
+    /// объявление бесплатно и мгновенно, тем же приёмом, что и <see cref="SetWorkerCount"/>: реальная
+    /// покупка (склад, деньги) происходит один раз, на расчёте (<see cref="EmergencyPurchaseStep"/>),
+    /// считая цену уже по фактической истории на тот момент. Последнее объявление по этому материалу
+    /// в пределах хода замещает предыдущее; 0 снимает заявку. Требует включённого флага и фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> EmergencyPurchase(Ulid teamId, string materialId, decimal volume)
     {
@@ -546,8 +546,9 @@ public sealed class GameSession
         {
             throw new ArgumentException($"Unknown material '{materialId}'.", nameof(materialId));
         }
-        // Санити-проверка сейчас (материал вообще когда-либо котировался) — сама цена всё равно
-        // считается заново на расчёте, по котировке на тот момент, см. EmergencyPurchaseStep.
+        // Санити-проверка сейчас (материал вообще существует в конфиге и уже котировался хоть
+        // когда-то) — сама цена считается по себестоимости на расчёте, не по котировке, см.
+        // EmergencyPurchaseStep/MaterialCostCalculator.
         GetQuoteOrThrow(materialId);
 
         return _log.Append(new EmergencyPurchaseRequested
@@ -1096,6 +1097,9 @@ public sealed class GameSession
 
         var appended = new List<EventLogEntry<GameSessionState>>();
         var config = State.Config;
+        // Себестоимость каждого материала (не рыночная котировка — см. doc-comment MaterialCostCalculator)
+        // — общий якорь цены для аварийной закупки и продажи системе этого хода, один расчёт на всех.
+        var materialCosts = MaterialCostCalculator.CalculateAll(config);
 
         foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
         {
@@ -1112,12 +1116,12 @@ public sealed class GameSession
             // производства, а продать можно было только то, что было на складе до него, не свежий
             // выпуск). Порядок команд между собой (внешний foreach, по возрастанию Team.Id) здесь и
             // решает гонку за общую ёмкость рынка между продажами разных команд.
-            foreach (var change in EmergencyPurchaseStep.Run(team, State.Market, config.Raw.Economy, Entries, State.CurrentTurn))
+            foreach (var change in EmergencyPurchaseStep.Run(team, materialCosts, config.Raw.Economy, Entries, State.CurrentTurn))
             {
                 appended.Add(_log.Append(change));
             }
 
-            foreach (var change in SystemSaleStep.Run(team, State.Market, config.Raw.Economy, config.Materials))
+            foreach (var change in SystemSaleStep.Run(team, State.Market, materialCosts, config.Raw.Economy, config.Materials))
             {
                 appended.Add(_log.Append(change));
             }

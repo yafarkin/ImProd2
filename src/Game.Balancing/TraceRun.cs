@@ -57,9 +57,10 @@ internal static class TraceRun
         var botTracePath = DerivePath(cliArguments.OutPath, "bot-trace.txt");
         await File.WriteAllLinesAsync(botTracePath, botTraceLines);
         Console.WriteLine($"Трассировка ботов записана: {Path.GetFullPath(botTracePath)} ({botTraceLines.Count} строк)");
+        var materialCosts = MaterialCostCalculator.CalculateAll(config);
         foreach (var team in session.State.Teams.Values.OrderBy(t => t.Sector.Id).ThenBy(t => t.Name))
         {
-            var score = FinalScoreCalculator.Calculate(team, session.State.Market, config.Raw.Economy, config.Raw.FactoryDefinitions).Score;
+            var score = FinalScoreCalculator.Calculate(team, materialCosts, config.Raw.Economy, config.Raw.FactoryDefinitions).Score;
             Console.WriteLine($"  Score({preset.MaxTurns}) {team.Name} = {score:F0}");
         }
     }

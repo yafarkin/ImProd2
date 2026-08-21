@@ -228,9 +228,13 @@ public class IdealHallCalculatorTests
 
     /// <summary>
     /// Та же цепочка (А самодостаточен, Б зависит от А напрямую), что <c>Game.Bots.Tests.CrossSectorTradingTests.BuildTwoSectorConfig</c>
-    /// — см. её doc-comment за подробным разбором; базовые цены здесь выше (см. комментарий у
-    /// <c>a-part</c>/<c>b-widget</c> ниже) — тому конфигу было достаточно самого факта сделки, этому
-    /// нужна ещё и прибыльность обеих веток.
+    /// — см. её doc-comment за подробным разбором; здесь дополнительно нужна прибыльность обеих
+    /// веток (не только сам факт сделки) — с 2026-08-21 цена продажи системе считается от
+    /// себестоимости (<see cref="MaterialCostCalculator"/>), не от <c>BasePrice</c> — тот здесь
+    /// влияет только на ёмкость рынка, значение самой цены больше не используется, поэтому маржа
+    /// (<c>MarginMultiplierByProcessingLevel</c>) заметно выше «жизненной» — этому синтетическому
+    /// конфигу с ProductionRate=1 и BaseWorkerCount=5 нужна ощутимая наценка, чтобы выпуск в 2-5
+    /// единиц/ход вообще окупал зарплату и R&amp;D.
     /// </summary>
     internal static ResolvedGameConfig BuildTwoSectorConfig()
     {
@@ -250,7 +254,14 @@ public class IdealHallCalculatorTests
             },
             Recipes = new[]
             {
-                new RecipeConfig { Id = "ore-mining", OutputMaterialId = "ore", OutputQuantity = 1m, Inputs = Array.Empty<RecipeInputConfig>(), ProductionRate = 1m },
+                // ProductionRate руды выше, чем нужно для собственного передела (plant-a хочет 10/ход
+                // при полной мощности) — иначе весь выпуск без остатка уходит либо на свой же передел,
+                // либо (a-part) по себестоимости в Б (см. doc-comment TransferAcrossBranches — обмен
+                // между ветками без наценки), и веткa А никогда не продаёт что-либо системе напрямую
+                // ни по какой марже, сколько её ни задирай (проверено экспериментом при переходе на
+                // себестоимость, 2026-08-21) — тест как раз и должен проверять прибыль от продажи
+                // системе, не только нулевой по деньгам трансфер.
+                new RecipeConfig { Id = "ore-mining", OutputMaterialId = "ore", OutputQuantity = 1m, Inputs = Array.Empty<RecipeInputConfig>(), ProductionRate = 3m },
                 new RecipeConfig
                 {
                     Id = "a-part-from-ore", OutputMaterialId = "a-part", OutputQuantity = 1m,
@@ -291,18 +302,17 @@ public class IdealHallCalculatorTests
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial = new[]
                 {
+                    // BasePrice здесь больше ни на что не влияет (см. doc-comment BuildTwoSectorConfig)
+                    // — оставлены как заглушки, реальная прибыльность обеих веток задаётся ниже, через
+                    // MarginMultiplierByProcessingLevel над себестоимостью.
                     new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100_000m },
-                    // Заметно выше, чем в Game.Bots.Tests.CrossSectorTradingTests (там хватало и 23) —
-                    // тому конфигу нужна была только сама сделка, этому — чтобы обе ветки были
-                    // прибыльны при полной инвестиционной интенсивности (см. doc-comment класса),
-                    // иначе зарплата 10 рабочих (50/ход) съедает всю выручку с 2-3 единиц в ход.
                     new MaterialMarketConfig { MaterialId = "a-part", BasePrice = 300m, BaseCapacity = 100_000m },
                     new MaterialMarketConfig { MaterialId = "oil", BasePrice = 10m, BaseCapacity = 100_000m },
                     new MaterialMarketConfig { MaterialId = "b-widget", BasePrice = 500m, BaseCapacity = 100_000m },
                 },
                 MarginMultiplierByProcessingLevel = new[]
                 {
-                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m },
+                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 2m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,

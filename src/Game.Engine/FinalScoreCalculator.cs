@@ -6,23 +6,25 @@ namespace Game.Engine;
 
 /// <summary>
 /// Итоговый счёт команды по ликвидационной стоимости (Блок 7.2, SPEC §5.11): «в конце считаем,
-/// сколько вы стоите при ликвидации» — склад по доле от текущей рыночной цены, фабрики по доле от
-/// стоимости постройки; R&amp;D не учитывается (расход, ценность уже проявилась в производстве, а
-/// не в отдельном учёте). Чистая функция — не мутирует ни команду, ни рынок; можно звать в любой
-/// момент сессии, не только по её завершении.
+/// сколько вы стоите при ликвидации» — склад по доле от себестоимости (<see
+/// cref="MaterialCostCalculator"/>, не рыночной котировки — запрос пользователя, rebalance/2-sector-stepwise,
+/// 2026-08-21), фабрики по доле от стоимости постройки; R&amp;D не учитывается (расход, ценность уже
+/// проявилась в производстве, а не в отдельном учёте). Чистая функция — не мутирует ни команду, ни
+/// себестоимости; можно звать в любой момент сессии, не только по её завершении.
 /// </summary>
 public static class FinalScoreCalculator
 {
     public static FinalScoreResult Calculate(
-        Team team, Market market, EconomyConfig economy, IReadOnlyList<FactoryDefinitionConfig> factoryDefinitions)
+        Team team, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy,
+        IReadOnlyList<FactoryDefinitionConfig> factoryDefinitions)
     {
         ArgumentNullException.ThrowIfNull(team);
-        ArgumentNullException.ThrowIfNull(market);
+        ArgumentNullException.ThrowIfNull(materialCosts);
         ArgumentNullException.ThrowIfNull(economy);
         ArgumentNullException.ThrowIfNull(factoryDefinitions);
 
         var warehouseValue = team.Warehouse.Stock.Sum(
-            stock => stock.Quantity * market.QuoteOf(stock.Material.Id).Price * economy.WarehouseLiquidationRate);
+            stock => stock.Quantity * materialCosts.GetValueOrDefault(stock.Material.Id, 0m) * economy.WarehouseLiquidationRate);
 
         var factoriesValue = team.Factories.Sum(factory =>
         {
