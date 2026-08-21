@@ -10,8 +10,8 @@ namespace Game.Config.Economy;
 /// от честной переработки до конца цепочки — <see cref="MaterialMarketConfig.BaseCapacity"/> падает
 /// ровно в 10 раз на каждом переделе (задано рецептами), а <see cref="BasePrice"/> подбирался
 /// вручную и растёт неравномерно, местами меньше этих 10 раз). Не трогает
-/// <see cref="MaterialMarketConfig.BaseCapacity"/> и <see cref="ProcessingLevelMarginConfig"/> —
-/// только <see cref="MaterialMarketConfig.BasePrice"/>, и только у материалов, чья цепочка
+/// <see cref="MaterialMarketConfig.BaseCapacity"/> — только <see cref="MaterialMarketConfig.BasePrice"/>,
+/// и только у материалов, чья цепочка
 /// начинается с явно заданного <paramref name="rootAnchorPrices"/> (см. <see cref="Calculate"/>) —
 /// материалы вне выбранных цепочек (например, другой сектор) остаются как есть.
 ///
@@ -19,9 +19,25 @@ namespace Game.Config.Economy;
 /// <c>growthPerLevel</c> — именно такая именованная, воспроизводимая «ручка», а не подобранные один
 /// раз вручную числа. Сам общий ползунок (стоимость построек, скорость R&amp;D и т.д. — тоже под одну
 /// сложность) — отдельная, более крупная задача, не эта.
+///
+/// <para><b>Открытый вопрос с 2026-08-21 (rebalance/2-sector-stepwise), не решён в этом шаге:</b>
+/// реальная системная цена продажи теперь — себестоимость (<c>Game.Engine.MaterialCostCalculator</c>)
+/// × фиксированная наценка, <see cref="MaterialMarketConfig.BasePrice"/> в цене больше не участвует
+/// вообще, только в этом инструменте предпросмотра. Инструмент не сломан (продолжает считать то, что
+/// считал), но его практическая польза для реального ценообразования сейчас нулевая — решение, что с
+/// ним делать (переписать на себестоимость или убрать), не принято, не в рамках сегодняшнего
+/// запроса.</para>
 /// </summary>
 public static class SystemSalePriceLadderCalculator
 {
+    /// <summary>
+    /// Наценка системной продажи — дублирует <c>Game.Engine.MarketSaleCalculator.SystemSaleMarginMultiplier</c>
+    /// (Game.Config не может ссылаться на Game.Engine — обратное направление зависимостей), должна
+    /// оставаться синхронной с ней вручную. С 2026-08-22 фиксированная и одна на все уровни передела —
+    /// раньше здесь была настраиваемая таблица по уровню.
+    /// </summary>
+    private const decimal SystemSaleMarginMultiplier = 1.05m;
+
     /// <summary>Одна строка предпросмотра — материал цепочки, было/станет, для отображения администратору до применения.</summary>
     public sealed record MaterialLadderRow(
         string MaterialId,
@@ -59,8 +75,6 @@ public static class SystemSalePriceLadderCalculator
         }
 
         var marketByMaterialId = config.Raw.Economy.BaseMarketPerMaterial.ToDictionary(m => m.MaterialId);
-        var marginByLevel = config.Raw.Economy.MarginMultiplierByProcessingLevel.ToDictionary(m => m.Level, m => m.MarginMultiplier);
-        decimal MarginFor(int level) => marginByLevel.TryGetValue(level, out var margin) ? margin : 1m;
 
         var newPriceByMaterialId = new Dictionary<string, decimal>();
         var repriced = new HashSet<string>();
@@ -100,10 +114,8 @@ public static class SystemSalePriceLadderCalculator
                 if (predecessor is not null && repriced.Contains(predecessor.Id) && marketByMaterialId.TryGetValue(predecessor.Id, out var predecessorMarket))
                 {
                     var predecessorNewPrice = newPriceByMaterialId[predecessor.Id];
-                    var predecessorMargin = MarginFor(predecessor.Level);
-                    var thisMargin = MarginFor(material.Level);
-                    newPrice = predecessorNewPrice * predecessorMarket.BaseCapacity * predecessorMargin * growthPerLevel
-                               / (market.BaseCapacity * thisMargin);
+                    newPrice = predecessorNewPrice * predecessorMarket.BaseCapacity * SystemSaleMarginMultiplier * growthPerLevel
+                               / (market.BaseCapacity * SystemSaleMarginMultiplier);
                     repriced.Add(material.Id);
                 }
                 else
@@ -113,7 +125,7 @@ public static class SystemSalePriceLadderCalculator
             }
 
             newPriceByMaterialId[material.Id] = newPrice;
-            var thisMarginMultiplier = MarginFor(material.Level);
+            var thisMarginMultiplier = SystemSaleMarginMultiplier;
             rows.Add(new MaterialLadderRow(
                 material.Id, material.Name, material.Level, predecessorId, repriced.Contains(material.Id),
                 market.BaseCapacity, thisMarginMultiplier, market.BasePrice, newPrice,

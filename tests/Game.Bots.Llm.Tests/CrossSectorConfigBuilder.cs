@@ -81,7 +81,6 @@ internal static class CrossSectorConfigBuilder
                     new MaterialMarketConfig { MaterialId = "oil", BasePrice = 10m, BaseCapacity = 100_000m },
                     new MaterialMarketConfig { MaterialId = "b-widget", BasePrice = 40m, BaseCapacity = 100_000m },
                 ],
-                MarginMultiplierByProcessingLevel = [new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m }],
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
                 ElectricityConsumptionPerOutputUnit = 0m,

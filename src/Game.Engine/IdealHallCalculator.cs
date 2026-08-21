@@ -20,8 +20,8 @@ namespace Game.Engine;
 /// бесплатный подарок, просто без монопольной наценки.</item>
 /// <item>Остаток излишка материала, который не забрала ни одна соседняя ветка (после <see
 /// cref="TransferAcrossBranches"/>), продаётся системе тем же ходом по <see
-/// cref="MarketSaleCalculator"/> (себестоимость × <see cref="EconomyConfig.MarginMultiplierByProcessingLevel"/>
-/// текущего уровня передела, включая понижающий коэффициент за превышение ёмкости) — аналог
+/// cref="MarketSaleCalculator"/> (себестоимость × <see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/>,
+/// включая понижающий коэффициент за превышение ёмкости) — аналог
 /// <c>SimpleBot.SellSurplusToSystem</c> у реального бота, а не только пассивная оценка склада в конце
 /// хода (см. <see cref="ComputeValue"/>). Добавлено намеренно: без этого X(t) сильно
 /// недооценивал ветки с большим числом параллельных нисходящих переделов на одном сырье — у них

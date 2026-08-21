@@ -55,7 +55,6 @@ public class GameConfigComposerTests
             EmergencyPurchaseBaseMultiplier = 1.5m,
             EmergencyPurchasePressureMultiplierPerUnit = 0.1m,
             EmergencyPurchasePressureHalfLifeTurns = 5,
-            MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
             MarketCapacityOverflowDiscount = 0.5m,
             ElectricityBasePrice = 0.2m,
             ElectricityConsumptionPerOutputUnit = 0.1m,

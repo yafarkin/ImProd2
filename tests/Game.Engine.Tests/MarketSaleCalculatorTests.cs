@@ -3,7 +3,7 @@ using Game.Domain;
 
 namespace Game.Engine.Tests;
 
-/// <summary>Расчёт продажи материала системе (Блок 6.1, SPEC §5.4): ёмкость, понижающий коэффициент, маржа передела.</summary>
+/// <summary>Расчёт продажи материала системе (Блок 6.1, SPEC §5.4): ёмкость, понижающий коэффициент, фиксированная наценка.</summary>
 public class MarketSaleCalculatorTests
 {
     private static readonly Sector Sector = new("A", "Sector A");
@@ -18,10 +18,6 @@ public class MarketSaleCalculatorTests
             EmergencyPurchasePressureMultiplierPerUnit = 0m,
             EmergencyPurchasePressureHalfLifeTurns = 1,
             BaseMarketPerMaterial = Array.Empty<MaterialMarketConfig>(),
-            MarginMultiplierByProcessingLevel = new[]
-            {
-                new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m },
-            },
             MarketCapacityOverflowDiscount = 0.5m,
             ElectricityBasePrice = 1m,
             ElectricityConsumptionPerOutputUnit = 0m,
@@ -50,7 +46,7 @@ public class MarketSaleCalculatorTests
 
         Assert.Equal(20m, result.WithinCapacityVolume);
         Assert.Equal(0m, result.OverflowVolume);
-        Assert.Equal(105m, result.UnitPrice); // уровень 0 -> множитель по умолчанию DefaultMarginMultiplier (1.05)
+        Assert.Equal(105m, result.UnitPrice); // 100 * SystemSaleMarginMultiplier (1.05)
         Assert.Equal(2100m, result.TotalRevenue);
     }
 
@@ -82,13 +78,16 @@ public class MarketSaleCalculatorTests
     }
 
     [Fact]
-    public void Higher_Processing_Level_Sells_With_Its_Configured_Margin_Multiplier()
+    public void Higher_Processing_Level_Sells_With_The_Same_Flat_Margin_As_Raw_Material()
     {
+        // С 2026-08-22 (запрос пользователя) наценка одна на все уровни передела — до этого здесь была
+        // настраиваемая таблица по уровню (level 1 отдельно от level 0), убрана целиком (см. doc-comment
+        // MarketSaleCalculator.SystemSaleMarginMultiplier).
         var market = BuildMarket("sheet", capacity: 100m);
 
         var result = MarketSaleCalculator.Calculate(market, MaterialCosts("sheet", 10m), BuildEconomy(), ProcessedMaterial, volume: 5m);
 
-        Assert.Equal(12m, result.UnitPrice); // 10 * 1.2 (уровень 1 сконфигурирован)
-        Assert.Equal(60m, result.TotalRevenue);
+        Assert.Equal(10.5m, result.UnitPrice); // 10 * 1.05 — тот же множитель, что и у сырья (level 0)
+        Assert.Equal(52.5m, result.TotalRevenue);
     }
 }

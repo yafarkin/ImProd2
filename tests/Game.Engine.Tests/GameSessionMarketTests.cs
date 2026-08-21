@@ -79,14 +79,15 @@ public class GameSessionMarketTests
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var appended = session.RunTick(new Random(1));
 
-        // Sheet: себестоимость 15, margin (уровень 1) = 1.2 -> unit price 18, скидка за превышение — 0.5 -> 9.
-        // Кто из двух команд по порядку Id обработан первой (получает полную цену за все 5 — 90),
-        // а кто второй (3 * 18 + 2 * 9 = 72) — не фиксируем; фиксируем то, что не зависит от
-        // порядка: суммарная выручка обеих команд и то, что каждая получила ровно одно из двух значений.
+        // Sheet: себестоимость 15, фиксированная наценка 1.05 -> unit price 15.75, скидка за
+        // превышение — 0.5 -> 7.875. Кто из двух команд по порядку Id обработан первой (получает
+        // полную цену за все 5 — 78.75), а кто второй (3 * 15.75 + 2 * 7.875 = 63) — не фиксируем;
+        // фиксируем то, что не зависит от порядка: суммарная выручка обеих команд и то, что каждая
+        // получила ровно одно из двух значений.
         var sales = appended.Where(e => e.Change is MaterialSoldToSystem).Select(e => (MaterialSoldToSystem)e.Change).ToList();
         Assert.Equal(2, sales.Count);
-        Assert.Equal(162m, sales.Sum(s => s.TotalRevenue)); // 5*18 + (3*18 + 2*9)
-        Assert.Equal(new[] { 72m, 90m }, sales.Select(s => s.TotalRevenue).OrderBy(x => x));
+        Assert.Equal(141.75m, sales.Sum(s => s.TotalRevenue)); // 5*15.75 + (3*15.75 + 2*7.875)
+        Assert.Equal(new[] { 63m, 78.75m }, sales.Select(s => s.TotalRevenue).OrderBy(x => x));
     }
 
     [Fact]

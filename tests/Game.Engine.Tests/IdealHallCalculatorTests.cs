@@ -87,32 +87,29 @@ public class IdealHallCalculatorTests
     }
 
     [Fact]
-    public void Calculate_Sells_Uncontested_Surplus_To_The_System_At_The_Margin_Of_Its_Level()
+    public void Calculate_Sells_Uncontested_Surplus_To_The_System_Instead_Of_Leaving_It_Idle()
     {
         // Ветка добывает намного больше руды, чем сама же перерабатывает — остаток раньше просто
         // лежал на складе и оценивался по плоской BasePrice в конце хода (см. doc-comment класса,
-        // «намеренно добавлено»); теперь он должен активно продаваться системе по котировке ×
-        // MarginMultiplierByProcessingLevel уровня руды. Единственное различие между двумя прогонами —
-        // сама наценка (1.0 против 3.0) — если фикс работает, более высокая наценка обязана дать
-        // заметно бо́льший X(t), потому что раньше наценка вообще не участвовала в расчёте.
-        var flatConfig = BuildSingleSectorSurplusConfig(marginMultiplier: 1.0m);
-        var markedUpConfig = BuildSingleSectorSurplusConfig(marginMultiplier: 3.0m);
+        // «намеренно добавлено»); теперь он должен активно продаваться системе каждый ход по
+        // себестоимости × MarketSaleCalculator.SystemSaleMarginMultiplier (фиксированная наценка,
+        // с 2026-08-22 одна на все уровни передела — параметризовать нечем, раньше тест сравнивал
+        // два уровня наценки между собой, см. историю до этой правки). Если бы излишек просто лежал
+        // и не продавался активно каждый ход, X(5) вышел бы гораздо ниже (может, и в минус) — фабрики
+        // платят зарплату и R&D каждый ход независимо от того, продаётся ли что-то.
+        var config = BuildSingleSectorSurplusConfig();
 
-        var flatValue = IdealHallCalculator.Calculate(flatConfig, 5).Branches.Single().ValueByTurn[^1];
-        var markedUpValue = IdealHallCalculator.Calculate(markedUpConfig, 5).Branches.Single().ValueByTurn[^1];
+        var value = IdealHallCalculator.Calculate(config, 5).Branches.Single().ValueByTurn[^1];
 
-        Assert.True(
-            markedUpValue > flatValue,
-            $"X(5) с наценкой ×3 ({markedUpValue}) должен быть заметно выше, чем без наценки ({flatValue}) — иначе излишек не продаётся активно.");
+        Assert.True(value > 0m, $"X(5) = {value} должен быть положительным — излишек руды обязан продаваться системе активно каждый ход.");
     }
 
     /// <summary>
     /// Один сектор, руда добывается с большим запасом сверх того, что перерабатывает единственная
     /// фабрика — гарантированный необслуженный излишек руды (уровень 0) каждый ход, покупателя для
-    /// него в конфиге нет вовсе (один сектор). <paramref name="marginMultiplier"/> — наценка именно
-    /// этого уровня, единственная переменная между двумя вызовами в тесте выше.
+    /// него в конфиге нет вовсе (один сектор).
     /// </summary>
-    private static ResolvedGameConfig BuildSingleSectorSurplusConfig(decimal marginMultiplier)
+    private static ResolvedGameConfig BuildSingleSectorSurplusConfig()
     {
         var config = new GameConfig
         {
@@ -133,8 +130,8 @@ public class IdealHallCalculatorTests
             },
             FactoryDefinitions = new[]
             {
-                new FactoryDefinitionConfig { Id = "mine-a", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
-                new FactoryDefinitionConfig { Id = "plant-a", Name = "Завод", SectorId = "A", RecipeIds = new[] { "part-from-ore" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+                new FactoryDefinitionConfig { Id = "mine-a", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 1m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+                new FactoryDefinitionConfig { Id = "plant-a", Name = "Завод", SectorId = "A", RecipeIds = new[] { "part-from-ore" }, BuildCost = 1m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
             },
             StartingConditions = new StartingConditionsConfig
             {
@@ -155,10 +152,6 @@ public class IdealHallCalculatorTests
                     new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 1_000_000m },
                     new MaterialMarketConfig { MaterialId = "part", BasePrice = 50m, BaseCapacity = 1_000_000m },
                 },
-                MarginMultiplierByProcessingLevel = new[]
-                {
-                    new ProcessingLevelMarginConfig { Level = 0, MarginMultiplier = marginMultiplier },
-                },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
                 ElectricityConsumptionPerOutputUnit = 0m,
@@ -177,7 +170,10 @@ public class IdealHallCalculatorTests
             },
             Rnd = new RndConfig
             {
-                ResearchPointThresholdsByLevel = new[] { 100m, 300m },
+                // Пусто -> фабрики стартуют на максимальном уровне, обязательные 200/ход инвестиций в
+                // R&D не списываются — с 2026-08-22 (фиксированная наценка продажи системе 1.05×) тонкая
+                // маржа этого конфига (FixedCostPerTurn=0) их не покрывает, а тест не про R&D.
+                ResearchPointThresholdsByLevel = Array.Empty<decimal>(),
                 DiminishingReturnsExponent = 1m,
                 ProductionRateBonusPerLevel = 0.1m,
                 MaxCommitmentPerTurn = 200m,
@@ -231,10 +227,10 @@ public class IdealHallCalculatorTests
     /// — см. её doc-comment за подробным разбором; здесь дополнительно нужна прибыльность обеих
     /// веток (не только сам факт сделки) — с 2026-08-21 цена продажи системе считается от
     /// себестоимости (<see cref="MaterialCostCalculator"/>), не от <c>BasePrice</c> — тот здесь
-    /// влияет только на ёмкость рынка, значение самой цены больше не используется, поэтому маржа
-    /// (<c>MarginMultiplierByProcessingLevel</c>) заметно выше «жизненной» — этому синтетическому
-    /// конфигу с ProductionRate=1 и BaseWorkerCount=5 нужна ощутимая наценка, чтобы выпуск в 2-5
-    /// единиц/ход вообще окупал зарплату и R&amp;D.
+    /// влияет только на ёмкость рынка, значение самой цены больше не используется. С 2026-08-22
+    /// наценка системной продажи фиксирована (<see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/>,
+    /// 1.05×) и параметризовать её в этом фикстуре больше нечем — <c>FixedCostPerTurn=0</c> у всех
+    /// фабрик специально, чтобы даже небольшой наценки хватало на зарплату и R&amp;D.
     /// </summary>
     internal static ResolvedGameConfig BuildTwoSectorConfig()
     {
@@ -267,7 +263,11 @@ public class IdealHallCalculatorTests
                     Id = "a-part-from-ore", OutputMaterialId = "a-part", OutputQuantity = 1m,
                     Inputs = new[] { new RecipeInputConfig { MaterialId = "ore", Quantity = 2m } }, ProductionRate = 1m,
                 },
-                new RecipeConfig { Id = "oil-drilling", OutputMaterialId = "oil", OutputQuantity = 1m, Inputs = Array.Empty<RecipeInputConfig>(), ProductionRate = 1m },
+                // ProductionRate поднят с 1 до 3 (2026-08-22, симметрично ore-mining выше) — при 1
+                // сектор Б своей нефти на прямую системную продажу почти не имел (весь тонкий выпуск
+                // уходил в plant-b), а зарплата двух фабрик Б (well-b + plant-b) списывалась каждый ход
+                // независимо; под фиксированной наценкой 1.05× такой Б устойчиво уходил в минус.
+                new RecipeConfig { Id = "oil-drilling", OutputMaterialId = "oil", OutputQuantity = 1m, Inputs = Array.Empty<RecipeInputConfig>(), ProductionRate = 3m },
                 new RecipeConfig
                 {
                     Id = "b-widget-from-oil-and-a-part", OutputMaterialId = "b-widget", OutputQuantity = 1m,
@@ -281,10 +281,10 @@ public class IdealHallCalculatorTests
             },
             FactoryDefinitions = new[]
             {
-                new FactoryDefinitionConfig { Id = "mine-a", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
-                new FactoryDefinitionConfig { Id = "plant-a", Name = "Завод А", SectorId = "A", RecipeIds = new[] { "a-part-from-ore" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
-                new FactoryDefinitionConfig { Id = "well-b", Name = "Скважина", SectorId = "B", RecipeIds = new[] { "oil-drilling" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
-                new FactoryDefinitionConfig { Id = "plant-b", Name = "Завод Б", SectorId = "B", RecipeIds = new[] { "b-widget-from-oil-and-a-part" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+                new FactoryDefinitionConfig { Id = "mine-a", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 1m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+                new FactoryDefinitionConfig { Id = "plant-a", Name = "Завод А", SectorId = "A", RecipeIds = new[] { "a-part-from-ore" }, BuildCost = 1m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+                new FactoryDefinitionConfig { Id = "well-b", Name = "Скважина", SectorId = "B", RecipeIds = new[] { "oil-drilling" }, BuildCost = 1m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+                new FactoryDefinitionConfig { Id = "plant-b", Name = "Завод Б", SectorId = "B", RecipeIds = new[] { "b-widget-from-oil-and-a-part" }, BuildCost = 1m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
             },
             StartingConditions = new StartingConditionsConfig
             {
@@ -303,16 +303,12 @@ public class IdealHallCalculatorTests
                 BaseMarketPerMaterial = new[]
                 {
                     // BasePrice здесь больше ни на что не влияет (см. doc-comment BuildTwoSectorConfig)
-                    // — оставлены как заглушки, реальная прибыльность обеих веток задаётся ниже, через
-                    // MarginMultiplierByProcessingLevel над себестоимостью.
+                    // — оставлены как заглушки, реальная прибыльность обеих веток задаётся себестоимостью
+                    // и фиксированной наценкой продажи системе (MarketSaleCalculator.SystemSaleMarginMultiplier).
                     new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100_000m },
                     new MaterialMarketConfig { MaterialId = "a-part", BasePrice = 300m, BaseCapacity = 100_000m },
                     new MaterialMarketConfig { MaterialId = "oil", BasePrice = 10m, BaseCapacity = 100_000m },
                     new MaterialMarketConfig { MaterialId = "b-widget", BasePrice = 500m, BaseCapacity = 100_000m },
-                },
-                MarginMultiplierByProcessingLevel = new[]
-                {
-                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 2m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
@@ -332,7 +328,8 @@ public class IdealHallCalculatorTests
             },
             Rnd = new RndConfig
             {
-                ResearchPointThresholdsByLevel = new[] { 100m, 300m },
+                // Пусто -> та же причина, что в BuildSingleSectorSurplusConfig выше.
+                ResearchPointThresholdsByLevel = Array.Empty<decimal>(),
                 DiminishingReturnsExponent = 1m,
                 ProductionRateBonusPerLevel = 0.1m,
                 MaxCommitmentPerTurn = 200m,

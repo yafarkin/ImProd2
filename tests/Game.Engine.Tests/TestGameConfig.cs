@@ -339,10 +339,6 @@ internal static class TestGameConfig
                     new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100m },
                     new MaterialMarketConfig { MaterialId = "sheet", BasePrice = 25m, BaseCapacity = 8m },
                 },
-                MarginMultiplierByProcessingLevel = new[]
-                {
-                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m },
-                },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
                 // 0 по умолчанию — большинство тестов этого файла не про переменные затраты на

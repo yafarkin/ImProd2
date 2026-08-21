@@ -93,8 +93,7 @@ public class GameConfigDeserializationTests
     {
         var config = LoadSampleConfig();
 
-        Assert.Equal(1.5m, config.Economy.EmergencyPurchaseBaseMultiplier);
-        Assert.Equal(9, config.Economy.MarginMultiplierByProcessingLevel.Count);
+        Assert.Equal(1.3m, config.Economy.EmergencyPurchaseBaseMultiplier);
         Assert.Equal(0.5m, config.Economy.MarketCapacityOverflowDiscount);
         Assert.Equal(0.5m, config.Economy.WarehouseLiquidationRate);
 

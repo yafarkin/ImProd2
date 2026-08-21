@@ -44,7 +44,6 @@ internal static class GameConfigTestBuilder
                 EmergencyPurchasePressureMultiplierPerUnit = 0m,
                 EmergencyPurchasePressureHalfLifeTurns = 1,
                 BaseMarketPerMaterial = Array.Empty<MaterialMarketConfig>(),
-                MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
                 ElectricityConsumptionPerOutputUnit = 0m,

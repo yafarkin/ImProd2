@@ -16,47 +16,9 @@
     "DecisionPhaseSeconds": 25
   },
   "Economy": {
-    "EmergencyPurchaseBaseMultiplier": 1.5,
+    "EmergencyPurchaseBaseMultiplier": 1.3,
     "EmergencyPurchasePressureMultiplierPerUnit": 0.05,
     "EmergencyPurchasePressureHalfLifeTurns": 3,
-    "MarginMultiplierByProcessingLevel": [
-      {
-        "Level": 1,
-        "MarginMultiplier": 1.0
-      },
-      {
-        "Level": 2,
-        "MarginMultiplier": 1.15
-      },
-      {
-        "Level": 3,
-        "MarginMultiplier": 1.3
-      },
-      {
-        "Level": 4,
-        "MarginMultiplier": 1.5
-      },
-      {
-        "Level": 5,
-        "MarginMultiplier": 1.75
-      },
-      {
-        "Level": 6,
-        "MarginMultiplier": 2.05
-      },
-      {
-        "Level": 7,
-        "MarginMultiplier": 2.4
-      },
-      {
-        "Level": 8,
-        "MarginMultiplier": 2.8
-      },
-      {
-        "Level": 9,
-        "MarginMultiplier": 3.3
-      }
-    ],
     "MarketCapacityOverflowDiscount": 0.5,
     "ElectricityBasePrice": 2.0,
     "ElectricityConsumptionPerOutputUnit": 0.01,

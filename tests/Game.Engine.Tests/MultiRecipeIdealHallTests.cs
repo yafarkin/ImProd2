@@ -77,12 +77,17 @@ public class MultiRecipeIdealHallTests
             },
             FactoryDefinitions = new[]
             {
-                new FactoryDefinitionConfig { Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+                // BuildCost снижен со 100 до 1 (2026-08-22) — идеальный зал строит ОДНУ фабрику НА
+                // КАЖДЫЙ рецепт flex-mill (см. doc-comment класса), под фиксированной наценкой 1.05×
+                // вторая фабрика добавляет ещё один BuildCost, который тонкая маржа за 10 ходов не
+                // отбивает — тест тогда сравнивал бы не «второй рецепт добавляет ценность», а «вторая
+                // фабрика убыточна из-за капитальных затрат», это другой вопрос.
+                new FactoryDefinitionConfig { Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 1m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
                 new FactoryDefinitionConfig
                 {
                     Id = "flex-mill", Name = "Гибкий завод", SectorId = "A",
                     RecipeIds = flexRecipeIds,
-                    BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m,
+                    BuildCost = 1m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m,
                 },
             },
             StartingConditions = new StartingConditionsConfig
@@ -105,15 +110,6 @@ public class MultiRecipeIdealHallTests
                     new MaterialMarketConfig { MaterialId = "alloy-x", BasePrice = 50m, BaseCapacity = 1_000_000m },
                     new MaterialMarketConfig { MaterialId = "alloy-y", BasePrice = 50m, BaseCapacity = 1_000_000m },
                 },
-                // С 2026-08-21 множитель применяется к себестоимости (MaterialCostCalculator), не к
-                // BasePrice — у неё при ProductionRate=1000/100 получается копеечная (0.005-0.06,
-                // высокая мощность размазывает зарплату/R&D на огромный объём), поэтому даже большой
-                // множитель даёт умеренную абсолютную цену — нужен заметно больше "жизненного" 1.2,
-                // чтобы вторая фабрика (её R&D 200/ход) вообще окупалась.
-                MarginMultiplierByProcessingLevel = new[]
-                {
-                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 20m },
-                },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
                 ElectricityConsumptionPerOutputUnit = 0m,
@@ -132,7 +128,12 @@ public class MultiRecipeIdealHallTests
             },
             Rnd = new RndConfig
             {
-                ResearchPointThresholdsByLevel = new[] { 100m, 300m },
+                // Пусто -> фабрики стартуют сразу на максимальном уровне (RndCalculator.IsAtMaxLevel),
+                // обязательные 200/ход инвестиций в R&D никогда не списываются — с 2026-08-22
+                // (фиксированная наценка продажи системе 1.05×, себестоимость+5%) тонкая маржа этого
+                // синтетического конфига не покрывает такой расход, а тест не про R&D, а про то, что
+                // idealHall строит фабрику НА КАЖДЫЙ рецепт — R&D-бремя тут посторонний фактор.
+                ResearchPointThresholdsByLevel = Array.Empty<decimal>(),
                 DiminishingReturnsExponent = 1m,
                 ProductionRateBonusPerLevel = 0.1m,
                 MaxCommitmentPerTurn = 200m,

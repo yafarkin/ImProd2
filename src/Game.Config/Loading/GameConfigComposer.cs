@@ -38,7 +38,6 @@ public static class GameConfigComposer
                 EmergencyPurchasePressureMultiplierPerUnit = session.Economy.EmergencyPurchasePressureMultiplierPerUnit,
                 EmergencyPurchasePressureHalfLifeTurns = session.Economy.EmergencyPurchasePressureHalfLifeTurns,
                 BaseMarketPerMaterial = productionModel.BaseMarketPerMaterial,
-                MarginMultiplierByProcessingLevel = session.Economy.MarginMultiplierByProcessingLevel,
                 MarketCapacityOverflowDiscount = session.Economy.MarketCapacityOverflowDiscount,
                 ElectricityBasePrice = session.Economy.ElectricityBasePrice,
                 ElectricityConsumptionPerOutputUnit = session.Economy.ElectricityConsumptionPerOutputUnit,
