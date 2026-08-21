@@ -31,8 +31,6 @@ internal static class BotCommandSummary
         BotCommandKind.SetRndCommitment => $"setRndCommitment({command.FactoryId}, {command.Amount})",
         BotCommandKind.SetGenerationResearchCommitment => $"setGenerationResearchCommitment({command.Amount})",
         BotCommandKind.SetOverhaulRequested => $"setOverhaulRequested({command.FactoryId}, {command.Enabled})",
-        BotCommandKind.TakeLoan => $"takeLoan({command.Amount})",
-        BotCommandKind.RepayLoan => $"repayLoan({command.Amount})",
         BotCommandKind.SellToSystem => $"sellToSystem({command.MaterialId}, {command.Volume})",
         BotCommandKind.SellFactory => $"sellFactory({command.FactoryId})",
         BotCommandKind.SetFactoryAllocationShare => $"setFactoryAllocationShare({command.FactoryId}, {command.Share})",

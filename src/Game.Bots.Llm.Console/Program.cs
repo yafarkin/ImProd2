@@ -1,7 +1,7 @@
 // Автономный прогон LLM-ботов (запрос пользователя 2026-08-16): собрать, запустить под Windows и
 // уйти спать — устойчивый к отдельным сбоям (щедрые таймауты и ретраи, остановка сессии целиком
 // только при явно застрявшем боте), с построчным статусом на экран в реальном времени ("бот 2, ход
-// 14, запрос к LLM...", "бот 2, ход 14, TakeLoan за 03:12"), плюс CSV-метрики и сырой JSONL-лог
+// 14, запрос к LLM...", "бот 2, ход 14, BuildFactory за 03:12"), плюс CSV-метрики и сырой JSONL-лог
 // решений на диск — не только на экран, переживает закрытие консоли. Production-модель и раскладка
 // ботов по секторам (запрос пользователя 2026-08-20: стадия 2, два бота, металлургия +
 // нефтегазохимия, для обкатки межсекторной доски заявок) — через RunSettings.ProductionModel/
@@ -253,7 +253,7 @@ try
             {
                 var team = s.State.Teams[teamId];
                 Log($"  итог хода {s.State.CurrentTurn} — {team.Name}: баланс={team.Balance:0.00} " +
-                    $"долг={team.Debt:0.00} netWorth={team.Balance - team.Debt:0.00} фабрик={team.Factories.Count}");
+                    $"фабрик={team.Factories.Count}");
             }
 
             SaveCheckpoint();
@@ -274,7 +274,7 @@ try
     foreach (var teamId in teamIds)
     {
         var team = session.State.Teams[teamId];
-        Log($"{team.Name} ИТОГ: баланс={team.Balance:0.00} долг={team.Debt:0.00} netWorth={team.Balance - team.Debt:0.00}");
+        Log($"{team.Name} ИТОГ: баланс={team.Balance:0.00}");
         foreach (var factory in team.Factories)
         {
             Log($"  - {factory.Definition.Id} уровень={factory.Level} рабочих={factory.Workers}/{factory.DesiredWorkers} " +

@@ -79,7 +79,7 @@ public static class BotCommandSchema
                 ["amount"] = new JsonObject
                 {
                     ["type"] = new JsonArray("number", "null"),
-                    ["description"] = "Money amount, for kind=takeLoan/repayLoan/setRndCommitment/setGenerationResearchCommitment.",
+                    ["description"] = "Money amount, for kind=setRndCommitment/setGenerationResearchCommitment.",
                 },
                 ["count"] = new JsonObject
                 {

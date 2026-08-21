@@ -149,10 +149,10 @@ public sealed class LlmBot
 
             if (metricsLog is not null)
             {
-                var (balance, debt, factoryCount) = session.State.Teams.TryGetValue(TeamId, out var teamNow)
-                    ? (teamNow.Balance, teamNow.Debt, teamNow.Factories.Count)
-                    : (0m, 0m, 0);
-                metricsLog.Record(botLabel, turn, i + 1, stopwatch.Elapsed, requestSizeBytes, summary, balance, debt, factoryCount);
+                var (balance, factoryCount) = session.State.Teams.TryGetValue(TeamId, out var teamNow)
+                    ? (teamNow.Balance, teamNow.Factories.Count)
+                    : (0m, 0);
+                metricsLog.Record(botLabel, turn, i + 1, stopwatch.Elapsed, requestSizeBytes, summary, balance, factoryCount);
             }
 
             actionsThisTurn.Add(new BotTurnActionRecord(summary, result.Command?.Annotation));

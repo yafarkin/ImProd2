@@ -58,8 +58,6 @@ public sealed class BotCommandExecutor
                 BotCommandKind.SetRndCommitment => ExecuteSetRndCommitment(command, session, teamId),
                 BotCommandKind.SetGenerationResearchCommitment => ExecuteSetGenerationResearchCommitment(command, session, teamId),
                 BotCommandKind.SetOverhaulRequested => ExecuteSetOverhaulRequested(command, session, teamId),
-                BotCommandKind.TakeLoan => ExecuteTakeLoan(command, session, teamId),
-                BotCommandKind.RepayLoan => ExecuteRepayLoan(command, session, teamId),
                 BotCommandKind.SellToSystem => ExecuteSellToSystem(command, session, teamId),
                 BotCommandKind.SellFactory => ExecuteSellFactory(command, session, teamId),
                 BotCommandKind.SetFactoryAllocationShare => ExecuteSetFactoryAllocationShare(command, session, teamId),
@@ -137,26 +135,6 @@ public sealed class BotCommandExecutor
         }
 
         return new BotCommandExecutionResult.Success(session.SetOverhaulRequested(teamId, factoryId, enabled));
-    }
-
-    private static BotCommandExecutionResult ExecuteTakeLoan(BotCommand command, GameSession session, Ulid teamId)
-    {
-        if (command.Amount is not { } amount)
-        {
-            return new BotCommandExecutionResult.DomainError("TakeLoan requires amount.");
-        }
-
-        return new BotCommandExecutionResult.Success(session.TakeLoan(teamId, amount));
-    }
-
-    private static BotCommandExecutionResult ExecuteRepayLoan(BotCommand command, GameSession session, Ulid teamId)
-    {
-        if (command.Amount is not { } amount)
-        {
-            return new BotCommandExecutionResult.DomainError("RepayLoan requires amount.");
-        }
-
-        return new BotCommandExecutionResult.Success(session.RepayLoan(teamId, amount));
     }
 
     private static BotCommandExecutionResult ExecuteSellToSystem(BotCommand command, GameSession session, Ulid teamId)
