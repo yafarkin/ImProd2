@@ -15,7 +15,7 @@ namespace Game.Engine;
 public static class TurnHistoryCalculator
 {
     /// <summary>Сводка одного хода: денежная масса и активность на конец хода (или текущий момент — для ещё не завершённого).</summary>
-    public sealed record TurnSummary(int Turn, decimal TotalCash, decimal VolumeSoldToSystem, int ForcedLoanCount);
+    public sealed record TurnSummary(int Turn, decimal TotalCash, decimal VolumeSoldToSystem);
 
     /// <summary>Можно звать в любой момент сессии — последний, возможно неполный ход тоже попадает в сводку.</summary>
     public static IReadOnlyList<TurnSummary> Summarize(IReadOnlyList<EventLogEntry<GameSessionState>> entries, ResolvedGameConfig config)
@@ -27,7 +27,6 @@ public static class TurnHistoryCalculator
         var summaries = new List<TurnSummary>();
         var turn = 0;
         var volumeSold = 0m;
-        var forcedLoanCount = 0;
 
         foreach (var entry in entries)
         {
@@ -37,27 +36,22 @@ public static class TurnHistoryCalculator
             {
                 volumeSold += sale.Volume;
             }
-            else if (entry.Change is ForcedLoanTaken)
-            {
-                forcedLoanCount++;
-            }
 
             if (scratch.CurrentTurn != turn)
             {
                 if (turn > 0)
                 {
-                    summaries.Add(new TurnSummary(turn, TotalCash(scratch), volumeSold, forcedLoanCount));
+                    summaries.Add(new TurnSummary(turn, TotalCash(scratch), volumeSold));
                 }
 
                 turn = scratch.CurrentTurn;
                 volumeSold = 0m;
-                forcedLoanCount = 0;
             }
         }
 
         if (turn > 0)
         {
-            summaries.Add(new TurnSummary(turn, TotalCash(scratch), volumeSold, forcedLoanCount));
+            summaries.Add(new TurnSummary(turn, TotalCash(scratch), volumeSold));
         }
 
         return summaries;

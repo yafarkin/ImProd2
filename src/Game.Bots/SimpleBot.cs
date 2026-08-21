@@ -15,12 +15,14 @@ namespace Game.Bots;
 /// вызывающего кода (<see cref="BotSessionRunner"/>, <see cref="OrderBook.Match"/>).
 ///
 /// <para>
-/// <c>leverage</c> (0..1, Блок 7.3.2) — аппетит к риску/кредиту: <c>0</c> — минимальный стартовый
-/// заём, ничего не вкладывает сверх темпа, который тянет маржа, гасит долг добровольно при первой
-/// возможности (<see cref="RepayDebt"/>); <c>1</c> — максимальный стартовый заём, вкладывает в R&amp;D
-/// (командное и по каждой фабрике) на потолок, не спешит с добровольным погашением (платит только
-/// обязательный минимум). Промежуточные значения — линейная интерполяция доли между полюсами (та же
-/// схема, что и в `docs/balancing-bots.md` §2, «Промежуточные значения»).
+/// <c>leverage</c> (0..1, Блок 7.3.2) — аппетит к отрицательному балансу (нет ни займа, ни процента
+/// как класса механики, docs/TODO.md #23 — это исключительно собственная, добровольная осторожность
+/// бота, ничем в движке не наказывается): <c>0</c> — терпит минимум минуса, строит только то, на что
+/// хватает уже заработанного (<see cref="BuildNewlyUnlockedFactories"/>), ничего не вкладывает сверх
+/// темпа, который тянет маржа; <c>1</c> — терпит глубокий минус ради немедленной постройки/вложений,
+/// вкладывает в R&amp;D (командное и по каждой фабрике) на потолок с первого хода. Промежуточные
+/// значения — линейная интерполяция доли между полюсами (та же схема, что и в
+/// `docs/balancing-bots.md` §2, «Промежуточные значения»).
 /// </para>
 /// <para>
 /// <c>profile</c> (0..1, Блок 7.3.2) — распределение усилий по времени: <c>0</c> — фронт-лоадед,
@@ -49,12 +51,12 @@ namespace Game.Bots;
 public sealed class SimpleBot
 {
     /// <summary>
-    /// Доля <see cref="Game.Config.Session.StartingConditionsConfig.MaxStartingLoanAmount"/>, которую
-    /// берёт бот с минимальным <c>leverage</c> (Блок 7.3.2) — не ноль: без какого-то стартового
-    /// капитала бот не может даже построить первую фабрику, «минимум кредита» — не «совсем без
-    /// кредита». Деталь реализации, не зафиксирована в доке намеренно (`docs/balancing-bots.md` §4).
+    /// Доля <see cref="Game.Config.Session.StartingConditionsConfig.MaxInitialBuildBudget"/>,
+    /// которую терпит в минусе бот с минимальным <c>leverage</c> (Блок 7.3.2) — не ноль: совсем без
+    /// готовности хоть немного уйти в минус бот не может построить даже первую фабрику. Деталь
+    /// реализации, не зафиксирована в доке намеренно (`docs/balancing-bots.md` §4).
     /// </summary>
-    private const decimal MinStartingLoanFraction = 0.25m;
+    private const decimal MinInitialBuildBudgetFraction = 0.25m;
 
 
     /// <summary>
@@ -91,7 +93,7 @@ public sealed class SimpleBot
     public Sector Sector { get; }
 
     /// <summary>
-    /// Подряд идущих ходов ухудшения чистой стоимости (Balance − Debt), после которого <see
+    /// Подряд идущих ходов ухудшения баланса, после которого <see
     /// cref="UpdateFinancialTrend"/> начинает подрезать <see cref="_throttle"/> — запрос
     /// пользователя: «постоянно занимать бабки и при этом строить дальше — недальновидно», бот должен
     /// реагировать на тренд, а не слепо выполнять фиксированный план. Масштабируется номинальным
@@ -171,29 +173,25 @@ public sealed class SimpleBot
     public Material FinalMaterial => _sectorFactories[^1].Recipes[0].Output;
 
     /// <summary>
-    /// Финансовая осторожность (запрос пользователя: «постоянно занимать бабки и при этом строить
-    /// дальше — недальновидно; боты должны следить за финансовым состоянием, анализировать тренд и в
-    /// зависимости от него менять поведение согласно своим параметрам»). Отслеживает чистую стоимость
-    /// команды (<c>Balance − Debt</c> — не одну только <c>Balance</c>, которая при принудительном
-    /// займе прыгает вверх на ту же сумму, что и <c>Debt</c>, и потому маскирует именно ту спираль,
-    /// которую нужно заметить). Пока чистая стоимость не ухудшается подряд дольше <see
-    /// cref="DistressThresholdTurns"/> ходов — <see cref="_throttle"/> остаётся/возвращается к 1
-    /// (обычное поведение по номинальным <c>leverage</c>/<c>profile</c>). Как только порог пройден —
-    /// <see cref="_throttle"/> начинает снижаться на <see cref="ThrottleStep"/> за ход, пока тренд не
-    /// развернётся. Идёт во все места, где темп расширения/вложений завязан на <c>leverage</c> — <see
-    /// cref="BuildNewlyUnlockedFactories"/> (новое: раньше достройка не смотрела на leverage вовсе),
-    /// <see cref="UpdateInvestmentPace"/>, <see cref="RepayDebt"/> (в бедственном положении гасит
-    /// агрессивнее номинального <c>leverage</c> — вылезать из спирали важнее, чем следовать
-    /// изначальному аппетиту к риску). Продажу через стакан (<see cref="ComputeSellOrders"/>) не
-    /// трогает — источник живых денег должен работать в любом состоянии, тормозить нужно только новые
-    /// траты. Вызывать первым в ходу решений, до любого из перечисленных методов, каждый ход.
+    /// Финансовая осторожность (запрос пользователя: «постоянно строить дальше несмотря на падающий
+    /// баланс — недальновидно; боты должны следить за финансовым состоянием, анализировать тренд и в
+    /// зависимости от него менять поведение согласно своим параметрам»). Отслеживает тренд баланса
+    /// команды. Пока баланс не ухудшается подряд дольше <see cref="DistressThresholdTurns"/> ходов —
+    /// <see cref="_throttle"/> остаётся/возвращается к 1 (обычное поведение по номинальным
+    /// <c>leverage</c>/<c>profile</c>). Как только порог пройден — <see cref="_throttle"/> начинает
+    /// снижаться на <see cref="ThrottleStep"/> за ход, пока тренд не развернётся. Идёт во все места,
+    /// где темп расширения/вложений завязан на <c>leverage</c> — <see
+    /// cref="BuildNewlyUnlockedFactories"/>, <see cref="UpdateInvestmentPace"/>. Продажу через стакан
+    /// (<see cref="ComputeSellOrders"/>) не трогает — источник живых денег должен работать в любом
+    /// состоянии, тормозить нужно только новые траты. Вызывать первым в ходу решений, до любого из
+    /// перечисленных методов, каждый ход.
     /// </summary>
     public void UpdateFinancialTrend(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var netWorth = team.Balance - team.Debt;
+        var netWorth = team.Balance;
 
         if (_previousNetWorth is { } previous)
         {
@@ -208,25 +206,19 @@ public sealed class SimpleBot
     }
 
     /// <summary>
-    /// Берёт первый кредит (команды больше не получают стартовый капитал автоматически — это их
-    /// первое собственное финансовое решение, SPEC §5.1; боту нужен детерминированный эквивалент
-    /// для калибровки) — сумма масштабируется <c>leverage</c> (Блок 7.3.2, см. doc-comment класса) от
-    /// <see cref="MinStartingLoanFraction"/> потолка (<c>leverage=0</c>) до самого потолка
-    /// (<see cref="Game.Config.Session.StartingConditionsConfig.MaxStartingLoanAmount"/>, <c>leverage=1</c>)
-    /// — строит все УЖЕ разблокированные фабрики сектора (Блок 9.2 — более глубокие переделы
-    /// открываются постепенно, не сразу; остальные достраивает по мере разблокировки
-    /// <see cref="BuildNewlyUnlockedFactories"/>) и нанимает на каждую базовую численность рабочих.
-    /// Темп вложений в R&amp;D (командный и по фабрикам) не объявляется здесь — им ведает
-    /// <see cref="UpdateInvestmentPace"/>, вызываемая каждый ход решений отдельно, в том числе
+    /// Первая постройка команды (SPEC §5.1 — фабрик нет, баланс 0; никакого отдельного «стартового
+    /// кредита» с иными правилами больше нет, docs/TODO.md #23: команда просто строит, баланс уходит
+    /// в минус, как и от любой другой постройки в любой другой момент партии) — строит все УЖЕ
+    /// разблокированные фабрики сектора, на которые хватает бюджета (Блок 9.2 — более глубокие
+    /// переделы открываются постепенно, не сразу; остальные достраивает по мере разблокировки/
+    /// накопления баланса <see cref="BuildNewlyUnlockedFactories"/>, тот же метод, эта функция — лишь
+    /// его первый вызов). Темп вложений в R&amp;D (командный и по фабрикам) не объявляется здесь — им
+    /// ведает <see cref="UpdateInvestmentPace"/>, вызываемая каждый ход решений отдельно, в том числе
     /// первый. Вызывать один раз, на первом ходу.
     /// </summary>
     public void BuildOutSectorChain(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
-
-        var maxStartingLoan = session.State.Config.Raw.StartingConditions.MaxStartingLoanAmount;
-        var startingLoanFraction = MinStartingLoanFraction + (1m - MinStartingLoanFraction) * _leverage;
-        session.TakeLoan(TeamId, maxStartingLoan * startingLoanFraction);
 
         BuildNewlyUnlockedFactories(session);
     }
@@ -240,8 +232,17 @@ public sealed class SimpleBot
     /// новая фабрика не осталась на ход без объявленного темпа. Ничего не строит, если <see
     /// cref="_throttle"/> (см. <see cref="UpdateFinancialTrend"/>) уже упал до нуля — новая фабрика
     /// требует свежего капитала, а команда в этот момент как раз в бедственном положении: достройка
-    /// просто откладывается до улучшения тренда, разблокированные типы никуда не денутся. Вызывать
-    /// каждый ход решений, идемпотентно (уже построенные комбинации пропускаются).
+    /// просто откладывается до улучшения тренда, разблокированные типы никуда не денутся.
+    /// <para>
+    /// Постройка не бесплатна, но и не требует отдельного оформления — баланс просто уходит в минус
+    /// (docs/TODO.md #23). Тем не менее бот пропускает постройку, если она увела бы баланс глубже
+    /// самостоятельно назначенной толерантности к минусу (<see
+    /// cref="Game.Config.Session.StartingConditionsConfig.MaxInitialBuildBudget"/>, доля от
+    /// <see cref="MinInitialBuildBudgetFraction"/> до 100% в зависимости от <c>leverage</c> — тот же
+    /// диапазон, что раньше задавал размер стартового займа, теперь задаёт добровольный потолок
+    /// минуса на любой ход, не только первый) — откладывает до следующего хода решений, когда баланс
+    /// подрастёт продажами; разблокированный тип никуда не денется, метод идемпотентен.
+    /// </para>
     /// <para>
     /// Единица достройки — не <see cref="FactoryDefinition"/>, а пара (тип, рецепт) (запрос
     /// пользователя, TODO.md #20, 2026-08-17: «научим бот строить все варианты фабрик с каждым
@@ -267,6 +268,9 @@ public sealed class SimpleBot
         var team = session.State.Teams[TeamId];
         var builtCombinations = team.Factories.Select(f => (f.Definition.Id, f.SelectedRecipe.Id)).ToHashSet();
         var baseWorkerCount = session.State.Config.Raw.WorkerProductivity.BaseWorkerCount;
+        var factoryDefinitions = session.State.Config.Raw.FactoryDefinitions;
+        var negativeBalanceTolerance = ComputeNegativeBalanceTolerance(session);
+
         foreach (var definition in _sectorFactories)
         {
             foreach (var recipe in definition.Recipes)
@@ -276,10 +280,29 @@ public sealed class SimpleBot
                     continue;
                 }
 
+                var buildCost = factoryDefinitions.First(d => d.Id == definition.Id).BuildCost;
+                if (team.Balance - buildCost < -negativeBalanceTolerance)
+                {
+                    continue;
+                }
+
                 var built = (FactoryBuilt)session.BuildFactory(TeamId, definition.Id, recipe.Id).Change;
                 session.SetWorkerCount(TeamId, built.FactoryId, baseWorkerCount);
             }
         }
+    }
+
+    /// <summary>
+    /// Потолок минуса, который бот готов принять ради немедленной постройки/расширения (см. doc-comment
+    /// <see cref="BuildNewlyUnlockedFactories"/>) — доля <see
+    /// cref="Game.Config.Session.StartingConditionsConfig.MaxInitialBuildBudget"/> от <see
+    /// cref="MinInitialBuildBudgetFraction"/> (<c>leverage=0</c>) до 100% (<c>leverage=1</c>).
+    /// </summary>
+    private decimal ComputeNegativeBalanceTolerance(GameSession session)
+    {
+        var maxBudget = session.State.Config.Raw.StartingConditions.MaxInitialBuildBudget;
+        var fraction = MinInitialBuildBudgetFraction + (1m - MinInitialBuildBudgetFraction) * _leverage;
+        return maxBudget * fraction;
     }
 
     /// <summary>
@@ -399,51 +422,6 @@ public sealed class SimpleBot
             }
 
             session.SetOverhaulRequested(TeamId, factory.Id, requested: true);
-        }
-    }
-
-    /// <summary>
-    /// Добровольно гасит долг сверх обязательного платежа (Блок 7.3.1-7.3.2, <c>docs/balancing-bots.md</c>
-    /// §1-2) — без этого взятый кредит никогда не уменьшается, кроме фиксированной доли за ход
-    /// (<see cref="Game.Engine.FinanceCalculator.CalculateMandatoryRepayment"/>). Свободный остаток
-    /// сверх буфера на ближайший ход (зарплата всех рабочих команды, содержание фабрик, обязательный
-    /// платёж, проценты, уже объявленные R&amp;D-вложения — свои и командные) гасится не целиком, а в
-    /// доле <c>max(1 - leverage, 1 - throttle)</c> (Блок 7.3.2, doc-comment класса — номинальная доля
-    /// от <c>leverage</c>; финансовая осторожность, <see cref="UpdateFinancialTrend"/> — при
-    /// ухудшающемся тренде гасит агрессивнее номинального аппетита к риску, вылезать из спирали
-    /// принудительных займов важнее, чем следовать изначальной стратегии). При здоровом тренде
-    /// (<c>throttle=1</c>) доля равна ровно <c>1 - leverage</c>, как и до финансовой осторожности.
-    /// <c>leverage=1</c> при здоровом тренде — доля 0, ничего не гасит сверх обязательного;
-    /// <c>leverage=0</c> — доля 1, гасит весь свободный остаток при первой возможности. Ничего не
-    /// делает, если долга нет или буфер уже съедает весь баланс. Идемпотентно, вызывать каждый ход
-    /// решений.
-    /// </summary>
-    public void RepayDebt(GameSession session)
-    {
-        ArgumentNullException.ThrowIfNull(session);
-
-        var team = session.State.Teams[TeamId];
-        if (team.Debt <= 0m)
-        {
-            return;
-        }
-
-        var config = session.State.Config.Raw;
-        var totalWorkers = team.Factories.Sum(f => f.Workers);
-        var reputationPercentage = session.GetReputation(TeamId).Percentage;
-
-        var buffer = FinanceCalculator.CalculateSalaries(totalWorkers, config.WorkerProductivity)
-                     + FinanceCalculator.CalculateFactoryUpkeep(team.Factories, config.FactoryDefinitions, config.Wear)
-                     + FinanceCalculator.CalculateMandatoryRepayment(team, config.StartingConditions)
-                     + FinanceCalculator.CalculateInterest(team, config.StartingConditions, reputationPercentage)
-                     + team.Factories.Sum(f => f.RndCommitmentPerTurn)
-                     + team.GenerationResearchCommitmentPerTurn;
-
-        var repayFraction = Math.Max(1m - _leverage, 1m - _throttle);
-        var repayable = (team.Balance - buffer) * repayFraction;
-        if (repayable > 0m)
-        {
-            session.RepayLoan(TeamId, Math.Min(repayable, team.Debt));
         }
     }
 

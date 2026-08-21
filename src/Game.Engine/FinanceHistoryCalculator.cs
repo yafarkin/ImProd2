@@ -7,31 +7,16 @@ namespace Game.Engine;
 /// движок сам ничего не хранит отдельно (как и <see cref="FactoryHistoryCalculator"/>/
 /// <see cref="TurnHistoryCalculator"/> для своих экранов), поэтому список восстанавливается
 /// проигрыванием журнала. Перечисляет каждый <c>Change</c>, который трогает <see
-/// cref="Game.Domain.Team.Balance"/> или <see cref="Game.Domain.Team.Debt"/> команды — не только
-/// кредитные, но и постройку фабрик, наём/увольнение, зарплаты, R&amp;D фабрик и командное
-/// исследование поколения, продажи/закупки и исполнение контрактов. Выдумывать операции, которых в
-/// движке нет (например, «закрытие вклада»), нельзя — вклады пока не реализованы.
+/// cref="Game.Domain.Team.Balance"/> команды — не только постройку фабрик, наём/увольнение,
+/// зарплаты, R&amp;D фабрик и командное исследование поколения, но и продажи/закупки и исполнение
+/// контрактов. Выдумывать операции, которых в движке нет (например, «закрытие вклада»), нельзя —
+/// вклады пока не реализованы.
 /// </summary>
 public static class FinanceHistoryCalculator
 {
     /// <summary>Виды денежных операций, которые реально существуют в движке.</summary>
     public enum OperationType
     {
-        /// <summary>Команда сама взяла заём (<see cref="LoanTaken"/>).</summary>
-        LoanTaken,
-
-        /// <summary>Системе пришлось взять заём за команду — баланса не хватило на расходы хода (<see cref="ForcedLoanTaken"/>).</summary>
-        ForcedLoan,
-
-        /// <summary>Списаны проценты по долгу за ход; тело долга не меняют (<see cref="LoanInterestCharged"/>).</summary>
-        InterestCharged,
-
-        /// <summary>Обязательный платёж по телу долга за ход (<see cref="MandatoryLoanRepaymentCharged"/>).</summary>
-        MandatoryRepayment,
-
-        /// <summary>Команда сама досрочно погасила часть долга сверх обязательного платежа (<see cref="LoanRepaid"/>).</summary>
-        VoluntaryRepayment,
-
         /// <summary>Постройка фабрики (<see cref="FactoryBuilt"/>).</summary>
         FactoryBuilt,
 
@@ -116,32 +101,10 @@ public static class FinanceHistoryCalculator
 
         foreach (var entry in entries)
         {
-            // Долг команды до применения этого события — нужен только для GrantIssued с
-            // RepayDebtFirst (см. case ниже), чтобы показать реально погашенную сумму, а не
-            // пересчитывать её задним числом из уже применённого состояния.
-            var debtBeforeGrant = entry.Change is GrantIssued grant && grant.TeamId == teamId && scratch.Teams.ContainsKey(teamId)
-                ? scratch.Teams[teamId].Debt
-                : (decimal?)null;
-
             entry.Change.Apply(scratch);
 
             switch (entry.Change)
             {
-                case LoanTaken change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.LoanTaken, MoneyDirection.Income, change.Amount, Rate: null));
-                    break;
-                case ForcedLoanTaken change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.ForcedLoan, MoneyDirection.Income, change.Amount, Rate: null));
-                    break;
-                case LoanInterestCharged change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.InterestCharged, MoneyDirection.Expense, change.Amount, change.Rate));
-                    break;
-                case MandatoryLoanRepaymentCharged change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.MandatoryRepayment, MoneyDirection.Expense, change.Amount, change.Rate));
-                    break;
-                case LoanRepaid change when change.TeamId == teamId:
-                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.VoluntaryRepayment, MoneyDirection.Expense, change.Amount, Rate: null));
-                    break;
                 case FactoryBuilt change when change.TeamId == teamId && change.Cost > 0:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryBuilt, MoneyDirection.Expense, change.Cost, Rate: null, change.FactoryId));
                     break;
@@ -180,11 +143,6 @@ public static class FinanceHistoryCalculator
                     break;
                 case GrantIssued change when change.TeamId == teamId:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.GrantReceived, MoneyDirection.Income, change.Amount, Rate: null));
-                    if (change.RepayDebtFirst && debtBeforeGrant is > 0)
-                    {
-                        var repayment = Math.Min(change.Amount, debtBeforeGrant.Value);
-                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.VoluntaryRepayment, MoneyDirection.Expense, repayment, Rate: null));
-                    }
                     break;
                 case ContractDelivered change:
                 {

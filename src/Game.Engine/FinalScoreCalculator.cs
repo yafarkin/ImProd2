@@ -34,10 +34,9 @@ public static class FinalScoreCalculator
         {
             TeamId = team.Id,
             Cash = team.Balance,
-            Debt = team.Debt,
             WarehouseValue = warehouseValue,
             FactoriesValue = factoriesValue,
-            Score = team.Balance - team.Debt + warehouseValue + factoriesValue,
+            Score = team.Balance + warehouseValue + factoriesValue,
         };
     }
 }

@@ -1,5 +1,4 @@
 using Game.Config.Economy;
-using Game.Config.Session;
 using Game.Domain;
 using Game.Engine;
 
@@ -23,21 +22,8 @@ public static class DashboardDisplay
     /// </summary>
     public static string FormatUnitCost(decimal amount) => $"{amount:0.####} ¤";
 
-    /// <summary>Процентная ставка для отображения на экране (Блок 9.2).</summary>
+    /// <summary>Процентная ставка для отображения на экране — штраф контракта, плата за склад и т.п.</summary>
     public static string FormatRate(decimal rate) => rate.ToString("P1");
-
-    /// <summary>Предпросмотр ставки и платежа за ход для гипотетического займа (Блок 9.2, SPEC §5.9:
-    /// «в UI до подтверждения — расчёт платежа за ход») — до того, как команда его подтвердила.</summary>
-    public static (decimal Rate, decimal Payment) PreviewLoan(
-        decimal currentDebt, decimal penaltyRateSurcharge, decimal reputationPercentage,
-        decimal additionalAmount, StartingConditionsConfig loanConfig)
-    {
-        var projectedDebt = currentDebt + additionalAmount;
-        var rate = FinanceCalculator.CalculateEffectiveLoanRate(
-            projectedDebt, penaltyRateSurcharge, reputationPercentage, loanConfig);
-
-        return (rate, rate * projectedDebt);
-    }
 
     /// <summary>Русская подпись статуса контракта для дашборда («что я обещал другим»).</summary>
     public static string ContractStatusLabel(ContractStatus status) => status switch
@@ -87,11 +73,6 @@ public static class DashboardDisplay
     /// <summary>Русская подпись вида финансовой операции для истории операций «Финансов» (Блок 9.2).</summary>
     public static string FinanceOperationLabel(FinanceHistoryCalculator.OperationType type) => type switch
     {
-        FinanceHistoryCalculator.OperationType.LoanTaken => "Взят кредит",
-        FinanceHistoryCalculator.OperationType.ForcedLoan => "Принудительный заём",
-        FinanceHistoryCalculator.OperationType.InterestCharged => "Начислены проценты",
-        FinanceHistoryCalculator.OperationType.MandatoryRepayment => "Обязательный платёж по телу долга",
-        FinanceHistoryCalculator.OperationType.VoluntaryRepayment => "Досрочное погашение",
         FinanceHistoryCalculator.OperationType.FactoryBuilt => "Постройка фабрики",
         FinanceHistoryCalculator.OperationType.FactorySold => "Продажа фабрики",
         FinanceHistoryCalculator.OperationType.WorkersHired => "Наём рабочих",

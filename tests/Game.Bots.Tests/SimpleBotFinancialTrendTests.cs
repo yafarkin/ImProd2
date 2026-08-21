@@ -115,11 +115,10 @@ public class SimpleBotFinancialTrendTests
             bot.UpdateFinancialTrend(session);
         }
 
-        // BuildOutSectorChain берёт заём (не завязан на throttle — доступ к кредиту не тормозится) и
-        // пытается достроить цепочку, но в бедственном положении сама достройка должна быть пустой.
+        // BuildOutSectorChain пытается достроить цепочку, но в бедственном положении (throttle=0)
+        // сама достройка должна быть пустой.
         bot.BuildOutSectorChain(session);
         Assert.Empty(team.Factories);
-        Assert.True(team.PendingLoanTakeAmount > 0m);
 
         // Тренд разворачивается — как только throttle отрастёт, достройка должна сработать без
         // дополнительных действий (идемпотентно, тот же вызов).
@@ -131,38 +130,5 @@ public class SimpleBotFinancialTrendTests
         bot.BuildNewlyUnlockedFactories(session);
 
         Assert.NotEmpty(team.Factories);
-    }
-
-    [Fact]
-    public void RepayDebt_Repays_More_Aggressively_Than_The_Nominal_Leverage_Once_In_Financial_Distress()
-    {
-        var config = PilotBotSession.LoadConfig();
-        var sectorA = config.Sectors.Single(s => s.Id == "A");
-        var teamId = Ulid.NewUlid();
-        var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision(1)
-
-        // leverage=1 -> при здоровом тренде RepayDebt ничего не гасит (доля 1-leverage=0).
-        var bot = new SimpleBot(teamId, sectorA, config, leverage: 1m);
-        session.TakeLoan(teamId, 50_000m);
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision(1) -> Settlement(2)
-        session.RunTick(new Random(1)); // материализует заём в Balance/Debt
-        session.AdvancePhase(PhaseTransitionTrigger.Timer); // -> Decision(2)
-
-        var team = session.State.Teams[teamId];
-        Assert.True(team.Debt > 0m);
-        var balanceBeforeDistress = team.Balance;
-
-        bot.UpdateFinancialTrend(session); // фиксирует точку отсчёта
-        for (var i = 0; i < 7; i++) // leverage=1 -> порог 4 + 3 шага по 0.25, см. другие тесты этого файла
-        {
-            team.Debit(500m);
-            bot.UpdateFinancialTrend(session);
-        }
-
-        bot.RepayDebt(session);
-
-        Assert.True(team.PendingLoanRepayAmount > 0m, "В бедственном положении бот должен гасить долг несмотря на leverage=1.");
     }
 }

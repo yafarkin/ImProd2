@@ -24,19 +24,17 @@ public class FinalScoreCalculatorTests
     }
 
     [Fact]
-    public void A_Team_With_No_Warehouse_Or_Factories_Scores_Cash_Minus_Debt()
+    public void A_Team_With_No_Warehouse_Or_Factories_Scores_Cash()
     {
         var team = new Team(Ulid.NewUlid(), "Команда А1", TestGameConfig.SectorA);
-        team.TakeLoan(1000m); // Balance += 1000, Debt += 1000
-        team.Credit(500m); // Balance = 1500
+        team.Credit(1500m);
 
         var result = FinalScoreCalculator.Calculate(team, NewMarket(), Economy, FactoryDefinitions);
 
         Assert.Equal(1500m, result.Cash);
-        Assert.Equal(1000m, result.Debt);
         Assert.Equal(0m, result.WarehouseValue);
         Assert.Equal(0m, result.FactoriesValue);
-        Assert.Equal(500m, result.Score); // 1500 - 1000 + 0 + 0
+        Assert.Equal(1500m, result.Score); // 1500 + 0 + 0
     }
 
     [Fact]
@@ -49,7 +47,7 @@ public class FinalScoreCalculatorTests
         var result = FinalScoreCalculator.Calculate(team, NewMarket(), Economy, FactoryDefinitions);
 
         Assert.Equal(100m, result.WarehouseValue);
-        Assert.Equal(100m, result.Score); // Cash=0, Debt=0
+        Assert.Equal(100m, result.Score); // Cash=0
     }
 
     [Fact]
@@ -66,10 +64,10 @@ public class FinalScoreCalculatorTests
     }
 
     [Fact]
-    public void Score_Combines_Cash_Debt_Warehouse_And_Factories()
+    public void Score_Combines_Cash_Warehouse_And_Factories()
     {
         var team = new Team(Ulid.NewUlid(), "Команда А1", TestGameConfig.SectorA);
-        team.TakeLoan(1000m);
+        team.Credit(1000m);
         team.Warehouse.Add(TestGameConfig.Ore, 10m, 0m); // 50
         team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine); // 50
         team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mill); // 50
@@ -77,9 +75,8 @@ public class FinalScoreCalculatorTests
         var result = FinalScoreCalculator.Calculate(team, NewMarket(), Economy, FactoryDefinitions);
 
         Assert.Equal(1000m, result.Cash);
-        Assert.Equal(1000m, result.Debt);
         Assert.Equal(50m, result.WarehouseValue);
         Assert.Equal(100m, result.FactoriesValue);
-        Assert.Equal(150m, result.Score); // 1000 - 1000 + 50 + 100
+        Assert.Equal(1150m, result.Score); // 1000 + 50 + 100
     }
 }

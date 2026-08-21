@@ -42,11 +42,11 @@ namespace Game.Engine;
 /// </list>
 ///
 /// <para>
-/// Не моделирует кредиты/проценты/принудительные займы вообще — тот же простой P&amp;L, что и у
-/// <see cref="FinalScoreCalculator"/> (Cash - Debt + WarehouseValue + FactoriesValue), только без
-/// займов, значит без долга: денежный остаток может уходить в минус (аванс за раннюю постройку до
-/// первой выручки) — это не «нехватка кредита», а просто отрицательное слагаемое суммы, кредитное
-/// плечо — отдельная ось (<c>leverage</c>, Блок 7.3.2), не часть эталона.
+/// Тот же простой P&amp;L, что и у <see cref="FinalScoreCalculator"/> (Cash + WarehouseValue +
+/// FactoriesValue) — банковского займа как класса механики в игре больше нет (docs/TODO.md #23):
+/// денежный остаток может свободно уходить в минус (аванс за раннюю постройку до первой выручки) —
+/// это не ошибка, а просто отрицательное слагаемое суммы; кредитное плечо (<c>leverage</c>, Блок
+/// 7.3.2) — отдельная ось калибровки ботов, не часть игрового эталона.
 /// </para>
 /// </summary>
 public static class IdealHallCalculator
@@ -417,7 +417,7 @@ public static class IdealHallCalculator
         return total;
     }
 
-    /// <summary>X(t) на конец хода — тот же состав слагаемых, что <see cref="FinalScoreCalculator"/> (без долга, см. doc-comment класса): касса + ликвидационная стоимость фабрик + ликвидационная стоимость склада по базовой рыночной цене (без наценки передела — она относится к активной продаже системе, не к пассивной оценке остатка, тот же принцип, что и в <see cref="FinalScoreCalculator.WarehouseValue"/>).</summary>
+    /// <summary>X(t) на конец хода — тот же состав слагаемых, что <see cref="FinalScoreCalculator"/>: касса + ликвидационная стоимость фабрик + ликвидационная стоимость склада по базовой рыночной цене (без наценки передела — она относится к активной продаже системе, не к пассивной оценке остатка, тот же принцип, что и в <see cref="FinalScoreCalculator.WarehouseValue"/>).</summary>
     private static decimal ComputeValue(
         BranchState branch, ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> basePriceByMaterialId)
     {

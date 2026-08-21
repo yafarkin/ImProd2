@@ -4,8 +4,8 @@ namespace Game.Bots;
 
 /// <summary>
 /// Прогоняет одну или много партий силами простых ботов (Блок 7.2, BUILD_PLAN «Харнесс
-/// балансировки») и собирает метрики: денежная масса и throughput по ходам, доля принудительных
-/// займов, разброс итоговых счётов — для калибровки GameConfig, не для игры вживую. Опционально
+/// балансировки») и собирает метрики: денежная масса и throughput по ходам, разброс итоговых
+/// счётов — для калибровки GameConfig, не для игры вживую. Опционально
 /// сверяет каждую команду с идеальным залом (Блок 7.3.5, <see cref="IdealHallCalculator"/>) —
 /// Score(t)/X(t) той же ветки, посчитанным заранее, один раз на весь конфиг (X(t) не зависит от
 /// стратегии ботов, пересчитывать его на каждую партию незачем).
@@ -31,7 +31,6 @@ public static class BalancingHarness
         {
             var totalCash = session.State.Teams.Values.Sum(team => team.Balance);
             var volumeSold = appended.Sum(entry => entry.Change is MaterialSoldToSystem sale ? sale.Volume : 0m);
-            var forcedLoans = appended.Count(entry => entry.Change is ForcedLoanTaken);
 
             var allFactories = session.State.Teams.Values.SelectMany(team => team.Factories).ToList();
             var averageFactoryCondition = allFactories.Count > 0 ? allFactories.Average(factory => factory.Condition) : 1m;
@@ -43,7 +42,6 @@ public static class BalancingHarness
                 Turn = session.State.CurrentTurn,
                 TotalCash = totalCash,
                 VolumeSoldToSystem = volumeSold,
-                ForcedLoanCount = forcedLoans,
                 AverageFactoryCondition = averageFactoryCondition,
                 FactoriesUnderRepairCount = factoriesUnderRepair,
                 ForcedRepairEventsCount = forcedRepairEvents,

@@ -1,7 +1,9 @@
 namespace Game.Config.Economy;
 
 /// <summary>
-/// Масштабирует восемь именованных рычагов баланса (<c>docs/difficulty.md</c> §2) по непрерывному
+/// Масштабирует семь именованных рычагов баланса (<c>docs/difficulty.md</c> §2 — было восемь, рычаг
+/// ставки по займу убран вместе с самим банковским займом как классом механики, docs/TODO.md #23,
+/// docs/difficulty.md пока не переписан под новое число, см. TODO) по непрерывному
 /// <see cref="Session.SessionConfig.DifficultyLevel"/> — 0.0 (почти нельзя проиграть) .. 5.0 (нужна
 /// высокая точность решений). Каждый рычаг задан анкерной таблицей из 6 множителей (уровни 0-5;
 /// индекс 3 всегда 1.0 — нейтральная точка, совпадает с текущей откалиброванной экономикой без
@@ -20,7 +22,6 @@ public static class DifficultyScaler
     // из анкерных значений docs/difficulty.md §3 делением на дефолт pilot.json/standard.json на этом
     // рычаге — поэтому применяются как множитель к уже существующему значению конфига, не как
     // абсолютные числа, и одинаково работают поверх разных production-model файлов (§5 плана).
-    private static readonly double[] BaseLoanInterestRateAnchors = { 0.0, 0.4, 0.7, 1.0, 2.0, 4.0 };
     private static readonly double[] BuildCostAnchors = { 0.5, 0.7, 0.85, 1.0, 1.3, 1.7 };
     private static readonly double[] SalaryEscalationFactorAnchors = { 0.667, 0.767, 0.867, 1.0, 1.267, 1.667 };
     private static readonly double[] ProductionRateBonusPerLevelAnchors = { 2.0, 1.5, 1.2, 1.0, 0.7, 0.5 };
@@ -39,7 +40,6 @@ public static class DifficultyScaler
     {
         ArgumentNullException.ThrowIfNull(config);
 
-        var loanMultiplier = MultiplierAt(BaseLoanInterestRateAnchors, difficultyLevel);
         var buildCostMultiplier = MultiplierAt(BuildCostAnchors, difficultyLevel);
         var salaryEscalationMultiplier = MultiplierAt(SalaryEscalationFactorAnchors, difficultyLevel);
         var productionBonusMultiplier = MultiplierAt(ProductionRateBonusPerLevelAnchors, difficultyLevel);
@@ -50,10 +50,6 @@ public static class DifficultyScaler
 
         return config with
         {
-            StartingConditions = config.StartingConditions with
-            {
-                BaseLoanInterestRate = config.StartingConditions.BaseLoanInterestRate * loanMultiplier,
-            },
             FactoryDefinitions = config.FactoryDefinitions
                 .Select(f => f with { BuildCost = f.BuildCost * buildCostMultiplier })
                 .ToList(),

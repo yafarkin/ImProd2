@@ -15,9 +15,6 @@ public sealed class BotDerivedMetricsBuilderTests
         var metrics = BotDerivedMetricsBuilder.Build(session, teamId);
 
         Assert.Contains("not enough history yet for a prior window", metrics);
-        Assert.Contains("LOAN SERVICE", metrics);
-        Assert.Contains("LOAN COST RIGHT NOW", metrics);
-        Assert.Contains("No debt", metrics);
         Assert.Contains("CASH FLOW", metrics);
         Assert.Contains("WAREHOUSE OVERAGE FEE", metrics);
         Assert.Contains("IDLE / UNDERPERFORMING FACTORIES", metrics);
@@ -28,24 +25,6 @@ public sealed class BotDerivedMetricsBuilderTests
         Assert.Contains("RUNWAY", metrics);
         Assert.Contains("MARKET POSITION", metrics);
         Assert.Contains("You are currently the net worth leader", metrics);
-    }
-
-    [Fact]
-    public void Build_WithDebt_ShowsTheExactRateAndNextTurnInterestCost()
-    {
-        // Прямой запрос пользователя 2026-08-20, по следам _2bot_gpt_oss_20b_2stage_v2: боту нужна
-        // конкретная цена долга ЧИСЛОМ, не абстрактное "ставка растёт" — иначе он берёт заём на заём
-        // не замечая, что это уже дорого.
-        var (session, teamId) = TestSession.StartSingleTeamSession();
-        session.TakeLoan(teamId, 100_000m);
-        TestSession.SettleOneTurn(session, new Random(1));
-
-        var metrics = BotDerivedMetricsBuilder.Build(session, teamId);
-
-        Assert.Contains("LOAN COST RIGHT NOW", metrics);
-        Assert.Contains("Effective rate:", metrics);
-        Assert.Contains("interest NEXT turn", metrics);
-        Assert.DoesNotContain("No debt", metrics);
     }
 
     [Fact]
@@ -178,39 +157,20 @@ public sealed class BotDerivedMetricsBuilderTests
     }
 
     [Fact]
-    public void Build_AfterLoanAndInterestAccrues_LoanServiceShowsNonZeroInterest()
-    {
-        var (session, teamId) = TestSession.StartSingleTeamSession();
-        var random = new Random(5);
-
-        session.TakeLoan(teamId, 1000m);
-        for (var i = 0; i < 3; i++)
-        {
-            TestSession.SettleOneTurn(session, random);
-        }
-
-        var metrics = BotDerivedMetricsBuilder.Build(session, teamId);
-
-        Assert.True(session.State.Teams[teamId].Debt > 0, "Precondition: team should still owe money for interest to have accrued.");
-        Assert.Matches(@"Interest paid: (?!0\.00)\d", metrics);
-    }
-
-    [Fact]
     public void Build_TeamBehindOnNetWorth_ShowsLeaderAndOwnPosition()
     {
         var (session, teamAId, teamBId) = TestSession.StartTwoTeamSession();
         var random = new Random(11);
 
-        session.TakeLoan(teamBId, 1000m);
+        session.State.Teams[teamBId].Debit(1000m); // напрямую роняем баланс — команда отстала
         for (var i = 0; i < 4; i++)
         {
             TestSession.SettleOneTurn(session, random);
         }
 
         Assert.True(
-            session.State.Teams[teamBId].Balance - session.State.Teams[teamBId].Debt <
-            session.State.Teams[teamAId].Balance - session.State.Teams[teamAId].Debt,
-            "Precondition: the borrowing team should have fallen behind after interest.");
+            session.State.Teams[teamBId].Balance < session.State.Teams[teamAId].Balance,
+            "Precondition: the team debited above should have fallen behind.");
 
         var leaderMetrics = BotDerivedMetricsBuilder.Build(session, teamAId);
         Assert.Contains("You are currently the net worth leader", leaderMetrics);

@@ -100,9 +100,6 @@ public sealed record GridCellSummary
     public required decimal Profile { get; init; }
     public required int SessionCount { get; init; }
 
-    /// <summary>См. <see cref="Game.Bots.BalancingReport.ForcedLoanShare"/>.</summary>
-    public required decimal ForcedLoanShare { get; init; }
-
     /// <summary>См. <see cref="Game.Bots.BalancingReport.ForcedRepairEventShare"/>.</summary>
     public required decimal ForcedRepairEventShare { get; init; }
 

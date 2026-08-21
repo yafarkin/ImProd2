@@ -8,7 +8,7 @@ public class JournalExportTests
     [Fact]
     public void ToJson_Produces_One_Readable_Entry_Per_Journal_Record()
     {
-        var (session, _) = TestGameConfig.StartGameSessionWithOneTeam(startingLoan: 500m);
+        var (session, _) = TestGameConfig.StartGameSessionWithOneTeam(startingCash: 500m);
 
         var json = JournalExport.ToJson(session.Entries);
         var root = JsonDocument.Parse(json).RootElement;

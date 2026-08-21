@@ -22,10 +22,9 @@ public static class FactoryHistoryCalculator
     /// ходов — оба ряда пополняются из одного и того же события <see cref="FactoryProduced"/>.
     /// <see cref="NetWorthByTurn"/> и <see cref="ReputationByTurn"/> — те же значения, что показывает
     /// вкладка «Обзор» сейчас (чистая стоимость и <see cref="ReputationCalculator"/>), просто по
-    /// ходам, а не только на текущий момент. <see cref="NetWorthByTurn"/> — баланс минус долг (та же
-    /// величина, что уже используется для рейтинга команд на большом экране в Game.Web), а не сырой
-    /// баланс: принудительный кредит держит баланс искусственно у нуля, пряча реальное ухудшение дел
-    /// за растущим долгом — график поэтому обязан уметь уходить ниже нуля (запрос пользователя).
+    /// ходам, а не только на текущий момент. <see cref="NetWorthByTurn"/> — сырой баланс (та же
+    /// величина, что уже используется для рейтинга команд на большом экране в Game.Web) — может
+    /// уходить ниже нуля, это не ошибка (SPEC §5.1/§5.9, пересмотрено).
     /// </summary>
     public sealed record TeamFactoryHistory(
         IReadOnlyDictionary<string, IReadOnlyList<(int Turn, decimal Quantity)>> StockByMaterialId,
@@ -100,8 +99,8 @@ public static class FactoryHistoryCalculator
 
     /// <summary>
     /// Снимок на конец завершённого хода <paramref name="completedTurn"/>: реальные остатки склада
-    /// команды (как их видит текущий дашборд через <c>_teamWarehouseByMaterialId</c>), чистая
-    /// стоимость (баланс минус долг), репутация на этот момент (<see cref="ReputationCalculator"/> — на уже проигранном до этого
+    /// команды (как их видит текущий дашборд через <c>_teamWarehouseByMaterialId</c>), баланс,
+    /// репутация на этот момент (<see cref="ReputationCalculator"/> — на уже проигранном до этого
     /// хода куске журнала <paramref name="processedEntries"/>, иначе события будущих ходов исказили
     /// бы её затухание по свежести) и оценка прибыльности каждой фабрики по этим остаткам и
     /// рыночным ценам того момента, просуммированная по уровню пирамиды. Фабрика без рыночной
@@ -121,7 +120,7 @@ public static class FactoryHistoryCalculator
             return;
         }
 
-        netWorthByTurn.Add((completedTurn, team.Balance - team.Debt));
+        netWorthByTurn.Add((completedTurn, team.Balance));
 
         var reputation = ReputationCalculator.Calculate(processedEntries, scratch.Contracts, teamId, completedTurn, config.Raw.Reputation);
         reputationByTurn.Add((completedTurn, reputation.Percentage));

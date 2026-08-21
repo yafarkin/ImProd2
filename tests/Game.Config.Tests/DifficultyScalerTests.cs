@@ -4,7 +4,8 @@ using Game.Config.Economy;
 namespace Game.Config.Tests;
 
 /// <summary>
-/// Интерполяция и применение восьми рычагов сложности (<c>docs/difficulty.md</c>) —
+/// Интерполяция и применение семи рычагов сложности (<c>docs/difficulty.md</c>, было восемь — рычаг
+/// ставки по займу убран вместе с банковским займом как классом механики, docs/TODO.md #23) —
 /// <see cref="DifficultyScaler"/>, шаг 2 плана реализации из этого документа.
 /// </summary>
 public class DifficultyScalerTests
@@ -90,13 +91,12 @@ public class DifficultyScalerTests
     }
 
     [Fact]
-    public void Apply_At_Level_Zero_Moves_All_Eight_Levers_In_The_Easier_Direction()
+    public void Apply_At_Level_Zero_Moves_All_Seven_Levers_In_The_Easier_Direction()
     {
         var config = BuildConfig();
 
         var scaled = DifficultyScaler.Apply(config, 0.0);
 
-        Assert.Equal(0m, scaled.StartingConditions.BaseLoanInterestRate);
         Assert.True(scaled.FactoryDefinitions.Single().BuildCost < config.FactoryDefinitions.Single().BuildCost);
         Assert.True(scaled.WorkerProductivity.SalaryEscalationFactor < config.WorkerProductivity.SalaryEscalationFactor);
         Assert.True(scaled.Rnd.ProductionRateBonusPerLevel > config.Rnd.ProductionRateBonusPerLevel);
@@ -108,13 +108,12 @@ public class DifficultyScalerTests
     }
 
     [Fact]
-    public void Apply_At_Level_Five_Moves_All_Eight_Levers_In_The_Harder_Direction()
+    public void Apply_At_Level_Five_Moves_All_Seven_Levers_In_The_Harder_Direction()
     {
         var config = BuildConfig();
 
         var scaled = DifficultyScaler.Apply(config, 5.0);
 
-        Assert.True(scaled.StartingConditions.BaseLoanInterestRate > config.StartingConditions.BaseLoanInterestRate);
         Assert.True(scaled.FactoryDefinitions.Single().BuildCost > config.FactoryDefinitions.Single().BuildCost);
         Assert.True(scaled.WorkerProductivity.SalaryEscalationFactor > config.WorkerProductivity.SalaryEscalationFactor);
         Assert.True(scaled.Rnd.ProductionRateBonusPerLevel < config.Rnd.ProductionRateBonusPerLevel);

@@ -19,8 +19,6 @@ public sealed class SystemPromptBuilderTests
     [InlineData("setRndCommitment(")]
     [InlineData("setGenerationResearchCommitment(")]
     [InlineData("setOverhaulRequested(")]
-    [InlineData("takeLoan(")]
-    [InlineData("repayLoan(")]
     [InlineData("sellToSystem(")]
     public void Build_ListsEveryCommand(string mnemonic)
     {
@@ -36,15 +34,14 @@ public sealed class SystemPromptBuilderTests
     }
 
     [Fact]
-    public void Build_AlwaysIncludesSellSurplusBeforeBorrowingHint()
+    public void Build_AlwaysIncludesSellSurplusHint()
     {
-        // Прямой запрос пользователя 2026-08-20, по следам _2bot_gpt_oss_20b_2stage_v2 (оба бота 45
-        // ходов подряд брали заём вместо того, чтобы продать излишек) — эта подсказка не завязана на
-        // число секторов, в отличие от CROSS-SECTOR TRADE, должна быть в промпте всегда.
+        // Изначально запрос пользователя 2026-08-20 был про займы (боты брали заём вместо продажи
+        // излишка) — механика займа убрана (docs/TODO.md #23), но сама подсказка "продай, не сиди на
+        // остатке" осталась актуальной и не завязана на число секторов, должна быть в промпте всегда.
         var prompt = SystemPromptBuilder.Build("persona");
 
-        Assert.Contains("SELL THE SURPLUS, DON'T BORROW TO COVER IT", prompt);
-        Assert.Contains("LOAN COST RIGHT NOW", prompt);
+        Assert.Contains("SELL THE SURPLUS, DON'T JUST LET THE BALANCE DRIFT DOWN", prompt);
     }
 
     [Fact]
