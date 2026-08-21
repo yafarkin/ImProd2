@@ -764,8 +764,8 @@ public sealed class GameSession
     /// пользователя: «постоянные затраты», не разовое вложение — см. <see cref="TickFinanceStep"/>).
     /// Требует фазы решений. Бросает <see cref="ArgumentOutOfRangeException"/> на отрицательную сумму
     /// или сумму сверх потолка <see cref="Config.Economy.RndConfig.MaxCommitmentPerTurn"/> (запрос
-    /// пользователя: чтобы даже с любым кредитом нельзя было мгновенно прокачать фабрику на несколько
-    /// уровней за один ход).
+    /// пользователя: чтобы нельзя было мгновенно прокачать фабрику на несколько уровней за один ход,
+    /// даже при сколь угодно большом — в том числе отрицательном — балансе).
     /// </summary>
     public EventLogEntry<GameSessionState> SetRndCommitment(Ulid teamId, Ulid factoryId, decimal amountPerTurn)
     {

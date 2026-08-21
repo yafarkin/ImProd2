@@ -48,7 +48,7 @@ else
         @if (!_isDecisionPhase)
         {
             <p class="mb-1">
-                <strong>Решения сейчас недоступны</strong> — постройка, наём, продажи, кредиты и контракты
+                <strong>Решения сейчас недоступны</strong> — постройка, наём, продажи и контракты
                 заблокированы, пока не начнётся фаза «Решения». Дождитесь её.
             </p>
         }
@@ -124,7 +124,7 @@ else
     }
     else
     {
-        <h4 class="h6 mt-4">Баланс за вычетом долга по ходам</h4>
+        <h4 class="h6 mt-4">Баланс по ходам</h4>
         @ChartRenderer.Render(BuildBalanceChartLayout())
         <h4 class="h6 mt-4">Репутация по ходам</h4>
         @ChartRenderer.Render(BuildReputationChartLayout())
@@ -155,13 +155,12 @@ else
                         <option value="@definition.Id">@definition.Name (постройка @DashboardDisplay.FormatMoney(definition.BuildCost), обслуживание @DashboardDisplay.FormatMoney(definition.FixedCostPerTurn)/ход)</option>
                     }
                 </select>
-                <button type="button" class="btn btn-primary" disabled="@(!CanAffordSelectedBuild)" @onclick="BuildFactory">Построить</button>
+                <button type="button" class="btn btn-primary" @onclick="BuildFactory">Построить</button>
             </div>
             @if (!CanAffordSelectedBuild && SelectedBuildableDefinition is { } selectedForBuild)
             {
-                <p class="text-danger mb-3">
-                    Не хватает @DashboardDisplay.FormatMoney(selectedForBuild.BuildCost - _balance) —
-                    <button type="button" class="btn btn-link p-0 align-baseline" @onclick='() => _activePageTab = "finance"'>возьмите кредит в Финансах</button>.
+                <p class="text-muted mb-3">
+                    Баланс уйдёт в минус на @DashboardDisplay.FormatMoney(selectedForBuild.BuildCost - _balance) — это не проблема, просто число.
                 </p>
             }
         }
@@ -383,7 +382,7 @@ else
                                 <p class="text-muted small mb-2">
                                     Списывается автоматически каждый ход, до @_maxRndCommitmentPerTurn.ToString("0.##") ¤/ход на одну
                                     фабрику. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
-                                    всё сразу за счёт кредита.
+                                    всё сразу одним крупным платежом.
                                 </p>
                             }
                         }
@@ -669,7 +668,7 @@ else
             <p class="text-muted small">
                 Списывается автоматически каждый ход, до @_maxGenerationResearchCommitmentPerTurn.ToString("0.##") ¤/ход
                 на команду. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
-                всё сразу за счёт кредита.
+                всё сразу одним крупным платежом.
             </p>
         }
     }
@@ -741,7 +740,7 @@ else
                 }
             </select>
             <input type="number" min="0" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_emergencyPurchaseVolume" />
-            <button type="button" class="btn btn-secondary" disabled="@(!CanAffordEmergencyPurchase)" @onclick="EmergencyPurchase">Купить</button>
+            <button type="button" class="btn btn-secondary" @onclick="EmergencyPurchase">Купить</button>
             @if (_emergencyPurchaseMaterialId is not null && _pendingEmergencyPurchaseVolumeByMaterial.GetValueOrDefault(_emergencyPurchaseMaterialId) > 0)
             {
                 <button type="button" class="btn btn-link p-0" @onclick="CancelEmergencyPurchase">Отменить</button>
@@ -762,8 +761,8 @@ else
         }
         @if (!CanAffordEmergencyPurchase)
         {
-            <p class="text-danger small mb-2">
-                Не хватает @DashboardDisplay.FormatMoney(EmergencyPurchaseCost - _balance).
+            <p class="text-muted small mb-2">
+                Баланс уйдёт в минус на @DashboardDisplay.FormatMoney(EmergencyPurchaseCost - _balance) — это не проблема, просто число.
             </p>
         }
     }
@@ -1021,7 +1020,7 @@ else
     private string _phaseExplanation = string.Empty;
     private bool _isDecisionPhase;
     /// <summary>
-    /// Может принимать решения (строить, нанимать, вкладывать в R&amp;D, продавать, брать кредит) —
+    /// Может принимать решения (строить, нанимать, вкладывать в R&amp;D, продавать) —
     /// фаза «Решения» и роль «Управляющий»; переговорщик видит все те же панели, но в режиме чтения
     /// (запрос пользователя: «у переговорщика были те же права, что и у управляющего» — по факту
     /// действие раньше проверялось только по фазе, не по роли). Вкладка «Контракты» — исключение,
@@ -1147,9 +1146,9 @@ else
             _currentTurn = state.CurrentTurn;
             // Полный реплей журнала — не бесплатная операция, а страница обновляется раз в секунду:
             // пересчитываем только когда в журнале появились новые записи, а не на каждый тик
-            // таймера. Раньше ключом кеша был текущий ход — но решения (взять кредит, погасить
-            // долг) добавляют события внутри одного и того же хода, поэтому кеш по ходу не замечал
-            // их до следующего хода: свежевзятый кредит не появлялся в истории операций сразу же.
+            // таймера. Раньше ключом кеша был текущий ход — но решения (продать, построить фабрику)
+            // добавляют события внутри одного и того же хода, поэтому кеш по ходу не замечал
+            // их до следующего хода: свежее действие не появлялось в истории операций сразу же.
             var entryCount = Host.Session!.Entries.Count;
             if (_history is null || _historyEntryCount != entryCount)
             {
@@ -1405,12 +1404,15 @@ else
     private BuildableDefinition? SelectedBuildableDefinition =>
         _buildableDefinitions.FirstOrDefault(d => d.Id == _selectedFactoryDefinitionId);
 
-    /// <summary>Управляет и disabled-состоянием кнопки «Построить», и текстом-пояснением рядом с ней — единый источник правды, чтобы они не разъезжались.</summary>
+    /// <summary>
+    /// Не блокирует постройку (баланс может свободно уйти в минус, docs/TODO.md #23) — только
+    /// управляет информационной подсказкой рядом с кнопкой «Построить».
+    /// </summary>
     private bool CanAffordSelectedBuild => SelectedBuildableDefinition is not { } definition || _balance >= definition.BuildCost;
 
     private void BuildFactory()
     {
-        if (_selectedFactoryDefinitionId is null || !CanAffordSelectedBuild)
+        if (_selectedFactoryDefinitionId is null)
         {
             return;
         }
@@ -1562,13 +1564,12 @@ else
     }
 
     /// <summary>
-    /// Чистая стоимость команды (баланс минус долг) по ходам (вкладка «Обзор») — не сырой баланс:
-    /// принудительный кредит держит баланс у нуля, пряча реальное ухудшение дел за растущим долгом,
-    /// поэтому график обязан уметь уходить ниже нуля (запрос пользователя).
+    /// Баланс команды по ходам (вкладка «Обзор») — может уходить ниже нуля, это не ошибка (SPEC
+    /// §5.1/§5.9, пересмотрено — банковский заём убран как класс механики, docs/TODO.md #23).
     /// </summary>
     private LineChartDiagram.ChartLayout BuildBalanceChartLayout()
     {
-        var series = new[] { new LineChartDiagram.ChartSeries("Баланс за вычетом долга", SectorColors.Palette[0], _history!.NetWorthByTurn) };
+        var series = new[] { new LineChartDiagram.ChartSeries("Баланс", SectorColors.Palette[0], _history!.NetWorthByTurn) };
 
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
     }
@@ -1689,11 +1690,12 @@ else
         }
     }
 
+    /// <summary>Не блокирует покупку (баланс может свободно уйти в минус, docs/TODO.md #23) — только управляет информационной подсказкой рядом с кнопкой «Купить».</summary>
     private bool CanAffordEmergencyPurchase => EmergencyPurchaseCost <= _balance;
 
     private void EmergencyPurchase()
     {
-        if (_emergencyPurchaseMaterialId is null || !CanAffordEmergencyPurchase)
+        if (_emergencyPurchaseMaterialId is null)
         {
             return;
         }

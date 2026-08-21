@@ -23,8 +23,8 @@ public sealed record LlmBotTurnReport(int Turn, IReadOnlyList<LlmBotTurnResult> 
     /// (<see cref="LlmBotTurnOutcome.Exhausted"/>), либо все предложенные действия были отклонены
     /// (<see cref="LlmBotTurnOutcome.Skipped"/>), а не то, что модель осознанно решила ничего не
     /// делать. Именно это, не любой отдельный пропуск, должно считаться «плохим ходом» для остановки
-    /// прогона в <see cref="LlmBotSessionRunner"/> — бот, взявший заём, а остальное предложивший
-    /// невалидным, всё же продвинулся, а не просто застрял.
+    /// прогона в <see cref="LlmBotSessionRunner"/> — бот, успешно построивший фабрику, а остальное
+    /// предложивший невалидным, всё же продвинулся, а не просто застрял.
     /// </summary>
     public bool IsFullyFailedTurn => SuccessfulActionCount == 0 && Actions.Count > 0 && Actions[^1].Outcome != LlmBotTurnOutcome.Nop;
 }
