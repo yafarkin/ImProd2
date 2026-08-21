@@ -2,10 +2,9 @@ namespace Game.Bots;
 
 /// <summary>
 /// Сводка по прогону N партий (Блок 7.2, BUILD_PLAN «Харнесс балансировки»): денежная масса и
-/// throughput по ходам (усреднённые по партиям — для графика роста), доля дефолтов (принудительных
-/// займов на команду-ход) и средний разброс итоговых счётов между командами одной партии. Плюс
-/// сходимость к идеальному залу (Блок 7.3.5, <c>docs/balancing-bots.md</c> §3) — если он был передан
-/// на вход прогона.
+/// throughput по ходам (усреднённые по партиям — для графика роста) и средний разброс итоговых
+/// счётов между командами одной партии. Плюс сходимость к идеальному залу (Блок 7.3.5,
+/// <c>docs/balancing-bots.md</c> §3) — если он был передан на вход прогона.
 /// </summary>
 public sealed record BalancingReport
 {
@@ -15,16 +14,12 @@ public sealed record BalancingReport
     /// <summary>Метрики по ходам, усреднённые по всем партиям, которые до каждого из них дожили.</summary>
     public required IReadOnlyList<AggregatedTurnMetrics> TurnsByIndex { get; init; }
 
-    /// <summary>Доля команд-ходов, закончившихся принудительным займом, — прокси «дефолта» (своего понятия банкротства в игре нет).</summary>
-    public required decimal ForcedLoanShare { get; init; }
-
     /// <summary>Средний по партиям разброс (максимум минус минимум) итоговых счётов команд.</summary>
     public required decimal AverageFinalScoreSpread { get; init; }
 
     /// <summary>
     /// Доля команд-ходов, на которых хотя бы одна фабрика пересекла критический порог износа и ушла
-    /// в вынужденный простой (SPEC §5.6) — тот же приём, что <see cref="ForcedLoanShare"/>, для новой
-    /// механики.
+    /// в вынужденный простой (SPEC §5.6).
     /// </summary>
     public required decimal ForcedRepairEventShare { get; init; }
 
@@ -86,9 +81,7 @@ public sealed record BalancingReport
             });
         }
 
-        var totalForcedLoans = sessions.Sum(session => session.Turns.Sum(turn => turn.ForcedLoanCount));
         var totalTeamTurns = sessions.Sum(session => session.Turns.Count * session.TeamCount);
-        var forcedLoanShare = totalTeamTurns > 0 ? (decimal)totalForcedLoans / totalTeamTurns : 0m;
 
         var totalForcedRepairs = sessions.Sum(session => session.Turns.Sum(turn => turn.ForcedRepairEventsCount));
         var forcedRepairEventShare = totalTeamTurns > 0 ? (decimal)totalForcedRepairs / totalTeamTurns : 0m;
@@ -117,7 +110,6 @@ public sealed record BalancingReport
         {
             SessionCount = sessions.Count,
             TurnsByIndex = turnsByIndex,
-            ForcedLoanShare = forcedLoanShare,
             AverageFinalScoreSpread = averageFinalScoreSpread,
             ForcedRepairEventShare = forcedRepairEventShare,
             AverageFinalConvergenceBySector = averageFinalConvergenceBySector,
