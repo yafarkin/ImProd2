@@ -103,10 +103,16 @@ var results = StrategyGridRunner.Run(leverageLevels, profileLevels, cliArguments
         }
     }
 
-    // Зерно жеребьёвки хода окончания и решений ботов зависит и от ячейки, и от номера партии внутри
-    // неё — иначе все ячейки играли бы на одном и том же наборе партий, что скрыло бы часть разброса.
+    // Зерно решений ботов зависит и от ячейки, и от номера партии внутри неё — иначе все ячейки
+    // играли бы на одном и том же наборе партий, что скрыло бы часть разброса. Ход окончания —
+    // ДЕТЕРМИНИРОВАН и равен preset.MaxTurns (тому же горизонту, что считает IdealHallCalculator), не
+    // случайная жеребьёвка в [MinTurns, MaxTurns] (запрос пользователя, rebalance/2-sector-stepwise,
+    // 2026-08-22) — здесь сравниваем Score(t) реального бота с X(t) идеального зала на одном и том же
+    // t, иначе сходимость Score/X считает разные горизонты и ничего не значит. Настоящая случайная
+    // жеребьёвка (SPEC §4 — MaxTurns публично известен, точный EndTurn нет) остаётся только в реальной
+    // игре (Game.Web), не в этом диагностическом инструменте.
     var seed = (int)(leverage * 1000) * 100_000 + (int)(profile * 1000) * 1000 + sessionIndex;
-    var session = GameSession.Start(config, preset, teams, new Random(seed + 1));
+    var session = GameSession.StartWithEndTurn(config, preset.Id, preset.MaxTurns, teams);
     return (session, (IReadOnlyList<SimpleBot>)bots, new Random(seed + 1_000_000));
 }, progress =>
 {

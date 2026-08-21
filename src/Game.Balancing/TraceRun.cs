@@ -50,7 +50,10 @@ internal static class TraceRun
 
         Console.WriteLine($"Трассирую одну партию: leverage={cliArguments.Leverage:0.00}, profile={cliArguments.Profile:0.00}, команд на сектор={cliArguments.TeamsPerSector}.");
 
-        var session = GameSession.Start(config, preset, teams, new Random(1));
+        // Ход окончания — детерминирован и равен preset.MaxTurns (тот же горизонт, что считает
+        // IdealHallCalculator), не случайная жеребьёвка в [MinTurns, MaxTurns] — иначе Score(T) и X(T)
+        // сравнивают разные T (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-22).
+        var session = GameSession.StartWithEndTurn(config, preset.Id, preset.MaxTurns, teams);
         var random = new Random(2);
         RunWithTrace(session, bots, random, botTraceLines);
 
