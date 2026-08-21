@@ -11,108 +11,108 @@
   ],
   "Materials": [
     {
-      "Id": "material1",
-      "Name": "Материал 1",
+      "Id": "material1_1",
+      "Name": "Материал 1_1",
       "SectorId": "sector1",
       "Level": 0
     },
     {
-      "Id": "material2",
-      "Name": "Материал 2",
+      "Id": "material2_1",
+      "Name": "Материал 2_1",
       "SectorId": "sector1",
       "Level": 1
     },
     {
-      "Id": "material3",
-      "Name": "Материал 3",
+      "Id": "material3_1",
+      "Name": "Материал 3_1",
       "SectorId": "sector1",
       "Level": 2
     },
     {
-      "Id": "material4",
-      "Name": "Материал 4",
+      "Id": "material1_2",
+      "Name": "Материал 1_2",
       "SectorId": "sector2",
       "Level": 0
     },
     {
-      "Id": "material5",
-      "Name": "Материал 5",
+      "Id": "material2_2",
+      "Name": "Материал 2_2",
       "SectorId": "sector2",
       "Level": 1
     },
     {
-      "Id": "material6",
-      "Name": "Материал 6",
+      "Id": "material3_2",
+      "Name": "Материал 3_2",
       "SectorId": "sector2",
       "Level": 2
     }
   ],
   "Recipes": [
     {
-      "Id": "recipe1",
-      "OutputMaterialId": "material1",
+      "Id": "recipe1_1",
+      "OutputMaterialId": "material1_1",
       "OutputQuantity": 1,
       "Inputs": [],
       "ProductionRate": 100
     },
     {
-      "Id": "recipe2",
-      "OutputMaterialId": "material2",
+      "Id": "recipe2_1",
+      "OutputMaterialId": "material2_1",
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "material1",
+          "MaterialId": "material1_1",
           "Quantity": 2
         }
       ],
       "ProductionRate": 40
     },
     {
-      "Id": "recipe3",
-      "OutputMaterialId": "material3",
+      "Id": "recipe3_1",
+      "OutputMaterialId": "material3_1",
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "material2",
+          "MaterialId": "material2_1",
           "Quantity": 2
         },
         {
-          "MaterialId": "material5",
+          "MaterialId": "material2_2",
           "Quantity": 2
         }
       ],
       "ProductionRate": 15
     },
     {
-      "Id": "recipe4",
-      "OutputMaterialId": "material4",
+      "Id": "recipe1_2",
+      "OutputMaterialId": "material1_2",
       "OutputQuantity": 1,
       "Inputs": [],
       "ProductionRate": 100
     },
     {
-      "Id": "recipe5",
-      "OutputMaterialId": "material5",
+      "Id": "recipe2_2",
+      "OutputMaterialId": "material2_2",
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "material4",
+          "MaterialId": "material1_2",
           "Quantity": 2
         },
         {
-          "MaterialId": "material1",
+          "MaterialId": "material1_1",
           "Quantity": 2
         }
       ],
       "ProductionRate": 40
     },
     {
-      "Id": "recipe6",
-      "OutputMaterialId": "material6",
+      "Id": "recipe3_2",
+      "OutputMaterialId": "material3_2",
       "OutputQuantity": 1,
       "Inputs": [
         {
-          "MaterialId": "material5",
+          "MaterialId": "material2_2",
           "Quantity": 2
         }
       ],
@@ -121,66 +121,66 @@
   ],
   "FactoryDefinitions": [
     {
-      "Id": "factory1",
-      "Name": "Фабрика 1",
+      "Id": "factory1_1",
+      "Name": "Фабрика 1_1",
       "SectorId": "sector1",
       "RecipeIds": [
-        "recipe1"
+        "recipe1_1"
       ],
       "BuildCost": 500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 10
     },
     {
-      "Id": "factory2",
-      "Name": "Фабрика 2",
+      "Id": "factory2_1",
+      "Name": "Фабрика 2_1",
       "SectorId": "sector1",
       "RecipeIds": [
-        "recipe2"
+        "recipe2_1"
       ],
       "BuildCost": 1500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 30
     },
     {
-      "Id": "factory3",
-      "Name": "Фабрика 3",
+      "Id": "factory3_1",
+      "Name": "Фабрика 3_1",
       "SectorId": "sector1",
       "RecipeIds": [
-        "recipe3"
+        "recipe3_1"
       ],
       "BuildCost": 4000,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 70
     },
     {
-      "Id": "factory4",
-      "Name": "Фабрика 4",
+      "Id": "factory1_2",
+      "Name": "Фабрика 1_2",
       "SectorId": "sector2",
       "RecipeIds": [
-        "recipe4"
+        "recipe1_2"
       ],
       "BuildCost": 500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 10
     },
     {
-      "Id": "factory5",
-      "Name": "Фабрика 5",
+      "Id": "factory2_2",
+      "Name": "Фабрика 2_2",
       "SectorId": "sector2",
       "RecipeIds": [
-        "recipe5"
+        "recipe2_2"
       ],
       "BuildCost": 1500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 30
     },
     {
-      "Id": "factory6",
-      "Name": "Фабрика 6",
+      "Id": "factory3_2",
+      "Name": "Фабрика 3_2",
       "SectorId": "sector2",
       "RecipeIds": [
-        "recipe6"
+        "recipe3_2"
       ],
       "BuildCost": 4000,
       "LiquidationValueCoefficient": 0.5,
@@ -189,32 +189,32 @@
   ],
   "BaseMarketPerMaterial": [
     {
-      "MaterialId": "material1",
+      "MaterialId": "material1_1",
       "BasePrice": 1,
       "BaseCapacity": 200
     },
     {
-      "MaterialId": "material2",
+      "MaterialId": "material2_1",
       "BasePrice": 25,
       "BaseCapacity": 120
     },
     {
-      "MaterialId": "material3",
+      "MaterialId": "material3_1",
       "BasePrice": 60,
       "BaseCapacity": 60
     },
     {
-      "MaterialId": "material4",
+      "MaterialId": "material1_2",
       "BasePrice": 1,
       "BaseCapacity": 200
     },
     {
-      "MaterialId": "material5",
+      "MaterialId": "material2_2",
       "BasePrice": 25,
       "BaseCapacity": 120
     },
     {
-      "MaterialId": "material6",
+      "MaterialId": "material3_2",
       "BasePrice": 60,
       "BaseCapacity": 60
     }
