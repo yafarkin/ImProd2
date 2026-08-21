@@ -62,11 +62,7 @@ public class GameConfigDeserializationTests
     {
         var config = LoadSampleConfig();
 
-        Assert.Equal(10000m, config.StartingConditions.MaxStartingLoanAmount);
-        Assert.Equal(0.005m, config.StartingConditions.BaseLoanInterestRate);
-        Assert.Equal(0.05m, config.StartingConditions.ForcedLoanPenaltyRatePerOccurrence);
-        Assert.Equal(0.1m, config.StartingConditions.MaxReputationRatePenalty);
-        Assert.Equal(0.005m, config.StartingConditions.MandatoryRepaymentRatePerTurn);
+        Assert.Equal(10000m, config.StartingConditions.MaxInitialBuildBudget);
 
         Assert.Equal(3, config.SessionPresets.Count);
         var shortPreset = Assert.Single(config.SessionPresets, preset => preset.Id == "short");

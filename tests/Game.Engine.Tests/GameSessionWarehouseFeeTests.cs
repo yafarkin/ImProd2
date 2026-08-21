@@ -20,12 +20,9 @@ public class GameSessionWarehouseFeeTests
                 new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id },
             });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
-        // Заём — теперь только заявка (SPEC §4, §5.9), реально зачисляется отдельным, уже
-        // «спокойным» тиком — иначе к интересующему нас тику (ниже) он ещё не был бы на балансе и
-        // проценты по нему в этом тесте не начислились бы.
-        session.TakeLoan(teamId, 1000m); // команда сама берёт первый кредит (SPEC §5.1) — не предустановка
+        session.State.Teams[teamId].Credit(1000m); // стартовые деньги — баланс просто число, ничего заявлять не нужно
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
-        session.RunTick(new Random(1)); // заём зачислён, Debt=1000, Balance=1000
+        session.RunTick(new Random(1));
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 2
 
         // Аварийная закупка — тоже только заявка (SPEC §4, §5.3); склад пополняется на расчёте хода 3,
@@ -45,8 +42,6 @@ public class GameSessionWarehouseFeeTests
         var fee = Assert.IsType<WarehouseFeeCharged>(appended.Single(e => e.Change is WarehouseFeeCharged).Change);
         Assert.Equal(5m, fee.OverageQuantity);
         Assert.Equal(5m, fee.Amount); // 5 * OverageFeePerUnit (1)
-        var interest = Assert.IsType<LoanInterestCharged>(appended.Single(e => e.Change is LoanInterestCharged).Change);
-        Assert.Equal(50m, interest.Amount); // 1000 * BaseLoanInterestRate (0.05), репутация 100% без истории
-        Assert.Equal(balanceBeforeTick - interest.Amount - fee.Amount, session.State.Teams[teamId].Balance);
+        Assert.Equal(balanceBeforeTick - fee.Amount, session.State.Teams[teamId].Balance);
     }
 }

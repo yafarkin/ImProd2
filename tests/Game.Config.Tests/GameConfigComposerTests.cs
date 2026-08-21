@@ -46,14 +46,7 @@ public class GameConfigComposerTests
     {
         StartingConditions = new StartingConditionsConfig
         {
-            MaxStartingLoanAmount = 1000m,
-            BaseLoanInterestRate = 0.05m,
-            LoanInterestRateGrowthPerUnitBorrowed = 0m,
-            ForcedLoanPenaltyRatePerOccurrence = 0.05m,
-            MaxReputationRatePenalty = 0.1m,
-            MandatoryRepaymentRatePerTurn = 0.05m,
-            MaxTotalDebt = 1_000_000m,
-            MaxLoanInterestRate = 1_000_000m,
+            MaxInitialBuildBudget = 1000m,
         },
         SessionPresets = new[] { new SessionPresetConfig { Id = "short", Name = "Short", MinTurns = 1, MaxTurns = 2, TurnDurationMinutes = 1 } },
         PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },

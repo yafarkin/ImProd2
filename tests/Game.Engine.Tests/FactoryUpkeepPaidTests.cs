@@ -17,11 +17,11 @@ public class FactoryUpkeepPaidTests
         var config = TestGameConfig.BuildWithFactoryUpkeep(fixedCostPerTurn: 10m);
         var (log, team) = StartSessionWithOneTeam(config);
         team.BuildFactory(Ulid.NewUlid(), config.FactoryDefinitions.Single(f => f.Id == "iron-mine"));
-        team.Credit(100m); // с запасом — иначе апкип сам по себе спровоцирует принудительный заём
+        team.Credit(100m); // с запасом — иначе апкип уведёт баланс в минус
 
         var changes = TickFinanceStep.Run(
-            team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputationPercentage: 100m, wearConfig: config.Raw.Wear, currentTurn: 1);
+            team, config.Raw.WorkerProductivity, config.Raw.Warehouse,
+            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, wearConfig: config.Raw.Wear, currentTurn: 1);
 
         var upkeep = Assert.IsType<FactoryUpkeepPaid>(Assert.Single(changes));
         Assert.Equal(10m, upkeep.Amount); // 0 рабочих, ноль зарплаты — но апкип платится в любом случае
@@ -35,11 +35,11 @@ public class FactoryUpkeepPaidTests
         var (log, team) = StartSessionWithOneTeam(config);
         team.BuildFactory(Ulid.NewUlid(), config.FactoryDefinitions.Single(f => f.Id == "iron-mine"));
         team.BuildFactory(Ulid.NewUlid(), config.FactoryDefinitions.Single(f => f.Id == "steel-mill"));
-        team.Credit(100m); // с запасом — иначе апкип сам по себе спровоцирует принудительный заём
+        team.Credit(100m); // с запасом — иначе апкип уведёт баланс в минус
 
         var changes = TickFinanceStep.Run(
-            team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputationPercentage: 100m, wearConfig: config.Raw.Wear, currentTurn: 1);
+            team, config.Raw.WorkerProductivity, config.Raw.Warehouse,
+            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, wearConfig: config.Raw.Wear, currentTurn: 1);
 
         var upkeep = Assert.IsType<FactoryUpkeepPaid>(Assert.Single(changes));
         Assert.Equal(20m, upkeep.Amount); // 10 + 10 — два типа, у обоих FixedCostPerTurn=10 в этом варианте конфига
@@ -53,8 +53,8 @@ public class FactoryUpkeepPaidTests
         var (log, team) = StartSessionWithOneTeam(config);
 
         var changes = TickFinanceStep.Run(
-            team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputationPercentage: 100m, wearConfig: config.Raw.Wear, currentTurn: 1);
+            team, config.Raw.WorkerProductivity, config.Raw.Warehouse,
+            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, wearConfig: config.Raw.Wear, currentTurn: 1);
 
         Assert.Empty(changes);
     }
@@ -66,11 +66,11 @@ public class FactoryUpkeepPaidTests
         var (log, team) = StartSessionWithOneTeam(config);
         var factory = team.BuildFactory(Ulid.NewUlid(), config.FactoryDefinitions.Single(f => f.Id == "iron-mine"));
         factory.Hire(1); // зарплата > 0, чтобы увидеть оба события и их порядок
-        team.Credit(100m); // с запасом — иначе апкип сам по себе спровоцирует принудительный заём
+        team.Credit(100m); // с запасом — иначе апкип уведёт баланс в минус
 
         var changes = TickFinanceStep.Run(
-            team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputationPercentage: 100m, wearConfig: config.Raw.Wear, currentTurn: 1);
+            team, config.Raw.WorkerProductivity, config.Raw.Warehouse,
+            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, wearConfig: config.Raw.Wear, currentTurn: 1);
 
         Assert.Equal(2, changes.Count);
         Assert.IsType<SalariesPaid>(changes[0]);
@@ -89,8 +89,8 @@ public class FactoryUpkeepPaidTests
         team.Credit(100m);
 
         var changes = TickFinanceStep.Run(
-            team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputationPercentage: 100m, wearConfig: config.Raw.Wear, currentTurn: 1);
+            team, config.Raw.WorkerProductivity, config.Raw.Warehouse,
+            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, wearConfig: config.Raw.Wear, currentTurn: 1);
 
         var upkeep = Assert.IsType<FactoryUpkeepPaid>(Assert.Single(changes, c => c is FactoryUpkeepPaid));
         Assert.Equal(12.5m, upkeep.Amount);
@@ -108,8 +108,8 @@ public class FactoryUpkeepPaidTests
         team.Credit(100m);
 
         var changes = TickFinanceStep.Run(
-            team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputationPercentage: 100m, wearConfig: config.Raw.Wear, currentTurn: 1);
+            team, config.Raw.WorkerProductivity, config.Raw.Warehouse,
+            config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, wearConfig: config.Raw.Wear, currentTurn: 1);
 
         Assert.DoesNotContain(changes, c => c is FactoryUpkeepPaid);
         Assert.Single(changes, c => c is FactoryRepairTurnPassed);

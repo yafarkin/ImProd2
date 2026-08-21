@@ -33,12 +33,9 @@ public class FactoryHistoryCalculatorTests
     [Fact]
     public void Summarize_Snapshots_Net_Worth_At_The_End_Of_Each_Completed_Turn()
     {
-        // Ход 1: баланс — стартовый заём 100 000 минус постройка (100) = 99 900; наём 5 рабочих
-        // (5*50=250) в ход 1 только объявлен (SetWorkerCount бесплатен и мгновенен), реально спишется
-        // только на расчёте хода 2 (см. TickFinanceStep/WorkforceStep — тот же приём, что и R&D).
-        // Долг — сам заём, 100 000 (ещё ничего не погашено); чистая стоимость — разница,
-        // 99 900 - 100 000 = -100 (сырой баланс выглядел бы позитивным, пряча реальный отрицательный
-        // результат первого хода за долгом).
+        // Ход 1: баланс — стартовые деньги 100 000 минус постройка (100) = 99 900; наём 5 рабочих
+        // в ход 1 только объявлен (SetWorkerCount бесплатен и мгновенен), реально спишется только на
+        // расчёте хода 2 (см. TickFinanceStep/WorkforceStep — тот же приём, что и R&D).
         var (session, teamId, _) = BuildAndStaffAMine(workers: 5);
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
@@ -47,7 +44,7 @@ public class FactoryHistoryCalculatorTests
         var history = FactoryHistoryCalculator.Summarize(session.Entries, TestGameConfig.Resolved, teamId);
 
         var turn1 = Assert.Single(history.NetWorthByTurn, point => point.Turn == 1);
-        Assert.Equal(-100m, turn1.NetWorth);
+        Assert.Equal(99_900m, turn1.NetWorth);
     }
 
     [Fact]

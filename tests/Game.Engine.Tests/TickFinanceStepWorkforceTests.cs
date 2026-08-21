@@ -10,7 +10,6 @@ namespace Game.Engine.Tests;
 /// </summary>
 public class TickFinanceStepWorkforceTests
 {
-    private static readonly Config.Session.StartingConditionsConfig LoanConfig = TestGameConfig.Resolved.Raw.StartingConditions;
     private static readonly Config.Economy.WorkerProductivityConfig WorkerConfig = TestGameConfig.Resolved.Raw.WorkerProductivity;
     private static readonly Config.Economy.WarehouseConfig WarehouseConfig = TestGameConfig.Resolved.Raw.Warehouse;
     private static readonly IReadOnlyList<Config.Catalog.FactoryDefinitionConfig> FactoryDefinitions = TestGameConfig.Resolved.Raw.FactoryDefinitions;
@@ -28,7 +27,7 @@ public class TickFinanceStepWorkforceTests
         factory.SetDesiredWorkers(5); // ...в итоге остановилась на 5
         team.Credit(1000m);
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
+        var changes = TickFinanceStep.Run(team, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.Equal(2, changes.Count);
         var hired = Assert.IsType<WorkersHired>(changes[0]);
@@ -45,7 +44,7 @@ public class TickFinanceStepWorkforceTests
         var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
         factory.Hire(4); // наём и объявление синхронизируются сами (см. doc-comment Factory.Hire)
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
+        var changes = TickFinanceStep.Run(team, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, wearConfig: WearConfig, currentTurn: 1);
 
         Assert.DoesNotContain(changes, c => c is WorkersHired or WorkersFired);
     }
@@ -57,7 +56,7 @@ public class TickFinanceStepWorkforceTests
         var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
         factory.SetDesiredWorkers(5); // баланс пуст — платить нечем
 
-        var changes = TickFinanceStep.Run(team, LoanConfig, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, reputationPercentage: 100m, wearConfig: WearConfig, currentTurn: 1);
+        var changes = TickFinanceStep.Run(team, WorkerConfig, WarehouseConfig, FactoryDefinitions, RndConfig, GenerationResearchConfig, wearConfig: WearConfig, currentTurn: 1);
         foreach (var change in changes)
         {
             log.Append(change);
