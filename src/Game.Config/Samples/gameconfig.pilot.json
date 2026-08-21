@@ -378,9 +378,6 @@
     "PropertyTaxRatePerTurn": 0.01,
     "SalesTaxRate": 0.05
   },
-  "Deposits": {
-    "InterestRatePerTurn": 0.01
-  },
   "News": [
     {
       "Id": "news-up-1",
@@ -405,7 +402,6 @@
   ],
   "FeatureFlags": {
     "TaxesEnabled": false,
-    "DepositsEnabled": false,
     "EmergencyPurchaseEnabled": true
   },
   "GenerationResearch": {

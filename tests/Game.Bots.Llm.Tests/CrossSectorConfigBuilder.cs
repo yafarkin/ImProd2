@@ -135,12 +135,10 @@ internal static class CrossSectorConfigBuilder
                 MaxActiveContractsPerTeam = null,
             },
             Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
-            Deposits = new DepositsConfig { InterestRatePerTurn = 0m },
             News = [],
             FeatureFlags = new FeatureFlagsConfig
             {
                 TaxesEnabled = false,
-                DepositsEnabled = false,
                 EmergencyPurchaseEnabled = true,
             },
         };

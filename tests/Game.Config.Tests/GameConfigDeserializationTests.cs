@@ -129,7 +129,6 @@ public class GameConfigDeserializationTests
         Assert.Null(config.Contracts.MaxActiveContractsPerTeam);
 
         Assert.Equal(0.01m, config.Taxes.PropertyTaxRatePerTurn);
-        Assert.Equal(0.01m, config.Deposits.InterestRatePerTurn);
     }
 
     [Fact]
@@ -141,7 +140,6 @@ public class GameConfigDeserializationTests
         Assert.Equal(2, config.News.Count(item => item.Trend == EconomyTrend.Down));
 
         Assert.False(config.FeatureFlags.TaxesEnabled);
-        Assert.False(config.FeatureFlags.DepositsEnabled);
         Assert.True(config.FeatureFlags.EmergencyPurchaseEnabled);
     }
 }

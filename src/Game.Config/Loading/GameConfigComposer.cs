@@ -52,7 +52,6 @@ public static class GameConfigComposer
             Reputation = session.Reputation,
             Contracts = session.Contracts,
             Taxes = session.Taxes,
-            Deposits = session.Deposits,
             News = session.News,
             FeatureFlags = session.FeatureFlags,
         };

@@ -53,8 +53,9 @@
 - **`growthPerLevel`** (`SystemSalePriceLadderCalculator`) — отдельный именованный рычаг с другим
   назначением («не задерживайся на одном переделе»), не про общую сложность сессии; смешивание
   запутает калибровку обоих ([[project_price_ladder_calculator]]).
-- **`TaxesConfig`, `DepositsConfig`** — мёртвый код, не читаются движком (`FeatureFlags` тоже
-  выключены и не проверяются) — крутить нечего.
+- **`TaxesConfig`** — мёртвый код, не читается движком (`FeatureFlags.TaxesEnabled` тоже не
+  проверяется) — крутить нечего. (`DepositsConfig` была рядом по той же причине — убрана вместе с
+  банковским займом как классом механики, сессия 2026-08-21, docs/TODO.md #23.)
 - **`ContractsConfig`, `ReputationConfig` поля** — второстепенный эффект и/или не глобальная
   константа (`DeliveryMissPenaltyRate` в реальности per-contract условие, не общий множитель).
 - **Резерв, если 8 окажется мало:** `LoanInterestRateGrowthPerUnitBorrowed` (наказание за рост
