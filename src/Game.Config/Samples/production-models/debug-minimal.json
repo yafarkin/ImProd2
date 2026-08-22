@@ -196,7 +196,7 @@
       "RecipeIds": [
         "recipe1_1"
       ],
-      "BuildCost": 250.0,
+      "BuildCost": 500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 6.67
     },
@@ -207,7 +207,7 @@
       "RecipeIds": [
         "recipe2_1"
       ],
-      "BuildCost": 750.0,
+      "BuildCost": 1500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 20.0
     },
@@ -218,7 +218,7 @@
       "RecipeIds": [
         "recipe3_1"
       ],
-      "BuildCost": 2000.0,
+      "BuildCost": 4000,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 46.67
     },
@@ -229,7 +229,7 @@
       "RecipeIds": [
         "recipe1_2"
       ],
-      "BuildCost": 250.0,
+      "BuildCost": 500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 6.67
     },
@@ -240,7 +240,7 @@
       "RecipeIds": [
         "recipe2_2"
       ],
-      "BuildCost": 750.0,
+      "BuildCost": 1500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 20.0
     },
@@ -251,7 +251,7 @@
       "RecipeIds": [
         "recipe3_2"
       ],
-      "BuildCost": 2000.0,
+      "BuildCost": 4000,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 46.67
     },
@@ -262,7 +262,7 @@
       "RecipeIds": [
         "recipe1_3"
       ],
-      "BuildCost": 250.0,
+      "BuildCost": 500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 6.67
     },
@@ -273,7 +273,7 @@
       "RecipeIds": [
         "recipe2_3"
       ],
-      "BuildCost": 750.0,
+      "BuildCost": 1500,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 20.0
     },
@@ -284,7 +284,7 @@
       "RecipeIds": [
         "recipe3_3"
       ],
-      "BuildCost": 2000.0,
+      "BuildCost": 4000,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 46.67
     }

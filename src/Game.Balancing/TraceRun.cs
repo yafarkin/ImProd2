@@ -77,6 +77,11 @@ internal static class TraceRun
     private static void RunWithTrace(GameSession session, IReadOnlyList<SimpleBot> bots, Random random, List<string> trace)
     {
         var hasBuiltOut = false;
+        // Чистый денежный поток команды по ходам (запрос пользователя, rebalance/2-sector-stepwise,
+        // 2026-08-23: «важно видеть, зарабатывают они сейчас деньги или теряют, и сколько») — предыдущий
+        // накопленный «доход минус все расходы», чтобы TraceCumulativeExpenses мог напечатать разницу
+        // за конкретно ЭТОТ ход, не только итог с начала партии.
+        var previousNetByTeam = new Dictionary<Ulid, decimal>();
         while (!session.State.IsFinished)
         {
             switch (session.State.CurrentPhase)
@@ -120,7 +125,7 @@ internal static class TraceRun
                         trace.Add($"баланс {team.Name}: {team.Balance:F0}");
                     }
 
-                    TraceCumulativeExpenses(session, trace);
+                    TraceCumulativeExpenses(session, trace, previousNetByTeam);
 
                     session.AdvancePhase(PhaseTransitionTrigger.Timer);
                     break;
@@ -129,15 +134,20 @@ internal static class TraceRun
     }
 
     /// <summary>
-    /// Доход и расходы команды по статьям, накопленным итогом с начала партии, плюс текущий баланс
-    /// рядом (запрос пользователя — доход/расход/баланс в одной строке, чтобы свести в одну таблицу) —
-    /// весь журнал (<see cref="GameSession.Entries"/>) перебирается заново на каждом ходу решений
-    /// (простая, не инкрементальная реализация — журнал на масштабе одной партии-трассировки короткий,
-    /// лишний проход не критичен), а не по частям на лету, чтобы не пропустить ни одного источника
-    /// расхода и не задваивать (<see cref="FactoryProduced.LaborCost"/>, например, уже учтён в <see
+    /// Доход и расходы команды по статьям, накопленным итогом с начала партии, плюс текущий баланс и
+    /// денежный поток именно за ЭТОТ ход (доход минус все расходы этого хода — запрос пользователя,
+    /// rebalance/2-sector-stepwise, 2026-08-23: «важно видеть, зарабатывают они сейчас деньги или
+    /// теряют, и сколько», не только итоговый баланс под конец партии) — весь журнал (<see
+    /// cref="GameSession.Entries"/>) перебирается заново на каждом ходу решений (простая, не
+    /// инкрементальная реализация — журнал на масштабе одной партии-трассировки короткий, лишний
+    /// проход не критичен), а не по частям на лету, чтобы не пропустить ни одного источника расхода и
+    /// не задваивать (<see cref="FactoryProduced.LaborCost"/>, например, уже учтён в <see
     /// cref="SalariesPaid"/> — не включаю его отдельно, см. doc-comment <see cref="FactoryProduced"/>).
+    /// <paramref name="previousNetByTeam"/> — накопленный «доход минус расход» с прошлого вызова, по
+    /// команде; мутируется на выходе — тот же приём, что <see cref="SimpleBot"/> использует для
+    /// <c>_previousNetWorth</c> в <c>UpdateFinancialTrend</c>.
     /// </summary>
-    private static void TraceCumulativeExpenses(GameSession session, List<string> trace)
+    private static void TraceCumulativeExpenses(GameSession session, List<string> trace, Dictionary<Ulid, decimal> previousNetByTeam)
     {
         foreach (var team in session.State.Teams.Values.OrderBy(t => t.Sector.Id).ThenBy(t => t.Name))
         {
@@ -169,8 +179,15 @@ internal static class TraceRun
                 }
             }
 
+            var totalExpense = buildCost + hireFireCost + salary + upkeep + rnd + generation + overhaul + electricity + warehouseFee + emergencyPurchase;
+            var netCumulative = income - totalExpense;
+            var cashFlowThisTurn = netCumulative - previousNetByTeam.GetValueOrDefault(team.Id);
+            previousNetByTeam[team.Id] = netCumulative;
+            var cashFlowText = cashFlowThisTurn >= 0 ? $"+{cashFlowThisTurn:F0}" : cashFlowThisTurn.ToString("F0");
+
             trace.Add(
-                $"{team.Name} накопленным итогом: доход={income:F0}, баланс={team.Balance:F0} | расходы: постройка={buildCost:F0}, " +
+                $"{team.Name} накопленным итогом: доход={income:F0}, баланс={team.Balance:F0}, " +
+                $"поток за ход={cashFlowText} | расходы: постройка={buildCost:F0}, " +
                 $"наём/увольнение={hireFireCost:F0}, зарплата={salary:F0}, содержание={upkeep:F0}, R&D={rnd:F0}, " +
                 $"поколение={generation:F0}, капремонт={overhaul:F0}, электричество={electricity:F0}, склад={warehouseFee:F0}, " +
                 $"авар.закупка={emergencyPurchase:F0}");
