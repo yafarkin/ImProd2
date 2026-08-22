@@ -66,9 +66,7 @@
     "DiminishingReturnsFactor": 0.5,
     "HireCostPerWorker": 25.0,
     "FireCostPerWorker": 30,
-    "SalaryPerWorkerPerTurn": 3.33,
-    "TeamSalaryBaseWorkerCount": 30,
-    "SalaryEscalationFactor": 1.5
+    "SalaryPerWorkerPerTurn": 3.33
   },
   "Rnd": {
     "ResearchPointThresholdsByLevel": [

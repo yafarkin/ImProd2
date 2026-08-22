@@ -4,9 +4,10 @@ using Game.Config.Economy;
 namespace Game.Config.Tests;
 
 /// <summary>
-/// Интерполяция и применение семи рычагов сложности (<c>docs/difficulty.md</c>, было восемь — рычаг
-/// ставки по займу убран вместе с банковским займом как классом механики, docs/TODO.md #23) —
-/// <see cref="DifficultyScaler"/>, шаг 2 плана реализации из этого документа.
+/// Интерполяция и применение шести рычагов сложности (<c>docs/difficulty.md</c>, было восемь: рычаг
+/// ставки по займу убран вместе с банковским займом как классом механики (docs/TODO.md #23), рычаг
+/// эскалации командной зарплаты убран вместе с самой прогрессией (rebalance/2-sector-stepwise,
+/// 2026-08-23)) — <see cref="DifficultyScaler"/>, шаг 2 плана реализации из этого документа.
 /// </summary>
 public class DifficultyScalerTests
 {
@@ -91,14 +92,13 @@ public class DifficultyScalerTests
     }
 
     [Fact]
-    public void Apply_At_Level_Zero_Moves_All_Seven_Levers_In_The_Easier_Direction()
+    public void Apply_At_Level_Zero_Moves_All_Six_Levers_In_The_Easier_Direction()
     {
         var config = BuildConfig();
 
         var scaled = DifficultyScaler.Apply(config, 0.0);
 
         Assert.True(scaled.FactoryDefinitions.Single().BuildCost < config.FactoryDefinitions.Single().BuildCost);
-        Assert.True(scaled.WorkerProductivity.SalaryEscalationFactor < config.WorkerProductivity.SalaryEscalationFactor);
         Assert.True(scaled.Rnd.ProductionRateBonusPerLevel > config.Rnd.ProductionRateBonusPerLevel);
         Assert.True(scaled.Rnd.ResearchPointThresholdsByLevel[0] < config.Rnd.ResearchPointThresholdsByLevel[0]);
         Assert.True(scaled.GenerationResearch.ResearchPointThresholdsByGeneration[0] < config.GenerationResearch.ResearchPointThresholdsByGeneration[0]);
@@ -108,14 +108,13 @@ public class DifficultyScalerTests
     }
 
     [Fact]
-    public void Apply_At_Level_Five_Moves_All_Seven_Levers_In_The_Harder_Direction()
+    public void Apply_At_Level_Five_Moves_All_Six_Levers_In_The_Harder_Direction()
     {
         var config = BuildConfig();
 
         var scaled = DifficultyScaler.Apply(config, 5.0);
 
         Assert.True(scaled.FactoryDefinitions.Single().BuildCost > config.FactoryDefinitions.Single().BuildCost);
-        Assert.True(scaled.WorkerProductivity.SalaryEscalationFactor > config.WorkerProductivity.SalaryEscalationFactor);
         Assert.True(scaled.Rnd.ProductionRateBonusPerLevel < config.Rnd.ProductionRateBonusPerLevel);
         Assert.True(scaled.Rnd.ResearchPointThresholdsByLevel[0] > config.Rnd.ResearchPointThresholdsByLevel[0]);
         Assert.True(scaled.GenerationResearch.ResearchPointThresholdsByGeneration[0] > config.GenerationResearch.ResearchPointThresholdsByGeneration[0]);

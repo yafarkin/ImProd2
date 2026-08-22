@@ -25,10 +25,6 @@ public class FactoryProfitabilityCalculatorTests
         HireCostPerWorker = 100m,
         FireCostPerWorker = 50m,
         SalaryPerWorkerPerTurn = 5m,
-        // Выше суммарной численности любого сценария этого файла (максимум — 10, два экземпляра по
-        // 5 рабочих) — тесты этого файла не про прогрессивную надбавку, она не должна включаться.
-        TeamSalaryBaseWorkerCount = 1000,
-        SalaryEscalationFactor = 1.5m,
     };
 
     private static readonly RndConfig NoRndBonus = new()
@@ -362,54 +358,6 @@ public class FactoryProfitabilityCalculatorTests
         Assert.False(estimate.HasPriceSignal);
     }
 
-    /// <summary>
-    /// Прогрессивная надбавка над порогом (в отличие от <see cref="Productivity"/> выше, где порог
-    /// намеренно недостижим) — нужна отдельная конфигурация, чтобы воспроизвести баг: команда с ровно
-    /// пятью рабочими на ходу как раз в базовом тарифе (25 = 5*5), но лишний десяток «фантомных»
-    /// рабочих (например, вторая фабрика на вынужденном простое) толкает команду в надбавку.
-    /// </summary>
-    private static readonly WorkerProductivityConfig ProgressiveProductivity = new()
-    {
-        BaseWorkerCount = 5,
-        DiminishingReturnsFactor = 0.5m,
-        HireCostPerWorker = 100m,
-        FireCostPerWorker = 50m,
-        SalaryPerWorkerPerTurn = 5m,
-        TeamSalaryBaseWorkerCount = 5,
-        SalaryEscalationFactor = 2m,
-    };
-
-    [Fact]
-    public void TryCalculate_Excludes_Factories_Under_Repair_From_The_Progressive_Wage_Pool()
-    {
-        // Баг (запрос пользователя: «Прибыльность фабрики» расходится с реальным балансом): фабрика B
-        // стоит в вынужденном простое — TickFinanceStep.Run считает прогрессивную зарплату команды по
-        // !IsUnderRepair рабочим (её зарплата идёт отдельным льготным тарифом, см. WearStep), а виджет
-        // раньше суммировал ВСЕХ рабочих команды, включая простаивающих — из-за этого работающая
-        // фабрика A получала завышенную (по более высокой прогрессивной ступени) долю зарплаты и могла
-        // показать убыток там, где реальный тик списал бы меньше.
-        var factoryA = NewFactory(workers: 5);
-        var factoryB = NewFactory(workers: 5);
-        factoryB.StartRepair(conditionAtEntry: 0.15m, durationTurns: 3, outputMultiplier: 0m, salaryRate: 0.1m, upkeepRate: 0.1m, targetCondition: 0.85m);
-        var warehouse = WarehouseWith(ore: 1000m, coal: 1000m);
-        var market = new Market();
-        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
-        {
-            [Ore.Id] = new(2m, 1000m),
-            [Coal.Id] = new(1m, 1000m),
-            [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
-
-        FactoryProfitabilityCalculator.TryCalculate(
-            factoryA, new[] { factoryA, factoryB }, warehouse, market, ProgressiveProductivity, NoRndBonus,
-            out var estimateA);
-
-        // Без фабрики B в пуле — ровно 5 рабочих, ровно на пороге, без надбавки: 5*5 = 25.
-        // (До фикса: пул считался как 10 рабочих, 5 сверх порога по двойному тарифу — 25 + 5*5*2 = 75,
-        // и на долю A из них приходилось бы 75*5/10 = 37.5, на 12.5 больше реального списания.)
-        Assert.Equal(25m, estimateA.WageCost);
-    }
-
     [Fact]
     public void TryCalculate_Uses_The_Repair_Tariff_For_A_Factorys_Own_Wage_And_Upkeep_While_Under_Repair()
     {
@@ -429,7 +377,7 @@ public class FactoryProfitabilityCalculatorTests
         }, electricityPrice: 0m);
 
         FactoryProfitabilityCalculator.TryCalculate(
-            factory, new[] { factory }, warehouse, market, ProgressiveProductivity, NoRndBonus,
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
             out var estimate,
             fixedCostPerTurn: 8m);
 

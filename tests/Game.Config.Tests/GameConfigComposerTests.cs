@@ -68,8 +68,6 @@ public class GameConfigComposerTests
             HireCostPerWorker = 50m,
             FireCostPerWorker = 20m,
             SalaryPerWorkerPerTurn = 5m,
-            TeamSalaryBaseWorkerCount = 30,
-            SalaryEscalationFactor = 0.01m,
         },
         Rnd = new RndConfig
         {

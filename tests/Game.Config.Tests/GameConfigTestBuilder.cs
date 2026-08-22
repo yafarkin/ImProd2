@@ -57,8 +57,6 @@ internal static class GameConfigTestBuilder
                 HireCostPerWorker = 1m,
                 FireCostPerWorker = 1m,
                 SalaryPerWorkerPerTurn = 1m,
-                TeamSalaryBaseWorkerCount = 1000,
-                SalaryEscalationFactor = 1.5m,
             },
             Rnd = new RndConfig
             {

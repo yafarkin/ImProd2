@@ -1,9 +1,12 @@
 namespace Game.Config.Economy;
 
 /// <summary>
-/// Масштабирует семь именованных рычагов баланса (<c>docs/difficulty.md</c> §2 — было восемь, рычаг
-/// ставки по займу убран вместе с самим банковским займом как классом механики, docs/TODO.md #23,
-/// docs/difficulty.md пока не переписан под новое число, см. TODO) по непрерывному
+/// Масштабирует шесть именованных рычагов баланса (<c>docs/difficulty.md</c> §2 — было восемь: рычаг
+/// ставки по займу убран вместе с самим банковским займом как классом механики (docs/TODO.md #23),
+/// рычаг эскалации командной зарплаты убран вместе с самой прогрессией (Game.Engine.FinanceCalculator
+/// — не различала эффективный найм от раздутого при реалистичном числе фабрик, дублировала убывающую
+/// отдачу выработки без своей пользы); docs/difficulty.md пока не переписан под новое число, см. TODO)
+/// по непрерывному
 /// <see cref="Session.SessionConfig.DifficultyLevel"/> — 0.0 (почти нельзя проиграть) .. 5.0 (нужна
 /// высокая точность решений). Каждый рычаг задан анкерной таблицей из 6 множителей (уровни 0-5;
 /// индекс 3 всегда 1.0 — нейтральная точка, совпадает с текущей откалиброванной экономикой без
@@ -23,7 +26,6 @@ public static class DifficultyScaler
     // рычаге — поэтому применяются как множитель к уже существующему значению конфига, не как
     // абсолютные числа, и одинаково работают поверх разных production-model файлов (§5 плана).
     private static readonly double[] BuildCostAnchors = { 0.5, 0.7, 0.85, 1.0, 1.3, 1.7 };
-    private static readonly double[] SalaryEscalationFactorAnchors = { 0.667, 0.767, 0.867, 1.0, 1.267, 1.667 };
     private static readonly double[] ProductionRateBonusPerLevelAnchors = { 2.0, 1.5, 1.2, 1.0, 0.7, 0.5 };
     private static readonly double[] ResearchPointThresholdAnchors = { 0.4, 0.6, 0.8, 1.0, 1.4, 2.0 };
     private static readonly double[] BasePriceAnchors = { 1.5, 1.25, 1.1, 1.0, 0.85, 0.7 };
@@ -41,7 +43,6 @@ public static class DifficultyScaler
         ArgumentNullException.ThrowIfNull(config);
 
         var buildCostMultiplier = MultiplierAt(BuildCostAnchors, difficultyLevel);
-        var salaryEscalationMultiplier = MultiplierAt(SalaryEscalationFactorAnchors, difficultyLevel);
         var productionBonusMultiplier = MultiplierAt(ProductionRateBonusPerLevelAnchors, difficultyLevel);
         var researchThresholdMultiplier = MultiplierAt(ResearchPointThresholdAnchors, difficultyLevel);
         var basePriceMultiplier = MultiplierAt(BasePriceAnchors, difficultyLevel);
@@ -53,10 +54,6 @@ public static class DifficultyScaler
             FactoryDefinitions = config.FactoryDefinitions
                 .Select(f => f with { BuildCost = f.BuildCost * buildCostMultiplier })
                 .ToList(),
-            WorkerProductivity = config.WorkerProductivity with
-            {
-                SalaryEscalationFactor = config.WorkerProductivity.SalaryEscalationFactor * salaryEscalationMultiplier,
-            },
             Rnd = config.Rnd with
             {
                 ProductionRateBonusPerLevel = config.Rnd.ProductionRateBonusPerLevel * productionBonusMultiplier,
