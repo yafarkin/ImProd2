@@ -28,7 +28,7 @@ public class SystemSaleStepTests
 
         var sold = Assert.IsType<MaterialSoldToSystem>(Assert.Single(changes));
         Assert.Equal(20m, sold.Volume);
-        Assert.Equal(105m, sold.TotalRevenue); // ore: себестоимость 5, margin по умолчанию 1.05 (DefaultMarginMultiplier)
+        Assert.Equal(110m, sold.TotalRevenue); // ore: себестоимость 5, SystemSaleMarginMultiplier 1.10
     }
 
     [Fact]

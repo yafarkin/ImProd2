@@ -46,8 +46,8 @@ public class MarketSaleCalculatorTests
 
         Assert.Equal(20m, result.WithinCapacityVolume);
         Assert.Equal(0m, result.OverflowVolume);
-        Assert.Equal(105m, result.UnitPrice); // 100 * SystemSaleMarginMultiplier (1.05)
-        Assert.Equal(2100m, result.TotalRevenue);
+        Assert.Equal(110m, result.UnitPrice); // 100 * SystemSaleMarginMultiplier (1.10)
+        Assert.Equal(2200m, result.TotalRevenue);
     }
 
     [Fact]
@@ -59,9 +59,9 @@ public class MarketSaleCalculatorTests
 
         Assert.Equal(8m, result.WithinCapacityVolume);
         Assert.Equal(2m, result.OverflowVolume);
-        Assert.Equal(105m, result.UnitPrice);
-        // 8 * 105 + 2 * (105 * 0.5) = 840 + 105 = 945 (перепроизводство обваливает цену за лишние 2 единицы)
-        Assert.Equal(945m, result.TotalRevenue);
+        Assert.Equal(110m, result.UnitPrice);
+        // 8 * 110 + 2 * (110 * 0.5) = 880 + 110 = 990 (перепроизводство обваливает цену за лишние 2 единицы)
+        Assert.Equal(990m, result.TotalRevenue);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class MarketSaleCalculatorTests
 
         Assert.Equal(0m, result.WithinCapacityVolume);
         Assert.Equal(4m, result.OverflowVolume);
-        Assert.Equal(210m, result.TotalRevenue); // 4 * (105 * 0.5)
+        Assert.Equal(220m, result.TotalRevenue); // 4 * (110 * 0.5)
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class MarketSaleCalculatorTests
 
         var result = MarketSaleCalculator.Calculate(market, MaterialCosts("sheet", 10m), BuildEconomy(), ProcessedMaterial, volume: 5m);
 
-        Assert.Equal(10.5m, result.UnitPrice); // 10 * 1.05 — тот же множитель, что и у сырья (level 0)
-        Assert.Equal(52.5m, result.TotalRevenue);
+        Assert.Equal(11m, result.UnitPrice); // 10 * 1.10 — тот же множитель, что и у сырья (level 0)
+        Assert.Equal(55m, result.TotalRevenue);
     }
 }

@@ -30,10 +30,10 @@
     "DecisionPhaseSeconds": 300
   },
   "Economy": {
-    "EmergencyPurchaseBaseMultiplier": 1.3,
+    "EmergencyPurchaseBaseMultiplier": 1.4,
     "EmergencyPurchasePressureMultiplierPerUnit": 0.05,
     "EmergencyPurchasePressureHalfLifeTurns": 3,
-    "MarketCapacityOverflowDiscount": 0.5,
+    "MarketCapacityOverflowDiscount": 1.0,
     "ElectricityBasePrice": 2.0,
     "ElectricityConsumptionPerOutputUnit": 0.01,
     "TrendScenario": [
@@ -144,7 +144,7 @@
     "PostForcedRepairCondition": 0.85
   },
   "Warehouse": {
-    "FreeCapacity": 500,
+    "FreeCapacity": 50000,
     "OverageFeePerUnit": 0.1
   },
   "Reputation": {

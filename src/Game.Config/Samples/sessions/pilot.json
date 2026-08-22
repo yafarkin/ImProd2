@@ -30,7 +30,7 @@
     "DecisionPhaseSeconds": 300
   },
   "Economy": {
-    "EmergencyPurchaseBaseMultiplier": 1.3,
+    "EmergencyPurchaseBaseMultiplier": 1.4,
     "EmergencyPurchasePressureMultiplierPerUnit": 0.05,
     "EmergencyPurchasePressureHalfLifeTurns": 3,
     "MarketCapacityOverflowDiscount": 0.5,

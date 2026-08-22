@@ -75,7 +75,7 @@
       "OutputMaterialId": "material1_1",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 100
+      "ProductionRate": 50.0
     },
     {
       "Id": "recipe2_1",
@@ -91,7 +91,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 40
+      "ProductionRate": 20.0
     },
     {
       "Id": "recipe3_1",
@@ -107,14 +107,14 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 15
+      "ProductionRate": 7.5
     },
     {
       "Id": "recipe1_2",
       "OutputMaterialId": "material1_2",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 100
+      "ProductionRate": 50.0
     },
     {
       "Id": "recipe2_2",
@@ -130,7 +130,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 40
+      "ProductionRate": 20.0
     },
     {
       "Id": "recipe3_2",
@@ -146,14 +146,14 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 15
+      "ProductionRate": 7.5
     },
     {
       "Id": "recipe1_3",
       "OutputMaterialId": "material1_3",
       "OutputQuantity": 1,
       "Inputs": [],
-      "ProductionRate": 100
+      "ProductionRate": 50.0
     },
     {
       "Id": "recipe2_3",
@@ -169,7 +169,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 40
+      "ProductionRate": 20.0
     },
     {
       "Id": "recipe3_3",
@@ -185,7 +185,7 @@
           "Quantity": 2
         }
       ],
-      "ProductionRate": 15
+      "ProductionRate": 7.5
     }
   ],
   "FactoryDefinitions": [

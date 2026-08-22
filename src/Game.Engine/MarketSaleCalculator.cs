@@ -9,8 +9,9 @@ namespace Game.Engine;
 /// <see cref="SystemSaleMarginMultiplier"/>; сверх ёмкости — та же цена с дополнительным понижающим
 /// коэффициентом (перепроизводство обваливает цену продажи). Наценка — фиксированная, ОДНА на все
 /// материалы независимо от уровня передела (запрос пользователя, rebalance/2-sector-stepwise,
-/// 2026-08-22: «цена продажи системе = себестоимость материала + 5%, вне зависимости от уровня») —
-/// до этого была настраиваемая таблица по уровню (<c>Economy.MarginMultiplierByProcessingLevel</c>),
+/// 2026-08-22: «цена продажи системе = себестоимость материала + 5%, вне зависимости от уровня»,
+/// расширено тем же днём до 10%/40%-окна для продажи/аварийной закупки — «маркетмейкер» шире, чем
+/// изначально) — до этого была настраиваемая таблица по уровню (<c>Economy.MarginMultiplierByProcessingLevel</c>),
 /// убрана целиком: асимметрично подобранные множители соседних уровней дважды (step8, step12)
 /// оказывались источником бага «переработка почти не приносит прибыли», хотя себестоимость по цепочке
 /// росла честно. Ёмкость (<see cref="Market.RemainingCapacityOf"/>) осталась привязана к рынку — это
@@ -20,12 +21,12 @@ namespace Game.Engine;
 public static class MarketSaleCalculator
 {
     /// <summary>
-    /// Наценка системной продажи над себестоимостью — везде и всегда 1.05× (себестоимость + 5%),
-    /// не зависит от уровня передела материала (см. doc-comment класса). Небольшая, положительная —
-    /// у команды всегда есть путь из минуса, не аварийный план (тот — <see
-    /// cref="EconomyConfig.EmergencyPurchaseBaseMultiplier"/>, обычно намного больше).
+    /// Наценка системной продажи над себестоимостью — везде и всегда 1.10× (себестоимость + 10%,
+    /// поднято с 5% в тот же день, step14), не зависит от уровня передела материала (см. doc-comment
+    /// класса). Небольшая, положительная — у команды всегда есть путь из минуса, не аварийный план
+    /// (тот — <see cref="EconomyConfig.EmergencyPurchaseBaseMultiplier"/>, обычно намного больше).
     /// </summary>
-    public const decimal SystemSaleMarginMultiplier = 1.05m;
+    public const decimal SystemSaleMarginMultiplier = 1.10m;
 
     public static MarketSaleResult Calculate(
         Market market, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy, Material material, decimal volume)
