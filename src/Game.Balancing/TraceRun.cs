@@ -83,7 +83,8 @@ internal static class TraceRun
             {
                 case TurnPhase.Settlement:
                     trace.Add($"=== TURN {session.State.CurrentTurn} ===");
-                    session.RunTick(random);
+                    var settled = session.RunTick(random);
+                    TraceProductionAndSales(session, settled, trace);
                     session.AdvancePhase(PhaseTransitionTrigger.Timer);
                     break;
 
@@ -119,9 +120,92 @@ internal static class TraceRun
                         trace.Add($"баланс {team.Name}: {team.Balance:F0}");
                     }
 
+                    TraceCumulativeExpenses(session, trace);
+
                     session.AdvancePhase(PhaseTransitionTrigger.Timer);
                     break;
             }
+        }
+    }
+
+    /// <summary>
+    /// Доход и расходы команды по статьям, накопленным итогом с начала партии, плюс текущий баланс
+    /// рядом (запрос пользователя — доход/расход/баланс в одной строке, чтобы свести в одну таблицу) —
+    /// весь журнал (<see cref="GameSession.Entries"/>) перебирается заново на каждом ходу решений
+    /// (простая, не инкрементальная реализация — журнал на масштабе одной партии-трассировки короткий,
+    /// лишний проход не критичен), а не по частям на лету, чтобы не пропустить ни одного источника
+    /// расхода и не задваивать (<see cref="FactoryProduced.LaborCost"/>, например, уже учтён в <see
+    /// cref="SalariesPaid"/> — не включаю его отдельно, см. doc-comment <see cref="FactoryProduced"/>).
+    /// </summary>
+    private static void TraceCumulativeExpenses(GameSession session, List<string> trace)
+    {
+        foreach (var team in session.State.Teams.Values.OrderBy(t => t.Sector.Id).ThenBy(t => t.Name))
+        {
+            decimal buildCost = 0m, hireFireCost = 0m, salary = 0m, upkeep = 0m, rnd = 0m, generation = 0m,
+                overhaul = 0m, electricity = 0m, warehouseFee = 0m, emergencyPurchase = 0m, income = 0m;
+
+            foreach (var entry in session.Entries)
+            {
+                switch (entry.Change)
+                {
+                    case FactoryBuilt c when c.TeamId == team.Id: buildCost += c.Cost; break;
+                    case WorkersHired c when c.TeamId == team.Id: hireFireCost += c.Cost; break;
+                    case WorkersFired c when c.TeamId == team.Id: hireFireCost += c.Cost; break;
+                    case SalariesPaid c when c.TeamId == team.Id: salary += c.Amount; break;
+                    case FactoryUpkeepPaid c when c.TeamId == team.Id: upkeep += c.Amount; break;
+                    // Простой (вынужденный или во время капремонта) — зарплата/содержание по своему,
+                    // отдельно зафиксированному тарифу простоя, не входят в SalariesPaid/FactoryUpkeepPaid
+                    // выше (фабрики в простое сознательно исключены из общей командной кривой, см.
+                    // doc-comment TickFinanceStep.Run) — без этой ветки сумма расходов не сходится с
+                    // доходом-минус-балансом (нашли этим же способом, запрос пользователя).
+                    case FactoryRepairTurnPassed c when c.TeamId == team.Id: salary += c.SalaryPaid; upkeep += c.UpkeepPaid; break;
+                    case RndInvested c when c.TeamId == team.Id: rnd += c.Amount; break;
+                    case GenerationResearchInvested c when c.TeamId == team.Id: generation += c.Amount; break;
+                    case FactoryOverhaulStarted c when c.TeamId == team.Id: overhaul += c.Cost; break;
+                    case FactoryProduced c when c.TeamId == team.Id: electricity += c.OverheadCost; break;
+                    case WarehouseFeeCharged c when c.TeamId == team.Id: warehouseFee += c.Amount; break;
+                    case EmergencyPurchased c when c.TeamId == team.Id: emergencyPurchase += c.TotalCost; break;
+                    case MaterialSoldToSystem c when c.TeamId == team.Id: income += c.TotalRevenue; break;
+                }
+            }
+
+            trace.Add(
+                $"{team.Name} накопленным итогом: доход={income:F0}, баланс={team.Balance:F0} | расходы: постройка={buildCost:F0}, " +
+                $"наём/увольнение={hireFireCost:F0}, зарплата={salary:F0}, содержание={upkeep:F0}, R&D={rnd:F0}, " +
+                $"поколение={generation:F0}, капремонт={overhaul:F0}, электричество={electricity:F0}, склад={warehouseFee:F0}, " +
+                $"авар.закупка={emergencyPurchase:F0}");
+        }
+    }
+
+    /// <summary>
+    /// Что реально произвели фабрики и что реально продали системе за этот расчёт (не заявки из
+    /// фазы решений — свершившийся факт, <see cref="FactoryProduced"/>/<see cref="MaterialSoldToSystem"/>
+    /// из <see cref="GameSession.RunTick"/>) — по каждой команде и материалу, с суммой выручки. Продажа,
+    /// заявленная в прошлую фазу решений, оседает как факт именно на СЛЕДУЮЩЕМ расчёте (SPEC §4) — тот
+    /// же ход, где выпускается новая партия, поэтому обе строки печатаются рядом под одним заголовком
+    /// хода, хотя формально относятся к разным фазам решений.
+    /// </summary>
+    private static void TraceProductionAndSales(GameSession session, IReadOnlyList<EventLogEntry<GameSessionState>> settled, List<string> trace)
+    {
+        foreach (var team in session.State.Teams.Values.OrderBy(t => t.Sector.Id).ThenBy(t => t.Name))
+        {
+            var produced = settled
+                .Select(e => e.Change)
+                .Select(c => c as FactoryProduced)
+                .Where(c => c is not null && c.TeamId == team.Id)
+                .GroupBy(c => team.Factories.Single(f => f.Id == c!.FactoryId).SelectedRecipe.Output.Id)
+                .ToDictionary(g => g.Key, g => g.Sum(c => c!.OutputQuantity));
+            var sold = settled
+                .Select(e => e.Change)
+                .Select(c => c as MaterialSoldToSystem)
+                .Where(c => c is not null && c.TeamId == team.Id && c.Volume > 0)
+                .GroupBy(c => c!.MaterialId)
+                .ToDictionary(g => g.Key, g => (Volume: g.Sum(c => c!.Volume), Revenue: g.Sum(c => c!.TotalRevenue)));
+
+            var producedText = produced.Count == 0 ? "-" : string.Join(", ", produced.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}={kv.Value:F1}"));
+            var soldText = sold.Count == 0 ? "-" : string.Join(", ", sold.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => $"{kv.Key}={kv.Value.Volume:F1}шт/{kv.Value.Revenue:F1}¤"));
+            trace.Add($"{team.Name} произвели: {producedText}");
+            trace.Add($"{team.Name} продали системе: {soldText}");
         }
     }
 

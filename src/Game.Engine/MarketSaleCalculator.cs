@@ -21,12 +21,12 @@ namespace Game.Engine;
 public static class MarketSaleCalculator
 {
     /// <summary>
-    /// Наценка системной продажи над себестоимостью — везде и всегда 1.10× (себестоимость + 10%,
-    /// поднято с 5% в тот же день, step14), не зависит от уровня передела материала (см. doc-comment
-    /// класса). Небольшая, положительная — у команды всегда есть путь из минуса, не аварийный план
-    /// (тот — <see cref="EconomyConfig.EmergencyPurchaseBaseMultiplier"/>, обычно намного больше).
+    /// Наценка системной продажи над себестоимостью — везде и всегда 1.30× (себестоимость + 30%,
+    /// поднято с 20% тем же днём, step17), не зависит от уровня передела материала (см. doc-comment
+    /// класса). Положительная, но меньше аварийного плана (тот — <see
+    /// cref="EconomyConfig.EmergencyPurchaseBaseMultiplier"/>, обычно намного больше).
     /// </summary>
-    public const decimal SystemSaleMarginMultiplier = 1.10m;
+    public const decimal SystemSaleMarginMultiplier = 1.30m;
 
     public static MarketSaleResult Calculate(
         Market market, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy, Material material, decimal volume)

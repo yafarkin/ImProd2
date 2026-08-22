@@ -196,9 +196,9 @@
       "RecipeIds": [
         "recipe1_1"
       ],
-      "BuildCost": 500,
+      "BuildCost": 250.0,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 10
+      "FixedCostPerTurn": 6.67
     },
     {
       "Id": "factory2_1",
@@ -207,9 +207,9 @@
       "RecipeIds": [
         "recipe2_1"
       ],
-      "BuildCost": 1500,
+      "BuildCost": 750.0,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 30
+      "FixedCostPerTurn": 20.0
     },
     {
       "Id": "factory3_1",
@@ -218,9 +218,9 @@
       "RecipeIds": [
         "recipe3_1"
       ],
-      "BuildCost": 4000,
+      "BuildCost": 2000.0,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 70
+      "FixedCostPerTurn": 46.67
     },
     {
       "Id": "factory1_2",
@@ -229,9 +229,9 @@
       "RecipeIds": [
         "recipe1_2"
       ],
-      "BuildCost": 500,
+      "BuildCost": 250.0,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 10
+      "FixedCostPerTurn": 6.67
     },
     {
       "Id": "factory2_2",
@@ -240,9 +240,9 @@
       "RecipeIds": [
         "recipe2_2"
       ],
-      "BuildCost": 1500,
+      "BuildCost": 750.0,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 30
+      "FixedCostPerTurn": 20.0
     },
     {
       "Id": "factory3_2",
@@ -251,9 +251,9 @@
       "RecipeIds": [
         "recipe3_2"
       ],
-      "BuildCost": 4000,
+      "BuildCost": 2000.0,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 70
+      "FixedCostPerTurn": 46.67
     },
     {
       "Id": "factory1_3",
@@ -262,9 +262,9 @@
       "RecipeIds": [
         "recipe1_3"
       ],
-      "BuildCost": 500,
+      "BuildCost": 250.0,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 10
+      "FixedCostPerTurn": 6.67
     },
     {
       "Id": "factory2_3",
@@ -273,9 +273,9 @@
       "RecipeIds": [
         "recipe2_3"
       ],
-      "BuildCost": 1500,
+      "BuildCost": 750.0,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 30
+      "FixedCostPerTurn": 20.0
     },
     {
       "Id": "factory3_3",
@@ -284,9 +284,9 @@
       "RecipeIds": [
         "recipe3_3"
       ],
-      "BuildCost": 4000,
+      "BuildCost": 2000.0,
       "LiquidationValueCoefficient": 0.5,
-      "FixedCostPerTurn": 70
+      "FixedCostPerTurn": 46.67
     }
   ],
   "BaseMarketPerMaterial": [
@@ -339,7 +339,7 @@
   "GenerationResearch": {
     "StartingGeneration": 1,
     "ResearchPointThresholdsByGeneration": [
-      50
+      25
     ],
     "DiminishingReturnsExponent": 0.5,
     "MaxCommitmentPerTurn": 300

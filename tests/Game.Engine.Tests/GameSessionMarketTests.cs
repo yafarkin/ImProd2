@@ -52,9 +52,9 @@ public class GameSessionMarketTests
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var appended = session.RunTick(new Random(1));
 
-        // Ore: себестоимость 5, ёмкость 100, SystemSaleMarginMultiplier 1.10 -> 20 * 5.5 = 110.
+        // Ore: себестоимость 5, ёмкость 100, SystemSaleMarginMultiplier 1.30 -> 20 * 6.5 = 130.
         var sold = Assert.IsType<MaterialSoldToSystem>(Assert.Single(appended, e => e.Change is MaterialSoldToSystem).Change);
-        Assert.Equal(110m, sold.TotalRevenue);
+        Assert.Equal(130m, sold.TotalRevenue);
         Assert.Equal(0m, team.Warehouse.QuantityOf(TestGameConfig.Ore));
         Assert.Empty(team.PendingSaleVolumeByMaterial);
     }
@@ -79,15 +79,15 @@ public class GameSessionMarketTests
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
         var appended = session.RunTick(new Random(1));
 
-        // Sheet: себестоимость 15, фиксированная наценка 1.10 -> unit price 16.5, скидка за
-        // превышение — 0.5 -> 8.25. Кто из двух команд по порядку Id обработан первой (получает
-        // полную цену за все 5 — 82.5), а кто второй (3 * 16.5 + 2 * 8.25 = 66) — не фиксируем;
+        // Sheet: себестоимость 15, фиксированная наценка 1.30 -> unit price 19.5, скидка за
+        // превышение — 0.5 -> 9.75. Кто из двух команд по порядку Id обработан первой (получает
+        // полную цену за все 5 — 97.5), а кто второй (3 * 19.5 + 2 * 9.75 = 78) — не фиксируем;
         // фиксируем то, что не зависит от порядка: суммарная выручка обеих команд и то, что каждая
         // получила ровно одно из двух значений.
         var sales = appended.Where(e => e.Change is MaterialSoldToSystem).Select(e => (MaterialSoldToSystem)e.Change).ToList();
         Assert.Equal(2, sales.Count);
-        Assert.Equal(148.5m, sales.Sum(s => s.TotalRevenue)); // 5*16.5 + (3*16.5 + 2*8.25)
-        Assert.Equal(new[] { 66m, 82.5m }, sales.Select(s => s.TotalRevenue).OrderBy(x => x));
+        Assert.Equal(175.5m, sales.Sum(s => s.TotalRevenue)); // 5*19.5 + (3*19.5 + 2*9.75)
+        Assert.Equal(new[] { 78m, 97.5m }, sales.Select(s => s.TotalRevenue).OrderBy(x => x));
     }
 
     [Fact]

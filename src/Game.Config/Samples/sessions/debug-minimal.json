@@ -30,7 +30,7 @@
     "DecisionPhaseSeconds": 300
   },
   "Economy": {
-    "EmergencyPurchaseBaseMultiplier": 1.4,
+    "EmergencyPurchaseBaseMultiplier": 1.55,
     "EmergencyPurchasePressureMultiplierPerUnit": 0.05,
     "EmergencyPurchasePressureHalfLifeTurns": 3,
     "MarketCapacityOverflowDiscount": 1.0,
@@ -64,9 +64,9 @@
   "WorkerProductivity": {
     "BaseWorkerCount": 10,
     "DiminishingReturnsFactor": 0.5,
-    "HireCostPerWorker": 50,
+    "HireCostPerWorker": 25.0,
     "FireCostPerWorker": 30,
-    "SalaryPerWorkerPerTurn": 5,
+    "SalaryPerWorkerPerTurn": 3.33,
     "TeamSalaryBaseWorkerCount": 30,
     "SalaryEscalationFactor": 1.5
   },
@@ -78,7 +78,7 @@
     ],
     "DiminishingReturnsExponent": 0.5,
     "ProductionRateBonusPerLevel": 0.1,
-    "MaxCommitmentPerTurn": 200
+    "MaxCommitmentPerTurn": 0
   },
   "Wear": {
     "GracePeriodTurns": 8,

@@ -76,8 +76,8 @@ public class GameSessionHappyPathTests
         var tick2 = session.RunTick(new Random(1));
 
         var sale = (MaterialSoldToSystem)tick2.Single(e => e.Change is MaterialSoldToSystem).Change;
-        Assert.Equal(16.5m, sale.UnitPrice); // себестоимость листа 15 x фиксированная наценка 1.10
-        Assert.Equal(82.5m, sale.TotalRevenue);
+        Assert.Equal(19.5m, sale.UnitPrice); // себестоимость листа 15 x фиксированная наценка 1.30
+        Assert.Equal(97.5m, sale.TotalRevenue);
 
         var minedTurn3 = (FactoryProduced)tick2.Single(e => e.Change is FactoryProduced p && p.FactoryId == mineBuilt.FactoryId).Change;
         var milledTurn3 = (FactoryProduced)tick2.Single(e => e.Change is FactoryProduced p && p.FactoryId == millBuilt.FactoryId).Change;
