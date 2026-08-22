@@ -33,6 +33,14 @@ if (cliArguments.Mode == RunMode.Trace)
     return;
 }
 
+// Блок «автоподбор параметров» (rebalance/2-sector-stepwise) — бисекция по одному рычагу конфига до
+// заданной цели по X(t)/Score(t), тоже одна партия/расчёт за итерацию, не сетка.
+if (cliArguments.Mode == RunMode.Calibrate)
+{
+    await CalibrateRun.RunAsync(config, cliArguments);
+    return;
+}
+
 var preset = config.Raw.SessionPresets.Single(p => p.Id == cliArguments.PresetId);
 
 if (cliArguments.TeamsPerSector <= 0)

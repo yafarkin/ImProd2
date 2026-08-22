@@ -62,6 +62,27 @@ internal sealed record CliArguments
     /// <summary><c>profile</c> ботов при <see cref="RunMode.Trace"/> — см. <see cref="Leverage"/>.</summary>
     public decimal Profile { get; init; }
 
+    /// <summary>Имя рычага калибровки при <see cref="RunMode.Calibrate"/> — ключ <see cref="CalibrationLever.All"/>.</summary>
+    public string? CalibrateLever { get; init; }
+
+    /// <summary>Какую метрику подгоняет калибратор — X(T) идеального зала (по умолчанию, быстрее) или Score(T) реального бота.</summary>
+    public CalibrateMetric CalibrateMetric { get; init; } = CalibrateMetric.X;
+
+    /// <summary>Целевое значение метрики (по умолчанию 0 — «минимальный рычаг, при котором метрика не отрицательна»).</summary>
+    public decimal CalibrateTarget { get; init; }
+
+    /// <summary>Нижняя граница отрезка поиска для <see cref="CalibrateLever"/>.</summary>
+    public decimal? CalibrateMin { get; init; }
+
+    /// <summary>Верхняя граница отрезка поиска для <see cref="CalibrateLever"/>.</summary>
+    public decimal? CalibrateMax { get; init; }
+
+    /// <summary>Допуск — бисекция останавливается, когда |метрика − цель| не больше этого значения.</summary>
+    public decimal CalibrateTolerance { get; init; } = 1m;
+
+    /// <summary>Потолок числа шагов бисекции сверх двух граничных вычислений — защита от зависания при плохо подобранном допуске.</summary>
+    public int CalibrateMaxIterations { get; init; } = 25;
+
     /// <summary>Разбирает пары <c>--флаг значение</c>; неизвестный флаг или флаг без значения — <see cref="ArgumentException"/> (лучше упасть сразу, чем молча проигнорировать опечатку в многочасовом прогоне).</summary>
     public static CliArguments Parse(IReadOnlyList<string> args)
     {
@@ -96,7 +117,17 @@ internal sealed record CliArguments
                 "--workers" => result with { Workers = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--leverage" => result with { Leverage = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--profile" => result with { Profile = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
-                _ => throw new ArgumentException($"Unknown argument '{flag}'. Known flags: --config, --session, --preset, --sessions-per-cell, --grid-steps, --teams-per-sector, --maintain-factories, --out, --mode, --workers, --leverage, --profile."),
+                "--calibrate-lever" => result with { CalibrateLever = NextValue() },
+                "--calibrate-metric" => result with { CalibrateMetric = ParseCalibrateMetric(NextValue()) },
+                "--calibrate-target" => result with { CalibrateTarget = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--calibrate-min" => result with { CalibrateMin = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--calibrate-max" => result with { CalibrateMax = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--calibrate-tolerance" => result with { CalibrateTolerance = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--calibrate-max-iterations" => result with { CalibrateMaxIterations = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                _ => throw new ArgumentException(
+                    $"Unknown argument '{flag}'. Known flags: --config, --session, --preset, --sessions-per-cell, --grid-steps, " +
+                    "--teams-per-sector, --maintain-factories, --out, --mode, --workers, --leverage, --profile, --calibrate-lever, " +
+                    "--calibrate-metric, --calibrate-target, --calibrate-min, --calibrate-max, --calibrate-tolerance, --calibrate-max-iterations."),
             };
         }
 
@@ -109,7 +140,15 @@ internal sealed record CliArguments
         "ideal-hall" => RunMode.IdealHall,
         "cost-levels" => RunMode.CostLevels,
         "trace" => RunMode.Trace,
-        _ => throw new ArgumentException($"Unknown '--mode' value '{value}'. Expected 'grid', 'ideal-hall', 'cost-levels' or 'trace'."),
+        "calibrate" => RunMode.Calibrate,
+        _ => throw new ArgumentException($"Unknown '--mode' value '{value}'. Expected 'grid', 'ideal-hall', 'cost-levels', 'trace' or 'calibrate'."),
+    };
+
+    private static CalibrateMetric ParseCalibrateMetric(string value) => value switch
+    {
+        "x" => CalibrateMetric.X,
+        "score" => CalibrateMetric.Score,
+        _ => throw new ArgumentException($"Unknown '--calibrate-metric' value '{value}'. Expected 'x' or 'score'."),
     };
 }
 
@@ -136,4 +175,12 @@ internal enum RunMode
     /// расковыривания кода на каждый такой случай (как раньше — временный, не закоммиченный код).
     /// </summary>
     Trace,
+
+    /// <summary>
+    /// Автоподбор одного параметра-рычага (<see cref="CalibrationLever"/>) методом бисекции (<see
+    /// cref="Calibrator"/>, Блок «автоподбор параметров», rebalance/2-sector-stepwise, 2026-08-22) —
+    /// то же самое, что человек делал руками весь этот rebalance (правка → прогон → смотреть X(t)/
+    /// Score(t) → повторить), но автоматически, до заданной цели.
+    /// </summary>
+    Calibrate,
 }
