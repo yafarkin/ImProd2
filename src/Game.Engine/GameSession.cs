@@ -661,10 +661,13 @@ public sealed class GameSession
 
     /// <summary>
     /// Продаёт (ликвидирует) построенную фабрику команды — мгновенно и необратимо, симметрично <see
-    /// cref="BuildFactory"/> (SPEC §5.6/§5.11, запрос пользователя). Выручка —
-    /// <c>BuildCost * LiquidationValueCoefficient</c> той же конфигурации фабрики, что и итоговый
-    /// счёт в конце игры (<see cref="FinalScoreCalculator"/>) — команда видит эту цену заранее, до
-    /// продажи (UI берёт то же значение). Требует фазы решений.
+    /// cref="BuildFactory"/> (SPEC §5.6/§5.11, запрос пользователя). Выручка — <c>LiquidationValueCoefficient</c>
+    /// той же конфигурации фабрики, но не от полной <c>BuildCost</c>, а от остаточной стоимости с
+    /// учётом реального состояния (<see cref="FactoryResidualValueCalculator"/>, та же формула, что и
+    /// итоговый счёт в конце игры, <see cref="FinalScoreCalculator"/>, доработано 2026-08-23 —
+    /// запрос пользователя: раньше убитая ремонтом фабрика продавалась по той же цене, что и
+    /// свежепостроенная) — команда видит эту цену заранее, до продажи (UI берёт то же значение).
+    /// Требует фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> SellFactory(Ulid teamId, Ulid factoryId)
     {
@@ -673,7 +676,8 @@ public sealed class GameSession
         var team = GetTeam(teamId);
         var factory = GetFactory(team, factoryId);
         var definition = State.Config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id);
-        var amount = definition.BuildCost * definition.LiquidationValueCoefficient;
+        var residualValue = FactoryResidualValueCalculator.Calculate(definition, factory.Condition);
+        var amount = residualValue * definition.LiquidationValueCoefficient;
 
         return _log.Append(new FactorySold
         {

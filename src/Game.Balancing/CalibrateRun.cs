@@ -95,7 +95,7 @@ internal static class CalibrateRun
 
         var materialCosts = MaterialCostCalculator.CalculateAll(config);
         return session.State.Teams.Values.Sum(team =>
-            FinalScoreCalculator.Calculate(team, materialCosts, config.Raw.Economy, config.Raw.FactoryDefinitions).Score);
+            FinalScoreCalculator.Calculate(team, materialCosts, config.Raw.FactoryDefinitions).Score);
     }
 }
 

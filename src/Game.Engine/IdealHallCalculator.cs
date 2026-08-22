@@ -454,9 +454,10 @@ public static class IdealHallCalculator
     /// остаточная стоимость фабрик (привязана к <see cref="Factory.Condition"/> — у идеального зала
     /// он всегда 1.0, износ не моделируется, «капремонт всегда точно вовремя», см. doc-comment класса,
     /// поэтому здесь фабрики всегда стоят полную <see cref="FactoryDefinitionConfig.BuildCost"/>, не
-    /// долю от неё) + остаточная стоимость склада по себестоимости (не наценке передела — она
-    /// относится к активной продаже системе, не к пассивной оценке остатка, тот же принцип, что и в
-    /// <see cref="FinalScoreCalculator.WarehouseValue"/>).
+    /// долю от неё) + остаточная стоимость склада **ровно по себестоимости**, без скидки на ликвидацию
+    /// (<c>EconomyConfig.WarehouseLiquidationRate</c> здесь больше не участвует — сознательное
+    /// упрощение по запросу пользователя, одна и та же формула для идеального зала, реального бота и
+    /// будущей реальной игры, см. doc-comment <see cref="FinalScoreCalculator"/>).
     /// </summary>
     private static decimal ComputeValue(
         BranchState branch, ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> materialCosts)
@@ -464,15 +465,11 @@ public static class IdealHallCalculator
         var factoriesValue = branch.Team.Factories.Sum(factory =>
         {
             var definition = config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id);
-            var residualFraction = definition.LiquidationValueCoefficient
-                                    + (1m - definition.LiquidationValueCoefficient) * factory.Condition;
-            return definition.BuildCost * residualFraction;
+            return FactoryResidualValueCalculator.Calculate(definition, factory.Condition);
         });
 
         var warehouseValue = branch.Team.Warehouse.Stock.Sum(stock =>
-            stock.Quantity
-            * materialCosts.GetValueOrDefault(stock.Material.Id, 0m)
-            * config.Raw.Economy.WarehouseLiquidationRate);
+            stock.Quantity * materialCosts.GetValueOrDefault(stock.Material.Id, 0m));
 
         return branch.Cash + factoriesValue + warehouseValue;
     }

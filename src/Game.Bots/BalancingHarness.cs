@@ -57,7 +57,6 @@ public static class BalancingHarness
             .Select(bot => FinalScoreCalculator.Calculate(
                 session.State.Teams[bot.TeamId],
                 materialCosts,
-                session.State.Config.Raw.Economy,
                 session.State.Config.Raw.FactoryDefinitions))
             .ToList();
 
@@ -122,7 +121,7 @@ public static class BalancingHarness
             }
 
             var score = FinalScoreCalculator.Calculate(
-                team, materialCosts, session.State.Config.Raw.Economy, session.State.Config.Raw.FactoryDefinitions).Score;
+                team, materialCosts, session.State.Config.Raw.FactoryDefinitions).Score;
             ratios.Add(score / value);
         }
 

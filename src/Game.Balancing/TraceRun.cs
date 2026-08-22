@@ -63,7 +63,7 @@ internal static class TraceRun
         var materialCosts = MaterialCostCalculator.CalculateAll(config);
         foreach (var team in session.State.Teams.Values.OrderBy(t => t.Sector.Id).ThenBy(t => t.Name))
         {
-            var score = FinalScoreCalculator.Calculate(team, materialCosts, config.Raw.Economy, config.Raw.FactoryDefinitions).Score;
+            var score = FinalScoreCalculator.Calculate(team, materialCosts, config.Raw.FactoryDefinitions).Score;
             Console.WriteLine($"  Score({preset.MaxTurns}) {team.Name} = {score:F0}");
         }
     }
@@ -149,6 +149,11 @@ internal static class TraceRun
     /// </summary>
     private static void TraceCumulativeExpenses(GameSession session, List<string> trace, Dictionary<Ulid, decimal> previousNetByTeam)
     {
+        // Score, не только баланс (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-23: «дальше
+        // оперируем Score, по нему идёт оценка команд») — считается тем же способом, что и итоговый
+        // Score в конце RunAsync, просто на каждом ходу, не только в самом конце партии.
+        var materialCosts = MaterialCostCalculator.CalculateAll(session.State.Config);
+
         foreach (var team in session.State.Teams.Values.OrderBy(t => t.Sector.Id).ThenBy(t => t.Name))
         {
             decimal buildCost = 0m, hireFireCost = 0m, salary = 0m, upkeep = 0m, rnd = 0m, generation = 0m,
@@ -184,9 +189,10 @@ internal static class TraceRun
             var cashFlowThisTurn = netCumulative - previousNetByTeam.GetValueOrDefault(team.Id);
             previousNetByTeam[team.Id] = netCumulative;
             var cashFlowText = cashFlowThisTurn >= 0 ? $"+{cashFlowThisTurn:F0}" : cashFlowThisTurn.ToString("F0");
+            var score = FinalScoreCalculator.Calculate(team, materialCosts, session.State.Config.Raw.FactoryDefinitions).Score;
 
             trace.Add(
-                $"{team.Name} накопленным итогом: доход={income:F0}, баланс={team.Balance:F0}, " +
+                $"{team.Name} накопленным итогом: доход={income:F0}, баланс={team.Balance:F0}, score={score:F0}, " +
                 $"поток за ход={cashFlowText} | расходы: постройка={buildCost:F0}, " +
                 $"наём/увольнение={hireFireCost:F0}, зарплата={salary:F0}, содержание={upkeep:F0}, R&D={rnd:F0}, " +
                 $"поколение={generation:F0}, капремонт={overhaul:F0}, электричество={electricity:F0}, склад={warehouseFee:F0}, " +

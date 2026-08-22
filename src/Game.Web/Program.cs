@@ -208,7 +208,7 @@ app.MapGet("/export/scores.csv", (GameSessionHost host) =>
         var state = host.Session.State;
         var materialCosts = MaterialCostCalculator.CalculateAll(state.Config);
         var scores = state.Teams.Values
-            .Select(team => (team.Name, FinalScoreCalculator.Calculate(team, materialCosts, state.Config.Raw.Economy, state.Config.Raw.FactoryDefinitions)))
+            .Select(team => (team.Name, FinalScoreCalculator.Calculate(team, materialCosts, state.Config.Raw.FactoryDefinitions)))
             .ToList();
         var csv = CsvExport.ScoresToCsv(scores);
         return Results.File(Encoding.UTF8.GetBytes(csv), "text/csv", "scores.csv");
