@@ -4,6 +4,10 @@
     <ProjectReference Include="..\Game.Config\Game.Config.csproj" />
     <ProjectReference Include="..\Game.Engine\Game.Engine.csproj" />
     <ProjectReference Include="..\Game.Persistence\Game.Persistence.csproj" />
+    <!-- Только для /admin/balance-lab (TODO.md №28, DebugMode-only) — прогон ботов и себестоимости
+         по уровням прямо из UI, без консольного Game.Balancing. -->
+    <ProjectReference Include="..\Game.Bots\Game.Bots.csproj" />
+    <ProjectReference Include="..\Game.Balancing\Game.Balancing.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Update="appsettings.Development.json">

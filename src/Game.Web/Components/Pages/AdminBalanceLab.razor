@@ -1,0 +1,398 @@
+@page "/admin/balance-lab"
+@attribute [Authorize(Roles = "Administrator")]
+@rendermode InteractiveServer
+@inject GameSessionHost Host
+@inject DebugModeState DebugMode
+@using System.Text.Json
+@using Game.Balancing
+@using Game.Bots
+@using Game.Config.Loading
+@using Game.Config.ProductionModel
+@using Game.Config.Session
+@using Game.Engine
+
+<PageTitle>Лаборатория баланса</PageTitle>
+
+<p><a href="/session">← Назад к странице сессии</a></p>
+
+@if (!DebugMode.Enabled)
+{
+    <div class="alert alert-warning">
+        Лаборатория баланса доступна только при включённом <code>DebugMode</code> в
+        <code>appsettings.json</code> — на реальном мероприятии он выключен.
+    </div>
+    return;
+}
+
+<h1>Лаборатория баланса</h1>
+<p class="text-muted small">
+    Не сессия — отдельная песочница (<code>TODO.md</code> №28): гоняет себестоимость по уровням,
+    идеальный зал и настоящих ботов на ЛЮБОЙ введённой ниже цепочке, никак не трогая
+    черновой/запущенный конфиг сессии. Глубинные числа цепочки (<c>ProductionRate</c>,
+    <c>BuildCost</c>, кросс-связи, наценки) правятся прямо в текстовых полях JSON ниже — отдельных
+    полей для них здесь нет.
+</p>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <label class="form-label">Производственная модель — выбрать файл или вставить/поправить JSON</label>
+        <select class="form-select form-select-sm mb-1" @bind="_selectedProductionModel" @bind:after="LoadSelectedProductionModel">
+            <option value="">— не выбрано —</option>
+            @foreach (var name in Host.ProductionModels.Keys.OrderBy(n => n, StringComparer.Ordinal))
+            {
+                <option value="@name">@name</option>
+            }
+        </select>
+        <textarea class="form-control font-monospace" style="font-size:0.8em" rows="14" @bind="_productionModelJson"></textarea>
+    </div>
+    <div class="col-md-6">
+        <label class="form-label">Сессионные параметры — выбрать файл или вставить/поправить JSON</label>
+        <select class="form-select form-select-sm mb-1" @bind="_selectedSession" @bind:after="LoadSelectedSession">
+            <option value="">— не выбрано —</option>
+            @foreach (var name in Host.SessionConfigs.Keys.OrderBy(n => n, StringComparer.Ordinal))
+            {
+                <option value="@name">@name</option>
+            }
+        </select>
+        <textarea class="form-control font-monospace" style="font-size:0.8em" rows="14" @bind="_sessionJson"></textarea>
+    </div>
+</div>
+
+<div class="row g-2 align-items-end mb-3">
+    <div class="col-auto">
+        <label class="form-label">Пресет</label>
+        <input class="form-control form-control-sm" style="width:8em" @bind="_presetId" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Ходов</label>
+        <input type="number" min="1" class="form-control form-control-sm" style="width:7em" @bind="_endTurn" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Команд на сектор</label>
+        <input type="number" min="1" class="form-control form-control-sm" style="width:7em" @bind="_teamsPerSector" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Leverage (0-1)</label>
+        <input type="number" step="0.05" min="0" max="1" class="form-control form-control-sm" style="width:7em" @bind="_leverage" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Profile (0-1)</label>
+        <input type="number" step="0.05" min="0" max="1" class="form-control form-control-sm" style="width:7em" @bind="_profile" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label">Рабочих (себестоимость)</label>
+        <input type="number" min="1" class="form-control form-control-sm" style="width:7em" @bind="_workers" />
+    </div>
+    <div class="col-auto form-check">
+        <input type="checkbox" class="form-check-input" id="maintain" @bind="_maintainFactories" />
+        <label class="form-check-label" for="maintain">Чинить фабрики</label>
+    </div>
+    <div class="col-auto">
+        <button type="button" class="btn btn-primary" @onclick="RunAsync" disabled="@_running">
+            @(_running ? "Считаю..." : "Запустить")
+        </button>
+    </div>
+</div>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger"><pre class="mb-0" style="white-space:pre-wrap">@_error</pre></div>
+}
+
+@if (_result is not null)
+{
+    <h3>Вердикт</h3>
+    @if (_costAnomalies.Count > 0)
+    {
+        <div class="alert alert-danger">
+            <strong>❌ Аномалии себестоимости — материал дешевле собственного сырья:</strong>
+            <ul class="mb-0">
+                @foreach (var a in _costAnomalies) { <li>@a</li> }
+            </ul>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-success mb-2">✅ Аномалий себестоимости не найдено.</div>
+    }
+
+    <div class="alert @(_sandwichHealthy ? "alert-success" : "alert-warning") mb-2">
+        <div>Пол продавца (системная продажа): +@_systemMargin.ToString("P0")</div>
+        <div>Жадность бота в P2P: [+@_botFloor.ToString("P0"); +@_botCeiling.ToString("P0")]</div>
+        <div>Потолок покупателя (аварийная закупка): +@_emergencyMargin.ToString("P0")</div>
+        <div>@(_sandwichHealthy ? "✅ Бутерброд корректен." : "⚠ Бутерброд наценок нарушен — P2P невыгоден одной из сторон.")</div>
+    </div>
+
+    <h4>Идеальный зал X(t) по секторам</h4>
+    <div class="row">
+        <div class="col-md-8">
+            @ChartRenderer.Render(BuildIdealHallChartLayout())
+        </div>
+        <div class="col-md-4">
+            <table class="table table-sm">
+                <thead><tr><th>Сектор</th><th>X(T)</th><th>Траектория</th></tr></thead>
+                <tbody>
+                    @foreach (var branch in _result.IdealHall.Branches)
+                    {
+                        var verdict = ClassifyTrajectory(branch.ValueByTurn);
+                        <tr>
+                            <td>@branch.SectorId</td>
+                            <td>@branch.ValueByTurn[^1].ToString("F0")</td>
+                            <td>@verdict.Label</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h4 class="mt-4">Реальные боты по ходам</h4>
+    <div class="d-flex gap-2 align-items-center mb-2">
+        <label class="form-label mb-0">Столбец:</label>
+        <select class="form-select form-select-sm" style="width:16em" @bind="_selectedColumn">
+            @foreach (var name in Columns.Keys) { <option value="@name">@name</option> }
+        </select>
+    </div>
+    @ChartRenderer.Render(BuildTeamChartLayout())
+
+    <h4 class="mt-4">Таблица по ходам</h4>
+    <div class="d-flex gap-2 align-items-center mb-2">
+        <label class="form-label mb-0">Команда:</label>
+        <select class="form-select form-select-sm" style="width:16em" @bind="_selectedTeamFilter">
+            <option value="">— все —</option>
+            @foreach (var name in _teamNames) { <option value="@name">@name</option> }
+        </select>
+    </div>
+    <div class="table-responsive" style="max-height:480px; overflow-y:auto">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>Ход</th><th>Команда</th><th>Сектор</th><th>Баланс</th><th>Score</th><th>Поток за ход</th>
+                    <th>Доход</th><th>Постройка</th><th>Наём/увольн.</th><th>Зарплата</th><th>Содержание</th>
+                    <th>R&amp;D</th><th>Поколение</th><th>Капремонт</th><th>Электричество</th><th>Склад</th><th>Авар.закупка</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in FilteredSnapshots())
+                {
+                    <tr>
+                        <td>@s.Turn</td><td>@s.TeamName</td><td>@s.SectorId</td>
+                        <td>@s.Balance.ToString("F0")</td><td>@s.Score.ToString("F0")</td><td>@s.CashFlowThisTurn.ToString("F0")</td>
+                        <td>@s.Income.ToString("F0")</td><td>@s.BuildCost.ToString("F0")</td><td>@s.HireFireCost.ToString("F0")</td>
+                        <td>@s.Salary.ToString("F0")</td><td>@s.Upkeep.ToString("F0")</td><td>@s.Rnd.ToString("F0")</td>
+                        <td>@s.Generation.ToString("F0")</td><td>@s.Overhaul.ToString("F0")</td><td>@s.Electricity.ToString("F0")</td>
+                        <td>@s.WarehouseFee.ToString("F0")</td><td>@s.EmergencyPurchase.ToString("F0")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <h4 class="mt-4">Себестоимость по уровням</h4>
+    <div class="table-responsive" style="max-height:360px; overflow-y:auto">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr><th>Сектор</th><th>Уровень</th><th>Фабрика</th><th>Рецепт</th><th>Выпуск</th><th>Себест./ед.</th><th>Итого/ход</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _costRows)
+                {
+                    <tr>
+                        <td>@row.SectorId</td><td>@row.Level</td><td>@row.FactoryId</td><td>@row.RecipeId</td>
+                        <td>@row.OutputMaterialId</td><td>@row.UnitCost.ToString("0.####")</td><td>@row.TotalCost.ToString("F0")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <h4 class="mt-4">Действия ботов (журнал решений)</h4>
+    <input class="form-control form-control-sm mb-2" style="max-width:24em" placeholder="фильтр (например, sector2)" @bind="_traceFilter" @bind:event="oninput" />
+    <div style="max-height:400px; overflow-y:auto; background:#1e1e1e; color:#d4d4d4; padding:0.5em">
+        <pre class="mb-0" style="font-size:0.75em">@string.Join("\n", FilteredTraceLines())</pre>
+    </div>
+}
+
+@code {
+    private string _selectedProductionModel = "";
+    private string _selectedSession = "";
+    private string _productionModelJson = "";
+    private string _sessionJson = "";
+    private string _presetId = "full";
+    private int _endTurn = 90;
+    private int _teamsPerSector = 1;
+    private decimal _leverage = 1m;
+    private decimal _profile = 0m;
+    private int _workers = 10;
+    private bool _maintainFactories = true;
+    private bool _running;
+    private string? _error;
+
+    private DetailedSessionRunner.Result? _result;
+    private IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> _costRows = Array.Empty<ProductionCostLevelCalculator.FactoryRecipeCost>();
+    private IReadOnlyList<string> _costAnomalies = Array.Empty<string>();
+    private bool _sandwichHealthy;
+    private decimal _systemMargin, _botFloor, _botCeiling, _emergencyMargin;
+    private IReadOnlyList<string> _teamNames = Array.Empty<string>();
+    private string _selectedTeamFilter = "";
+    private string _selectedColumn = "Баланс";
+    private string _traceFilter = "";
+
+    private static readonly JsonSerializerOptions PrettyPrint = new() { WriteIndented = true };
+
+    private static readonly Dictionary<string, Func<DetailedSessionRunner.TeamTurnSnapshot, decimal>> Columns = new()
+    {
+        ["Баланс"] = s => s.Balance,
+        ["Score"] = s => s.Score,
+        ["Поток за ход"] = s => s.CashFlowThisTurn,
+        ["Доход (накопл.)"] = s => s.Income,
+        ["Постройка (накопл.)"] = s => s.BuildCost,
+        ["Наём/увольнение (накопл.)"] = s => s.HireFireCost,
+        ["Зарплата (накопл.)"] = s => s.Salary,
+        ["Содержание (накопл.)"] = s => s.Upkeep,
+        ["R&D (накопл.)"] = s => s.Rnd,
+        ["Поколение (накопл.)"] = s => s.Generation,
+        ["Капремонт (накопл.)"] = s => s.Overhaul,
+        ["Электричество (накопл.)"] = s => s.Electricity,
+        ["Склад (накопл.)"] = s => s.WarehouseFee,
+        ["Авар. закупка (накопл.)"] = s => s.EmergencyPurchase,
+    };
+
+    private void LoadSelectedProductionModel()
+    {
+        if (_selectedProductionModel.Length == 0 || !Host.ProductionModels.TryGetValue(_selectedProductionModel, out var model))
+        {
+            return;
+        }
+
+        _productionModelJson = JsonSerializer.Serialize(model, PrettyPrint);
+    }
+
+    private void LoadSelectedSession()
+    {
+        if (_selectedSession.Length == 0 || !Host.SessionConfigs.TryGetValue(_selectedSession, out var session))
+        {
+            return;
+        }
+
+        _sessionJson = JsonSerializer.Serialize(session, PrettyPrint);
+        var preset = session.SessionPresets.FirstOrDefault(p => p.Id == _presetId) ?? session.SessionPresets.FirstOrDefault();
+        if (preset is not null)
+        {
+            _presetId = preset.Id;
+            _endTurn = preset.MaxTurns;
+        }
+    }
+
+    private async Task RunAsync()
+    {
+        _error = null;
+        _result = null;
+        _running = true;
+        StateHasChanged();
+        await Task.Yield();
+
+        try
+        {
+            var productionModel = JsonSerializer.Deserialize<ProductionModelConfig>(_productionModelJson)
+                                   ?? throw new InvalidOperationException("Производственная модель не заполнена.");
+            var session = JsonSerializer.Deserialize<SessionConfig>(_sessionJson)
+                          ?? throw new InvalidOperationException("Сессионные параметры не заполнены.");
+            var config = GameConfigLoader.Load(productionModel, session);
+
+            _costRows = ProductionCostLevelCalculator.Calculate(config, _workers);
+            _costAnomalies = FindCostAnomalies(_costRows);
+
+            _systemMargin = MarketSaleCalculator.SystemSaleMarginMultiplier - 1m;
+            _emergencyMargin = config.Raw.Economy.EmergencyPurchaseBaseMultiplier - 1m;
+            _botFloor = SimpleBot.MinSellMarginRate;
+            _botCeiling = SimpleBot.MaxBuyPremiumRate;
+            _sandwichHealthy = _botFloor >= _systemMargin && _botCeiling <= _emergencyMargin && _botFloor <= _botCeiling;
+
+            _result = DetailedSessionRunner.Run(config, _presetId, _endTurn, _teamsPerSector, _maintainFactories, _leverage, _profile);
+            _teamNames = _result.Snapshots.Select(s => s.TeamName).Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList();
+        }
+        catch (GameConfigValidationException ex)
+        {
+            _error = "Конфиг не проходит валидацию:\n" + string.Join("\n", ex.Errors);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _running = false;
+        }
+    }
+
+    private IEnumerable<DetailedSessionRunner.TeamTurnSnapshot> FilteredSnapshots() =>
+        _result!.Snapshots.Where(s => _selectedTeamFilter.Length == 0 || s.TeamName == _selectedTeamFilter);
+
+    private IEnumerable<string> FilteredTraceLines() =>
+        _traceFilter.Length == 0
+            ? _result!.TraceLines
+            : _result!.TraceLines.Where(l => l.Contains(_traceFilter, StringComparison.OrdinalIgnoreCase));
+
+    private LineChartDiagram.ChartLayout BuildIdealHallChartLayout()
+    {
+        var series = _result!.IdealHall.Branches
+            .Select((branch, index) => new LineChartDiagram.ChartSeries(
+                branch.SectorId, SectorColors.Palette[index % SectorColors.Palette.Length],
+                branch.ValueByTurn.Select((v, t) => (Turn: t, Value: v)).ToList()))
+            .ToList();
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 720, 260, DashboardDisplay.FormatMoney);
+    }
+
+    private LineChartDiagram.ChartLayout BuildTeamChartLayout()
+    {
+        var selector = Columns[_selectedColumn];
+        var series = _teamNames
+            .Select((name, index) => new LineChartDiagram.ChartSeries(
+                name, SectorColors.Palette[index % SectorColors.Palette.Length],
+                _result!.Snapshots.Where(s => s.TeamName == name).Select(s => (s.Turn, Value: selector(s))).ToList()))
+            .ToList();
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 900, 280, DashboardDisplay.FormatMoney);
+    }
+
+    /// <summary>Материал дешевле собственного самого дорогого входа — та же проверка, что <c>DiagnoseRun.FindCostAnomalies</c> (не переиспользована напрямую — небольшая, ~10 строк, а <c>DiagnoseRun</c> внутренний класс консольного инструмента).</summary>
+    private static IReadOnlyList<string> FindCostAnomalies(IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows)
+    {
+        var anomalies = new List<string>();
+        foreach (var row in rows)
+        {
+            var costliestInput = row.Inputs.Count == 0 ? null : row.Inputs.MaxBy(input => input.UnitCost);
+            if (costliestInput is not null && row.UnitCost < costliestInput.UnitCost)
+            {
+                anomalies.Add(
+                    $"{row.OutputMaterialId} (рецепт {row.RecipeId}, фабрика {row.FactoryId}): себестоимость {row.UnitCost:F4} " +
+                    $"ниже, чем у входа {costliestInput.MaterialId} ({costliestInput.UnitCost:F4}).");
+            }
+        }
+
+        return anomalies;
+    }
+
+    private sealed record ChainVerdict(bool IsPositive, bool IsRecovering, string Label);
+
+    /// <summary>Та же классификация X(t), что <c>DiagnoseRun.ClassifyTrajectory</c> (см. doc-comment <see cref="FindCostAnomalies"/> — тот же приём, небольшое дублирование вместо связывания с внутренностями CLI-инструмента).</summary>
+    private static ChainVerdict ClassifyTrajectory(IReadOnlyList<decimal> valueByTurn)
+    {
+        var final = valueByTurn[^1];
+        var isPositive = final > 0m;
+        var half = valueByTurn.Count / 2;
+        var isRecovering = half == 0 || valueByTurn.Skip(half).Average() >= valueByTurn.Take(half).Average();
+
+        var label = (isPositive, isRecovering) switch
+        {
+            (true, true) => "здоровая",
+            (true, false) => "вторая половина хуже первой",
+            (false, true) => "яма, но восстанавливается",
+            (false, false) => "монотонно падает",
+        };
+
+        return new ChainVerdict(isPositive, isRecovering, label);
+    }
+}

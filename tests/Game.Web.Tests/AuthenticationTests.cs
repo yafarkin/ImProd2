@@ -390,6 +390,30 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.StartsWith("/access-denied", response.Headers.Location!.PathAndQuery);
     }
 
+    /// <summary>Лаборатория баланса (TODO.md №28) — тот же гейт по роли, что и остальные /admin/* страницы; DebugMode в тестовом хосте включён (appsettings), так что здесь проверяется только роль, не отдельно баннер «выключено».</summary>
+    [Fact]
+    public async Task Balance_Lab_Page_Allows_A_Logged_In_Administrator()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Administrator));
+
+        var response = await client.GetAsync("/admin/balance-lab");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Balance_Lab_Page_Denies_Access_To_A_Manager()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Manager));
+
+        var response = await client.GetAsync("/admin/balance-lab");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/access-denied", response.Headers.Location!.PathAndQuery);
+    }
+
     /// <summary>Экран сессии (запрос пользователя «разделить режим администратора») общий на две роли — администратора и ведущего.</summary>
     [Fact]
     public async Task Session_Page_Allows_A_Logged_In_Administrator()
