@@ -134,7 +134,7 @@
                 <tbody>
                     @foreach (var branch in _result.IdealHall.Branches)
                     {
-                        var verdict = ClassifyTrajectory(branch.ValueByTurn);
+                        var verdict = DiagnoseRun.ClassifyTrajectory(branch.ValueByTurn);
                         <tr>
                             <td>@branch.SectorId</td>
                             <td>@branch.ValueByTurn[^1].ToString("F0")</td>
@@ -311,7 +311,7 @@
             var config = GameConfigLoader.Load(productionModel, session);
 
             _costRows = ProductionCostLevelCalculator.Calculate(config, _workers);
-            _costAnomalies = FindCostAnomalies(_costRows);
+            _costAnomalies = DiagnoseRun.FindCostAnomalies(_costRows);
 
             _systemMargin = MarketSaleCalculator.SystemSaleMarginMultiplier - 1m;
             _emergencyMargin = config.Raw.Economy.EmergencyPurchaseBaseMultiplier - 1m;
@@ -367,42 +367,4 @@
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 900, 280, DashboardDisplay.FormatMoney);
     }
 
-    /// <summary>Материал дешевле собственного самого дорогого входа — та же проверка, что <c>DiagnoseRun.FindCostAnomalies</c> (не переиспользована напрямую — небольшая, ~10 строк, а <c>DiagnoseRun</c> внутренний класс консольного инструмента).</summary>
-    private static IReadOnlyList<string> FindCostAnomalies(IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows)
-    {
-        var anomalies = new List<string>();
-        foreach (var row in rows)
-        {
-            var costliestInput = row.Inputs.Count == 0 ? null : row.Inputs.MaxBy(input => input.UnitCost);
-            if (costliestInput is not null && row.UnitCost < costliestInput.UnitCost)
-            {
-                anomalies.Add(
-                    $"{row.OutputMaterialId} (рецепт {row.RecipeId}, фабрика {row.FactoryId}): себестоимость {row.UnitCost:F4} " +
-                    $"ниже, чем у входа {costliestInput.MaterialId} ({costliestInput.UnitCost:F4}).");
-            }
-        }
-
-        return anomalies;
-    }
-
-    private sealed record ChainVerdict(bool IsPositive, bool IsRecovering, string Label);
-
-    /// <summary>Та же классификация X(t), что <c>DiagnoseRun.ClassifyTrajectory</c> (см. doc-comment <see cref="FindCostAnomalies"/> — тот же приём, небольшое дублирование вместо связывания с внутренностями CLI-инструмента).</summary>
-    private static ChainVerdict ClassifyTrajectory(IReadOnlyList<decimal> valueByTurn)
-    {
-        var final = valueByTurn[^1];
-        var isPositive = final > 0m;
-        var half = valueByTurn.Count / 2;
-        var isRecovering = half == 0 || valueByTurn.Skip(half).Average() >= valueByTurn.Take(half).Average();
-
-        var label = (isPositive, isRecovering) switch
-        {
-            (true, true) => "здоровая",
-            (true, false) => "вторая половина хуже первой",
-            (false, true) => "яма, но восстанавливается",
-            (false, false) => "монотонно падает",
-        };
-
-        return new ChainVerdict(isPositive, isRecovering, label);
-    }
 }

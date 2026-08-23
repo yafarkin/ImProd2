@@ -106,29 +106,41 @@ internal static class DiagnoseRun
     }
 
     /// <summary>
-    /// Материал, чья себестоимость ниже, чем у одного из собственных входов, — арифметически
-    /// невозможно при честном учёте (то же семейство находок, что и «крепёжный завод» из
-    /// <c>Game.Balancing --mode cost-levels</c> в самом начале этой ветки) — почти всегда значит, что
-    /// где-то в рецепте пропущена доля входа или перепутаны количества.
+    /// Сравнивает себестоимость единицы ВЫХОДА не с ценой целой единицы входа напрямую, а с её долей,
+    /// приходящейся на одну единицу выхода (<c>input.Quantity / row.OutputQuantity</c>) — иначе
+    /// рецепты с выходом больше 1 (например, 1 пруток даёт 20 крепежей — «дешёвая штамповка») ложно
+    /// считались невозможными: 1 крепёж дешевле 1 прутка не потому что нарушена арифметика, а потому
+    /// что крепёж — 1/20 прутка (найдено 2026-08-23 на реальном 4-секторном конфиге,
+    /// <c>fastener-plant</c>). После нормализации проверка — истинный инвариант из самой формулы
+    /// (<c>UnitCost = (InputCost + FixedCost + Electricity) / OutputQuantity ≥ InputCost / OutputQuantity</c>,
+    /// а InputCost ≥ вклад любого одного входа) — сработать не должна вообще никогда на честном
+    /// конфиге, но остаётся как страховка от будущей порчи формулы (отрицательный FixedCost и т.п.).
     /// </summary>
-    private static IReadOnlyList<string> FindCostAnomalies(IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows)
+    internal static IReadOnlyList<string> FindCostAnomalies(IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows)
     {
         var anomalies = new List<string>();
         foreach (var row in rows)
         {
-            var costliestInput = row.Inputs.Count == 0 ? null : row.Inputs.MaxBy(input => input.UnitCost);
-            if (costliestInput is not null && row.UnitCost < costliestInput.UnitCost)
+            if (row.Inputs.Count == 0 || row.OutputQuantity <= 0m)
+            {
+                continue;
+            }
+
+            var costliestInput = row.Inputs.MaxBy(input => input.Quantity / row.OutputQuantity * input.UnitCost)!;
+            var costliestInputSharePerOutputUnit = costliestInput.Quantity / row.OutputQuantity * costliestInput.UnitCost;
+            if (row.UnitCost < costliestInputSharePerOutputUnit)
             {
                 anomalies.Add(
                     $"{row.OutputMaterialId} (рецепт {row.RecipeId}, фабрика {row.FactoryId}): себестоимость {row.UnitCost:F4} " +
-                    $"ниже, чем у входа {costliestInput.MaterialId} ({costliestInput.UnitCost:F4}) — материал не может быть дешевле собственного сырья.");
+                    $"ниже, чем доля входа {costliestInput.MaterialId} на эту единицу выхода ({costliestInputSharePerOutputUnit:F4}) — " +
+                    "материал не может быть дешевле доли собственного сырья, приходящейся на его единицу.");
             }
         }
 
         return anomalies;
     }
 
-    private sealed record MarginSandwichResult(bool IsHealthy, string Report);
+    internal sealed record MarginSandwichResult(bool IsHealthy, string Report);
 
     /// <summary>
     /// Продавец (в P2P) должен требовать не меньше, чем дала бы системная продажа, а покупатель — не
@@ -136,7 +148,7 @@ internal static class DiagnoseRun
     /// сделки между командами и контракты как механика фактически мертвы (найдено 2026-08-23, разбор
     /// «cash flow только через маркетмейкера» в этой же сессии).
     /// </summary>
-    private static MarginSandwichResult CheckMarginSandwich(ResolvedGameConfig config)
+    internal static MarginSandwichResult CheckMarginSandwich(ResolvedGameConfig config)
     {
         var systemMargin = MarketSaleCalculator.SystemSaleMarginMultiplier - 1m;
         var emergencyMargin = config.Raw.Economy.EmergencyPurchaseBaseMultiplier - 1m;
@@ -185,7 +197,7 @@ internal static class DiagnoseRun
         return new MarginSandwichResult(problems.Count == 0, string.Join(Environment.NewLine, lines));
     }
 
-    private sealed record ChainVerdict(bool IsPositive, bool IsRecovering, string Label);
+    internal sealed record ChainVerdict(bool IsPositive, bool IsRecovering, string Label);
 
     /// <summary>
     /// Классифицирует X(t)/Score(t)-траекторию по знаку последней точки и по тому, растёт ли вторая
@@ -193,7 +205,7 @@ internal static class DiagnoseRun
     /// <c>docs/production-chain-calibration-lessons.md</c> §7) или монотонно падает всю партию
     /// (структурная проблема чисел, не одноразовый провал на старте).
     /// </summary>
-    private static ChainVerdict ClassifyTrajectory(IReadOnlyList<decimal> valueByTurn)
+    internal static ChainVerdict ClassifyTrajectory(IReadOnlyList<decimal> valueByTurn)
     {
         var final = valueByTurn[^1];
         var isPositive = final > 0m;
