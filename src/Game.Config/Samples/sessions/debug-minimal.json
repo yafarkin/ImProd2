@@ -1,6 +1,6 @@
 {
   "StartingConditions": {
-    "MaxInitialBuildBudget": 10000
+    "MaxInitialBuildBudget": 30000
   },
   "SessionPresets": [
     {
