@@ -314,7 +314,7 @@ internal static class DiagnoseRun
     /// нет (2026-08-23, запрос пользователя). Сходимость (§4) остаётся в выводе только как справочная
     /// информация, не как порог вердикта.
     /// </summary>
-    private static void PrintFinalVerdict(
+    internal static void PrintFinalVerdict(
         IReadOnlyList<string> costAnomalies, IReadOnlyList<string> badPayback,
         IReadOnlyList<TeamSteadyStateCalculator.SectorSteadyState> badSteadyStates, MarginSandwichResult sandwich,
         IReadOnlyDictionary<string, ChainVerdict> idealVerdicts, IReadOnlyDictionary<string, decimal> averageScoreBySector)
@@ -337,14 +337,40 @@ internal static class DiagnoseRun
 
         if (badSteadyStates.Count > 0)
         {
-            var sectorIds = string.Join(", ", badSteadyStates.Select(s => s.SectorId));
-            Console.WriteLine(
-                $"❌ ИГРАТЬ НЕЛЬЗЯ — сектор(а) {sectorIds} не сводят концы с концами даже в устойчивом состоянии " +
-                "(см. §1c) — вся цепочка уже построена, а зарплата + вложения в поколение/R&D по потолку всё " +
-                "равно превышают суммарную прибыль. Окупаемость уровней (§1b) необходима, но не достаточна — " +
-                "нужно либо больше прибыли (глубже/шире цепочка), либо меньше рабочих/темп вложений, дальше " +
-                "можно не смотреть.");
-            return;
+            // §1c намеренно пессимистичен — предполагает, что потолок вложений в поколение/R&D
+            // платится КАЖДЫЙ ход партии, хотя по факту (см. doc-comment IdealHallCalculator и
+            // GenerationResearchStep) инвестиции прекращаются, как только достигнут порог: «не
+            // списывается». Если разблокировка происходит рано относительно длины партии, реальный
+            // (динамический, по ходам) идеальный зал §3 может быть здоровым, даже когда статический
+            // §1c формально не сходится — найдено 2026-08-23 на синтетической цепочке (ускорили
+            // ResearchPointThresholdsByGeneration, X(90) ушёл из -9317 в +8770, а §1c остался ❌).
+            // Блокируем только те секторы, где ОБЕ проверки согласны, что дело плохо — иначе §1c
+            // ложно останавливает вердикт до того, как он успевает увидеть, что дальше всё хорошо.
+            var stillFailing = badSteadyStates
+                .Where(s => !idealVerdicts.TryGetValue(s.SectorId, out var v) || (!v.IsPositive && !v.IsRecovering))
+                .ToList();
+            var reconciledByIdealHall = badSteadyStates.Except(stillFailing).ToList();
+
+            if (stillFailing.Count > 0)
+            {
+                var sectorIds = string.Join(", ", stillFailing.Select(s => s.SectorId));
+                Console.WriteLine(
+                    $"❌ ИГРАТЬ НЕЛЬЗЯ — сектор(а) {sectorIds} не сводят концы с концами даже в устойчивом состоянии " +
+                    "(см. §1c), и идеальный зал (§3) по ним тоже не восстанавливается — вся цепочка уже построена, а " +
+                    "зарплата + вложения в поколение/R&D по потолку всё равно превышают суммарную прибыль. " +
+                    "Окупаемость уровней (§1b) необходима, но не достаточна — нужно либо больше прибыли " +
+                    "(глубже/шире цепочка), либо меньше рабочих/темп вложений, дальше можно не смотреть.");
+                return;
+            }
+
+            if (reconciledByIdealHall.Count > 0)
+            {
+                var sectorIds = string.Join(", ", reconciledByIdealHall.Select(s => s.SectorId));
+                Console.WriteLine(
+                    $"⚠ §1c формально не сходится у сектора(ов) {sectorIds}, но идеальный зал (§3) по ним всё же " +
+                    "здоров — известное ограничение §1c (пессимистично считает потолок вложений вечным, не " +
+                    "учитывает, что инвестиции прекращаются после разблокировки). Не блокирует вердикт, смотрите §3.");
+            }
         }
 
         var brokenSectors = idealVerdicts.Where(pair => !pair.Value.IsPositive && !pair.Value.IsRecovering).Select(pair => pair.Key).ToList();

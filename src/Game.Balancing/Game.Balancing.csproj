@@ -16,6 +16,9 @@
          себестоимости, классификация X(t)) вместо второй копии — дублирование этой самой логики уже
          один раз разошлось (fastener-plant, 2026-08-23), почин здесь, а не в двух местах сразу. -->
     <InternalsVisibleTo Include="Game.Web" />
+    <!-- Юнит-тесты на саму логику вердикта (DiagnoseRun.PrintFinalVerdict и т.п.), не только на
+         публичные калькуляторы. -->
+    <InternalsVisibleTo Include="Game.Balancing.Tests" />
   </ItemGroup>
 
   <ItemGroup>
