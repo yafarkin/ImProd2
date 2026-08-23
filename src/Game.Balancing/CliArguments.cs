@@ -83,6 +83,45 @@ internal sealed record CliArguments
     /// <summary>Потолок числа шагов бисекции сверх двух граничных вычислений — защита от зависания при плохо подобранном допуске.</summary>
     public int CalibrateMaxIterations { get; init; } = 25;
 
+    /// <summary>Глубина синтетической цепочки при <see cref="RunMode.Sweep"/> (направление C).</summary>
+    public int SweepLevels { get; init; } = 6;
+
+    /// <summary>
+    /// BuildCost уровня 0 при <see cref="RunMode.Sweep"/> — остальные уровни растут от него по <see
+    /// cref="SweepGrowthSteps"/>. Вместе с <see cref="SweepBaseFixedCostPerTurn"/> подобран так, чтобы
+    /// уровень 0 (сырьё, без входов, окупаемость от growth/decay не зависит вовсе — см. doc-comment
+    /// <see cref="GeometricChainSweep"/>) сам по себе укладывался в порог при growth=1 — иначе сетка
+    /// вырождается (каждая ячейка ломается на уровне 0, growth его в принципе не может починить, оба
+    /// расхода растут с ним одинаково, отношение не меняется).
+    /// </summary>
+    public decimal SweepBaseBuildCost { get; init; } = 350m;
+
+    /// <summary>FixedCostPerTurn уровня 0 при <see cref="RunMode.Sweep"/> — растёт вместе с BuildCost (тот же коэффициент роста).</summary>
+    public decimal SweepBaseFixedCostPerTurn { get; init; } = 17m;
+
+    /// <summary>ProductionRate уровня 0 при <see cref="RunMode.Sweep"/> — остальные уровни спадают от него по <see cref="SweepDecaySteps"/>.</summary>
+    public decimal SweepBaseProductionRate { get; init; } = 100m;
+
+    /// <summary>Единиц предыдущего уровня на 1 единицу следующего — фиксировано по всей сетке (см. doc-comment <see cref="GeometricChainSweep"/>).</summary>
+    public decimal SweepInputQuantityPerLevel { get; init; } = 2m;
+
+    /// <summary>Коэффициенты роста BuildCost/FixedCostPerTurn по уровню (ось сетки) — через запятую, например <c>1.0,1.5,2.0</c>.</summary>
+    public IReadOnlyList<decimal> SweepGrowthSteps { get; init; } = [1.0m, 1.5m, 2.0m, 2.5m, 3.0m];
+
+    /// <summary>Коэффициенты спада ProductionRate по уровню (ось сетки) — через запятую, например <c>1.0,0.7,0.4</c>.</summary>
+    public IReadOnlyList<decimal> SweepDecaySteps { get; init; } = [1.0m, 0.8m, 0.6m, 0.4m, 0.2m];
+
+    /// <summary>
+    /// Порог окупаемости (ходов) для направления C — здесь нет сессионного файла с пресетами, откуда
+    /// <see cref="ProductionCostLevelReportWriter.DefaultPaybackWarningTurns"/> обычно берёт число,
+    /// поэтому фиксированное значение по умолчанию — то же самое 75 (90-ходовая партия минус 15
+    /// ходов запаса, решение пользователя, см. doc-comment <see cref="ProductionCostLevelReportWriter.DefaultPaybackBufferTurns"/>).
+    /// </summary>
+    public decimal SweepPaybackWarningTurns { get; init; } = 75m;
+
+    /// <summary>Рабочих на каждой синтетической фабрике при <see cref="RunMode.Sweep"/> — тот же смысл, что <see cref="Workers"/>.</summary>
+    public int SweepWorkers { get; init; } = 10;
+
     /// <summary>Разбирает пары <c>--флаг значение</c>; неизвестный флаг или флаг без значения — <see cref="ArgumentException"/> (лучше упасть сразу, чем молча проигнорировать опечатку в многочасовом прогоне).</summary>
     public static CliArguments Parse(IReadOnlyList<string> args)
     {
@@ -124,10 +163,21 @@ internal sealed record CliArguments
                 "--calibrate-max" => result with { CalibrateMax = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--calibrate-tolerance" => result with { CalibrateTolerance = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--calibrate-max-iterations" => result with { CalibrateMaxIterations = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--sweep-levels" => result with { SweepLevels = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--sweep-base-build-cost" => result with { SweepBaseBuildCost = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--sweep-base-fixed-cost" => result with { SweepBaseFixedCostPerTurn = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--sweep-base-production-rate" => result with { SweepBaseProductionRate = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--sweep-input-quantity" => result with { SweepInputQuantityPerLevel = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--sweep-growth-steps" => result with { SweepGrowthSteps = ParseDecimalList(NextValue()) },
+                "--sweep-decay-steps" => result with { SweepDecaySteps = ParseDecimalList(NextValue()) },
+                "--sweep-payback-target" => result with { SweepPaybackWarningTurns = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--sweep-workers" => result with { SweepWorkers = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 _ => throw new ArgumentException(
                     $"Unknown argument '{flag}'. Known flags: --config, --session, --preset, --sessions-per-cell, --grid-steps, " +
                     "--teams-per-sector, --maintain-factories, --out, --mode, --workers, --leverage, --profile, --calibrate-lever, " +
-                    "--calibrate-metric, --calibrate-target, --calibrate-min, --calibrate-max, --calibrate-tolerance, --calibrate-max-iterations."),
+                    "--calibrate-metric, --calibrate-target, --calibrate-min, --calibrate-max, --calibrate-tolerance, --calibrate-max-iterations, " +
+                    "--sweep-levels, --sweep-base-build-cost, --sweep-base-fixed-cost, --sweep-base-production-rate, --sweep-input-quantity, " +
+                    "--sweep-growth-steps, --sweep-decay-steps, --sweep-payback-target, --sweep-workers."),
             };
         }
 
@@ -142,9 +192,16 @@ internal sealed record CliArguments
         "trace" => RunMode.Trace,
         "calibrate" => RunMode.Calibrate,
         "diagnose" => RunMode.Diagnose,
+        "sweep" => RunMode.Sweep,
         _ => throw new ArgumentException(
-            $"Unknown '--mode' value '{value}'. Expected 'grid', 'ideal-hall', 'cost-levels', 'trace', 'calibrate' or 'diagnose'."),
+            $"Unknown '--mode' value '{value}'. Expected 'grid', 'ideal-hall', 'cost-levels', 'trace', 'calibrate', 'diagnose' or 'sweep'."),
     };
+
+    /// <summary>Разбирает список чисел через запятую (<c>"1.0,1.5,2.0"</c>) для осей сетки направления C.</summary>
+    private static IReadOnlyList<decimal> ParseDecimalList(string value) =>
+        value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => decimal.Parse(part, CultureInfo.InvariantCulture))
+            .ToList();
 
     private static CalibrateMetric ParseCalibrateMetric(string value) => value switch
     {
@@ -193,4 +250,14 @@ internal enum RunMode
     /// вместо ручного прогона трёх режимов по отдельности и сведения их в голове.
     /// </summary>
     Diagnose,
+
+    /// <summary>
+    /// Направление C плана исследований (<see cref="GeometricChainSweep"/>, rebalance/2-sector-stepwise,
+    /// 2026-08-24) — двумерная развёртка (коэффициент роста BuildCost × коэффициент спада
+    /// ProductionRate) по синтетической, не файловой цепочке: не «эта конкретная цепочка сбалансирована
+    /// или нет», а «при каких сочетаниях рычагов такая ФОРМА цепочки вообще может быть сбалансирована,
+    /// на любой глубине». Не читает <c>--config</c>/<c>--session</c> вовсе — цепочка целиком собирается
+    /// из <c>--sweep-*</c> флагов.
+    /// </summary>
+    Sweep,
 }

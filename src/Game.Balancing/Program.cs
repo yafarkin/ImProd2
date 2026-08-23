@@ -11,6 +11,30 @@ using Game.Engine;
 // интерактивный список (ConfigSelector) — без хардкода секторов A/Б прежних блоков. Блок 7.3.2
 // (docs/balancing-bots.md §2): по-прежнему прогоняет сетку leverage×profile, не одну стратегию.
 var cliArguments = CliArguments.Parse(args);
+
+// Направление C (Блок «геометрическая развёртка», rebalance/2-sector-stepwise, 2026-08-24) — цепочка
+// целиком синтетическая, собирается из --sweep-* флагов, не из файла, поэтому выходит раньше
+// ConfigSelector.Load (тому иначе пришлось бы спрашивать --config, который здесь не нужен вовсе).
+if (cliArguments.Mode == RunMode.Sweep)
+{
+    var sweepResults = GeometricChainSweep.Run(
+        cliArguments.SweepBaseBuildCost,
+        cliArguments.SweepBaseFixedCostPerTurn,
+        cliArguments.SweepBaseProductionRate,
+        cliArguments.SweepLevels,
+        cliArguments.SweepInputQuantityPerLevel,
+        cliArguments.SweepGrowthSteps,
+        cliArguments.SweepDecaySteps,
+        cliArguments.SweepPaybackWarningTurns,
+        cliArguments.SweepWorkers);
+    var sweepReportText = GeometricChainSweepReportWriter.Format(sweepResults, cliArguments.SweepLevels, cliArguments.SweepPaybackWarningTurns);
+    var sweepOutPath = cliArguments.OutPath == "balancing-report.json" ? "sweep-report.txt" : cliArguments.OutPath;
+    await File.WriteAllTextAsync(sweepOutPath, sweepReportText);
+    Console.Write(sweepReportText);
+    Console.WriteLine($"Отчёт направления C записан: {Path.GetFullPath(sweepOutPath)}");
+    return;
+}
+
 var config = ConfigSelector.Load(cliArguments);
 
 // Блок «аналитический расчёт себестоимости» — статический срез без хода/рынка/ботов, поэтому выходит
