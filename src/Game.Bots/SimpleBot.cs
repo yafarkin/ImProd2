@@ -395,6 +395,10 @@ public sealed class SimpleBot
                 session.SetRndCommitment(TeamId, factory.Id, targetRndCommitment);
             }
         }
+
+        _trace?.Invoke(
+            $"[{Sector.Id}] темп вложений: R&D={targetRndCommitment:F0}, поколение={targetGenerationCommitment:F0} " +
+            $"(leverage×throttle = {_leverage:F2}×{_throttle:F2} = {fraction:F2} от максимума)");
     }
 
     /// <summary>
@@ -425,6 +429,7 @@ public sealed class SimpleBot
             if (sellable > 0)
             {
                 session.SellToSystem(TeamId, material.Id, sellable);
+                _trace?.Invoke($"[{Sector.Id}] продаю системе {material.Id} объём={sellable:F1}");
             }
         }
     }

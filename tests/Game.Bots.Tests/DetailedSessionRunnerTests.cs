@@ -50,4 +50,51 @@ public class DetailedSessionRunnerTests
         Assert.Equal(1, turns.First());
         Assert.Equal(preset.MaxTurns, turns.Last());
     }
+
+    /// <summary>
+    /// Каждая строка вида <c>[sectorId] ...</c> в сыром журнале должна попасть РОВНО в одну из семи
+    /// категорий <see cref="DetailedSessionRunner.TurnDecisionLog"/> — если завтра у <see
+    /// cref="SimpleBot"/> появится новая формулировка (или изменится текущая), этот тест первым
+    /// покраснеет вместо того, чтобы строка молча пропала из пошагового просмотра в /admin/balance-lab.
+    /// </summary>
+    [Fact]
+    public void Every_Bracketed_Trace_Line_Is_Classified_Into_Exactly_One_Decision_Category()
+    {
+        var config = GameConfigLoader.LoadFromFiles(ConfigPath, SessionPath);
+        var preset = config.Raw.SessionPresets.Single(p => p.Id == "full");
+
+        var result = DetailedSessionRunner.Run(config, preset.Id, preset.MaxTurns, teamsPerSector: 1, maintainFactories: true, leverage: 1m, profile: 0m);
+
+        var bracketedLineCount = result.TraceLines.Count(line => line.StartsWith('[') && line.Contains(']'));
+        var classifiedLineCount = result.DecisionLogs.Sum(log =>
+            log.FinancialTrend.Count + log.Build.Count + log.InvestmentPace.Count +
+            log.Overhaul.Count + log.Sell.Count + log.Buy.Count + log.SystemSale.Count);
+
+        Assert.True(bracketedLineCount > 0, "В трассировке нет ни одной строки решения бота — тест ничего не проверяет.");
+        Assert.Equal(bracketedLineCount, classifiedLineCount);
+    }
+
+    /// <summary>
+    /// Регрессия 2026-08-23: <c>DetailedSessionRunner</c> (в отличие от <c>--mode trace</c> в
+    /// Game.Balancing) никогда не писал строк-заголовков <c>=== TURN N ===</c> — первая версия
+    /// разбора решений по ходам полагалась именно на них и в итоге складывала решения ВСЕЙ партии в
+    /// одну корзину «ход 0». Проверяет ход в явном виде: логов должно быть больше одного на сектор
+    /// (не «всё слиплось»), и номера ходов внутри одного сектора должны реально различаться, а не все
+    /// быть равны нулю/одному значению.
+    /// </summary>
+    [Fact]
+    public void Decision_Logs_Are_Split_Across_Multiple_Distinct_Turns_Not_Collapsed_Into_One()
+    {
+        var config = GameConfigLoader.LoadFromFiles(ConfigPath, SessionPath);
+        var preset = config.Raw.SessionPresets.Single(p => p.Id == "full");
+
+        var result = DetailedSessionRunner.Run(config, preset.Id, preset.MaxTurns, teamsPerSector: 1, maintainFactories: true, leverage: 1m, profile: 0m);
+
+        foreach (var sectorId in result.DecisionLogs.Select(l => l.SectorId).Distinct())
+        {
+            var turnsForSector = result.DecisionLogs.Where(l => l.SectorId == sectorId).Select(l => l.Turn).Distinct().ToList();
+            Assert.True(turnsForSector.Count > 1, $"Сектор '{sectorId}': все решения попали в {turnsForSector.Count} ход(ов) — похоже на слипшуюся разбивку.");
+            Assert.DoesNotContain(0, turnsForSector); // ходы нумеруются с 1 (см. Snapshots_Are_Ordered_By_Turn_Starting_From_One)
+        }
+    }
 }

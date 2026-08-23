@@ -3,7 +3,9 @@
 @rendermode InteractiveServer
 @inject GameSessionHost Host
 @inject DebugModeState DebugMode
+@using System.Net
 @using System.Text.Json
+@using Microsoft.AspNetCore.Components
 @using Game.Balancing
 @using Game.Bots
 @using Game.Config.Loading
@@ -208,7 +210,62 @@
         </table>
     </div>
 
-    <h4 class="mt-4">Действия ботов (журнал решений)</h4>
+    <h4 class="mt-4">Пошаговый просмотр решений бота</h4>
+    <div class="form-check mb-2">
+        <input type="checkbox" class="form-check-input" id="stepMode" @bind="_stepMode" />
+        <label class="form-check-label" for="stepMode">Пошаговый режим — один ход, один сектор, цифры и мотивация</label>
+    </div>
+    @if (_stepMode)
+    {
+        var sectorIds = _result.DecisionLogs.Select(l => l.SectorId).Distinct().OrderBy(s => s, StringComparer.Ordinal).ToList();
+        @if (_teamsPerSector > 1)
+        {
+            <div class="alert alert-warning">
+                Команд на сектор больше 1 — журнал решений различает только сектор, не конкретную
+                команду внутри него (у трассировки <code>SimpleBot</code> нет отдельного признака команды).
+                Ниже показаны решения всех его команд вперемешку, не одной конкретной.
+            </div>
+        }
+        <div class="d-flex flex-wrap gap-2 align-items-end mb-2">
+            <div>
+                <label class="form-label mb-0">Сектор</label>
+                <select class="form-select form-select-sm" @bind="_stepSectorId" @bind:after="ResetStepIndex">
+                    @foreach (var id in sectorIds) { <option value="@id">@id</option> }
+                </select>
+            </div>
+            @{ var logs = StepLogsForSector(); }
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => _stepIndex--" disabled="@(_stepIndex <= 0)">← Ход</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => _stepIndex++" disabled="@(_stepIndex >= logs.Count - 1)">Ход →</button>
+            </div>
+            @if (logs.Count > 0)
+            {
+                <span class="text-muted">Ход @(logs[_stepIndex].Turn) из @logs.Count показанных (сектор @_stepSectorId)</span>
+            }
+        </div>
+
+        @if (logs.Count == 0)
+        {
+            <p class="text-muted"><em>Для этого сектора нет строк решений в журнале.</em></p>
+        }
+        else
+        {
+            var log = logs[_stepIndex];
+            <table class="table table-sm table-bordered align-middle" style="max-width:56em">
+                <tbody>
+                    <tr><th style="width:12em">1. Финансовый тренд</th><td>@RenderLines(log.FinancialTrend)</td></tr>
+                    <tr><th>2. Постройка</th><td>@RenderLines(log.Build)</td></tr>
+                    <tr><th>3. Темп вложений (R&amp;D/поколение)</th><td>@RenderLines(log.InvestmentPace)</td></tr>
+                    <tr><th>4. Капремонт</th><td>@RenderLines(log.Overhaul)</td></tr>
+                    <tr><th>5. Продажа (P2P)</th><td>@RenderLines(log.Sell)</td></tr>
+                    <tr><th>6. Покупка (P2P)</th><td>@RenderLines(log.Buy)</td></tr>
+                    <tr><th>7. Остаток системе</th><td>@RenderLines(log.SystemSale)</td></tr>
+                </tbody>
+            </table>
+        }
+    }
+
+    <h4 class="mt-4">Действия ботов (журнал решений, весь текст)</h4>
     <input class="form-control form-control-sm mb-2" style="max-width:24em" placeholder="фильтр (например, sector2)" @bind="_traceFilter" @bind:event="oninput" />
     <div style="max-height:400px; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:0.5em">
         <pre class="mb-0" style="font-size:0.75em">@string.Join("\n", FilteredTraceLines())</pre>
@@ -239,6 +296,9 @@
     private string _selectedTeamFilter = "";
     private string _selectedColumn = "Баланс";
     private string _traceFilter = "";
+    private bool _stepMode;
+    private string _stepSectorId = "";
+    private int _stepIndex;
 
     // UnsafeRelaxedJsonEscaping — иначе кириллица (Name у секторов/материалов/фабрик) уходит в
     // текстовое поле как Се... — нечитаемо для ручной правки (весь смысл этого поля).
@@ -321,6 +381,8 @@
 
             _result = DetailedSessionRunner.Run(config, _presetId, _endTurn, _teamsPerSector, _maintainFactories, _leverage, _profile);
             _teamNames = _result.Snapshots.Select(s => s.TeamName).Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList();
+            _stepSectorId = _result.DecisionLogs.Select(l => l.SectorId).OrderBy(s => s, StringComparer.Ordinal).FirstOrDefault() ?? "";
+            _stepIndex = 0;
         }
         catch (GameConfigValidationException ex)
         {
@@ -343,6 +405,16 @@
         _traceFilter.Length == 0
             ? _result!.TraceLines
             : _result!.TraceLines.Where(l => l.Contains(_traceFilter, StringComparison.OrdinalIgnoreCase));
+
+    private void ResetStepIndex() => _stepIndex = 0;
+
+    private List<DetailedSessionRunner.TurnDecisionLog> StepLogsForSector() =>
+        _result!.DecisionLogs.Where(l => l.SectorId == _stepSectorId).OrderBy(l => l.Turn).ToList();
+
+    private static MarkupString RenderLines(IReadOnlyList<string> lines) =>
+        lines.Count == 0
+            ? new MarkupString("<span class=\"text-muted\">—</span>")
+            : new MarkupString(string.Join("<br/>", lines.Select(l => WebUtility.HtmlEncode(l))));
 
     private LineChartDiagram.ChartLayout BuildIdealHallChartLayout()
     {
