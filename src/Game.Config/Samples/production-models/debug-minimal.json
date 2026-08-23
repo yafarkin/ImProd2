@@ -84,11 +84,11 @@
       "Inputs": [
         {
           "MaterialId": "material1_1",
-          "Quantity": 2
+          "Quantity": 1
         },
         {
           "MaterialId": "material1_3",
-          "Quantity": 2
+          "Quantity": 1
         }
       ],
       "ProductionRate": 20.0
@@ -100,11 +100,11 @@
       "Inputs": [
         {
           "MaterialId": "material2_1",
-          "Quantity": 2
+          "Quantity": 1
         },
         {
           "MaterialId": "material2_2",
-          "Quantity": 2
+          "Quantity": 1
         }
       ],
       "ProductionRate": 7.5
@@ -123,11 +123,11 @@
       "Inputs": [
         {
           "MaterialId": "material1_2",
-          "Quantity": 2
+          "Quantity": 1
         },
         {
           "MaterialId": "material1_1",
-          "Quantity": 2
+          "Quantity": 1
         }
       ],
       "ProductionRate": 20.0
@@ -139,11 +139,11 @@
       "Inputs": [
         {
           "MaterialId": "material2_2",
-          "Quantity": 2
+          "Quantity": 1
         },
         {
           "MaterialId": "material2_3",
-          "Quantity": 2
+          "Quantity": 1
         }
       ],
       "ProductionRate": 7.5
@@ -162,11 +162,11 @@
       "Inputs": [
         {
           "MaterialId": "material1_3",
-          "Quantity": 2
+          "Quantity": 1
         },
         {
           "MaterialId": "material1_2",
-          "Quantity": 2
+          "Quantity": 1
         }
       ],
       "ProductionRate": 20.0
@@ -178,11 +178,11 @@
       "Inputs": [
         {
           "MaterialId": "material2_3",
-          "Quantity": 2
+          "Quantity": 1
         },
         {
           "MaterialId": "material2_1",
-          "Quantity": 2
+          "Quantity": 1
         }
       ],
       "ProductionRate": 7.5
