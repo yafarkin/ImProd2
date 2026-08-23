@@ -40,8 +40,6 @@ public class ProductionCalculatorTests
         HireCostPerWorker = 100m,
         FireCostPerWorker = 50m,
         SalaryPerWorkerPerTurn = 5m,
-        TeamSalaryBaseWorkerCount = 1000,
-        SalaryEscalationFactor = 1.5m,
     };
 
     // Нулевой бонус — большинство тестов проверяют мощность/сырьё изолированно от R&D;

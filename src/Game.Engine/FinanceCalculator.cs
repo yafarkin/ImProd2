@@ -12,25 +12,23 @@ public static class FinanceCalculator
 {
     /// <summary>
     /// Суммарная зарплата за один ход для заданной ОБЩЕЙ численности рабочих команды (сумма по всем
-    /// её фабрикам, не одной фабрики) — линейно до <see cref="WorkerProductivityConfig.TeamSalaryBaseWorkerCount"/>,
-    /// дальше рабочие сверх порога обходятся дороже базовой ставки в <see cref="WorkerProductivityConfig.SalaryEscalationFactor"/>
-    /// раз (зеркало убывающей отдачи выработки, <see cref="ProductionCalculator"/>, но для стоимости,
-    /// а не выработки — запрос пользователя: раздувать одну фабрику должно становиться дороже само
-    /// по себе, без штрафов за неудачу).
+    /// её фабрикам, не одной фабрики) — плоско, <see cref="WorkerProductivityConfig.SalaryPerWorkerPerTurn"/>
+    /// на человека. Раньше (до 2026-08-23) здесь была ещё и командная прогрессия сверх порога
+    /// (зеркало убывающей отдачи выработки, <see cref="ProductionCalculator"/>, но для стоимости) —
+    /// убрана: порог не масштабировался с числом фабрик, при реалистичном их количестве оказывался
+    /// ниже, чем у любой нормально укомплектованной команды, так что прогрессия срабатывала всегда,
+    /// ничего не различая, — плюс её не учитывала себестоимость (<c>MaterialCostCalculator</c> в
+    /// ветке rebalance/2-sector-stepwise считает зарплату плоско, без прогрессии), то есть даже
+    /// сработав, она не была ничем компенсирована. Убывающая отдача выработки по численности одной
+    /// фабрики (<see cref="ProductionCalculator.CalculateEffectiveCapacity"/>) сама по себе уже
+    /// создаёт трение против бездумного найма — второй, отдельно калибруемый рычаг ради того же
+    /// эффекта был признан избыточным.
     /// </summary>
     public static decimal CalculateSalaries(int totalWorkers, WorkerProductivityConfig productivity)
     {
         ArgumentNullException.ThrowIfNull(productivity);
 
-        if (totalWorkers <= productivity.TeamSalaryBaseWorkerCount)
-        {
-            return totalWorkers * productivity.SalaryPerWorkerPerTurn;
-        }
-
-        var baseCost = productivity.TeamSalaryBaseWorkerCount * productivity.SalaryPerWorkerPerTurn;
-        var excessWorkers = totalWorkers - productivity.TeamSalaryBaseWorkerCount;
-        var excessCost = excessWorkers * productivity.SalaryPerWorkerPerTurn * productivity.SalaryEscalationFactor;
-        return baseCost + excessCost;
+        return totalWorkers * productivity.SalaryPerWorkerPerTurn;
     }
 
     /// <summary>

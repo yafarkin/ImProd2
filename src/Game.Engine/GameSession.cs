@@ -660,10 +660,12 @@ public sealed class GameSession
 
     /// <summary>
     /// Продаёт (ликвидирует) построенную фабрику команды — мгновенно и необратимо, симметрично <see
-    /// cref="BuildFactory"/> (SPEC §5.6/§5.11, запрос пользователя). Выручка —
-    /// <c>BuildCost * LiquidationValueCoefficient</c> той же конфигурации фабрики, что и итоговый
-    /// счёт в конце игры (<see cref="FinalScoreCalculator"/>) — команда видит эту цену заранее, до
-    /// продажи (UI берёт то же значение). Требует фазы решений.
+    /// cref="BuildFactory"/> (SPEC §5.6/§5.11, запрос пользователя). Выручка — <c>LiquidationValueCoefficient</c>
+    /// той же конфигурации фабрики, но не от полной <c>BuildCost</c>, а от остаточной стоимости с
+    /// учётом реального состояния (<see cref="FactoryResidualValueCalculator"/>, та же формула, что и
+    /// итоговый счёт в конце игры, <see cref="FinalScoreCalculator"/>, 2026-08-23 — убитая ремонтом
+    /// фабрика продаётся дешевле свежей, раньше продавалась по той же цене) — команда видит эту цену
+    /// заранее, до продажи (UI берёт то же значение). Требует фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> SellFactory(Ulid teamId, Ulid factoryId)
     {
@@ -672,7 +674,8 @@ public sealed class GameSession
         var team = GetTeam(teamId);
         var factory = GetFactory(team, factoryId);
         var definition = State.Config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id);
-        var amount = definition.BuildCost * definition.LiquidationValueCoefficient;
+        var residualValue = FactoryResidualValueCalculator.Calculate(definition, factory.Condition);
+        var amount = residualValue * definition.LiquidationValueCoefficient;
 
         return _log.Append(new FactorySold
         {
@@ -1121,15 +1124,35 @@ public sealed class GameSession
             {
                 appended.Add(_log.Append(change));
             }
+        }
 
-            // Уровни — строго по возрастанию, чтобы более высокий уровень видел в складе выход
-            // более низкого за этот же тик (см. doc-comment выше). Внутри одного уровня фабрики
-            // считаются одной группой (ProductionCalculator.CalculateGroup), а не по одной: если
-            // несколько из них претендуют на один и тот же дефицитный материал, делят его по своей
-            // AllocationShare, а не по тому, кого код обошёл первым.
-            foreach (var levelGroup in team.Factories.GroupBy(f => f.SelectedRecipe.Output.Level).OrderBy(g => g.Key))
+        // Производство и доставка межкомандных контрактов идут по уровням цепочки СРАЗУ ПОСЛЕ
+        // производства каждого уровня, а не по командам целиком с одной глобальной доставкой в конце
+        // (2026-08-23) — раньше контракт, подписанный на прошлом ходу под поставку этим ходом,
+        // доставлялся ПОСЛЕ того, как производство всех уровней всех команд этого хода уже
+        // отработало по старым остаткам, и реально был доступен только следующему ходу —
+        // двухходовой лаг вместо одноходового, из-за которого фабрики, зависящие от чужого сектора,
+        // хронически недобирали сырьё. Теперь: все команды считают уровень L → доставляются
+        // контракты именно на материалы уровня L → все команды считают уровень L+1 (и так видят уже
+        // доставленное). Порядок команд внутри уровня — по Team.Id, тот же, что раньше был внешним
+        // циклом.
+        var levels = config.Materials.Values.Select(material => material.Level).Distinct().OrderBy(level => level).ToList();
+        foreach (var level in levels)
+        {
+            foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
             {
-                var factoriesAtLevel = levelGroup.OrderBy(f => f.Id).ToList();
+                // Внутри одного уровня фабрики считаются одной группой (ProductionCalculator.CalculateGroup),
+                // а не по одной: если несколько из них претендуют на один и тот же дефицитный материал,
+                // делят его по своей AllocationShare, а не по тому, кого код обошёл первым.
+                var factoriesAtLevel = team.Factories
+                    .Where(factory => factory.SelectedRecipe.Output.Level == level)
+                    .OrderBy(factory => factory.Id)
+                    .ToList();
+                if (factoriesAtLevel.Count == 0)
+                {
+                    continue;
+                }
+
                 var results = ProductionCalculator.CalculateGroup(
                     factoriesAtLevel, team.Warehouse, config.Raw.WorkerProductivity, config.Raw.Rnd);
 
@@ -1156,9 +1179,9 @@ public sealed class GameSession
                     }));
                 }
             }
-        }
 
-        ExecuteContracts(appended);
+            ExecuteContracts(appended, level);
+        }
 
         var marketUpdate = MarketCalculator.Calculate(State.CurrentTurn, config.Raw.Economy);
         appended.Add(_log.Append(new MarketUpdated
@@ -1186,17 +1209,19 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Исполнение контрактов, у которых на текущем ходу положена поставка (SPEC §6). Контракты
-    /// перебираются в детерминированном порядке (по идентификатору, не по порядку словаря — AGENTS
-    /// §2, правило 6); по каждому решается, обеспечена ли поставка складом продавца — успех или
-    /// Delivery Miss, — и событие дописывается сразу, чтобы последующие поставки видели уже
-    /// обновлённые склады.
+    /// Исполнение контрактов уровня <paramref name="level"/>, у которых на текущем ходу положена
+    /// поставка (SPEC §6) — вызывается из <see cref="RunTick"/> сразу после производства этого же
+    /// уровня у всех команд, не одним общим проходом в конце тика (см. doc-comment в <see
+    /// cref="RunTick"/>: иначе доставка отставала бы на лишний ход). Контракты перебираются в
+    /// детерминированном порядке (по идентификатору, не по порядку словаря — AGENTS §2, правило 6);
+    /// по каждому решается, обеспечена ли поставка складом продавца — успех или Delivery Miss, — и
+    /// событие дописывается сразу, чтобы последующие поставки видели уже обновлённые склады.
     /// </summary>
-    private void ExecuteContracts(List<EventLogEntry<GameSessionState>> appended)
+    private void ExecuteContracts(List<EventLogEntry<GameSessionState>> appended, int level)
     {
         var currentTurn = State.CurrentTurn;
         var dueContracts = State.Contracts.Values
-            .Where(contract => ContractExecution.IsDeliveryDue(contract, currentTurn))
+            .Where(contract => contract.Terms.Material.Level == level && ContractExecution.IsDeliveryDue(contract, currentTurn))
             .OrderBy(contract => contract.Id)
             .ToList();
 

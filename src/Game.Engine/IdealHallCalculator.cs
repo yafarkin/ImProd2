@@ -417,14 +417,14 @@ public static class IdealHallCalculator
         return total;
     }
 
-    /// <summary>X(t) на конец хода — тот же состав слагаемых, что <see cref="FinalScoreCalculator"/>: касса + ликвидационная стоимость фабрик + ликвидационная стоимость склада по базовой рыночной цене (без наценки передела — она относится к активной продаже системе, не к пассивной оценке остатка, тот же принцип, что и в <see cref="FinalScoreCalculator.WarehouseValue"/>).</summary>
+    /// <summary>X(t) на конец хода — тот же состав слагаемых, что <see cref="FinalScoreCalculator"/>: касса + остаточная стоимость фабрик (2026-08-23, см. <see cref="FactoryResidualValueCalculator"/> — здесь <c>Condition</c> всегда 1.0, износ не моделируется, «капремонт всегда точно вовремя», поэтому фабрики всегда стоят полную <see cref="FactoryDefinitionConfig.BuildCost"/>) + ликвидационная стоимость склада по базовой рыночной цене (без наценки передела — она относится к активной продаже системе, не к пассивной оценке остатка, тот же принцип, что и в <see cref="FinalScoreCalculator.WarehouseValue"/>).</summary>
     private static decimal ComputeValue(
         BranchState branch, ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> basePriceByMaterialId)
     {
         var factoriesValue = branch.Team.Factories.Sum(factory =>
         {
             var definition = config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id);
-            return definition.BuildCost * definition.LiquidationValueCoefficient;
+            return FactoryResidualValueCalculator.Calculate(definition, factory.Condition);
         });
 
         var warehouseValue = branch.Team.Warehouse.Stock.Sum(stock =>

@@ -166,8 +166,6 @@ public class CrossSectorTradingTests
                 HireCostPerWorker = 50m,
                 FireCostPerWorker = 30m,
                 SalaryPerWorkerPerTurn = 5m,
-                TeamSalaryBaseWorkerCount = 1000,
-                SalaryEscalationFactor = 1.5m,
             },
             Rnd = new RndConfig
             {

@@ -21,18 +21,4 @@ public sealed record WorkerProductivityConfig
 
     /// <summary>Зарплата одного рабочего за ход — списывается на финансовом шаге каждого тика.</summary>
     public required decimal SalaryPerWorkerPerTurn { get; init; }
-
-    /// <summary>
-    /// Порог по ОБЩЕЙ численности рабочих команды (сумма по всем её фабрикам, не одной фабрики),
-    /// после которого зарплата начинает расти быстрее — зеркало <see cref="BaseWorkerCount"/>, но
-    /// для стоимости, а не выработки: раздувать одну фабрику становится дороже само по себе, без
-    /// штрафов за неудачу (запрос пользователя, спираль между областями).
-    /// </summary>
-    public required int TeamSalaryBaseWorkerCount { get; init; }
-
-    /// <summary>
-    /// Множитель ставки зарплаты для рабочих сверх <see cref="TeamSalaryBaseWorkerCount"/> (&gt; 1 —
-    /// дороже базовой ставки). Заглушка, требует калибровки.
-    /// </summary>
-    public required decimal SalaryEscalationFactor { get; init; }
 }

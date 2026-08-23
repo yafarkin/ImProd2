@@ -6,10 +6,14 @@ namespace Game.Engine;
 
 /// <summary>
 /// Итоговый счёт команды по ликвидационной стоимости (Блок 7.2, SPEC §5.11): «в конце считаем,
-/// сколько вы стоите при ликвидации» — склад по доле от текущей рыночной цены, фабрики по доле от
-/// стоимости постройки; R&amp;D не учитывается (расход, ценность уже проявилась в производстве, а
-/// не в отдельном учёте). Чистая функция — не мутирует ни команду, ни рынок; можно звать в любой
-/// момент сессии, не только по её завершении.
+/// сколько вы стоите при ликвидации» — склад по доле от текущей рыночной цены, фабрики — по
+/// остаточной стоимости постройки, привязанной к реальному состоянию (2026-08-23, см. <see
+/// cref="FactoryResidualValueCalculator"/>: от <see
+/// cref="FactoryDefinitionConfig.LiquidationValueCoefficient"/>, пол при полностью убитой фабрике,
+/// линейно вверх до полной <see cref="FactoryDefinitionConfig.BuildCost"/> при <c>Condition=1</c>);
+/// R&amp;D не учитывается (расход, ценность уже проявилась в производстве, а не в отдельном учёте).
+/// Чистая функция — не мутирует ни команду, ни рынок; можно звать в любой момент сессии, не только
+/// по её завершении.
 /// </summary>
 public static class FinalScoreCalculator
 {
@@ -27,7 +31,7 @@ public static class FinalScoreCalculator
         var factoriesValue = team.Factories.Sum(factory =>
         {
             var definition = factoryDefinitions.First(f => f.Id == factory.Definition.Id);
-            return definition.BuildCost * definition.LiquidationValueCoefficient;
+            return FactoryResidualValueCalculator.Calculate(definition, factory.Condition);
         });
 
         return new FinalScoreResult
