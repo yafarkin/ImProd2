@@ -16,6 +16,11 @@ namespace Game.Balancing;
 /// <item><b>Себестоимость (`ProductionCostLevelCalculator`)</b> — статический срез без хода/рынка/
 /// ботов. Ловит абсурдные рецепты (материал дешевле собственного сырья — <see
 /// cref="FindCostAnomalies"/>) до всякой симуляции.</item>
+/// <item><b>Окупаемость по уровням (<see cref="FindBadPaybackLevels"/>)</b> — направление A плана
+/// исследований (<c>docs/rebalance-2sector/balance-experiment-plan.md</c>, 2026-08-23): каждый
+/// уровень обязан окупиться сам по себе при продаже 100% выпуска системе, без кросс-торговли —
+/// решение пользователя, команда может не дойти до конца партии, окупаемость всей цепочки в целом
+/// недостаточна как гарантия.</item>
 /// <item><b>«Бутерброд наценок» (<see cref="CheckMarginSandwich"/>)</b> — статическая сверка чисел, не
 /// расчёт: чтобы P2P-контракт был выгоднее рынка ОБЕИМ сторонам разом, жадность бота
 /// (<see cref="SimpleBot.MinSellMarginRate"/>/<see cref="SimpleBot.MaxBuyPremiumRate"/>) должна лежать
@@ -49,6 +54,26 @@ internal static class DiagnoseRun
             foreach (var anomaly in anomalies)
             {
                 Console.WriteLine($"  ⚠ {anomaly}");
+            }
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("=== 1b. Окупаемость по уровням (продажа 100% системе, без кросс-торговли) ===");
+        // Половина самого длинного пресета — не preset.MaxTurns целиком: решение пользователя,
+        // 2026-08-23, направление A плана исследований — «мы не уверены, что реально до конца дойдут
+        // ребята, а так есть риск застрять в финансовой яме», окупаемость обязана уложиться с
+        // запасом. Общий (не per-preset) порог — тот же смысл, что и у --mode cost-levels отдельно.
+        var paybackWarningTurns = config.Raw.SessionPresets.Max(p => p.MaxTurns) / 2m;
+        var badPayback = FindBadPaybackLevels(costRows, paybackWarningTurns);
+        if (badPayback.Count == 0)
+        {
+            Console.WriteLine($"Все уровни окупаются не дольше {paybackWarningTurns:F0} ход(ов) при продаже 100% выпуска системе.");
+        }
+        else
+        {
+            foreach (var line in badPayback)
+            {
+                Console.WriteLine($"  ⚠ {line}");
             }
         }
 
@@ -100,7 +125,7 @@ internal static class DiagnoseRun
 
         Console.WriteLine();
         Console.WriteLine("=== Итоговый вердикт ===");
-        PrintFinalVerdict(anomalies, sandwich, idealVerdicts, averageScoreBySector);
+        PrintFinalVerdict(anomalies, badPayback, sandwich, idealVerdicts, averageScoreBySector);
 
         return Task.CompletedTask;
     }
@@ -138,6 +163,32 @@ internal static class DiagnoseRun
         }
 
         return anomalies;
+    }
+
+    /// <summary>
+    /// Направление A плана исследований (<c>docs/rebalance-2sector/balance-experiment-plan.md</c>,
+    /// 2026-08-23) — уровни, чей <see cref="ProductionCostLevelCalculator.FactoryRecipeCost.PaybackTurns"/>
+    /// либо не определён (никогда не окупится), либо превышает <paramref name="warningTurns"/>.
+    /// Продажа 100% системе, без кросс-торговли — гарантированный пол, не оптимистичная оценка (в
+    /// симметричной топологии P2P всё равно даёт команде чистый ноль, см. doc-comment класса §2).
+    /// </summary>
+    internal static IReadOnlyList<string> FindBadPaybackLevels(
+        IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows, decimal warningTurns)
+    {
+        var bad = new List<string>();
+        foreach (var row in rows.OrderBy(r => r.SectorId, StringComparer.Ordinal).ThenBy(r => r.Level))
+        {
+            if (row.PaybackTurns is not { } payback)
+            {
+                bad.Add($"{row.SectorId}, уровень {row.Level}, {row.FactoryId} ({row.RecipeId}): не окупается никогда (нулевая или отрицательная маржа с продажи).");
+            }
+            else if (payback > warningTurns)
+            {
+                bad.Add($"{row.SectorId}, уровень {row.Level}, {row.FactoryId} ({row.RecipeId}): окупаемость {payback:F1} ход(ов) — дольше порога {warningTurns:F0}.");
+            }
+        }
+
+        return bad;
     }
 
     internal sealed record MarginSandwichResult(bool IsHealthy, string Report);
@@ -249,12 +300,22 @@ internal static class DiagnoseRun
     /// информация, не как порог вердикта.
     /// </summary>
     private static void PrintFinalVerdict(
-        IReadOnlyList<string> costAnomalies, MarginSandwichResult sandwich,
+        IReadOnlyList<string> costAnomalies, IReadOnlyList<string> badPayback, MarginSandwichResult sandwich,
         IReadOnlyDictionary<string, ChainVerdict> idealVerdicts, IReadOnlyDictionary<string, decimal> averageScoreBySector)
     {
         if (costAnomalies.Count > 0)
         {
             Console.WriteLine("❌ ИГРАТЬ НЕЛЬЗЯ — есть аномалии себестоимости (см. §1). Чинить рецепты, дальше можно не смотреть.");
+            return;
+        }
+
+        if (badPayback.Count > 0)
+        {
+            Console.WriteLine(
+                $"❌ ИГРАТЬ НЕЛЬЗЯ — {badPayback.Count} уровень(ней) не окупается в разумный срок при продаже системе (см. §1b) — " +
+                "решение пользователя (2026-08-23): окупаемость обязательна на КАЖДОМ уровне, не только у цепочки в целом " +
+                "(риск застрять в финансовой яме, если команда не дойдёт до конца партии). Чинить BuildCost/FixedCostPerTurn/" +
+                "ProductionRate этих уровней, дальше можно не смотреть.");
             return;
         }
 

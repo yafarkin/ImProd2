@@ -18,7 +18,11 @@ var config = ConfigSelector.Load(cliArguments);
 if (cliArguments.Mode == RunMode.CostLevels)
 {
     var costRows = ProductionCostLevelCalculator.Calculate(config, cliArguments.Workers);
-    var reportText = ProductionCostLevelReportWriter.Format(costRows);
+    // Порог предупреждения по окупаемости — половина самой длинной доступной сессии конфига (решение
+    // пользователя, направление A плана исследований: команда должна окупить уровень с запасом, не
+    // ровно к последнему ходу партии — см. doc-comment ProductionCostLevelReportWriter.AppendPaybackSummary).
+    var paybackWarningTurns = config.Raw.SessionPresets.Count > 0 ? config.Raw.SessionPresets.Max(p => p.MaxTurns) / 2m : (decimal?)null;
+    var reportText = ProductionCostLevelReportWriter.Format(costRows, paybackWarningTurns);
     var costLevelsOutPath = cliArguments.OutPath == "balancing-report.json" ? "cost-level-report.txt" : cliArguments.OutPath;
     await File.WriteAllTextAsync(costLevelsOutPath, reportText);
     Console.WriteLine($"Отчёт себестоимости по уровням записан: {Path.GetFullPath(costLevelsOutPath)}");

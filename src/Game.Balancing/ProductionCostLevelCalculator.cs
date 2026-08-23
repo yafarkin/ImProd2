@@ -21,6 +21,10 @@ namespace Game.Balancing;
 /// cref="ProductionCalculator.CalculateCapacityBreakdown"/>) — на свежепостроенной фабрике первого
 /// уровня, без простоя, чтобы не дублировать формулу мощности рабочих (линейно до <see
 /// cref="Game.Config.Economy.WorkerProductivityConfig.BaseWorkerCount"/>, дальше — убывающая отдача).
+/// Сюда же (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-23, направление A плана
+/// исследований <c>docs/rebalance-2sector/balance-experiment-plan.md</c>) — окупаемость каждого
+/// уровня в изоляции (<see cref="FactoryRecipeCost.PaybackTurns"/>), без хода/бота/кросс-торговли,
+/// тот же дешёвый статический снимок, что и себестоимость.
 /// </summary>
 public static class ProductionCostLevelCalculator
 {
@@ -45,6 +49,22 @@ public static class ProductionCostLevelCalculator
         public required decimal ElectricityCost { get; init; }
         public required decimal TotalCost { get; init; }
         public required decimal UnitCost { get; init; }
+
+        /// <summary>Цена постройки этой фабрики — нужна для <see cref="PaybackTurns"/>, сама по себе в себестоимость выпуска не входит (однократный расход, не за ход).</summary>
+        public required decimal BuildCost { get; init; }
+
+        /// <summary>
+        /// Срок окупаемости (ходов) при самом консервативном допущении — 100% выпуска продаётся
+        /// СИСТЕМЕ по фиксированной наценке (<see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/>),
+        /// кросс-торговля не учитывается вовсе (запрос пользователя, rebalance/2-sector-stepwise,
+        /// 2026-08-23 — «идти с конца цепочки»: направление A плана исследований,
+        /// <c>docs/rebalance-2sector/balance-experiment-plan.md</c>). Не занижение специально —
+        /// доказано ранее в этой же ветке, что в симметричной топологии P2P-обмен даёт команде чистый
+        /// ноль (продано ровно столько же, сколько куплено), весь реальный доход всё равно идёт через
+        /// системную продажу; окупаемость на этом полу — самый честный, не оптимистичный тест.
+        /// <c>null</c> — уровень никогда не окупится (прибыль с продажи ≤ 0).
+        /// </summary>
+        public decimal? PaybackTurns { get; init; }
 
         /// <summary>
         /// = <see cref="TotalCost"/> / <see cref="Workers"/> — честная единица сравнения между
@@ -83,6 +103,7 @@ public static class ProductionCostLevelCalculator
         }
 
         var fixedCostByFactoryId = config.Raw.FactoryDefinitions.ToDictionary(d => d.Id, d => d.FixedCostPerTurn);
+        var buildCostByFactoryId = config.Raw.FactoryDefinitions.ToDictionary(d => d.Id, d => d.BuildCost);
         var electricityRate = config.Raw.Economy.ElectricityConsumptionPerOutputUnit;
         var electricityPrice = config.Raw.Economy.ElectricityBasePrice;
         var productivity = config.Raw.WorkerProductivity;
@@ -159,6 +180,9 @@ public static class ProductionCostLevelCalculator
             var electricityCost = outputQuantity * electricityRate * electricityPrice;
             var totalCost = inputCost + fixedCostPerTurn + electricityCost;
             var unitCost = outputQuantity > 0 ? totalCost / outputQuantity : 0m;
+            var buildCost = buildCostByFactoryId[factoryDef.Id];
+            var profitPerTurn = outputQuantity * unitCost * (MarketSaleCalculator.SystemSaleMarginMultiplier - 1m);
+            var paybackTurns = profitPerTurn > 0m ? buildCost / profitPerTurn : (decimal?)null;
 
             var row = new FactoryRecipeCost
             {
@@ -177,6 +201,8 @@ public static class ProductionCostLevelCalculator
                 ElectricityCost = electricityCost,
                 TotalCost = totalCost,
                 UnitCost = unitCost,
+                BuildCost = buildCost,
+                PaybackTurns = paybackTurns,
                 CostPerWorker = totalCost / workersPerFactory,
                 RawMaterialsPerUnit = rawMaterialsPerUnit,
             };

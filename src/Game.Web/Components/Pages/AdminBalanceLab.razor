@@ -118,6 +118,20 @@
         <div class="alert alert-success mb-2">✅ Аномалий себестоимости не найдено.</div>
     }
 
+    @if (_badPayback.Count > 0)
+    {
+        <div class="alert alert-danger">
+            <strong>❌ Уровни, которые не окупаются за @_paybackWarningTurns.ToString("F0") ход(ов) при продаже 100% системе (без кросс-торговли):</strong>
+            <ul class="mb-0">
+                @foreach (var b in _badPayback) { <li>@b</li> }
+            </ul>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-success mb-2">✅ Все уровни окупаются не дольше @_paybackWarningTurns.ToString("F0") ход(ов).</div>
+    }
+
     <div class="alert @(_sandwichHealthy ? "alert-success" : "alert-warning") mb-2">
         <div>Пол продавца (системная продажа): +@_systemMargin.ToString("P0")</div>
         <div>Жадность бота в P2P: [+@_botFloor.ToString("P0"); +@_botCeiling.ToString("P0")]</div>
@@ -192,18 +206,26 @@
         </table>
     </div>
 
-    <h4 class="mt-4">Себестоимость по уровням</h4>
+    <h4 class="mt-4">Себестоимость и окупаемость по уровням</h4>
+    <p class="text-muted small">
+        Окупаемость (направление A плана исследований) — сколько ходов нужно этому уровню, чтобы
+        BuildCost отбился ТОЛЬКО продажей 100% выпуска системе, без кросс-торговли (гарантированный
+        пол, не оптимистичная оценка). Строки дольше @_paybackWarningTurns.ToString("F0") ход(ов) подсвечены.
+    </p>
     <div class="table-responsive" style="max-height:360px; overflow-y:auto">
         <table class="table table-sm table-striped">
             <thead>
-                <tr><th>Сектор</th><th>Уровень</th><th>Фабрика</th><th>Рецепт</th><th>Выпуск</th><th>Себест./ед.</th><th>Итого/ход</th></tr>
+                <tr><th>Сектор</th><th>Уровень</th><th>Фабрика</th><th>Рецепт</th><th>Выпуск</th><th>Себест./ед.</th><th>Итого/ход</th><th>BuildCost</th><th>Окупаемость (ход)</th></tr>
             </thead>
             <tbody>
                 @foreach (var row in _costRows)
                 {
-                    <tr>
+                    var isBad = row.PaybackTurns is null || row.PaybackTurns > _paybackWarningTurns;
+                    <tr class="@(isBad ? "table-danger" : "")">
                         <td>@row.SectorId</td><td>@row.Level</td><td>@row.FactoryId</td><td>@row.RecipeId</td>
                         <td>@row.OutputMaterialId</td><td>@row.UnitCost.ToString("0.####")</td><td>@row.TotalCost.ToString("F0")</td>
+                        <td>@row.BuildCost.ToString("F0")</td>
+                        <td>@(row.PaybackTurns is { } p ? p.ToString("F1") : "никогда")</td>
                     </tr>
                 }
             </tbody>
@@ -290,6 +312,8 @@
     private DetailedSessionRunner.Result? _result;
     private IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> _costRows = Array.Empty<ProductionCostLevelCalculator.FactoryRecipeCost>();
     private IReadOnlyList<string> _costAnomalies = Array.Empty<string>();
+    private IReadOnlyList<string> _badPayback = Array.Empty<string>();
+    private decimal _paybackWarningTurns;
     private bool _sandwichHealthy;
     private decimal _systemMargin, _botFloor, _botCeiling, _emergencyMargin;
     private IReadOnlyList<string> _teamNames = Array.Empty<string>();
@@ -372,6 +396,10 @@
 
             _costRows = ProductionCostLevelCalculator.Calculate(config, _workers);
             _costAnomalies = DiagnoseRun.FindCostAnomalies(_costRows);
+            // Половина именно этого прогона (не всех пресетов конфига разом, как в CLI --mode
+            // diagnose) — здесь пользователь уже выбрал конкретное число ходов выше.
+            _paybackWarningTurns = _endTurn / 2m;
+            _badPayback = DiagnoseRun.FindBadPaybackLevels(_costRows, _paybackWarningTurns);
 
             _systemMargin = MarketSaleCalculator.SystemSaleMarginMultiplier - 1m;
             _emergencyMargin = config.Raw.Economy.EmergencyPurchaseBaseMultiplier - 1m;
