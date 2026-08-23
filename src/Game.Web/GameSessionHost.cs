@@ -552,29 +552,29 @@ public sealed class GameSessionHost
     }
 
     /// <summary>Переименовывает файлы предыдущей сессии с меткой времени вместо удаления — на случай, если историю (Блок 10.1) забыли выгрузить до сброса.</summary>
-    private void ArchiveSessionFiles()
-    {
-        var suffix = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff");
-        foreach (var name in new[] { "config.json", "journal.jsonl", "snapshot.json" })
-        {
-            var path = Path.Combine(_sessionDirectory, name);
-            if (File.Exists(path))
-            {
-                File.Move(path, Path.Combine(_sessionDirectory, $"{name}.{suffix}.bak"));
-            }
-        }
-    }
+    private void ArchiveSessionFiles() => ArchiveFiles(_sessionDirectory);
 
     /// <summary>Переименовывает файлы предыдущего черновика с меткой времени вместо удаления — та же страховка, что и <see cref="ArchiveSessionFiles"/>.</summary>
-    private void ArchiveDraftFiles()
+    private void ArchiveDraftFiles() => ArchiveFiles(_draftDirectory);
+
+    /// <summary>
+    /// Общая реализация для <see cref="ArchiveSessionFiles"/>/<see cref="ArchiveDraftFiles"/> —
+    /// суффикс с меткой времени миллисекундной точности сам по себе не гарантирует уникальность имени
+    /// (найдено на CI: два вызова в один и тот же миллисекунд дают одинаковый суффикс, второй
+    /// <see cref="File.Move(string, string)"/> падает с "already exists", поскольку он не
+    /// перезаписывает существующий файл нарочно — это не баг перезаписи, баг в самом суффиксе). Часть
+    /// <see cref="Ulid"/> добавлена ради гарантии уникальности при не изменении читаемости метки
+    /// времени в начале имени.
+    /// </summary>
+    private static void ArchiveFiles(string directory)
     {
-        var suffix = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff");
+        var suffix = $"{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}-{Ulid.NewUlid()}";
         foreach (var name in new[] { "config.json", "journal.jsonl", "snapshot.json" })
         {
-            var path = Path.Combine(_draftDirectory, name);
+            var path = Path.Combine(directory, name);
             if (File.Exists(path))
             {
-                File.Move(path, Path.Combine(_draftDirectory, $"{name}.{suffix}.bak"));
+                File.Move(path, Path.Combine(directory, $"{name}.{suffix}.bak"));
             }
         }
     }
