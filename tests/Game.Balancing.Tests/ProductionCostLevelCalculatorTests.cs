@@ -85,7 +85,8 @@ public class ProductionCostLevelCalculatorTests
     }
 
     /// <summary>Один сектор, одна фабрика уровня 0, без входов — минимум, достаточный для проверки самой формулы.</summary>
-    private static ResolvedGameConfig BuildSingleFactoryConfig(decimal buildCost, decimal fixedCostPerTurn, decimal productionRate)
+    /// <summary>internal, не private — переиспользуется <c>TeamSteadyStateCalculatorTests</c> (та же сборка).</summary>
+    internal static ResolvedGameConfig BuildSingleFactoryConfig(decimal buildCost, decimal fixedCostPerTurn, decimal productionRate)
     {
         var config = new GameConfig
         {
@@ -142,7 +143,8 @@ public class ProductionCostLevelCalculatorTests
     }
 
     /// <summary>Один сектор, три уровня друг на друге (2 единицы предыдущего материала на 1 единицу следующего) — минимум, достаточный проверить рост окупаемости по уровням.</summary>
-    private static ResolvedGameConfig BuildThreeLevelChainConfig(decimal[] buildCosts, decimal[] fixedCosts, decimal[] productionRates)
+    /// <summary>internal, не private — переиспользуется <c>TeamSteadyStateCalculatorTests</c> (та же сборка).</summary>
+    internal static ResolvedGameConfig BuildThreeLevelChainConfig(decimal[] buildCosts, decimal[] fixedCosts, decimal[] productionRates)
     {
         var config = new GameConfig
         {

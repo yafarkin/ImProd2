@@ -21,6 +21,13 @@ namespace Game.Balancing;
 /// уровень обязан окупиться сам по себе при продаже 100% выпуска системе, без кросс-торговли —
 /// решение пользователя, команда может не дойти до конца партии, окупаемость всей цепочки в целом
 /// недостаточна как гарантия.</item>
+/// <item><b>Командная устойчивая экономика (<see cref="TeamSteadyStateCalculator"/>)</b> — найдено
+/// 2026-08-23 сразу после того, как первая полностью починенная по окупаемости синтетическая цепочка
+/// всё равно провалила идеальный зал: окупаемость уровня сознательно не считает зарплату и вложения
+/// в поколение/R&amp;D (не варьируются по сектору) — а на практике это оказались две САМЫЕ большие
+/// статьи расхода. Проверяет: если бы вся цепочка сектора была уже построена и полностью
+/// укомплектована, хватает ли суммарной прибыли покрыть зарплату всех рабочих и вложения по потолку.
+/// Необходимое дополнение к §1b, не замена — обе проверки должны пройти разом.</item>
 /// <item><b>«Бутерброд наценок» (<see cref="CheckMarginSandwich"/>)</b> — статическая сверка чисел, не
 /// расчёт: чтобы P2P-контракт был выгоднее рынка ОБЕИМ сторонам разом, жадность бота
 /// (<see cref="SimpleBot.MinSellMarginRate"/>/<see cref="SimpleBot.MaxBuyPremiumRate"/>) должна лежать
@@ -74,6 +81,18 @@ internal static class DiagnoseRun
         }
 
         Console.WriteLine();
+        Console.WriteLine("=== 1c. Командная устойчивая экономика (всё уже построено, зарплата + поколение/R&D по потолку) ===");
+        var steadyStates = TeamSteadyStateCalculator.Calculate(costRows, config);
+        var badSteadyStates = steadyStates.Where(s => s.NetPerTurn < 0m).ToList();
+        foreach (var s in steadyStates)
+        {
+            var marker = s.NetPerTurn < 0m ? " ⚠" : "";
+            Console.WriteLine(
+                $"  {s.SectorId}: прибыль={s.ProfitPerTurn:F0}, зарплата={s.SalaryPerTurn:F0}, " +
+                $"поколение={s.GenerationResearchPerTurn:F0}, R&D={s.RndPerTurn:F0} → чистыми/ход={s.NetPerTurn:F0}{marker}");
+        }
+
+        Console.WriteLine();
         Console.WriteLine("=== 2. Бутерброд наценок (система / P2P / аварийная закупка) ===");
         var sandwich = CheckMarginSandwich(config);
         Console.WriteLine(sandwich.Report);
@@ -121,7 +140,7 @@ internal static class DiagnoseRun
 
         Console.WriteLine();
         Console.WriteLine("=== Итоговый вердикт ===");
-        PrintFinalVerdict(anomalies, badPayback, sandwich, idealVerdicts, averageScoreBySector);
+        PrintFinalVerdict(anomalies, badPayback, badSteadyStates, sandwich, idealVerdicts, averageScoreBySector);
 
         return Task.CompletedTask;
     }
@@ -296,7 +315,8 @@ internal static class DiagnoseRun
     /// информация, не как порог вердикта.
     /// </summary>
     private static void PrintFinalVerdict(
-        IReadOnlyList<string> costAnomalies, IReadOnlyList<string> badPayback, MarginSandwichResult sandwich,
+        IReadOnlyList<string> costAnomalies, IReadOnlyList<string> badPayback,
+        IReadOnlyList<TeamSteadyStateCalculator.SectorSteadyState> badSteadyStates, MarginSandwichResult sandwich,
         IReadOnlyDictionary<string, ChainVerdict> idealVerdicts, IReadOnlyDictionary<string, decimal> averageScoreBySector)
     {
         if (costAnomalies.Count > 0)
@@ -312,6 +332,18 @@ internal static class DiagnoseRun
                 "решение пользователя (2026-08-23): окупаемость обязательна на КАЖДОМ уровне, не только у цепочки в целом " +
                 "(риск застрять в финансовой яме, если команда не дойдёт до конца партии). Чинить BuildCost/FixedCostPerTurn/" +
                 "ProductionRate этих уровней, дальше можно не смотреть.");
+            return;
+        }
+
+        if (badSteadyStates.Count > 0)
+        {
+            var sectorIds = string.Join(", ", badSteadyStates.Select(s => s.SectorId));
+            Console.WriteLine(
+                $"❌ ИГРАТЬ НЕЛЬЗЯ — сектор(а) {sectorIds} не сводят концы с концами даже в устойчивом состоянии " +
+                "(см. §1c) — вся цепочка уже построена, а зарплата + вложения в поколение/R&D по потолку всё " +
+                "равно превышают суммарную прибыль. Окупаемость уровней (§1b) необходима, но не достаточна — " +
+                "нужно либо больше прибыли (глубже/шире цепочка), либо меньше рабочих/темп вложений, дальше " +
+                "можно не смотреть.");
             return;
         }
 
