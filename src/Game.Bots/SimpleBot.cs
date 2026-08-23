@@ -125,12 +125,28 @@ public sealed class SimpleBot
     private int DistressThresholdTurns => 1 + (int)Math.Round(_leverage * 3m, MidpointRounding.AwayFromZero);
 
     /// <summary>
-    /// На сколько <see cref="_throttle"/> сдвигается за один ход (к 0 — при ухудшении сверх <see
-    /// cref="DistressThresholdTurns"/>, обратно к 1 — при улучшении) — плавно, не рывком: полная
-    /// остановка сразу после первого же лучшего хода выглядела бы так же недальновидно, как и
-    /// упрямое строительство несмотря на кассовый разрыв.
+    /// На сколько <see cref="_throttle"/> сдвигается за один ход (к <see cref="MinThrottle"/> — при
+    /// ухудшении сверх <see cref="DistressThresholdTurns"/>, обратно к 1 — при улучшении) — плавно, не
+    /// рывком: полная остановка сразу после первого же лучшего хода выглядела бы так же недальновидно,
+    /// как и упрямое строительство несмотря на кассовый разрыв.
     /// </summary>
     private const decimal ThrottleStep = 0.25m;
+
+    /// <summary>
+    /// Пол <see cref="_throttle"/> — раньше был 0 (полная заморозка постройки, см. doc-comment
+    /// <see cref="BuildNewlyUnlockedFactories"/>), но это создавало необратимую ловушку: команда с
+    /// самым ранним межотраслевым переходом в цепочке (rebalance/2-sector-stepwise, 2026-08-23,
+    /// 3-секторная ступенчатая цепочка, `sector2`) проваливалась в небольшой, но НЕПРЕРЫВНЫЙ минус
+    /// (доход с уже построенных фабрик чуть-чуть не покрывал растущую зарплату/содержание) — тренд
+    /// баланса физически не мог «выправиться» (условие возврата к throttle=1), а без новых фабрик
+    /// нарастить доход было нечем: заморожена навсегда с хода ~7 до конца 90-ходовой партии
+    /// (Score(90) provider на порядок хуже даже собственного, уже отрицательного потолка идеального
+    /// зала). Пол в 25% (один <see cref="ThrottleStep"/>, не «выключено вовсе») оставляет команде
+    /// медленный, но работающий путь наружу — то самое реальное отличие от прежнего 0, ради которого
+    /// он и введён; финансовая осторожность продолжает придерживать темп (через <see
+    /// cref="UpdateInvestmentPace"/>), просто больше не запирает его насмерть.
+    /// </summary>
+    private const decimal MinThrottle = 0.25m;
 
     private readonly IReadOnlyList<FactoryDefinition> _sectorFactories;
     private readonly bool _maintainsFactories;
@@ -142,10 +158,10 @@ public sealed class SimpleBot
 
     /// <summary>
     /// Множитель темпа расширения/вложений от 1 (обычное поведение по номинальным <see
-    /// cref="_leverage"/>/<see cref="_profile"/>) до 0 (полная пауза) — см. <see
-    /// cref="UpdateFinancialTrend"/>. 1 по умолчанию: до первого пересчёта (или если <see
-    /// cref="UpdateFinancialTrend"/> вообще не вызывается вызывающим кодом) бот ведёт себя как раньше,
-    /// без сюрпризов для существующих вызывающих.
+    /// cref="_leverage"/>/<see cref="_profile"/>) до <see cref="MinThrottle"/> (не 0 — см. doc-comment
+    /// <see cref="MinThrottle"/>) — см. <see cref="UpdateFinancialTrend"/>. 1 по умолчанию: до первого
+    /// пересчёта (или если <see cref="UpdateFinancialTrend"/> вообще не вызывается вызывающим кодом)
+    /// бот ведёт себя как раньше, без сюрпризов для существующих вызывающих.
     /// </summary>
     private decimal _throttle = 1m;
 
@@ -229,7 +245,7 @@ public sealed class SimpleBot
         var inDistress = _consecutiveDeclineTurns >= DistressThresholdTurns;
         var previousThrottle = _throttle;
         _throttle = inDistress
-            ? Math.Max(0m, _throttle - ThrottleStep)
+            ? Math.Max(MinThrottle, _throttle - ThrottleStep)
             : Math.Min(1m, _throttle + ThrottleStep);
 
         if (_throttle != previousThrottle)
@@ -264,10 +280,7 @@ public sealed class SimpleBot
     /// открылось благодаря командному исследованию поколений (<see cref="UpdateInvestmentPace"/>).
     /// Нанимает на каждую новую фабрику базовую численность рабочих; R&amp;D-вложение фабрике не
     /// назначает — тем же <see cref="UpdateInvestmentPace"/>, вызванным следом в тот же ход, чтобы
-    /// новая фабрика не осталась на ход без объявленного темпа. Ничего не строит, если <see
-    /// cref="_throttle"/> (см. <see cref="UpdateFinancialTrend"/>) уже упал до нуля — новая фабрика
-    /// требует свежего капитала, а команда в этот момент как раз в бедственном положении: достройка
-    /// просто откладывается до улучшения тренда, разблокированные типы никуда не денутся.
+    /// новая фабрика не осталась на ход без объявленного темпа.
     /// <para>
     /// Постройка не бесплатна, но и не требует отдельного оформления — баланс просто уходит в минус
     /// (docs/TODO.md #23). Тем не менее бот пропускает постройку, если она увела бы баланс глубже
@@ -276,7 +289,13 @@ public sealed class SimpleBot
     /// <see cref="MinInitialBuildBudgetFraction"/> до 100% в зависимости от <c>leverage</c> — тот же
     /// диапазон, что раньше задавал размер стартового займа, теперь задаёт добровольный потолок
     /// минуса на любой ход, не только первый) — откладывает до следующего хода решений, когда баланс
-    /// подрастёт продажами; разблокированный тип никуда не денется, метод идемпотентен.
+    /// подрастёт продажами; разблокированный тип никуда не денется, метод идемпотентен. <see
+    /// cref="_throttle"/> сюда больше не примешивается (раньше здесь была жёсткая заморозка при
+    /// <c>throttle=0</c> — необратимая ловушка, см. doc-comment <see cref="MinThrottle"/>; попытка
+    /// смягчить её, ещё и умножив саму толерантность на throttle, оказалась второй, накладывающейся
+    /// заморозкой — команда, уже глубоко в минусе из-за прежних построек, не могла позволить себе
+    /// вообще ничего нового даже на полу троттлинга; толерантность оставлена чисто leverage-зависимой,
+    /// как и была, только сам бинарный запрет снят).
     /// </para>
     /// <para>
     /// Единица достройки — не <see cref="FactoryDefinition"/>, а пара (тип, рецепт) (запрос
@@ -294,12 +313,6 @@ public sealed class SimpleBot
     public void BuildNewlyUnlockedFactories(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
-
-        if (_throttle <= 0m)
-        {
-            _trace?.Invoke($"[{Sector.Id}] постройка вся на паузе — throttle={_throttle:F2} (тренд в бедственном положении, см. UpdateFinancialTrend)");
-            return;
-        }
 
         var team = session.State.Teams[TeamId];
         var builtCombinations = team.Factories.Select(f => (f.Definition.Id, f.SelectedRecipe.Id)).ToHashSet();
