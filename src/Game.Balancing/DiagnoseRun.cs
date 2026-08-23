@@ -85,9 +85,14 @@ internal static class DiagnoseRun
         var session = GameSession.StartWithEndTurn(config, preset.Id, preset.MaxTurns, teams);
         var metrics = BalancingHarness.RunSession(session, bots, new Random(2), idealHall);
 
+        var averageScoreBySector = metrics.FinalScores
+            .GroupBy(score => session.State.Teams[score.TeamId].Sector.Id)
+            .ToDictionary(group => group.Key, group => group.Average(score => score.Score));
+
         foreach (var (sectorId, convergence) in metrics.FinalConvergenceBySector.OrderBy(pair => pair.Key))
         {
-            Console.WriteLine($"  {sectorId}: Score({preset.MaxTurns})/X({preset.MaxTurns}) = {convergence:P0}");
+            var score = averageScoreBySector.GetValueOrDefault(sectorId);
+            Console.WriteLine($"  {sectorId}: Score({preset.MaxTurns})={score:F0}, Score/X = {convergence:P0} (X — заведомо недостижимый потолок, низкий % — не сам по себе повод для тревоги, см. §Итоговый вердикт)");
         }
 
         var convergenceTrend = ClassifyConvergenceTrend(metrics.Turns);
@@ -95,7 +100,7 @@ internal static class DiagnoseRun
 
         Console.WriteLine();
         Console.WriteLine("=== Итоговый вердикт ===");
-        PrintFinalVerdict(anomalies, sandwich, idealVerdicts, metrics.FinalConvergenceBySector);
+        PrintFinalVerdict(anomalies, sandwich, idealVerdicts, averageScoreBySector);
 
         return Task.CompletedTask;
     }
@@ -223,9 +228,17 @@ internal static class DiagnoseRun
             : $"падает ({firstHalfAverage:P0} -> {secondHalfAverage:P0}) — бот со временем ОТСТАЁТ от идеала сильнее, стоит посмотреть на раскачку/буферы";
     }
 
+    /// <summary>
+    /// Раньше здесь был жёсткий порог на Score(T)/X(T) (&lt;50% — тревога) — оказался ложным
+    /// срабатыванием: X(t) заведомо недостижимый потолок (ноль ошибок, ноль износа, идеальный
+    /// тайминг), 7% сходимости на уже разобранной и заведомо здоровой цепочке (docs/rebalance-2sector)
+    /// пугали зря. Главный, не произвольный критерий — знак самого Score(T): совпадает он с X(T) или
+    /// нет (2026-08-23, запрос пользователя). Сходимость (§4) остаётся в выводе только как справочная
+    /// информация, не как порог вердикта.
+    /// </summary>
     private static void PrintFinalVerdict(
         IReadOnlyList<string> costAnomalies, MarginSandwichResult sandwich,
-        IReadOnlyDictionary<string, ChainVerdict> idealVerdicts, IReadOnlyDictionary<string, decimal> finalConvergenceBySector)
+        IReadOnlyDictionary<string, ChainVerdict> idealVerdicts, IReadOnlyDictionary<string, decimal> averageScoreBySector)
     {
         if (costAnomalies.Count > 0)
         {
@@ -242,16 +255,22 @@ internal static class DiagnoseRun
             return;
         }
 
-        var lowConvergenceSectors = finalConvergenceBySector.Where(pair => pair.Value < 0.5m).Select(pair => pair.Key).ToList();
-        if (lowConvergenceSectors.Count > 0)
+        // Единственный по-настоящему объективный (не произвольным числом-порогом) сигнал «дело в
+        // боте/движке, не в рецептах»: потолок положительный, а реальный бот всё равно ушёл в минус —
+        // идеальная стратегия выигрывает там, где настоящая проигрывает, значит разница не в числах.
+        var losingSectors = idealVerdicts.Keys
+            .Where(sectorId => idealVerdicts[sectorId].IsPositive && averageScoreBySector.GetValueOrDefault(sectorId) < 0m)
+            .ToList();
+        if (losingSectors.Count > 0)
         {
             Console.WriteLine(
-                $"⚠ Потолок (X(t)) здоровый, но реальный бот сильно недобирает в секторе(ах) {string.Join(", ", lowConvergenceSectors)} " +
-                "(Score(T)/X(T) < 50%, §4) — дело в поведении бота/движка (тайминг доставки, буферы, раскачка), не в рецептах. Смотреть трассировку (--mode trace).");
+                $"⚠ Потолок (X(t)) положительный, но реальный бот в секторе(ах) {string.Join(", ", losingSectors)} всё равно " +
+                "закончил партию в минусе (Score(T) < 0, §4) — дело в поведении бота/движка (тайминг доставки, буферы, раскачка), " +
+                "не в рецептах. Смотреть трассировку (--mode trace).");
         }
         else
         {
-            Console.WriteLine("✅ Цепочка играбельна: себестоимость честная, потолок положительный, реальный бот к нему сходится.");
+            Console.WriteLine("✅ Цепочка играбельна: себестоимость честная, потолок положительный, реальный бот тоже заканчивает партию в плюсе.");
         }
 
         if (!sandwich.IsHealthy)
