@@ -199,7 +199,10 @@ internal static class DiagnoseRun
             }
             else if (payback > warningTurns)
             {
-                bad.Add($"{row.SectorId}, уровень {row.Level}, {row.FactoryId} ({row.RecipeId}): окупаемость {payback:F1} ход(ов) — дольше порога {warningTurns:F0}.");
+                bad.Add(
+                    $"{row.SectorId}, уровень {row.Level}, {row.FactoryId} ({row.RecipeId}): окупаемость {payback:F1} ход(ов) — " +
+                    $"дольше порога {warningTurns:F0}. Направление B: снизить BuildCost с {row.BuildCost:F0} до " +
+                    $"≤{row.MaxBuildCostForTargetPayback(warningTurns):F0}, чтобы уложиться (при неизменном ProductionRate).");
             }
         }
 

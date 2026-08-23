@@ -54,6 +54,17 @@ public static class ProductionCostLevelCalculator
         public required decimal BuildCost { get; init; }
 
         /// <summary>
+        /// Прибыль за ход при том же консервативном допущении, что и <see cref="PaybackTurns"/> — 100%
+        /// выпуска продаётся системе по фиксированной наценке, без кросс-торговли. НЕ зависит от <see
+        /// cref="BuildCost"/> (тот однократный расход, здесь — только выпуск/себестоимость/наценка) —
+        /// поэтому обратная задача (направление B плана исследований,
+        /// <c>docs/rebalance-2sector/balance-experiment-plan.md</c>: «по целевому сроку окупаемости
+        /// найти допустимый BuildCost») — это просто <c>ProfitPerTurn × целевой срок</c>, без бисекции,
+        /// см. <see cref="MaxBuildCostForTargetPayback"/>.
+        /// </summary>
+        public required decimal ProfitPerTurn { get; init; }
+
+        /// <summary>
         /// Срок окупаемости (ходов) при самом консервативном допущении — 100% выпуска продаётся
         /// СИСТЕМЕ по фиксированной наценке (<see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/>),
         /// кросс-торговля не учитывается вовсе (запрос пользователя, rebalance/2-sector-stepwise,
@@ -65,6 +76,17 @@ public static class ProductionCostLevelCalculator
         /// <c>null</c> — уровень никогда не окупится (прибыль с продажи ≤ 0).
         /// </summary>
         public decimal? PaybackTurns { get; init; }
+
+        /// <summary>
+        /// Обратная задача направления B (<c>docs/rebalance-2sector/balance-experiment-plan.md</c>,
+        /// 2026-08-24): наибольший <see cref="BuildCost"/>, при котором окупаемость ещё укладывается в
+        /// <paramref name="targetPaybackTurns"/> ходов — <c>ProfitPerTurn × targetPaybackTurns</c>
+        /// (прямая формула, не бисекция, потому что <see cref="ProfitPerTurn"/> от <see
+        /// cref="BuildCost"/> не зависит). <c>0</c> — уровень никогда не окупится ни при каком
+        /// положительном <see cref="BuildCost"/> (нулевая или отрицательная маржа с продажи).
+        /// </summary>
+        public decimal MaxBuildCostForTargetPayback(decimal targetPaybackTurns) =>
+            ProfitPerTurn > 0m ? ProfitPerTurn * targetPaybackTurns : 0m;
 
         /// <summary>
         /// = <see cref="TotalCost"/> / <see cref="Workers"/> — честная единица сравнения между
@@ -202,6 +224,7 @@ public static class ProductionCostLevelCalculator
                 TotalCost = totalCost,
                 UnitCost = unitCost,
                 BuildCost = buildCost,
+                ProfitPerTurn = profitPerTurn,
                 PaybackTurns = paybackTurns,
                 CostPerWorker = totalCost / workersPerFactory,
                 RawMaterialsPerUnit = rawMaterialsPerUnit,

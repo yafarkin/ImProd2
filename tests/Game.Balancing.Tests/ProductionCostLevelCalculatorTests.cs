@@ -84,6 +84,44 @@ public class ProductionCostLevelCalculatorTests
             $"Ожидали взрывной, не линейный рост окупаемости: уровень 0={paybackByLevel[0]:F1}, уровень 2={paybackByLevel[2]:F1}.");
     }
 
+    /// <summary>
+    /// Направление B плана исследований (<c>docs/rebalance-2sector/balance-experiment-plan.md</c>,
+    /// 2026-08-24) — обратная задача: по целевому сроку окупаемости найти допустимый BuildCost, без
+    /// бисекции (прямая формула — <see cref="ProductionCostLevelCalculator.FactoryRecipeCost.ProfitPerTurn"/>
+    /// от BuildCost не зависит). Проверяем и что формула верна, и что она самосогласована с уже
+    /// существующим <see cref="ProductionCostLevelCalculator.FactoryRecipeCost.PaybackTurns"/>: если
+    /// взять сам текущий BuildCost как цель, получим ровно его обратно.
+    /// </summary>
+    [Fact]
+    public void MaxBuildCostForTargetPayback_Is_ProfitPerTurn_Times_Target_And_Round_Trips_With_PaybackTurns()
+    {
+        // Тот же конфиг, что у первого теста: Прибыль/ход = 9.
+        var config = BuildSingleFactoryConfig(buildCost: 1000m, fixedCostPerTurn: 30m, productionRate: 100m);
+
+        var rows = ProductionCostLevelCalculator.Calculate(config, workersPerFactory: 1);
+        var row = rows.Single();
+
+        Assert.Equal(9m, row.ProfitPerTurn);
+        Assert.Equal(90m, row.MaxBuildCostForTargetPayback(10m));
+
+        // Обратный проход: если взять сам текущий срок окупаемости как цель — получаем обратно
+        // текущий BuildCost (с точностью до округления decimal-деления в обе стороны).
+        var roundTrip = row.MaxBuildCostForTargetPayback(row.PaybackTurns!.Value);
+        Assert.Equal(row.BuildCost, roundTrip, 6);
+    }
+
+    /// <summary>Нулевая/отрицательная маржа (см. <see cref="PaybackTurns_Is_Null_When_The_Factory_Has_No_Recurring_Cost_Basis"/>) — допустимый BuildCost тоже 0, не бесконечность и не отрицательное число.</summary>
+    [Fact]
+    public void MaxBuildCostForTargetPayback_Is_Zero_When_The_Factory_Has_No_Recurring_Cost_Basis()
+    {
+        var config = BuildSingleFactoryConfig(buildCost: 1000m, fixedCostPerTurn: 0m, productionRate: 100m);
+
+        var rows = ProductionCostLevelCalculator.Calculate(config, workersPerFactory: 1);
+        var row = rows.Single();
+
+        Assert.Equal(0m, row.MaxBuildCostForTargetPayback(75m));
+    }
+
     /// <summary>Один сектор, одна фабрика уровня 0, без входов — минимум, достаточный для проверки самой формулы.</summary>
     /// <summary>internal, не private — переиспользуется <c>TeamSteadyStateCalculatorTests</c> (та же сборка).</summary>
     internal static ResolvedGameConfig BuildSingleFactoryConfig(decimal buildCost, decimal fixedCostPerTurn, decimal productionRate)

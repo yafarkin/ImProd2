@@ -104,6 +104,12 @@ public static class ProductionCostLevelReportWriter
                     text.AppendLine(
                         $"  Окупаемость (BuildCost={FormatMoney(row.BuildCost)}, продажа 100% выпуска системе, без кросс-торговли): " +
                         (row.PaybackTurns is { } payback ? $"{payback:F1} ход(ов)" : "никогда (нулевая или отрицательная маржа)"));
+                    if (paybackWarningTurns is { } targetTurns)
+                    {
+                        text.AppendLine(
+                            $"  Допустимый BuildCost при цели {targetTurns:F0} ход(ов) (направление B, обратная задача): " +
+                            $"≤{FormatMoney(row.MaxBuildCostForTargetPayback(targetTurns))}");
+                    }
 
                     if (row.Inputs.Count > 0)
                     {
@@ -151,7 +157,10 @@ public static class ProductionCostLevelReportWriter
             warningTurns is { } w
                 ? $"=== Окупаемость по уровням (продажа 100% системе, без кросс-торговли; порог предупреждения — {w:F0} ход(ов)) ==="
                 : "=== Окупаемость по уровням (продажа 100% системе, без кросс-торговли) ===");
-        text.AppendLine("sector;level;factory;recipe;build_cost;payback_turns");
+        text.AppendLine(
+            warningTurns is { }
+                ? "sector;level;factory;recipe;build_cost;payback_turns;max_build_cost_for_target"
+                : "sector;level;factory;recipe;build_cost;payback_turns");
 
         var ordered = rows
             .OrderBy(r => r.SectorId, StringComparer.Ordinal)
@@ -168,7 +177,12 @@ public static class ProductionCostLevelReportWriter
             var marker = row.PaybackTurns is null || (warningTurns is { } threshold && row.PaybackTurns > threshold)
                 ? " ⚠"
                 : "";
-            text.AppendLine($"{row.SectorId};{row.Level};{row.FactoryId};{row.RecipeId};{row.BuildCost.ToString("0.##", CultureInfo.InvariantCulture)};{paybackText}{marker}");
+            var line = $"{row.SectorId};{row.Level};{row.FactoryId};{row.RecipeId};{row.BuildCost.ToString("0.##", CultureInfo.InvariantCulture)};{paybackText}";
+            if (warningTurns is { } target)
+            {
+                line += $";{row.MaxBuildCostForTargetPayback(target).ToString("0.##", CultureInfo.InvariantCulture)}";
+            }
+            text.AppendLine(line + marker);
         }
 
         text.AppendLine();
