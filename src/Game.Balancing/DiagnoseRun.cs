@@ -59,11 +59,7 @@ internal static class DiagnoseRun
 
         Console.WriteLine();
         Console.WriteLine("=== 1b. Окупаемость по уровням (продажа 100% системе, без кросс-торговли) ===");
-        // Половина самого длинного пресета — не preset.MaxTurns целиком: решение пользователя,
-        // 2026-08-23, направление A плана исследований — «мы не уверены, что реально до конца дойдут
-        // ребята, а так есть риск застрять в финансовой яме», окупаемость обязана уложиться с
-        // запасом. Общий (не per-preset) порог — тот же смысл, что и у --mode cost-levels отдельно.
-        var paybackWarningTurns = config.Raw.SessionPresets.Max(p => p.MaxTurns) / 2m;
+        var paybackWarningTurns = ProductionCostLevelReportWriter.DefaultPaybackWarningTurns(config.Raw.SessionPresets);
         var badPayback = FindBadPaybackLevels(costRows, paybackWarningTurns);
         if (badPayback.Count == 0)
         {

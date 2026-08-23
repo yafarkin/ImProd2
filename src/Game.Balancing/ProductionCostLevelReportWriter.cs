@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using Game.Engine;
 
@@ -30,6 +31,22 @@ public static class ProductionCostLevelReportWriter
 {
     /// <summary>Порог «стоит отметить» разброса между самым дорогим и самым дешёвым сектором на одном уровне (запрос пользователя — не больше 15%).</summary>
     public const decimal LevelParityWarningRatio = 1.15m;
+
+    /// <summary>
+    /// Запас ходов на конец партии для окупаемости по умолчанию (решение пользователя, 2026-08-23:
+    /// «к ходу 75 из 90 в плюс, чтобы оставалось 15 ходов запаса на рост или исправление ситуации» —
+    /// не <c>MaxTurns / 2</c>, как было раньше по умолчанию, а именно <c>MaxTurns − 15</c>). Единое
+    /// место — <c>Program.cs</c> (<c>--mode cost-levels</c>), <c>DiagnoseRun</c> и
+    /// <c>AdminBalanceLab.razor</c> берут порог отсюда, не считают втроём по-разному.
+    /// </summary>
+    public const decimal DefaultPaybackBufferTurns = 15m;
+
+    /// <summary>Порог окупаемости по умолчанию для конфига — самая длинная сессия минус <see cref="DefaultPaybackBufferTurns"/>, не меньше нуля.</summary>
+    public static decimal DefaultPaybackWarningTurns(IReadOnlyList<Game.Config.Session.SessionPresetConfig> presets)
+    {
+        ArgumentNullException.ThrowIfNull(presets);
+        return presets.Count == 0 ? 0m : Math.Max(0m, presets.Max(p => p.MaxTurns) - DefaultPaybackBufferTurns);
+    }
 
     /// <param name="rows"><see cref="ProductionCostLevelCalculator.Calculate"/>.</param>
     /// <param name="paybackWarningTurns">Порог «стоит отметить» для окупаемости (в ходах) — выше него уровень флагуется как рискованный (см. <see cref="AppendPaybackSummary"/>). <c>null</c> — без предупреждений, только цифры.</param>

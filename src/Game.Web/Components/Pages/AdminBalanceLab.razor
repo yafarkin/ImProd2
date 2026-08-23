@@ -396,9 +396,10 @@
 
             _costRows = ProductionCostLevelCalculator.Calculate(config, _workers);
             _costAnomalies = DiagnoseRun.FindCostAnomalies(_costRows);
-            // Половина именно этого прогона (не всех пресетов конфига разом, как в CLI --mode
-            // diagnose) — здесь пользователь уже выбрал конкретное число ходов выше.
-            _paybackWarningTurns = _endTurn / 2m;
+            // Именно этот прогон (не все пресеты конфига разом, как в CLI --mode diagnose) —
+            // пользователь уже выбрал конкретное число ходов выше; тот же запас (см.
+            // ProductionCostLevelReportWriter.DefaultPaybackBufferTurns), не половина от _endTurn.
+            _paybackWarningTurns = Math.Max(0m, _endTurn - ProductionCostLevelReportWriter.DefaultPaybackBufferTurns);
             _badPayback = DiagnoseRun.FindBadPaybackLevels(_costRows, _paybackWarningTurns);
 
             _systemMargin = MarketSaleCalculator.SystemSaleMarginMultiplier - 1m;
