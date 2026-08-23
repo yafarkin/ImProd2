@@ -141,7 +141,9 @@ internal sealed record CliArguments
         "cost-levels" => RunMode.CostLevels,
         "trace" => RunMode.Trace,
         "calibrate" => RunMode.Calibrate,
-        _ => throw new ArgumentException($"Unknown '--mode' value '{value}'. Expected 'grid', 'ideal-hall', 'cost-levels', 'trace' or 'calibrate'."),
+        "diagnose" => RunMode.Diagnose,
+        _ => throw new ArgumentException(
+            $"Unknown '--mode' value '{value}'. Expected 'grid', 'ideal-hall', 'cost-levels', 'trace', 'calibrate' or 'diagnose'."),
     };
 
     private static CalibrateMetric ParseCalibrateMetric(string value) => value switch
@@ -183,4 +185,12 @@ internal enum RunMode
     /// Score(t) → повторить), но автоматически, до заданной цели.
     /// </summary>
     Calibrate,
+
+    /// <summary>
+    /// Единая диагностика (<see cref="DiagnoseRun"/>, rebalance/2-sector-stepwise, 2026-08-23) — все
+    /// три инструмента (себестоимость, идеальный зал, реальный бот) одним прогоном на одной цепочке,
+    /// с одним итоговым вердиктом «играбельно или нет, и если нет — на каком уровне искать причину»,
+    /// вместо ручного прогона трёх режимов по отдельности и сведения их в голове.
+    /// </summary>
+    Diagnose,
 }

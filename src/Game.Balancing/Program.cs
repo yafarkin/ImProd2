@@ -41,6 +41,15 @@ if (cliArguments.Mode == RunMode.Calibrate)
     return;
 }
 
+// Блок «единая диагностика» (rebalance/2-sector-stepwise, 2026-08-23) — себестоимость + бутерброд
+// наценок + идеальный зал + реальный бот одним прогоном, тоже выходит раньше остальной инфраструктуры
+// грида (ей своя пресетная инфраструктура не нужна, только preset.MaxTurns).
+if (cliArguments.Mode == RunMode.Diagnose)
+{
+    await DiagnoseRun.RunAsync(config, cliArguments);
+    return;
+}
+
 var preset = config.Raw.SessionPresets.Single(p => p.Id == cliArguments.PresetId);
 
 if (cliArguments.TeamsPerSector <= 0)
