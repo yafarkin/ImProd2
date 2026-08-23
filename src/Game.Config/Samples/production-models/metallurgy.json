@@ -735,7 +735,7 @@
       "RecipeIds": [
         "rough-machined-block-from-castings"
       ],
-      "BuildCost": 6800,
+      "BuildCost": 6200,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 136
     },
@@ -768,7 +768,7 @@
       "RecipeIds": [
         "engine-block-finished-from-rough-machined"
       ],
-      "BuildCost": 9000,
+      "BuildCost": 7600,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 180
     },
@@ -779,7 +779,7 @@
       "RecipeIds": [
         "gearbox-assembly-from-parts"
       ],
-      "BuildCost": 14000,
+      "BuildCost": 11100,
       "LiquidationValueCoefficient": 0.5,
       "FixedCostPerTurn": 280
     },
