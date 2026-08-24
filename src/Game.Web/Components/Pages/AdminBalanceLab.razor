@@ -8,6 +8,8 @@
 @using Microsoft.AspNetCore.Components
 @using Game.Balancing
 @using Game.Bots
+@using Game.Bots.Llm
+@using Game.Config.Catalog
 @using Game.Config.Loading
 @using Game.Config.ProductionModel
 @using Game.Config.Session
@@ -99,6 +101,216 @@
 @if (_error is not null)
 {
     <div class="alert alert-danger"><pre class="mb-0" style="white-space:pre-wrap">@_error</pre></div>
+}
+
+<h2 class="mt-5">Интерактивный режим — сыграть за одну команду вручную</h2>
+<p class="text-muted small">
+    Продолжение «отладка производства» (docs/rebalance-2sector/balance-experiment-plan.md) — не
+    только смотреть, что решил бот (см. «Пошаговый просмотр» ниже), а самому вести одну команду по
+    тем же шести из семи категорий его решений (постройка, наём/рецепт, R&amp;D/поколение, капремонт,
+    продажа системе, аварийная закупка — P2P-обмен пока не включён, см. doc-comment
+    <code>InteractiveSessionRunner</code>), ход за ходом, пока остальные секторы ведёт
+    <code>SimpleBot</code> — та же производственная модель и сессия, что заданы в текстовых полях выше.
+</p>
+
+@if (_interactive is null)
+{
+    <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+        <div>
+            <label class="form-label">Сектор — веду вручную</label>
+            <select class="form-select form-select-sm" style="width:14em" @bind="_interactiveSectorId">
+                <option value="">— выбрать —</option>
+                @foreach (var sector in InteractiveSectorOptions())
+                {
+                    <option value="@sector.Id">@sector.Id — @sector.Name</option>
+                }
+            </select>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary" @onclick="StartInteractive">Начать</button>
+        </div>
+    </div>
+    @if (_interactiveError is not null)
+    {
+        <div class="alert alert-danger"><pre class="mb-0" style="white-space:pre-wrap">@_interactiveError</pre></div>
+    }
+}
+else
+{
+    var team = _interactive.Session.State.Teams[_interactive.ManualTeamId];
+    <div class="d-flex flex-wrap gap-3 align-items-center mb-2">
+        <strong>Ход @_interactive.Session.State.CurrentTurn</strong>
+        <span>Баланс: @DashboardDisplay.FormatMoney(team.Balance)</span>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="StopInteractive">Сбросить и начать заново</button>
+    </div>
+
+    @if (_interactive.Session.State.IsFinished)
+    {
+        <div class="alert alert-success">Партия закончена на ходу @_interactive.Session.State.CurrentTurn.</div>
+    }
+    else
+    {
+        <h4 class="h6 mt-3">Предложение бота на этот ход</h4>
+        <p class="text-muted small">
+            То же самое, что решил бы <code>SimpleBot</code> за эту команду (числа и обоснование —
+            его собственный текст, не приближение) — ничего не применяется само по себе. Отметьте,
+            что принять, при желании поправьте число прямо в строке, и нажмите «Применить отмеченные»
+            — или просто ничего не трогайте и сразу переходите к ходу, тогда предложение пропадёт,
+            не оставив следа.
+        </p>
+        <table class="table table-sm table-bordered align-middle mb-2" style="max-width:56em">
+            <tbody>
+                <tr><th style="width:12em">1. Финансовый тренд</th><td>@RenderLines(_proposal!.Reasoning.FinancialTrend)</td></tr>
+                <tr><th>2. Постройка</th><td>@RenderLines(_proposal.Reasoning.Build)</td></tr>
+                <tr><th>3. Темп вложений (R&amp;D/поколение)</th><td>@RenderLines(_proposal.Reasoning.InvestmentPace)</td></tr>
+                <tr><th>4. Капремонт</th><td>@RenderLines(_proposal.Reasoning.Overhaul)</td></tr>
+                <tr><th>7. Остаток системе</th><td>@RenderLines(_proposal.Reasoning.SystemSale)</td></tr>
+            </tbody>
+        </table>
+
+        @if (_proposalActions.Count == 0)
+        {
+            <p class="text-muted small"><em>Бот не предлагает ни одного конкретного действия на этот ход.</em></p>
+        }
+        else
+        {
+            <ul class="list-unstyled">
+                @for (var i = 0; i < _proposalActions.Count; i++)
+                {
+                    var index = i;
+                    var proposedAction = _proposalActions[index];
+                    <li class="d-flex align-items-center gap-2 mb-1">
+                        <input type="checkbox" class="form-check-input" @bind="_proposalSelected[index]" />
+                        <span>@DescribeProposedAction(proposedAction, team)</span>
+                        @if (proposedAction.Kind == ManualActionKind.SetWorkerCount)
+                        {
+                            <input type="number" min="0" class="form-control form-control-sm" style="width:6em" @bind="_proposalActions[index].Count" />
+                        }
+                        else if (proposedAction.Kind is ManualActionKind.SetRndCommitment or ManualActionKind.SetGenerationResearchCommitment)
+                        {
+                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" style="width:8em" @bind="_proposalActions[index].Amount" />
+                        }
+                        else if (proposedAction.Kind == ManualActionKind.SellToSystem)
+                        {
+                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" style="width:8em" @bind="_proposalActions[index].Volume" />
+                        }
+                    </li>
+                }
+            </ul>
+            <div class="d-flex gap-2 mb-3">
+                <button type="button" class="btn btn-primary btn-sm" @onclick="ApplySelectedProposal">Применить отмеченные</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="RefreshProposal">Обновить предложение</button>
+            </div>
+        }
+
+        <div class="d-flex flex-wrap gap-4" style="align-items:flex-start">
+            <div style="flex:1 1 420px; min-width:320px">
+                <h4 class="h6">Состояние команды</h4>
+                <div style="max-height:420px; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:0.5em">
+                    <pre class="mb-0" style="font-size:0.75em; white-space:pre-wrap">@BotStateSnapshotBuilder.Build(_interactive.Session, _interactive.ManualTeamId)</pre>
+                </div>
+            </div>
+            <div style="flex:1 1 380px; min-width:320px">
+                <h4 class="h6">Своё действие</h4>
+                <p class="text-muted small">Для всего, что бот не предлагает сам (смена рецепта, аварийная закупка) — или чтобы сделать не то, что он предложил.</p>
+                <div class="d-flex flex-column gap-2 mb-2">
+                    <select class="form-select form-select-sm" @bind="_actionKind">
+                        @foreach (var kind in Enum.GetValues<ManualActionKind>())
+                        {
+                            <option value="@kind">@ActionKindLabel(kind)</option>
+                        }
+                    </select>
+
+                    @if (_actionKind == ManualActionKind.BuildFactory)
+                    {
+                        <select class="form-select form-select-sm" @bind="_actionFactoryDefinitionId">
+                            <option value="">— тип фабрики —</option>
+                            @foreach (var definition in BuildableFactoryDefinitions(team))
+                            {
+                                <option value="@definition.Id">@definition.Id — @definition.Name</option>
+                            }
+                        </select>
+                        <input class="form-control form-control-sm" placeholder="рецепт (необязательно — первый по умолчанию)" @bind="_actionRecipeId" />
+                    }
+                    else if (_actionKind is ManualActionKind.SetWorkerCount or ManualActionKind.SelectRecipe
+                        or ManualActionKind.SetRndCommitment or ManualActionKind.SetOverhaulRequested)
+                    {
+                        <select class="form-select form-select-sm" @bind="_actionFactoryIdText">
+                            <option value="">— фабрика —</option>
+                            @foreach (var factory in team.Factories)
+                            {
+                                <option value="@factory.Id">@factory.Definition.Name (@factory.SelectedRecipe.Id, рабочих @factory.Workers)</option>
+                            }
+                        </select>
+
+                        @if (_actionKind == ManualActionKind.SetWorkerCount)
+                        {
+                            <input type="number" min="0" class="form-control form-control-sm" @bind="_actionCount" />
+                        }
+                        else if (_actionKind == ManualActionKind.SelectRecipe)
+                        {
+                            <select class="form-select form-select-sm" @bind="_actionRecipeId">
+                                <option value="">— рецепт —</option>
+                                @foreach (var recipe in RecipeOptions(team))
+                                {
+                                    <option value="@recipe.Id">@recipe.Id</option>
+                                }
+                            </select>
+                        }
+                        else if (_actionKind == ManualActionKind.SetRndCommitment)
+                        {
+                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" placeholder="¤/ход" @bind="_actionAmount" />
+                        }
+                        else if (_actionKind == ManualActionKind.SetOverhaulRequested)
+                        {
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="interactiveOverhaulEnabled" @bind="_actionEnabled" />
+                                <label class="form-check-label" for="interactiveOverhaulEnabled">Заказать капремонт (снять галочку — отменить запрос)</label>
+                            </div>
+                        }
+                    }
+                    else if (_actionKind == ManualActionKind.SetGenerationResearchCommitment)
+                    {
+                        <input type="number" min="0" step="0.01" class="form-control form-control-sm" placeholder="¤/ход" @bind="_actionAmount" />
+                    }
+                    else if (_actionKind is ManualActionKind.SellToSystem or ManualActionKind.EmergencyPurchase)
+                    {
+                        <select class="form-select form-select-sm" @bind="_actionMaterialId">
+                            <option value="">— материал —</option>
+                            @foreach (var material in MaterialOptionsFor(_actionKind, team))
+                            {
+                                <option value="@material.Id">@material.Id</option>
+                            }
+                        </select>
+                        <input type="number" min="0" step="0.01" class="form-control form-control-sm" placeholder="объём" @bind="_actionVolume" />
+                    }
+
+                    <button type="button" class="btn btn-secondary btn-sm" @onclick="ApplyAction">Применить сейчас</button>
+                </div>
+
+                @if (_interactiveActionLog.Count > 0)
+                {
+                    <ul class="list-unstyled small">
+                        @foreach (var line in _interactiveActionLog) { <li>@line</li> }
+                    </ul>
+                }
+
+                <button type="button" class="btn btn-primary" @onclick="CompleteInteractiveTurn">Следующий ход →</button>
+            </div>
+        </div>
+
+        @if (_interactiveHistory.Count > 0)
+        {
+            var lastTurn = _interactiveHistory[^1];
+            <h4 class="h6 mt-4">Что сделали боты остальных секторов на ходу @lastTurn.Turn</h4>
+            <div style="max-height:240px; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:0.5em">
+                <pre class="mb-0" style="font-size:0.75em">@string.Join("\n", lastTurn.BotTraceLines)</pre>
+            </div>
+
+            <h4 class="h6 mt-4">Ручная команда по ходам</h4>
+            @ChartRenderer.Render(BuildInteractiveBalanceChartLayout())
+        }
+    }
 }
 
 @if (_result is not null)
@@ -324,6 +536,29 @@
     private string _stepSectorId = "";
     private int _stepIndex;
 
+    private InteractiveSessionRunner? _interactive;
+    private string _interactiveSectorId = "";
+    private string? _interactiveError;
+    private readonly List<string> _interactiveActionLog = new();
+    private readonly List<InteractiveSessionRunner.TurnResult> _interactiveHistory = new();
+
+    private InteractiveSessionRunner.TurnProposal? _proposal;
+    private List<ManualAction> _proposalActions = new();
+    private List<bool> _proposalSelected = new();
+
+    // Форма «одно действие» — поля, не относящиеся к выбранному _actionKind, просто не читаются.
+    private ManualActionKind _actionKind = ManualActionKind.BuildFactory;
+    private string _actionFactoryDefinitionId = "";
+    private string _actionFactoryIdText = "";
+    private string _actionRecipeId = "";
+    private decimal _actionAmount;
+    private int _actionCount;
+    private string _actionMaterialId = "";
+    private decimal _actionVolume;
+    private bool _actionEnabled;
+
+    private Ulid? _actionFactoryId => Ulid.TryParse(_actionFactoryIdText, null, out var id) ? id : null;
+
     // UnsafeRelaxedJsonEscaping — иначе кириллица (Name у секторов/материалов/фабрик) уходит в
     // текстовое поле как Се... — нечитаемо для ручной правки (весь смысл этого поля).
     // "Unsafe" здесь не про опасность данных — про то, что кодировщик больше не эскейпит символы,
@@ -468,4 +703,213 @@
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 900, 280, DashboardDisplay.FormatMoney);
     }
 
+    /// <summary>Секторы для выпадающего списка «за кого играть» — читает уже введённый JSON модели напрямую, без полной валидации (та происходит только при <see cref="StartInteractive"/>).</summary>
+    private IReadOnlyList<SectorConfig> InteractiveSectorOptions()
+    {
+        try
+        {
+            var model = JsonSerializer.Deserialize<ProductionModelConfig>(_productionModelJson);
+            return model?.Sectors ?? Array.Empty<SectorConfig>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<SectorConfig>();
+        }
+    }
+
+    private void StartInteractive()
+    {
+        _interactiveError = null;
+        try
+        {
+            if (_interactiveSectorId.Length == 0)
+            {
+                throw new InvalidOperationException("Выберите сектор, за который играть вручную.");
+            }
+
+            var productionModel = JsonSerializer.Deserialize<ProductionModelConfig>(_productionModelJson)
+                                   ?? throw new InvalidOperationException("Производственная модель не заполнена.");
+            var session = JsonSerializer.Deserialize<SessionConfig>(_sessionJson)
+                          ?? throw new InvalidOperationException("Сессионные параметры не заполнены.");
+            var config = GameConfigLoader.Load(productionModel, session);
+
+            _interactive = InteractiveSessionRunner.Start(config, _presetId, _endTurn, _interactiveSectorId, _maintainFactories, _leverage, _profile);
+            _interactiveActionLog.Clear();
+            _interactiveHistory.Clear();
+            RefreshProposal();
+        }
+        catch (GameConfigValidationException ex)
+        {
+            _interactiveError = "Конфиг не проходит валидацию:\n" + string.Join("\n", ex.Errors);
+        }
+        catch (Exception ex)
+        {
+            _interactiveError = ex.Message;
+        }
+    }
+
+    private void StopInteractive()
+    {
+        _interactive = null;
+        _interactiveError = null;
+        _interactiveActionLog.Clear();
+        _interactiveHistory.Clear();
+        _proposal = null;
+        _proposalActions.Clear();
+        _proposalSelected.Clear();
+    }
+
+    /// <summary>Пересчитывает предложение бота для ручной команды на текущий ход — ничего в сессии не меняет (см. doc-comment <see cref="InteractiveSessionRunner.ProposeManualTeamDecision"/>).</summary>
+    private void RefreshProposal()
+    {
+        if (_interactive is null || _interactive.Session.State.IsFinished)
+        {
+            _proposal = null;
+            _proposalActions = new List<ManualAction>();
+            _proposalSelected = new List<bool>();
+            return;
+        }
+
+        _proposal = _interactive.ProposeManualTeamDecision();
+        _proposalActions = _proposal.Actions.ToList();
+        _proposalSelected = _proposalActions.Select(_ => true).ToList(); // по умолчанию отмечено всё — «не менять вообще» в один клик
+    }
+
+    /// <summary>Человекочитаемое описание одного предложенного действия для чеклиста — не путать с <see cref="ManualActionResult.Success.Description"/> (тот пишется постфактум, этот — заранее, до применения).</summary>
+    private string DescribeProposedAction(ManualAction action, Game.Domain.Team team)
+    {
+        string FactoryLabel(Ulid? factoryId)
+        {
+            if (factoryId is not { } id)
+            {
+                return "?";
+            }
+
+            var existing = team.Factories.FirstOrDefault(f => f.Id == id);
+            if (existing is not null)
+            {
+                return existing.Definition.Name;
+            }
+
+            // Ещё не построена по-настоящему — она где-то раньше в этом же предложении (см. doc-comment ManualAction.FactoryId).
+            var relatedBuild = _proposalActions.FirstOrDefault(a => a.Kind == ManualActionKind.BuildFactory && a.FactoryId == id);
+            return relatedBuild?.FactoryDefinitionId ?? id.ToString();
+        }
+
+        return action.Kind switch
+        {
+            ManualActionKind.BuildFactory => $"Построить «{action.FactoryDefinitionId}» (рецепт {action.RecipeId})",
+            ManualActionKind.SetWorkerCount => $"Рабочих на «{FactoryLabel(action.FactoryId)}»: {action.Count}",
+            ManualActionKind.SelectRecipe => $"Сменить рецепт «{FactoryLabel(action.FactoryId)}» на «{action.RecipeId}»",
+            ManualActionKind.SetRndCommitment => $"R&D «{FactoryLabel(action.FactoryId)}»: {action.Amount:0.##}¤/ход",
+            ManualActionKind.SetGenerationResearchCommitment => $"Исследование поколения: {action.Amount:0.##}¤/ход",
+            ManualActionKind.SetOverhaulRequested => $"Капремонт «{FactoryLabel(action.FactoryId)}»: {(action.Enabled == true ? "заказать" : "отменить запрос")}",
+            ManualActionKind.SellToSystem => $"Продать системе {action.Volume:0.##} «{action.MaterialId}»",
+            ManualActionKind.EmergencyPurchase => $"Аварийная закупка {action.Volume:0.##} «{action.MaterialId}»",
+            _ => action.Kind.ToString(),
+        };
+    }
+
+    private void ApplySelectedProposal()
+    {
+        if (_interactive is null)
+        {
+            return;
+        }
+
+        var chosen = _proposalActions.Where((_, index) => _proposalSelected[index]).ToList();
+        var results = _interactive.ApplyProposedActions(chosen);
+        foreach (var result in results)
+        {
+            _interactiveActionLog.Add(result switch
+            {
+                ManualActionResult.Success success => $"✅ {success.Description}",
+                ManualActionResult.Failure failure => $"❌ {failure.Message}",
+                _ => "?",
+            });
+        }
+
+        RefreshProposal(); // предложение могло устареть (постройка занята, толерантность к минусу сдвинулась и т.п.) — пересчитываем начисто
+    }
+
+    private void ApplyAction()
+    {
+        if (_interactive is null)
+        {
+            return;
+        }
+
+        var action = new ManualAction
+        {
+            Kind = _actionKind,
+            FactoryDefinitionId = _actionFactoryDefinitionId.Length > 0 ? _actionFactoryDefinitionId : null,
+            FactoryId = _actionFactoryId,
+            RecipeId = _actionRecipeId.Length > 0 ? _actionRecipeId : null,
+            Amount = _actionAmount,
+            Count = _actionCount,
+            MaterialId = _actionMaterialId.Length > 0 ? _actionMaterialId : null,
+            Volume = _actionVolume,
+            Enabled = _actionEnabled,
+        };
+
+        var result = _interactive.ApplyManualAction(action);
+        _interactiveActionLog.Add(result switch
+        {
+            ManualActionResult.Success success => $"✅ {success.Description}",
+            ManualActionResult.Failure failure => $"❌ {failure.Message}",
+            _ => "?",
+        });
+        RefreshProposal(); // ручное действие могло повлиять на то, что бот предложил бы дальше (баланс, уже построенные фабрики)
+    }
+
+    private void CompleteInteractiveTurn()
+    {
+        if (_interactive is null)
+        {
+            return;
+        }
+
+        var turnResult = _interactive.CompleteTurn();
+        _interactiveHistory.Add(turnResult);
+        _interactiveActionLog.Clear();
+        _interactiveActionLog.Add(
+            $"— ход {turnResult.Turn} завершён, поток за ход {turnResult.ManualTeamSnapshot.CashFlowThisTurn.ToString("F0")}¤, " +
+            $"баланс {turnResult.ManualTeamSnapshot.Balance.ToString("F0")}¤ —");
+        RefreshProposal();
+    }
+
+    private static string ActionKindLabel(ManualActionKind kind) => kind switch
+    {
+        ManualActionKind.BuildFactory => "Построить фабрику",
+        ManualActionKind.SetWorkerCount => "Число рабочих",
+        ManualActionKind.SelectRecipe => "Сменить рецепт",
+        ManualActionKind.SetRndCommitment => "R&D фабрики",
+        ManualActionKind.SetGenerationResearchCommitment => "Исследование поколения",
+        ManualActionKind.SetOverhaulRequested => "Капремонт",
+        ManualActionKind.SellToSystem => "Продать системе",
+        ManualActionKind.EmergencyPurchase => "Аварийная закупка",
+        _ => kind.ToString(),
+    };
+
+    private IReadOnlyList<FactoryDefinition> BuildableFactoryDefinitions(Game.Domain.Team team) =>
+        _interactive!.Session.State.Config.FactoryDefinitions
+            .Where(definition => definition.Sector == team.Sector && definition.Recipes[0].Output.Level <= team.UnlockedGeneration)
+            .OrderBy(definition => definition.Id, StringComparer.Ordinal)
+            .ToList();
+
+    private IReadOnlyList<Recipe> RecipeOptions(Game.Domain.Team team) =>
+        team.Factories.FirstOrDefault(f => f.Id == _actionFactoryId)?.Definition.Recipes ?? Array.Empty<Recipe>();
+
+    /// <summary>Продать можно только то, что реально лежит на складе; купить — любой материал сектора (как на <c>Team.razor</c>).</summary>
+    private IReadOnlyList<Material> MaterialOptionsFor(ManualActionKind kind, Game.Domain.Team team) =>
+        kind == ManualActionKind.SellToSystem
+            ? team.Warehouse.Stock.Where(s => s.Quantity > 0).Select(s => s.Material).OrderBy(m => m.Id, StringComparer.Ordinal).ToList()
+            : _interactive!.Session.State.Config.Materials.Values.Where(m => m.Sector == team.Sector).OrderBy(m => m.Id, StringComparer.Ordinal).ToList();
+
+    private LineChartDiagram.ChartLayout BuildInteractiveBalanceChartLayout()
+    {
+        var points = _interactiveHistory.Select(t => (t.Turn, Value: t.ManualTeamSnapshot.Balance)).ToList();
+        var series = new List<LineChartDiagram.ChartSeries> { new("Баланс (ручная команда)", SectorColors.Palette[0], points) };
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 720, 240, DashboardDisplay.FormatMoney);
+    }
 }

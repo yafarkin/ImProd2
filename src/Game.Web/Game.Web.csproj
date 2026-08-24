@@ -14,6 +14,9 @@
          по уровням прямо из UI, без консольного Game.Balancing. -->
     <ProjectReference Include="..\Game.Bots\Game.Bots.csproj" />
     <ProjectReference Include="..\Game.Balancing\Game.Balancing.csproj" />
+    <!-- Только для текстового среза состояния команды (BotStateSnapshotBuilder) в интерактивном
+         режиме /admin/balance-lab — ручное управление одной командой поверх InteractiveSessionRunner. -->
+    <ProjectReference Include="..\Game.Bots.Llm\Game.Bots.Llm.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Update="appsettings.Development.json">

@@ -99,8 +99,11 @@ public static class DetailedSessionRunner
     /// cref="Result.TraceLines"/>). Предполагает 1 команду на сектор — при нескольких у трассировки
     /// <see cref="SimpleBot"/> нет признака, к какой из них строка относится (только <c>Sector.Id</c>),
     /// различить нельзя.
+    /// <c>internal</c>, не <c>private</c> — переиспользуется <see
+    /// cref="InteractiveSessionRunner.ProposeManualTeamDecision"/> для той же разбивки трассировки
+    /// одного пробного хода одной команды, не только целой партии.
     /// </summary>
-    private static IReadOnlyList<TurnDecisionLog> BuildDecisionLogs(IReadOnlyList<(int Turn, string Line)> taggedTraceLines)
+    internal static IReadOnlyList<TurnDecisionLog> BuildDecisionLogs(IReadOnlyList<(int Turn, string Line)> taggedTraceLines)
     {
         var bySectorAndTurn = new Dictionary<(int Turn, string SectorId), (
             List<string> FinancialTrend, List<string> Build, List<string> InvestmentPace,
@@ -221,8 +224,13 @@ public static class DetailedSessionRunner
         };
     }
 
-    /// <summary>Та же разбивка по статьям расхода, что и <c>TraceRun.TraceCumulativeExpenses</c> — весь журнал заново на каждый ход (партия короткая, лишний проход не критичен, зато не пропустит источник и не задвоит).</summary>
-    private static TeamTurnSnapshot BuildSnapshot(
+    /// <summary>
+    /// Та же разбивка по статьям расхода, что и <c>TraceRun.TraceCumulativeExpenses</c> — весь журнал
+    /// заново на каждый ход (партия короткая, лишний проход не критичен, зато не пропустит источник и
+    /// не задвоит). <c>internal</c>, не <c>private</c> — переиспользуется <see
+    /// cref="InteractiveSessionRunner"/> для снимка ручной команды тем же способом.
+    /// </summary>
+    internal static TeamTurnSnapshot BuildSnapshot(
         GameSession session, Team team, IReadOnlyDictionary<string, decimal> materialCosts, Dictionary<Ulid, decimal> previousNetByTeam)
     {
         decimal buildCost = 0m, hireFireCost = 0m, salary = 0m, upkeep = 0m, rnd = 0m, generation = 0m,
