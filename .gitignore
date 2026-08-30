@@ -6,6 +6,13 @@
 # dotenv files
 .env
 
+# Локальный .NET SDK, который build-raspberrypi.sh ставит рядом с репозиторием,
+# если системного SDK нужной версии на машине нет.
+/.dotnet/
+
+# Папка публикации по умолчанию для build-raspberrypi.sh, если её укажут внутри репозитория.
+/Applications/
+
 # User-specific files
 *.rsuser
 *.suo
