@@ -10,8 +10,8 @@
 # если системного SDK нужной версии на машине нет.
 /.dotnet/
 
-# Папка публикации по умолчанию для build-raspberrypi.sh, если её укажут внутри репозитория.
-/Applications/
+# Папка публикации build-raspberrypi.sh, если её укажут внутри репозитория (-o ./improd).
+/improd/
 
 # User-specific files
 *.rsuser
