@@ -11,8 +11,7 @@
 #      в каталог репозитория (./.dotnet); система при этом не трогается.
 #   3. Публикует src/Game.Web как self-contained приложение: нужный .NET runtime
 #      вшит внутрь, отдельно ничего ставить не надо.
-#   4. Кладёт готовое приложение в отдельную папку (по умолчанию
-#      ~/Applications/ImProd) и создаёт:
+#   4. Кладёт готовое приложение в отдельную папку (по умолчанию ~/improd) и создаёт:
 #        - start.sh                      — запускалка из терминала;
 #        - «Производственные цепочки».desktop — ярлык для двойного клика в файловом
 #          менеджере и пункт в меню приложений.
@@ -25,7 +24,7 @@
 # скрипт на время сборки патчит эту одну строку и после сборки откатывает её.
 #
 # Использование:
-#   ./build-raspberrypi.sh                  # публикация в ~/Applications/ImProd
+#   ./build-raspberrypi.sh                  # публикация в ~/improd
 #   ./build-raspberrypi.sh -o /путь/куда    # своя папка назначения
 #   ./build-raspberrypi.sh --install-deps   # доставить системные пакеты (apt, sudo)
 #   ./build-raspberrypi.sh --service        # + systemd-сервис (автозапуск при загрузке)
@@ -40,13 +39,13 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT="$REPO_DIR/src/Game.Web/Game.Web.csproj"
 PROGRAM_CS="$REPO_DIR/src/Game.Web/Program.cs"
-APP_NAME="ImProd"                       # имя папки назначения и .desktop-файла
+APP_NAME="ImProd"                       # имя .desktop-файла
 APP_TITLE="Производственные цепочки"    # человекочитаемое имя в меню приложений
 BIN_NAME="Game.Web"                     # имя опубликованного бинарника
 DOTNET_CHANNEL="8.0"
 PORT="${PORT:-5180}"
 HOST="${HOST:-0.0.0.0}"
-OUTPUT_DIR="${HOME}/Applications/${APP_NAME}"
+OUTPUT_DIR="${IMPROD_DIR:-${HOME}/improd}"
 INSTALL_DEPS=0
 INSTALL_SERVICE=0
 
@@ -296,14 +295,20 @@ LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 info "Готово!"
 echo
 echo "  Приложение:  $OUTPUT_DIR"
-echo "  Запуск:      двойной клик по «${APP_TITLE}» в меню приложений"
-echo "               из корня репозитория:  ./run.sh"
-echo "               из папки сборки:       \"$LAUNCHER\""
+echo
+echo "  Управление (из корня репозитория, по SSH):"
+echo "     ./run.sh            # запустить в фоне — переживает выход из SSH"
+echo "     ./run.sh logs       # смотреть лог (коды входа администратора — там, при старте)"
+echo "     ./run.sh status     # работает ли, PID, адрес"
+echo "     ./run.sh stop       # корректно остановить"
+echo
+echo "  Ещё варианты запуска: двойной клик по «${APP_TITLE}» в меню приложений;"
+echo "  на переднем плане — \"$LAUNCHER\"  (или  ./run.sh run)."
+echo
 echo "  Веб-интерфейс:"
 echo "               локально:  http://localhost:${PORT}"
 [[ -n "$LAN_IP" && "$HOST" != "127.0.0.1" ]] && \
 echo "               в сети:    http://${LAN_IP}:${PORT}   (и http://$(hostname).local:${PORT})"
-echo "  Код администратора (настройка сессии) печатается в консоль при старте."
 if [[ "$INSTALL_SERVICE" -eq 1 ]]; then
   echo
   echo "  Сервис:      systemctl --user status improd     # состояние"
