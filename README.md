@@ -53,3 +53,31 @@ dotnet run --project src/Game.Web
 dotnet run --project src/Game.Balancing   # калибровка: много партий ботов, сводный отчёт + CSV
 dotnet run --project src/Game.LoadTest    # локальная нагрузочная проверка (см. docs/PILOT_CHECKLIST.md)
 ```
+
+## Запуск на Raspberry Pi
+
+На малинке всё собирается из исходников, кросс-компиляция на другой машине не нужна. Скопируй
+репозиторий на Pi и запусти из его корня:
+
+```
+./build-raspberrypi.sh          # собрать и разложить в ~/Applications/ImProd
+./run.sh                        # запустить (Ctrl+C — остановить)
+```
+
+`build-raspberrypi.sh` сам определяет архитектуру Pi, при отсутствии ставит .NET SDK 8 локально в
+`./.dotnet` (систему не трогает) и публикует `src/Game.Web` как self-contained — отдельно ставить
+рантайм не надо. На выходе, кроме бинарника, кладутся `start.sh` (запускалка) и ярлык `.desktop`
+(двойной клик + пункт в меню приложений).
+
+`run.sh` проверяет, что сборка на месте: если нет — просит запустить `./build-raspberrypi.sh`; если
+исходники менялись после сборки — подсказывает пересобрать.
+
+```
+./build-raspberrypi.sh --install-deps   # доставить системные пакеты (apt, sudo)
+./build-raspberrypi.sh --service        # + systemd-сервис: автозапуск при загрузке (headless)
+PORT=5200 HOST=127.0.0.1 ./build-raspberrypi.sh   # свой порт/адрес (по умолчанию 0.0.0.0:5180)
+./build-raspberrypi.sh -h               # полная справка
+```
+
+Порт и адрес прослушивания вшиты в `src/Game.Web/Program.cs`; при `PORT=`/`HOST=` скрипт правит эту
+строку на время сборки и откатывает после.
