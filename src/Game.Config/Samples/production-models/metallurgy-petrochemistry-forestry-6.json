@@ -1,0 +1,976 @@
+{
+  "Sectors": [
+    {
+      "Id": "A",
+      "Name": "Металлургия"
+    },
+    {
+      "Id": "B",
+      "Name": "Нефтехимия"
+    },
+    {
+      "Id": "V",
+      "Name": "Лесная промышленность"
+    }
+  ],
+  "Materials": [
+    {
+      "Id": "iron-ore",
+      "Name": "Железная руда",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "coking-coal",
+      "Name": "Коксующийся уголь",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "limestone",
+      "Name": "Известняк",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "coke",
+      "Name": "Кокс",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "sinter",
+      "Name": "Агломерат",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "pig-iron",
+      "Name": "Чугун",
+      "SectorId": "A",
+      "Level": 2
+    },
+    {
+      "Id": "crude-steel",
+      "Name": "Сталь",
+      "SectorId": "A",
+      "Level": 3
+    },
+    {
+      "Id": "steel-sheet",
+      "Name": "Стальной лист",
+      "SectorId": "A",
+      "Level": 4
+    },
+    {
+      "Id": "steel-frame",
+      "Name": "Стальной каркас",
+      "SectorId": "A",
+      "Level": 5
+    },
+    {
+      "Id": "crude-oil",
+      "Name": "Нефть",
+      "SectorId": "B",
+      "Level": 0
+    },
+    {
+      "Id": "natural-gas",
+      "Name": "Природный газ",
+      "SectorId": "B",
+      "Level": 0
+    },
+    {
+      "Id": "catalyst-clay",
+      "Name": "Катализаторная глина",
+      "SectorId": "B",
+      "Level": 0
+    },
+    {
+      "Id": "naphtha",
+      "Name": "Нафта",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "industrial-gas",
+      "Name": "Технические газы",
+      "SectorId": "B",
+      "Level": 1
+    },
+    {
+      "Id": "ethylene",
+      "Name": "Этилен",
+      "SectorId": "B",
+      "Level": 2
+    },
+    {
+      "Id": "polymer-granulate",
+      "Name": "Полимерный гранулят",
+      "SectorId": "B",
+      "Level": 3
+    },
+    {
+      "Id": "plastic-panel",
+      "Name": "Пластиковая панель",
+      "SectorId": "B",
+      "Level": 4
+    },
+    {
+      "Id": "composite-body",
+      "Name": "Композитный корпус",
+      "SectorId": "B",
+      "Level": 5
+    },
+    {
+      "Id": "roundwood",
+      "Name": "Круглый лес",
+      "SectorId": "V",
+      "Level": 0
+    },
+    {
+      "Id": "resin",
+      "Name": "Живица",
+      "SectorId": "V",
+      "Level": 0
+    },
+    {
+      "Id": "peat",
+      "Name": "Торф",
+      "SectorId": "V",
+      "Level": 0
+    },
+    {
+      "Id": "lumber",
+      "Name": "Пиломатериал",
+      "SectorId": "V",
+      "Level": 1
+    },
+    {
+      "Id": "pulp",
+      "Name": "Целлюлоза",
+      "SectorId": "V",
+      "Level": 1
+    },
+    {
+      "Id": "plywood",
+      "Name": "Фанера",
+      "SectorId": "V",
+      "Level": 2
+    },
+    {
+      "Id": "laminated-beam",
+      "Name": "Клеёный брус",
+      "SectorId": "V",
+      "Level": 3
+    },
+    {
+      "Id": "wood-panel",
+      "Name": "Мебельный щит",
+      "SectorId": "V",
+      "Level": 4
+    },
+    {
+      "Id": "furniture-module",
+      "Name": "Мебельный модуль",
+      "SectorId": "V",
+      "Level": 5
+    }
+  ],
+  "Recipes": [
+    {
+      "Id": "iron-ore-recipe",
+      "OutputMaterialId": "iron-ore",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 136.0
+    },
+    {
+      "Id": "coking-coal-recipe",
+      "OutputMaterialId": "coking-coal",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 62.0
+    },
+    {
+      "Id": "limestone-recipe",
+      "OutputMaterialId": "limestone",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 23.0
+    },
+    {
+      "Id": "coke-recipe",
+      "OutputMaterialId": "coke",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "coking-coal",
+          "Quantity": 1.4
+        }
+      ],
+      "ProductionRate": 38.0
+    },
+    {
+      "Id": "sinter-recipe",
+      "OutputMaterialId": "sinter",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "iron-ore",
+          "Quantity": 1.2
+        },
+        {
+          "MaterialId": "limestone",
+          "Quantity": 0.2
+        }
+      ],
+      "ProductionRate": 98.0
+    },
+    {
+      "Id": "pig-iron-recipe",
+      "OutputMaterialId": "pig-iron",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "sinter",
+          "Quantity": 1.6
+        },
+        {
+          "MaterialId": "coke",
+          "Quantity": 0.4
+        },
+        {
+          "MaterialId": "lumber",
+          "Quantity": 0.1
+        }
+      ],
+      "ProductionRate": 53.0
+    },
+    {
+      "Id": "crude-steel-recipe",
+      "OutputMaterialId": "crude-steel",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pig-iron",
+          "Quantity": 1.2
+        },
+        {
+          "MaterialId": "industrial-gas",
+          "Quantity": 0.3
+        }
+      ],
+      "ProductionRate": 35.0
+    },
+    {
+      "Id": "steel-sheet-recipe",
+      "OutputMaterialId": "steel-sheet",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "crude-steel",
+          "Quantity": 2.0
+        }
+      ],
+      "ProductionRate": 14.0
+    },
+    {
+      "Id": "steel-frame-recipe",
+      "OutputMaterialId": "steel-frame",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "steel-sheet",
+          "Quantity": 2.0
+        },
+        {
+          "MaterialId": "polymer-granulate",
+          "Quantity": 0.4
+        },
+        {
+          "MaterialId": "plywood",
+          "Quantity": 0.3
+        }
+      ],
+      "ProductionRate": 5.0
+    },
+    {
+      "Id": "crude-oil-recipe",
+      "OutputMaterialId": "crude-oil",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 156.0
+    },
+    {
+      "Id": "natural-gas-recipe",
+      "OutputMaterialId": "natural-gas",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 12.0
+    },
+    {
+      "Id": "catalyst-clay-recipe",
+      "OutputMaterialId": "catalyst-clay",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 18.0
+    },
+    {
+      "Id": "naphtha-recipe",
+      "OutputMaterialId": "naphtha",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "crude-oil",
+          "Quantity": 1.35
+        },
+        {
+          "MaterialId": "catalyst-clay",
+          "Quantity": 0.15
+        }
+      ],
+      "ProductionRate": 100.0
+    },
+    {
+      "Id": "industrial-gas-recipe",
+      "OutputMaterialId": "industrial-gas",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "natural-gas",
+          "Quantity": 0.8
+        }
+      ],
+      "ProductionRate": 13.0
+    },
+    {
+      "Id": "ethylene-recipe",
+      "OutputMaterialId": "ethylene",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "naphtha",
+          "Quantity": 1.4
+        },
+        {
+          "MaterialId": "coke",
+          "Quantity": 0.2
+        }
+      ],
+      "ProductionRate": 56.0
+    },
+    {
+      "Id": "polymer-granulate-recipe",
+      "OutputMaterialId": "polymer-granulate",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "ethylene",
+          "Quantity": 1.5
+        },
+        {
+          "MaterialId": "pulp",
+          "Quantity": 0.3
+        }
+      ],
+      "ProductionRate": 32.0
+    },
+    {
+      "Id": "plastic-panel-recipe",
+      "OutputMaterialId": "plastic-panel",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "polymer-granulate",
+          "Quantity": 2.0
+        }
+      ],
+      "ProductionRate": 12.0
+    },
+    {
+      "Id": "composite-body-recipe",
+      "OutputMaterialId": "composite-body",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "plastic-panel",
+          "Quantity": 2.0
+        },
+        {
+          "MaterialId": "steel-sheet",
+          "Quantity": 0.3
+        },
+        {
+          "MaterialId": "plywood",
+          "Quantity": 0.3
+        }
+      ],
+      "ProductionRate": 5.0
+    },
+    {
+      "Id": "roundwood-recipe",
+      "OutputMaterialId": "roundwood",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 164.0
+    },
+    {
+      "Id": "resin-recipe",
+      "OutputMaterialId": "resin",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 10.0
+    },
+    {
+      "Id": "peat-recipe",
+      "OutputMaterialId": "peat",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 3.0
+    },
+    {
+      "Id": "lumber-recipe",
+      "OutputMaterialId": "lumber",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "roundwood",
+          "Quantity": 1.6
+        }
+      ],
+      "ProductionRate": 77.0
+    },
+    {
+      "Id": "pulp-recipe",
+      "OutputMaterialId": "pulp",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "roundwood",
+          "Quantity": 1.6
+        },
+        {
+          "MaterialId": "peat",
+          "Quantity": 0.2
+        }
+      ],
+      "ProductionRate": 12.0
+    },
+    {
+      "Id": "plywood-recipe",
+      "OutputMaterialId": "plywood",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "lumber",
+          "Quantity": 1.5
+        },
+        {
+          "MaterialId": "resin",
+          "Quantity": 0.2
+        },
+        {
+          "MaterialId": "naphtha",
+          "Quantity": 0.2
+        }
+      ],
+      "ProductionRate": 41.0
+    },
+    {
+      "Id": "laminated-beam-recipe",
+      "OutputMaterialId": "laminated-beam",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "plywood",
+          "Quantity": 1.4
+        },
+        {
+          "MaterialId": "pig-iron",
+          "Quantity": 0.15
+        }
+      ],
+      "ProductionRate": 23.0
+    },
+    {
+      "Id": "wood-panel-recipe",
+      "OutputMaterialId": "wood-panel",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "laminated-beam",
+          "Quantity": 1.6
+        },
+        {
+          "MaterialId": "crude-steel",
+          "Quantity": 0.15
+        }
+      ],
+      "ProductionRate": 12.0
+    },
+    {
+      "Id": "furniture-module-recipe",
+      "OutputMaterialId": "furniture-module",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "wood-panel",
+          "Quantity": 2.0
+        },
+        {
+          "MaterialId": "polymer-granulate",
+          "Quantity": 0.3
+        }
+      ],
+      "ProductionRate": 5.0
+    }
+  ],
+  "FactoryDefinitions": [
+    {
+      "Id": "iron-mine",
+      "Name": "Рудник",
+      "SectorId": "A",
+      "RecipeIds": [
+        "iron-ore-recipe"
+      ],
+      "BuildCost": 1410,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10.0
+    },
+    {
+      "Id": "coal-mine",
+      "Name": "Угольная шахта",
+      "SectorId": "A",
+      "RecipeIds": [
+        "coking-coal-recipe"
+      ],
+      "BuildCost": 1110,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10.0
+    },
+    {
+      "Id": "limestone-quarry",
+      "Name": "Известняковый карьер",
+      "SectorId": "A",
+      "RecipeIds": [
+        "limestone-recipe"
+      ],
+      "BuildCost": 960,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10.0
+    },
+    {
+      "Id": "coking-plant",
+      "Name": "Коксохимический завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "coke-recipe"
+      ],
+      "BuildCost": 1430,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 34.9
+    },
+    {
+      "Id": "sinter-plant",
+      "Name": "Агломерационная фабрика",
+      "SectorId": "A",
+      "RecipeIds": [
+        "sinter-recipe"
+      ],
+      "BuildCost": 1660,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 34.9
+    },
+    {
+      "Id": "blast-furnace",
+      "Name": "Доменная печь",
+      "SectorId": "A",
+      "RecipeIds": [
+        "pig-iron-recipe"
+      ],
+      "BuildCost": 2310,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 89.8
+    },
+    {
+      "Id": "oxygen-converter",
+      "Name": "Кислородный конвертер",
+      "SectorId": "A",
+      "RecipeIds": [
+        "crude-steel-recipe"
+      ],
+      "BuildCost": 3410,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 179.5
+    },
+    {
+      "Id": "rolling-mill",
+      "Name": "Прокатный стан",
+      "SectorId": "A",
+      "RecipeIds": [
+        "steel-sheet-recipe"
+      ],
+      "BuildCost": 5260,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 349.1
+    },
+    {
+      "Id": "frame-shop",
+      "Name": "Цех металлоконструкций",
+      "SectorId": "A",
+      "RecipeIds": [
+        "steel-frame-recipe"
+      ],
+      "BuildCost": 7990,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 648.4
+    },
+    {
+      "Id": "oil-field",
+      "Name": "Нефтепромысел",
+      "SectorId": "B",
+      "RecipeIds": [
+        "crude-oil-recipe"
+      ],
+      "BuildCost": 1480,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 9.5
+    },
+    {
+      "Id": "gas-field",
+      "Name": "Газовый промысел",
+      "SectorId": "B",
+      "RecipeIds": [
+        "natural-gas-recipe"
+      ],
+      "BuildCost": 900,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 9.5
+    },
+    {
+      "Id": "clay-pit",
+      "Name": "Глиняный карьер",
+      "SectorId": "B",
+      "RecipeIds": [
+        "catalyst-clay-recipe"
+      ],
+      "BuildCost": 930,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 9.5
+    },
+    {
+      "Id": "refinery",
+      "Name": "НПЗ",
+      "SectorId": "B",
+      "RecipeIds": [
+        "naphtha-recipe"
+      ],
+      "BuildCost": 1640,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 33.4
+    },
+    {
+      "Id": "air-separation",
+      "Name": "Воздухоразделение",
+      "SectorId": "B",
+      "RecipeIds": [
+        "industrial-gas-recipe"
+      ],
+      "BuildCost": 1310,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 33.4
+    },
+    {
+      "Id": "cracker",
+      "Name": "Пиролизная установка",
+      "SectorId": "B",
+      "RecipeIds": [
+        "ethylene-recipe"
+      ],
+      "BuildCost": 2250,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 85.9
+    },
+    {
+      "Id": "polymer-plant",
+      "Name": "Полимерный завод",
+      "SectorId": "B",
+      "RecipeIds": [
+        "polymer-granulate-recipe"
+      ],
+      "BuildCost": 3280,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 171.8
+    },
+    {
+      "Id": "panel-line",
+      "Name": "Линия панелей",
+      "SectorId": "B",
+      "RecipeIds": [
+        "plastic-panel-recipe"
+      ],
+      "BuildCost": 5050,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 334.1
+    },
+    {
+      "Id": "body-shop",
+      "Name": "Цех корпусов",
+      "SectorId": "B",
+      "RecipeIds": [
+        "composite-body-recipe"
+      ],
+      "BuildCost": 7660,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 620.4
+    },
+    {
+      "Id": "logging-site",
+      "Name": "Лесосека",
+      "SectorId": "V",
+      "RecipeIds": [
+        "roundwood-recipe"
+      ],
+      "BuildCost": 1530,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10.5
+    },
+    {
+      "Id": "resin-tapping",
+      "Name": "Подсочка",
+      "SectorId": "V",
+      "RecipeIds": [
+        "resin-recipe"
+      ],
+      "BuildCost": 920,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10.5
+    },
+    {
+      "Id": "peat-bog",
+      "Name": "Торфоразработка",
+      "SectorId": "V",
+      "RecipeIds": [
+        "peat-recipe"
+      ],
+      "BuildCost": 890,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10.5
+    },
+    {
+      "Id": "sawmill",
+      "Name": "Лесопилка",
+      "SectorId": "V",
+      "RecipeIds": [
+        "lumber-recipe"
+      ],
+      "BuildCost": 1610,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 36.8
+    },
+    {
+      "Id": "pulp-mill",
+      "Name": "Целлюлозный завод",
+      "SectorId": "V",
+      "RecipeIds": [
+        "pulp-recipe"
+      ],
+      "BuildCost": 1370,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 36.8
+    },
+    {
+      "Id": "plywood-mill",
+      "Name": "Фанерный комбинат",
+      "SectorId": "V",
+      "RecipeIds": [
+        "plywood-recipe"
+      ],
+      "BuildCost": 2350,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 94.7
+    },
+    {
+      "Id": "glulam-shop",
+      "Name": "Цех клеёного бруса",
+      "SectorId": "V",
+      "RecipeIds": [
+        "laminated-beam-recipe"
+      ],
+      "BuildCost": 3530,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 189.4
+    },
+    {
+      "Id": "panel-shop",
+      "Name": "Щитовой цех",
+      "SectorId": "V",
+      "RecipeIds": [
+        "wood-panel-recipe"
+      ],
+      "BuildCost": 5510,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 368.3
+    },
+    {
+      "Id": "assembly-shop",
+      "Name": "Сборочный цех",
+      "SectorId": "V",
+      "RecipeIds": [
+        "furniture-module-recipe"
+      ],
+      "BuildCost": 8400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 683.9
+    }
+  ],
+  "BaseMarketPerMaterial": [
+    {
+      "MaterialId": "iron-ore",
+      "BasePrice": 1,
+      "BaseCapacity": 1360.0
+    },
+    {
+      "MaterialId": "coking-coal",
+      "BasePrice": 1,
+      "BaseCapacity": 620.0
+    },
+    {
+      "MaterialId": "limestone",
+      "BasePrice": 1,
+      "BaseCapacity": 230.0
+    },
+    {
+      "MaterialId": "coke",
+      "BasePrice": 1,
+      "BaseCapacity": 380.0
+    },
+    {
+      "MaterialId": "sinter",
+      "BasePrice": 1,
+      "BaseCapacity": 980.0
+    },
+    {
+      "MaterialId": "pig-iron",
+      "BasePrice": 1,
+      "BaseCapacity": 530.0
+    },
+    {
+      "MaterialId": "crude-steel",
+      "BasePrice": 1,
+      "BaseCapacity": 350.0
+    },
+    {
+      "MaterialId": "steel-sheet",
+      "BasePrice": 1,
+      "BaseCapacity": 140.0
+    },
+    {
+      "MaterialId": "steel-frame",
+      "BasePrice": 1,
+      "BaseCapacity": 50.0
+    },
+    {
+      "MaterialId": "crude-oil",
+      "BasePrice": 1,
+      "BaseCapacity": 1560.0
+    },
+    {
+      "MaterialId": "natural-gas",
+      "BasePrice": 1,
+      "BaseCapacity": 120.0
+    },
+    {
+      "MaterialId": "catalyst-clay",
+      "BasePrice": 1,
+      "BaseCapacity": 180.0
+    },
+    {
+      "MaterialId": "naphtha",
+      "BasePrice": 1,
+      "BaseCapacity": 1000.0
+    },
+    {
+      "MaterialId": "industrial-gas",
+      "BasePrice": 1,
+      "BaseCapacity": 130.0
+    },
+    {
+      "MaterialId": "ethylene",
+      "BasePrice": 1,
+      "BaseCapacity": 560.0
+    },
+    {
+      "MaterialId": "polymer-granulate",
+      "BasePrice": 1,
+      "BaseCapacity": 320.0
+    },
+    {
+      "MaterialId": "plastic-panel",
+      "BasePrice": 1,
+      "BaseCapacity": 120.0
+    },
+    {
+      "MaterialId": "composite-body",
+      "BasePrice": 1,
+      "BaseCapacity": 50.0
+    },
+    {
+      "MaterialId": "roundwood",
+      "BasePrice": 1,
+      "BaseCapacity": 1640.0
+    },
+    {
+      "MaterialId": "resin",
+      "BasePrice": 1,
+      "BaseCapacity": 100.0
+    },
+    {
+      "MaterialId": "peat",
+      "BasePrice": 1,
+      "BaseCapacity": 30.0
+    },
+    {
+      "MaterialId": "lumber",
+      "BasePrice": 1,
+      "BaseCapacity": 770.0
+    },
+    {
+      "MaterialId": "pulp",
+      "BasePrice": 1,
+      "BaseCapacity": 120.0
+    },
+    {
+      "MaterialId": "plywood",
+      "BasePrice": 1,
+      "BaseCapacity": 410.0
+    },
+    {
+      "MaterialId": "laminated-beam",
+      "BasePrice": 1,
+      "BaseCapacity": 230.0
+    },
+    {
+      "MaterialId": "wood-panel",
+      "BasePrice": 1,
+      "BaseCapacity": 120.0
+    },
+    {
+      "MaterialId": "furniture-module",
+      "BasePrice": 1,
+      "BaseCapacity": 50.0
+    }
+  ],
+  "GenerationResearch": {
+    "StartingGeneration": 1,
+    "ResearchPointThresholdsByGeneration": [
+      27,
+      39,
+      50,
+      61
+    ],
+    "DiminishingReturnsExponent": 0.5,
+    "MaxCommitmentPerTurn": 250
+  }
+}

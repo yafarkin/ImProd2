@@ -19,7 +19,7 @@ public sealed class FlexReprocessingShopTests
 
     private static (GameSession Session, Ulid TeamId) StartSession()
     {
-        var productionModelPath = Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", "metallurgy.json");
+        var productionModelPath = Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", "control-twin-metallurgy.json");
         var sessionPath = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
         var config = GameConfigLoader.LoadFromFiles(productionModelPath, sessionPath);
 

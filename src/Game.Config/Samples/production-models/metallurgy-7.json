@@ -1,0 +1,466 @@
+{
+  "Sectors": [
+    {
+      "Id": "A",
+      "Name": "Металлургия"
+    }
+  ],
+  "Materials": [
+    {
+      "Id": "iron-ore",
+      "Name": "Железная руда",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "coking-coal",
+      "Name": "Коксующийся уголь",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "limestone",
+      "Name": "Известняк",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "scrap-metal",
+      "Name": "Металлолом",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "sinter",
+      "Name": "Агломерат",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "coke",
+      "Name": "Кокс",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "pig-iron",
+      "Name": "Чугун",
+      "SectorId": "A",
+      "Level": 2
+    },
+    {
+      "Id": "crude-steel",
+      "Name": "Сталь",
+      "SectorId": "A",
+      "Level": 3
+    },
+    {
+      "Id": "slab",
+      "Name": "Сляб",
+      "SectorId": "A",
+      "Level": 4
+    },
+    {
+      "Id": "billet",
+      "Name": "Заготовка",
+      "SectorId": "A",
+      "Level": 4
+    },
+    {
+      "Id": "hot-rolled-sheet",
+      "Name": "Горячекатаный лист",
+      "SectorId": "A",
+      "Level": 5
+    },
+    {
+      "Id": "forging-bar",
+      "Name": "Кованый пруток",
+      "SectorId": "A",
+      "Level": 5
+    },
+    {
+      "Id": "steel-structure",
+      "Name": "Металлоконструкция",
+      "SectorId": "A",
+      "Level": 6
+    }
+  ],
+  "Recipes": [
+    {
+      "Id": "iron-ore-recipe",
+      "OutputMaterialId": "iron-ore",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 460
+    },
+    {
+      "Id": "coking-coal-recipe",
+      "OutputMaterialId": "coking-coal",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 168
+    },
+    {
+      "Id": "limestone-recipe",
+      "OutputMaterialId": "limestone",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 77
+    },
+    {
+      "Id": "scrap-metal-recipe",
+      "OutputMaterialId": "scrap-metal",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 60
+    },
+    {
+      "Id": "sinter-recipe",
+      "OutputMaterialId": "sinter",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "iron-ore",
+          "Quantity": 1.2
+        },
+        {
+          "MaterialId": "limestone",
+          "Quantity": 0.2
+        }
+      ],
+      "ProductionRate": 332
+    },
+    {
+      "Id": "coke-recipe",
+      "OutputMaterialId": "coke",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "coking-coal",
+          "Quantity": 1.4
+        }
+      ],
+      "ProductionRate": 104
+    },
+    {
+      "Id": "pig-iron-recipe",
+      "OutputMaterialId": "pig-iron",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "sinter",
+          "Quantity": 1.6
+        },
+        {
+          "MaterialId": "coke",
+          "Quantity": 0.5
+        }
+      ],
+      "ProductionRate": 180
+    },
+    {
+      "Id": "crude-steel-recipe",
+      "OutputMaterialId": "crude-steel",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "pig-iron",
+          "Quantity": 1.2
+        },
+        {
+          "MaterialId": "scrap-metal",
+          "Quantity": 0.4
+        }
+      ],
+      "ProductionRate": 130
+    },
+    {
+      "Id": "slab-recipe",
+      "OutputMaterialId": "slab",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "crude-steel",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 28
+    },
+    {
+      "Id": "billet-recipe",
+      "OutputMaterialId": "billet",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "crude-steel",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 28
+    },
+    {
+      "Id": "hot-rolled-sheet-recipe",
+      "OutputMaterialId": "hot-rolled-sheet",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "slab",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 12
+    },
+    {
+      "Id": "forging-bar-recipe",
+      "OutputMaterialId": "forging-bar",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "billet",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 12
+    },
+    {
+      "Id": "steel-structure-recipe",
+      "OutputMaterialId": "steel-structure",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "hot-rolled-sheet",
+          "Quantity": 2
+        },
+        {
+          "MaterialId": "forging-bar",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 5
+    }
+  ],
+  "FactoryDefinitions": [
+    {
+      "Id": "iron-mine",
+      "Name": "Рудник",
+      "SectorId": "A",
+      "RecipeIds": [
+        "iron-ore-recipe"
+      ],
+      "BuildCost": 2740,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 12
+    },
+    {
+      "Id": "coal-mine",
+      "Name": "Угольная шахта",
+      "SectorId": "A",
+      "RecipeIds": [
+        "coking-coal-recipe"
+      ],
+      "BuildCost": 1540,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
+    },
+    {
+      "Id": "limestone-quarry",
+      "Name": "Известняковый карьер",
+      "SectorId": "A",
+      "RecipeIds": [
+        "limestone-recipe"
+      ],
+      "BuildCost": 1130,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 8
+    },
+    {
+      "Id": "scrap-yard",
+      "Name": "Пункт приёма лома",
+      "SectorId": "A",
+      "RecipeIds": [
+        "scrap-metal-recipe"
+      ],
+      "BuildCost": 1020,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 6
+    },
+    {
+      "Id": "sinter-plant",
+      "Name": "Агломерационная фабрика",
+      "SectorId": "A",
+      "RecipeIds": [
+        "sinter-recipe"
+      ],
+      "BuildCost": 2640,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 40
+    },
+    {
+      "Id": "coking-plant",
+      "Name": "Коксохимический завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "coke-recipe"
+      ],
+      "BuildCost": 1680,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 35
+    },
+    {
+      "Id": "blast-furnace",
+      "Name": "Доменная печь",
+      "SectorId": "A",
+      "RecipeIds": [
+        "pig-iron-recipe"
+      ],
+      "BuildCost": 2750,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 90
+    },
+    {
+      "Id": "oxygen-converter",
+      "Name": "Кислородный конвертер",
+      "SectorId": "A",
+      "RecipeIds": [
+        "crude-steel-recipe"
+      ],
+      "BuildCost": 3400,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 160
+    },
+    {
+      "Id": "slab-caster",
+      "Name": "МНЛЗ (слябы)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "slab-recipe"
+      ],
+      "BuildCost": 4080,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 260
+    },
+    {
+      "Id": "billet-caster",
+      "Name": "МНЛЗ (заготовка)",
+      "SectorId": "A",
+      "RecipeIds": [
+        "billet-recipe"
+      ],
+      "BuildCost": 4080,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 260
+    },
+    {
+      "Id": "hot-rolling-mill",
+      "Name": "Стан горячей прокатки",
+      "SectorId": "A",
+      "RecipeIds": [
+        "hot-rolled-sheet-recipe"
+      ],
+      "BuildCost": 5100,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 400
+    },
+    {
+      "Id": "bar-mill",
+      "Name": "Сортовой стан",
+      "SectorId": "A",
+      "RecipeIds": [
+        "forging-bar-recipe"
+      ],
+      "BuildCost": 5100,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 400
+    },
+    {
+      "Id": "fabrication-shop",
+      "Name": "Цех металлоконструкций",
+      "SectorId": "A",
+      "RecipeIds": [
+        "steel-structure-recipe"
+      ],
+      "BuildCost": 7140,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 700
+    }
+  ],
+  "BaseMarketPerMaterial": [
+    {
+      "MaterialId": "iron-ore",
+      "BasePrice": 1,
+      "BaseCapacity": 4600
+    },
+    {
+      "MaterialId": "coking-coal",
+      "BasePrice": 1,
+      "BaseCapacity": 1680
+    },
+    {
+      "MaterialId": "limestone",
+      "BasePrice": 1,
+      "BaseCapacity": 770
+    },
+    {
+      "MaterialId": "scrap-metal",
+      "BasePrice": 1,
+      "BaseCapacity": 600
+    },
+    {
+      "MaterialId": "sinter",
+      "BasePrice": 1,
+      "BaseCapacity": 3320
+    },
+    {
+      "MaterialId": "coke",
+      "BasePrice": 1,
+      "BaseCapacity": 1040
+    },
+    {
+      "MaterialId": "pig-iron",
+      "BasePrice": 1,
+      "BaseCapacity": 1800
+    },
+    {
+      "MaterialId": "crude-steel",
+      "BasePrice": 1,
+      "BaseCapacity": 1300
+    },
+    {
+      "MaterialId": "slab",
+      "BasePrice": 1,
+      "BaseCapacity": 280
+    },
+    {
+      "MaterialId": "billet",
+      "BasePrice": 1,
+      "BaseCapacity": 280
+    },
+    {
+      "MaterialId": "hot-rolled-sheet",
+      "BasePrice": 1,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "forging-bar",
+      "BasePrice": 1,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "steel-structure",
+      "BasePrice": 1,
+      "BaseCapacity": 50
+    }
+  ],
+  "GenerationResearch": {
+    "StartingGeneration": 1,
+    "ResearchPointThresholdsByGeneration": [
+      27,
+      39,
+      50,
+      61,
+      72
+    ],
+    "DiminishingReturnsExponent": 0.5,
+    "MaxCommitmentPerTurn": 250
+  }
+}

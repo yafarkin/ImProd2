@@ -22,15 +22,17 @@ public class MaterialChainDiagramTests
     }
 
     /// <summary>
-    /// metallurgy.json — production-модель с сознательными сквозными рёбрами (крепёж уровня 2 как
-    /// прямой вход сборок уровня 8-9), нужна отдельно от <see cref="DefaultConfig"/>/<see
-    /// cref="DebugConfig"/> для проверки <see cref="MaterialChainDiagram.Edge.LevelSpan"/>.
+    /// control-twin-metallurgy.json — production-модель с сознательными сквозными рёбрами (крепёж
+    /// уровня 2 как прямой вход сборок уровня 8-9), нужна отдельно от <see cref="DefaultConfig"/>/<see
+    /// cref="DebugConfig"/> для проверки <see cref="MaterialChainDiagram.Edge.LevelSpan"/>. Раньше
+    /// здесь был metallurgy.json — тот удалён 2026-09-07 (см. docs/production-staging.md), а его
+    /// сектор А целиком повторён в control-twin-metallurgy.json, включая это самое сквозное ребро.
     /// </summary>
     private static Game.Config.Loading.ResolvedGameConfig MetallurgyConfig()
     {
         using var factory = new WebApplicationFactory<Program>();
         var host = factory.Services.GetRequiredService<GameSessionHost>();
-        return Game.Config.Loading.GameConfigLoader.Load(host.ProductionModels["metallurgy"], host.SessionConfigs["pilot"]);
+        return Game.Config.Loading.GameConfigLoader.Load(host.ProductionModels["control-twin-metallurgy"], host.SessionConfigs["pilot"]);
     }
 
     /// <summary>
@@ -247,7 +249,7 @@ public class MaterialChainDiagramTests
     /// Тот же запрос пользователя, дальше: <see cref="MaterialChainDiagram.Edge.LevelSpan"/> должен
     /// отличать «сквозные» рёбра от обычных «соседних» — на нём страница решает, приглушать ли ребро
     /// по умолчанию. Проверяем на реальном сквозном ребре (крепёж уровня 2 — прямой вход сборки
-    /// коробки передач уровня 8 в metallurgy.json, минуя все промежуточные переделы).
+    /// коробки передач уровня 8 в control-twin-metallurgy.json, минуя все промежуточные переделы).
     /// </summary>
     [Fact]
     public void Build_Marks_Skip_Level_Edges_With_A_LevelSpan_Greater_Than_One()
