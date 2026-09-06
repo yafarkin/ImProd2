@@ -278,9 +278,14 @@ public sealed class SimpleBot
     /// Достраивает те фабрики сектора, которые ещё не построены и уже разблокированы (Блок 9.2) —
     /// на первом ходу это подмножество, доступное сразу; на последующих — то, что только что
     /// открылось благодаря командному исследованию поколений (<see cref="UpdateInvestmentPace"/>).
-    /// Нанимает на каждую новую фабрику базовую численность рабочих; R&amp;D-вложение фабрике не
-    /// назначает — тем же <see cref="UpdateInvestmentPace"/>, вызванным следом в тот же ход, чтобы
-    /// новая фабрика не осталась на ход без объявленного темпа.
+    /// Численность на новую фабрику и число самих фабрик берутся из <see cref="ChainCapacityPlanner"/>
+    /// — не «одна фабрика с базовой численностью», как было до 2026-09-07: уровень, чей выпуск не
+    /// покрывает потребность потребителей, получает донайм, а если и его потолка не хватает — вторую
+    /// (третью…) фабрику той же пары (тип, рецепт). Без этого бот физически не умел расшивать узкое
+    /// место, и конфиг, задуманный с расчётом на рост мощности по ходу партии, всегда выглядел
+    /// сломанным (запрос пользователя; см. <c>docs/economy-accounting-audit.md</c>).
+    /// R&amp;D-вложение фабрике не назначает — тем же <see cref="UpdateInvestmentPace"/>, вызванным
+    /// следом в тот же ход, чтобы новая фабрика не осталась на ход без объявленного темпа.
     /// <para>
     /// Постройка не бесплатна, но и не требует отдельного оформления — баланс просто уходит в минус
     /// (docs/TODO.md #23). Тем не менее бот пропускает постройку, если она увела бы баланс глубже
@@ -315,32 +320,124 @@ public sealed class SimpleBot
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var builtCombinations = team.Factories.Select(f => (f.Definition.Id, f.SelectedRecipe.Id)).ToHashSet();
-        var baseWorkerCount = session.State.Config.Raw.WorkerProductivity.BaseWorkerCount;
+        var builtCountByPair = team.Factories
+            .GroupBy(f => (f.Definition.Id, f.SelectedRecipe.Id))
+            .ToDictionary(group => group.Key, group => group.Count());
+        var productivity = session.State.Config.Raw.WorkerProductivity;
         var factoryDefinitions = session.State.Config.Raw.FactoryDefinitions;
         var negativeBalanceTolerance = ComputeNegativeBalanceTolerance(session);
+        var capacityPlan = ChainCapacityPlanner.Plan(session.State.Config);
+
+        // Донайм на уже стоящих фабриках — раньше новых построек: он дешевле (нет BuildCost и нового
+        // содержания) и закрывает то же узкое место.
+        TopUpWorkersTowardPlan(session, capacityPlan, negativeBalanceTolerance);
 
         foreach (var definition in _sectorFactories)
         {
             foreach (var recipe in definition.Recipes)
             {
-                if (builtCombinations.Contains((definition.Id, recipe.Id)) || recipe.Output.Level > team.UnlockedGeneration)
+                if (recipe.Output.Level > team.UnlockedGeneration)
                 {
                     continue;
                 }
 
-                var buildCost = factoryDefinitions.First(d => d.Id == definition.Id).BuildCost;
-                if (team.Balance - buildCost < -negativeBalanceTolerance)
+                var plan = capacityPlan[(definition.Id, recipe.Id)];
+                var alreadyBuilt = builtCountByPair.GetValueOrDefault((definition.Id, recipe.Id));
+                if (alreadyBuilt >= plan.FactoryCount)
                 {
-                    _trace?.Invoke($"[{Sector.Id}] пропускаю постройку {definition.Id}/{recipe.Id}: баланс {team.Balance:F0} - cost {buildCost:F0} < -толерантность {negativeBalanceTolerance:F0}");
+                    continue;
+                }
+
+                // Наём тоже стоит денег и тоже уводит баланс в минус — считаем его вместе с постройкой,
+                // иначе бот берёт на себя расширенный штат, которого «не заметил» в своей же проверке.
+                // Если на полный по плану штат денег нет, а на базовый есть — строим с тем, что тянем:
+                // недобранных рабочих доберёт TopUpWorkersTowardPlan на следующих ходах, когда баланс
+                // подрастёт. Отказываться от самой фабрики из-за штата было бы хуже, чем построить её
+                // с базовой бригадой.
+                var buildCost = factoryDefinitions.First(d => d.Id == definition.Id).BuildCost;
+                var affordableWorkers = AffordableWorkerCount(
+                    plan.WorkersPerFactory, alreadyHired: 0, productivity.BaseWorkerCount, productivity.HireCostPerWorker,
+                    team.Balance - buildCost, negativeBalanceTolerance);
+                if (affordableWorkers is null)
+                {
+                    _trace?.Invoke(
+                        $"[{Sector.Id}] пропускаю постройку {definition.Id}/{recipe.Id} (#{alreadyBuilt + 1} из {plan.FactoryCount}): " +
+                        $"баланс {team.Balance:F0} - постройка {buildCost:F0} - наём базовой бригады " +
+                        $"{productivity.BaseWorkerCount * productivity.HireCostPerWorker:F0} < -толерантность {negativeBalanceTolerance:F0}");
                     continue;
                 }
 
                 var built = (FactoryBuilt)session.BuildFactory(TeamId, definition.Id, recipe.Id).Change;
-                session.SetWorkerCount(TeamId, built.FactoryId, baseWorkerCount);
-                _trace?.Invoke($"[{Sector.Id}] строю {definition.Id}/{recipe.Id}: cost={buildCost:F0}, баланс после={team.Balance:F0}, рабочих={baseWorkerCount}");
+                session.SetWorkerCount(TeamId, built.FactoryId, affordableWorkers.Value);
+                _trace?.Invoke(
+                    $"[{Sector.Id}] строю {definition.Id}/{recipe.Id} (#{alreadyBuilt + 1} из {plan.FactoryCount}): cost={buildCost:F0}, " +
+                    $"баланс после={team.Balance:F0}, рабочих={affordableWorkers.Value} из {plan.WorkersPerFactory} по плану " +
+                    $"(спрос {plan.DemandPerTurn:F0}/ход)");
             }
         }
+    }
+
+
+    /// <summary>
+    /// Доводит численность уже построенных фабрик до плановой (<see cref="ChainCapacityPlanner"/>) по
+    /// мере появления денег — второй из двух рычагов расширения мощности, более дешёвый (нет ни
+    /// BuildCost, ни нового содержания). Вызывается каждый ход решений перед постройкой новых фабрик.
+    /// Сокращать штат обратно не умеет: увольнения у бота нет как механики вовсе (docs/TODO.md №24).
+    /// </summary>
+    private void TopUpWorkersTowardPlan(
+        GameSession session,
+        IReadOnlyDictionary<(string FactoryDefinitionId, string RecipeId), ChainCapacityPlanner.RecipePlan> capacityPlan,
+        decimal negativeBalanceTolerance)
+    {
+        var team = session.State.Teams[TeamId];
+        var productivity = session.State.Config.Raw.WorkerProductivity;
+
+        foreach (var factory in team.Factories.OrderBy(f => f.SelectedRecipe.Output.Level))
+        {
+            // Сравниваем с ОБЪЯВЛЕННОЙ численностью, не с фактической: наём происходит на расчёте
+            // (WorkerCountSet — только объявление, см. его doc-comment), поэтому фабрика, построенная
+            // этим же ходом, до расчёта имеет Workers=0 при уже объявленном плановом штате — по
+            // Workers бот переобъявлял бы то же самое каждый ход и мусорил в трассировке.
+            if (!capacityPlan.TryGetValue((factory.Definition.Id, factory.SelectedRecipe.Id), out var plan)
+                || factory.DesiredWorkers >= plan.WorkersPerFactory)
+            {
+                continue;
+            }
+
+            var affordable = AffordableWorkerCount(
+                plan.WorkersPerFactory, alreadyHired: factory.DesiredWorkers, minimumWorkers: factory.DesiredWorkers + 1,
+                productivity.HireCostPerWorker, team.Balance, negativeBalanceTolerance);
+            if (affordable is null)
+            {
+                continue;
+            }
+
+            session.SetWorkerCount(TeamId, factory.Id, affordable.Value);
+            _trace?.Invoke(
+                $"[{Sector.Id}] донайм {factory.Definition.Id}/{factory.SelectedRecipe.Id}: рабочих {factory.DesiredWorkers} -> " +
+                $"{affordable.Value} (план {plan.WorkersPerFactory} под спрос {plan.DemandPerTurn:F0}/ход)");
+        }
+    }
+
+    /// <summary>
+    /// Наибольшая численность в диапазоне [<paramref name="minimumWorkers"/>; <paramref name="desiredWorkers"/>],
+    /// доначать до которой (сверх <paramref name="alreadyHired"/>) не уводит баланс глубже
+    /// толерантности. <c>null</c> — не тянем даже минимум.
+    /// </summary>
+    private static int? AffordableWorkerCount(
+        int desiredWorkers, int alreadyHired, int minimumWorkers, decimal hireCostPerWorker,
+        decimal balanceAfterOtherSpending, decimal negativeBalanceTolerance)
+    {
+        for (var workers = desiredWorkers; workers >= minimumWorkers; workers--)
+        {
+            var hireCost = (workers - alreadyHired) * hireCostPerWorker;
+            if (balanceAfterOtherSpending - hireCost >= -negativeBalanceTolerance)
+            {
+                return workers;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

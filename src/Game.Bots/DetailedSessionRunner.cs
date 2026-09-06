@@ -131,6 +131,9 @@ public static class DetailedSessionRunner
                 _ when text.StartsWith("throttle", StringComparison.Ordinal) => bucket.FinancialTrend,
                 _ when text.StartsWith("строю", StringComparison.Ordinal) => bucket.Build,
                 _ when text.StartsWith("пропускаю постройку", StringComparison.Ordinal) => bucket.Build,
+                // Донайм до плановой численности (ChainCapacityPlanner) — тот же рычаг расширения
+                // мощности, что и постройка, только дешевле, поэтому и категория та же.
+                _ when text.StartsWith("донайм", StringComparison.Ordinal) => bucket.Build,
                 _ when text.StartsWith("темп вложений", StringComparison.Ordinal) => bucket.InvestmentPace,
                 _ when text.StartsWith("заказываю капремонт", StringComparison.Ordinal) => bucket.Overhaul,
                 _ when text.StartsWith("sellOrder", StringComparison.Ordinal) => bucket.Sell,

@@ -120,7 +120,11 @@ public class MultiRecipeIdealHallTests
             {
                 BaseWorkerCount = 5,
                 DiminishingReturnsFactor = 0.5m,
-                HireCostPerWorker = 50m,
+                // 0, а не 50: с 2026-09-06 идеальный зал платит за наём, как реальная команда
+                // (docs/economy-accounting-audit.md, дефект 2), а тонкая маржа этого конфига
+                // (FixedCostPerTurn=0) единовременные 250-750 ¤ не перекрывает за 5-10 ходов — тест
+                // же не про наём, а про то, что излишек продаётся/что фабрика строится на каждый рецепт.
+                HireCostPerWorker = 0m,
                 FireCostPerWorker = 30m,
                 SalaryPerWorkerPerTurn = 5m,
             },
