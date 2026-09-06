@@ -11,11 +11,13 @@ namespace Game.Balancing.Tests;
 public class TeamSteadyStateCalculatorTests
 {
     [Fact]
-    public void NetPerTurn_Subtracts_Salary_And_Generation_And_Rnd_Ceilings_From_Total_Profit()
+    public void NetPerTurn_Subtracts_Generation_And_Rnd_Ceilings_From_Margin_That_Already_Nets_Salary()
     {
-        // 1 фабрика, 1 рабочий: TotalCost=30 (FixedCostPerTurn), Прибыль=30×0.3=9.
-        // Зарплата=1×5=5, поколение=300 (потолок, один на сектор), R&D=1×200=200 (потолок на фабрику).
-        // Net = 9 - 5 - 300 - 200 = -496.
+        // 1 фабрика, 1 рабочий: собственный передел = FixedCostPerTurn 30 + электричество 0 +
+        // зарплата 1×5 = 35, прибыль = 35×0.3 = 10.5 — это уже ЧИСТАЯ маржа сверх операционных
+        // расходов, зарплата внутри неё (docs/economy-accounting-audit.md, дефект 3), поэтому
+        // второй раз она не вычитается. Поколение=300 (потолок, один на сектор),
+        // R&D=1×200=200 (потолок на фабрику). Net = 10.5 - 300 - 200 = -489.5.
         var config = ProductionCostLevelCalculatorTests.BuildSingleFactoryConfig(buildCost: 1000m, fixedCostPerTurn: 30m, productionRate: 100m);
         var rows = ProductionCostLevelCalculator.Calculate(config, workersPerFactory: 1);
 
@@ -23,11 +25,11 @@ public class TeamSteadyStateCalculatorTests
         var state = states.Single();
 
         Assert.Equal("A", state.SectorId);
-        Assert.Equal(9m, state.ProfitPerTurn);
+        Assert.Equal(10.5m, state.ProfitPerTurn);
         Assert.Equal(5m, state.SalaryPerTurn);
         Assert.Equal(300m, state.GenerationResearchPerTurn);
         Assert.Equal(200m, state.RndPerTurn);
-        Assert.Equal(-496m, state.NetPerTurn);
+        Assert.Equal(-489.5m, state.NetPerTurn);
     }
 
     /// <summary>

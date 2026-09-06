@@ -1170,9 +1170,17 @@ public sealed class GameSession
                     // выпуска, а не с числом рабочих или потреблённым сырьём (запрос пользователя),
                     // и известна только здесь, после расчёта производства (см. doc-comment
                     // TickFinanceStep — фиксированная часть, FactoryUpkeepPaid, списана раньше).
+                    // Цена — БАЗОВАЯ из конфига, не дрейфующая State.Market.ElectricityPrice
+                    // (docs/economy-accounting-audit.md, дефект 1, шаг 1): цену продажи при cost-plus
+                    // считает MaterialCostCalculator по Economy.ElectricityBasePrice, и если списывать
+                    // здесь по живой цене тренда, каждая единица продаётся дешевле, чем обошлась
+                    // (в сессиях проекта дрейф застревает на +2.5 к базе 2.0 — биллинг был в 2.25 раза
+                    // выше цены). Тренд остаётся рычагом рыночных котировок; вернуть его сюда можно
+                    // будет только вместе с настоящей рыночной моделью (docs/TODO.md №27), которая
+                    // пересчитывает и цену продажи.
                     var overheadCost = result.OutputQuantity
                                         * config.Raw.Economy.ElectricityConsumptionPerOutputUnit
-                                        * State.Market.ElectricityPrice;
+                                        * config.Raw.Economy.ElectricityBasePrice;
                     appended.Add(_log.Append(new FactoryProduced
                     {
                         Id = Ulid.NewUlid(),

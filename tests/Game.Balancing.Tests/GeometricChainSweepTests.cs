@@ -35,10 +35,13 @@ public class GeometricChainSweepTests
     [Fact]
     public void Unhealthy_Base_Ratio_Cannot_Be_Fixed_By_Growth_Or_Decay_Tuning()
     {
-        // BuildCost/FixedCostPerTurn = 500/16.67 = 30 => payback уровня 0 = 500/(16.67×0.3) = 100 > 75:
-        // то же нездоровое отношение, что было в debug-minimal.json ДО фикса направления B.
+        // Собственный передел уровня = FixedCostPerTurn 16.67 + зарплата 10×5 + электричество 0 =
+        // 66.67 => прибыль/ход = 66.67×0.3 = 20 => payback уровня 0 = 2000/20 = 100 > 75: то же
+        // нездоровое отношение BuildCost к переделу, что было в debug-minimal.json ДО фикса
+        // направления B (числа пересчитаны 2026-09-06 под честную базу прибыли —
+        // docs/economy-accounting-audit.md, дефект 3; до неё то же самое давала пара 500/16.67).
         var results = GeometricChainSweep.Run(
-            baseBuildCost: 500m, baseFixedCostPerTurn: 16.67m, baseProductionRate: 100m,
+            baseBuildCost: 2000m, baseFixedCostPerTurn: 16.67m, baseProductionRate: 100m,
             levels: 6, inputQuantityPerLevel: 2m,
             buildCostGrowthSteps: ThreeGrowthSteps, productionRateDecaySteps: ThreeDecaySteps,
             paybackWarningTurns: 75m, workersPerFactory: 10);

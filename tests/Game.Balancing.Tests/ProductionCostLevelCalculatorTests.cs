@@ -23,23 +23,28 @@ public class ProductionCostLevelCalculatorTests
     {
         // BuildCost=1000, workers=1 (в линейной зоне отдачи, ЭффективнаяМощность=workers ровно) =>
         // Выпуск=ProductionRate×1=100, FixedCostPerTurn=30, без входов/электричества =>
-        // Себестоимость=30/100=0.3, Прибыль/ход = 100 × 0.3 × (1.30-1) = 9, окупаемость = 1000/9.
+        // Себестоимость=30/100=0.3 (зарплата в неё намеренно не входит, см. doc-comment класса).
+        // Прибыль считается от собственного передела (docs/economy-accounting-audit.md, дефект 3):
+        // передел = FixedCostPerTurn 30 + электричество 0 + зарплата 1×5 = 35,
+        // прибыль/ход = 35 × (1.30-1) = 10.5, окупаемость = 1000/10.5.
         var config = BuildSingleFactoryConfig(buildCost: 1000m, fixedCostPerTurn: 30m, productionRate: 100m);
 
         var rows = ProductionCostLevelCalculator.Calculate(config, workersPerFactory: 1);
         var row = rows.Single();
 
         Assert.Equal(0.3m, row.UnitCost);
-        Assert.Equal(1000m / 9m, row.PaybackTurns);
+        Assert.Equal(35m, row.ConversionCost);
+        Assert.Equal(10.5m, row.ProfitPerTurn);
+        Assert.Equal(1000m / 10.5m, row.PaybackTurns);
     }
 
     [Fact]
     public void PaybackTurns_Is_Null_When_The_Factory_Has_No_Recurring_Cost_Basis()
     {
-        // FixedCostPerTurn=0, без входов, без электричества => Себестоимость=0 => Прибыль/ход=0
-        // (наценка 30% от нуля — тоже ноль) — формула честно возвращает null, не бесконечность и не
-        // ноль ходов: делить BuildCost не на что.
-        var config = BuildSingleFactoryConfig(buildCost: 1000m, fixedCostPerTurn: 0m, productionRate: 100m);
+        // FixedCostPerTurn=0, без входов, без электричества, зарплата 0 => собственный передел = 0
+        // => Прибыль/ход=0 (наценка 30% от нуля — тоже ноль) — формула честно возвращает null, не
+        // бесконечность и не ноль ходов: делить BuildCost не на что.
+        var config = BuildSingleFactoryConfig(buildCost: 1000m, fixedCostPerTurn: 0m, productionRate: 100m, salaryPerWorkerPerTurn: 0m);
 
         var rows = ProductionCostLevelCalculator.Calculate(config, workersPerFactory: 1);
         var row = rows.Single();
@@ -95,14 +100,14 @@ public class ProductionCostLevelCalculatorTests
     [Fact]
     public void MaxBuildCostForTargetPayback_Is_ProfitPerTurn_Times_Target_And_Round_Trips_With_PaybackTurns()
     {
-        // Тот же конфиг, что у первого теста: Прибыль/ход = 9.
+        // Тот же конфиг, что у первого теста: Прибыль/ход = 10.5.
         var config = BuildSingleFactoryConfig(buildCost: 1000m, fixedCostPerTurn: 30m, productionRate: 100m);
 
         var rows = ProductionCostLevelCalculator.Calculate(config, workersPerFactory: 1);
         var row = rows.Single();
 
-        Assert.Equal(9m, row.ProfitPerTurn);
-        Assert.Equal(90m, row.MaxBuildCostForTargetPayback(10m));
+        Assert.Equal(10.5m, row.ProfitPerTurn);
+        Assert.Equal(105m, row.MaxBuildCostForTargetPayback(10m));
 
         // Обратный проход: если взять сам текущий срок окупаемости как цель — получаем обратно
         // текущий BuildCost (с точностью до округления decimal-деления в обе стороны).
@@ -114,7 +119,7 @@ public class ProductionCostLevelCalculatorTests
     [Fact]
     public void MaxBuildCostForTargetPayback_Is_Zero_When_The_Factory_Has_No_Recurring_Cost_Basis()
     {
-        var config = BuildSingleFactoryConfig(buildCost: 1000m, fixedCostPerTurn: 0m, productionRate: 100m);
+        var config = BuildSingleFactoryConfig(buildCost: 1000m, fixedCostPerTurn: 0m, productionRate: 100m, salaryPerWorkerPerTurn: 0m);
 
         var rows = ProductionCostLevelCalculator.Calculate(config, workersPerFactory: 1);
         var row = rows.Single();
@@ -124,7 +129,8 @@ public class ProductionCostLevelCalculatorTests
 
     /// <summary>Один сектор, одна фабрика уровня 0, без входов — минимум, достаточный для проверки самой формулы.</summary>
     /// <summary>internal, не private — переиспользуется <c>TeamSteadyStateCalculatorTests</c> (та же сборка).</summary>
-    internal static ResolvedGameConfig BuildSingleFactoryConfig(decimal buildCost, decimal fixedCostPerTurn, decimal productionRate)
+    internal static ResolvedGameConfig BuildSingleFactoryConfig(
+        decimal buildCost, decimal fixedCostPerTurn, decimal productionRate, decimal salaryPerWorkerPerTurn = 5m)
     {
         var config = new GameConfig
         {
@@ -159,7 +165,7 @@ public class ProductionCostLevelCalculatorTests
                 DiminishingReturnsFactor = 0.5m,
                 HireCostPerWorker = 50m,
                 FireCostPerWorker = 30m,
-                SalaryPerWorkerPerTurn = 5m,
+                SalaryPerWorkerPerTurn = salaryPerWorkerPerTurn,
             },
             Rnd = new RndConfig { ResearchPointThresholdsByLevel = [100m], DiminishingReturnsExponent = 1m, ProductionRateBonusPerLevel = 0.1m, MaxCommitmentPerTurn = 200m },
             Wear = new WearConfig

@@ -25,10 +25,16 @@ public static class TeamSteadyStateCalculator
     {
         public required string SectorId { get; init; }
 
-        /// <summary>Сумма прибыли всех фабрик сектора при продаже 100% выпуска системе (та же наценка, что и в <see cref="ProductionCostLevelCalculator.FactoryRecipeCost.PaybackTurns"/>).</summary>
+        /// <summary>
+        /// Сумма прибыли всех фабрик сектора при продаже 100% выпуска системе (та же наценка и та же
+        /// база — собственный передел, — что и в
+        /// <see cref="ProductionCostLevelCalculator.FactoryRecipeCost.ProfitPerTurn"/>). Это ЧИСТАЯ
+        /// маржа сверх всех операционных расходов, включая зарплату: она уже внутри передела, поэтому
+        /// <see cref="NetPerTurn"/> вычитает её не второй раз, а только вложения в поколение/R&amp;D.
+        /// </summary>
         public required decimal ProfitPerTurn { get; init; }
 
-        /// <summary>Суммарная зарплата всех рабочих сектора (все фабрики уже построены и полностью укомплектованы тем же числом рабочих, что в <see cref="ProductionCostLevelCalculator.Calculate"/>).</summary>
+        /// <summary>Суммарная зарплата всех рабочих сектора (все фабрики уже построены и полностью укомплектованы тем же числом рабочих, что в <see cref="ProductionCostLevelCalculator.Calculate"/>) — справочно: в <see cref="NetPerTurn"/> отдельным слагаемым не входит, см. <see cref="ProfitPerTurn"/>.</summary>
         public required decimal SalaryPerTurn { get; init; }
 
         /// <summary>Потолок вложений в командное исследование поколений — один на сектор/команду, не на фабрику.</summary>
@@ -37,8 +43,8 @@ public static class TeamSteadyStateCalculator
         /// <summary>Потолок вложений в R&amp;D — по потолку на КАЖДУЮ фабрику сектора (в отличие от поколения, R&amp;D назначается отдельно каждой фабрике).</summary>
         public required decimal RndPerTurn { get; init; }
 
-        /// <summary>Чистый поток за ход в устойчивом состоянии — <c>&lt; 0</c> значит цепочка не может свести концы с концами, даже когда всё уже построено и капитальные расходы позади.</summary>
-        public decimal NetPerTurn => ProfitPerTurn - SalaryPerTurn - GenerationResearchPerTurn - RndPerTurn;
+        /// <summary>Чистый поток за ход в устойчивом состоянии — <c>&lt; 0</c> значит цепочка не может свести концы с концами, даже когда всё уже построено и капитальные расходы позади. Зарплата вычитается не здесь, а внутри <see cref="ProfitPerTurn"/> (она часть передела, см. его doc-comment).</summary>
+        public decimal NetPerTurn => ProfitPerTurn - GenerationResearchPerTurn - RndPerTurn;
     }
 
     public static IReadOnlyList<SectorSteadyState> Calculate(
@@ -60,7 +66,7 @@ public static class TeamSteadyStateCalculator
                 return new SectorSteadyState
                 {
                     SectorId = group.Key,
-                    ProfitPerTurn = rowList.Sum(r => r.TotalCost * margin),
+                    ProfitPerTurn = rowList.Sum(r => r.ConversionCost * margin),
                     SalaryPerTurn = rowList.Sum(r => r.Workers) * salaryPerWorker,
                     GenerationResearchPerTurn = generationCeiling,
                     RndPerTurn = rowList.Count * rndCeilingPerFactory,
