@@ -23,6 +23,7 @@ public class DiagnoseRunVerdictTests
             DiagnoseRun.PrintFinalVerdict(
                 costAnomalies: [],
                 badPayback: [],
+                supplyDeficits: [],
                 badSteadyStates: badSteadyStates,
                 sandwich: new DiagnoseRun.MarginSandwichResult(true, "ok"),
                 idealVerdicts: idealVerdicts,

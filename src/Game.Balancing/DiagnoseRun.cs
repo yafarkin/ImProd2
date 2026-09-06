@@ -28,6 +28,11 @@ namespace Game.Balancing;
 /// статьи расхода. Проверяет: если бы вся цепочка сектора была уже построена и полностью
 /// укомплектована, хватает ли суммарной прибыли покрыть зарплату всех рабочих и вложения по потолку.
 /// Необходимое дополнение к §1b, не замена — обе проверки должны пройти разом.</item>
+/// <item><b>Физический баланс спроса/предложения (<see cref="SupplyDemandCalculator"/>)</b> — §1d,
+/// в плане исследований «итерация 2, §5» (2026-09-07): хватает ли выпуска каждого материала на то,
+/// что просят у него соседи по рецепту. Единственная секция, которая смотрит на ФИЗИКУ, а не на
+/// деньги, и поэтому блокирует вердикт раньше §1b — окупаемость уровня считается при загрузке 100%,
+/// а недокормленный уровень платит содержание и зарплату полностью, выпуская долю от мощности.</item>
 /// <item><b>«Бутерброд наценок» (<see cref="CheckMarginSandwich"/>)</b> — статическая сверка чисел, не
 /// расчёт: чтобы P2P-контракт был выгоднее рынка ОБЕИМ сторонам разом, жадность бота
 /// (<see cref="SimpleBot.MinSellMarginRate"/>/<see cref="SimpleBot.MaxBuyPremiumRate"/>) должна лежать
@@ -93,6 +98,37 @@ internal static class DiagnoseRun
         }
 
         Console.WriteLine();
+        Console.WriteLine("=== 1d. Физический баланс спроса/предложения (хватает ли выпуска соседям по рецепту) ===");
+        var balances = SupplyDemandCalculator.Calculate(config, cliArguments.Workers);
+        var capacityPlan = ChainCapacityPlanner.Plan(config);
+        var deficits = SupplyDemandCalculator.FormatDeficits(balances, capacityPlan);
+        var plannedExpansion = SupplyDemandCalculator.FormatPlannedExpansion(capacityPlan, config.Raw.WorkerProductivity.BaseWorkerCount);
+        var thinSlack = SupplyDemandCalculator.FormatThinSlack(balances);
+        if (deficits.Count == 0)
+        {
+            Console.WriteLine(plannedExpansion.Count == 0
+                ? "Дефицитных материалов нет: каждого хватает на то, что просят соседи по рецепту, даже без расширения мощности."
+                : "Неустранимых дефицитов нет: там, где базового выпуска не хватает, разрыв закрывается доньмом/второй фабрикой (см. ниже).");
+        }
+        else
+        {
+            foreach (var line in deficits)
+            {
+                Console.WriteLine($"  ⚠ {line}");
+            }
+        }
+
+        foreach (var line in plannedExpansion)
+        {
+            Console.WriteLine($"  · план расширения: {line}");
+        }
+
+        foreach (var line in thinSlack)
+        {
+            Console.WriteLine($"  · {line}");
+        }
+
+        Console.WriteLine();
         Console.WriteLine("=== 2. Бутерброд наценок (система / P2P / аварийная закупка) ===");
         var sandwich = CheckMarginSandwich(config);
         Console.WriteLine(sandwich.Report);
@@ -140,7 +176,7 @@ internal static class DiagnoseRun
 
         Console.WriteLine();
         Console.WriteLine("=== Итоговый вердикт ===");
-        PrintFinalVerdict(anomalies, badPayback, badSteadyStates, sandwich, idealVerdicts, averageScoreBySector);
+        PrintFinalVerdict(anomalies, badPayback, deficits, badSteadyStates, sandwich, idealVerdicts, averageScoreBySector);
 
         return Task.CompletedTask;
     }
@@ -318,13 +354,26 @@ internal static class DiagnoseRun
     /// информация, не как порог вердикта.
     /// </summary>
     internal static void PrintFinalVerdict(
-        IReadOnlyList<string> costAnomalies, IReadOnlyList<string> badPayback,
+        IReadOnlyList<string> costAnomalies, IReadOnlyList<string> badPayback, IReadOnlyList<string> supplyDeficits,
         IReadOnlyList<TeamSteadyStateCalculator.SectorSteadyState> badSteadyStates, MarginSandwichResult sandwich,
         IReadOnlyDictionary<string, ChainVerdict> idealVerdicts, IReadOnlyDictionary<string, decimal> averageScoreBySector)
     {
         if (costAnomalies.Count > 0)
         {
             Console.WriteLine("❌ ИГРАТЬ НЕЛЬЗЯ — есть аномалии себестоимости (см. §1). Чинить рецепты, дальше можно не смотреть.");
+            return;
+        }
+
+        if (supplyDeficits.Count > 0)
+        {
+            Console.WriteLine(
+                $"❌ ИГРАТЬ НЕЛЬЗЯ — {supplyDeficits.Count} материал(ов) физически не хватает потребителям, и разрыв не " +
+                "закрывается ни доньмом, ни новыми фабриками (см. §1d). " +
+                "Это блокирует раньше окупаемости (§1b) намеренно: окупаемость считается при загрузке 100%, а " +
+                "недокормленный уровень работает на долю u от мощности — его окупаемость растягивается в 1/u раз, " +
+                "оставаясь формально зелёной, зато содержание и зарплату он платит полностью каждый ход " +
+                "(проверено 2026-09-07, docs/economy-accounting-audit.md). Чинить ProductionRate/количества входов, " +
+                "дальше можно не смотреть.");
             return;
         }
 
