@@ -41,6 +41,7 @@ public static class GameConfigComposer
                 MarketCapacityOverflowDiscount = session.Economy.MarketCapacityOverflowDiscount,
                 PricingModel = session.Economy.PricingModel,
                 MarketPriceFloorRate = session.Economy.MarketPriceFloorRate,
+                MarketCapacityScale = session.Economy.MarketCapacityScale,
                 MarketSupplyPressureHalfLifeTurns = session.Economy.MarketSupplyPressureHalfLifeTurns,
                 EconomyIndexMin = session.Economy.EconomyIndexMin,
                 EconomyIndexMax = session.Economy.EconomyIndexMax,

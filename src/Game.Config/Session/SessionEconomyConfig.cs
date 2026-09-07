@@ -31,6 +31,9 @@ public sealed record SessionEconomyConfig
     /// <summary>См. <see cref="EconomyConfig.MarketPriceFloorRate"/>.</summary>
     public decimal MarketPriceFloorRate { get; init; } = 0.35m;
 
+    /// <summary>См. <see cref="EconomyConfig.MarketCapacityScale"/>.</summary>
+    public decimal MarketCapacityScale { get; init; } = 1m;
+
     /// <summary>См. <see cref="EconomyConfig.MarketSupplyPressureHalfLifeTurns"/>.</summary>
     public int MarketSupplyPressureHalfLifeTurns { get; init; } = 3;
 

@@ -202,6 +202,75 @@ public class ExternalPricingModelTests
         Assert.Contains("capacity", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    // --- Рычаг «насколько резко рынок реагирует на объём» ---
+
+    /// <summary>
+    /// <c>MarketCapacityScale</c> двигает общую жёсткость реакции, не трогая относительную структуру
+    /// цепочки: ёмкость каждого материала умножается на один и тот же множитель, поэтому соотношения
+    /// между материалами (у сырья ёмкость кратно больше, чем у флагмана) сохраняются.
+    /// </summary>
+    [Fact]
+    public void The_Capacity_Scale_Moves_All_Materials_By_The_Same_Factor()
+    {
+        var baseline = MarketAt(External(), turn: 1);
+        var doubled = MarketAt(External() with { MarketCapacityScale = 2m }, turn: 1);
+
+        foreach (var entry in TestGameConfig.Resolved.Raw.Economy.BaseMarketPerMaterial)
+        {
+            Assert.Equal(baseline.QuoteOf(entry.MaterialId).Capacity * 2m, doubled.QuoteOf(entry.MaterialId).Capacity);
+        }
+    }
+
+    /// <summary>Узкий рынок реагирует резче: тот же объём роняет цену сильнее.</summary>
+    [Fact]
+    public void A_Narrower_Market_Reacts_More_Sharply_To_The_Same_Volume()
+    {
+        decimal PriceAtScale(decimal scale)
+        {
+            var economy = External() with { MarketCapacityScale = scale };
+            return MarketSaleCalculator.Calculate(
+                MarketAt(economy, 1), TestGameConfig.MaterialCosts, economy, OreMaterial, volume: 100m).UnitPrice;
+        }
+
+        var sharp = PriceAtScale(0.5m);
+        var normal = PriceAtScale(1m);
+        var forgiving = PriceAtScale(10m);
+
+        Assert.True(sharp < normal, "узкий рынок обязан реагировать резче обычного");
+        Assert.True(forgiving > normal, "ёмкий рынок обязан реагировать мягче обычного");
+    }
+
+    /// <summary>
+    /// Точный выключатель эластичности — <c>MarketPriceFloorRate = 1.0</c>: цена перестаёт зависеть
+    /// от объёма вовсе, ровно как до Фазы 11. Регрессия на то, что «безразличный рынок» остаётся
+    /// достижим одной строкой конфига.
+    /// </summary>
+    [Fact]
+    public void A_Floor_Of_One_Makes_The_Market_Completely_Indifferent_To_Volume()
+    {
+        var economy = External(floor: 1m);
+        var market = MarketAt(economy, turn: 1);
+
+        var tiny = MarketSaleCalculator.Calculate(market, TestGameConfig.MaterialCosts, economy, OreMaterial, 0.01m);
+        var enormous = MarketSaleCalculator.Calculate(market, TestGameConfig.MaterialCosts, economy, OreMaterial, 1_000_000m);
+
+        Assert.Equal(tiny.UnitPrice, enormous.UnitPrice);
+        Assert.Equal(market.QuoteOf(Ore).Price, enormous.UnitPrice);
+    }
+
+    /// <summary>
+    /// Нулевой масштаб — не «бесконечно ёмкий рынок», а деление на ноль в кривой; отсекается с
+    /// подсказкой, чем выключать эластичность на самом деле.
+    /// </summary>
+    [Fact]
+    public void A_Non_Positive_Capacity_Scale_Is_Rejected_With_A_Hint()
+    {
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(
+            () => MarketCalculator.Calculate(1, External() with { MarketCapacityScale = 0m }));
+
+        Assert.Contains("MarketPriceFloorRate", exception.Message, StringComparison.Ordinal);
+    }
+
     // --- Аварийная закупка ---
 
     /// <summary>

@@ -12,7 +12,9 @@ namespace Game.Engine;
 /// <para><b>Две модели, см. <see cref="PricingModel"/>.</b></para>
 ///
 /// <para><see cref="PricingModel.External"/> (блок 11.5, <c>docs/external-economy.md</c> §2.1):
-/// и цена, и ёмкость — базовые значения из конфига, растянутые индексом деловой активности.
+/// и цена, и ёмкость — базовые значения из конфига, растянутые индексом деловой активности; ёмкость
+/// дополнительно масштабируется сессионным рычагом <see cref="EconomyConfig.MarketCapacityScale"/>
+/// («насколько резко рынок реагирует на объём»).
 /// Публикуемая цена — это цена <b>ненасыщенного</b> рынка: просадку за перепроизводство накладывает
 /// уже сама продажа (<see cref="MarketSaleCalculator"/>), потому что она зависит от того, сколько
 /// зал успел продать, а котировка обязана оставаться чистой функцией от хода. Цена электричества
@@ -41,6 +43,14 @@ public static class MarketCalculator
 
     private static MarketUpdateResult CalculateExternal(int turn, EconomyConfig economy)
     {
+        if (economy.MarketCapacityScale <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(economy), economy.MarketCapacityScale,
+                "Market capacity scale must be positive: zero capacity is a division by zero in the elasticity " +
+                "curve, not an infinitely wide market. To switch elasticity off entirely set MarketPriceFloorRate to 1.");
+        }
+
         var index = EconomyIndexCalculator.Calculate(turn, economy);
 
         var quotes = new Dictionary<string, MaterialQuote>();
@@ -48,7 +58,7 @@ public static class MarketCalculator
         {
             quotes[baseline.MaterialId] = new MaterialQuote(
                 baseline.BaseSellPrice * index,
-                ExternalPriceCalculator.Capacity(baseline.BaseCapacity, index));
+                ExternalPriceCalculator.Capacity(baseline.BaseCapacity * economy.MarketCapacityScale, index));
         }
 
         return new MarketUpdateResult
