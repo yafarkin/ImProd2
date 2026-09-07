@@ -134,6 +134,7 @@ public static class IdealHallCalculator
                 SectorId = b.Sector.Id,
                 SectorName = b.Sector.Name,
                 ValueByTurn = b.ValueByTurn,
+                ExpensesByType = b.Expenses,
             }).ToList(),
         };
     }
@@ -149,6 +150,21 @@ public static class IdealHallCalculator
         public Dictionary<Ulid, int> BuiltAtTurn { get; } = new();
         public Dictionary<Ulid, int> PreviousLevel { get; } = new();
         public List<decimal> ValueByTurn { get; } = new();
+
+        /// <summary>Накопленный расход по категориям — см. <see cref="IdealHallBranchTrajectory.ExpensesByType"/>.</summary>
+        public Dictionary<FinanceHistoryCalculator.OperationType, decimal> Expenses { get; } = new();
+
+        /// <summary>Списывает <paramref name="amount"/> с кассы и записывает его в категорию <paramref name="type"/> — единственный способ потратить деньги в этом классе, чтобы разбивка не могла разойтись с кассой.</summary>
+        public void Spend(FinanceHistoryCalculator.OperationType type, decimal amount)
+        {
+            if (amount == 0m)
+            {
+                return;
+            }
+
+            Cash -= amount;
+            Expenses[type] = Expenses.GetValueOrDefault(type) + amount;
+        }
     }
 
     private static BranchState CreateBranch(ResolvedGameConfig config, Sector sector)
@@ -189,7 +205,7 @@ public static class IdealHallCalculator
         var genConfig = config.Raw.GenerationResearch;
         if (!GenerationResearchCalculator.IsAtMaxGeneration(branch.PreviousGeneration, genConfig))
         {
-            branch.Cash -= genConfig.MaxCommitmentPerTurn;
+            branch.Spend(FinanceHistoryCalculator.OperationType.GenerationResearchInvested, genConfig.MaxCommitmentPerTurn);
         }
 
         branch.PreviousGeneration = branch.Team.UnlockedGeneration;
@@ -229,10 +245,12 @@ public static class IdealHallCalculator
                 {
                     var factory = branch.Team.BuildFactory(Ulid.NewUlid(), definition, recipe, builtAtTurn: turn);
                     factory.Hire(plan.WorkersPerFactory);
-                    branch.Cash -= buildCost;
+                    branch.Spend(FinanceHistoryCalculator.OperationType.FactoryBuilt, buildCost);
                     // Наём тоже стоит денег (docs/economy-accounting-audit.md, дефект 2, шаг 2) — раньше
                     // идеальный зал набирал бригаду бесплатно, реальная команда платит.
-                    branch.Cash -= plan.WorkersPerFactory * config.Raw.WorkerProductivity.HireCostPerWorker;
+                    branch.Spend(
+                        FinanceHistoryCalculator.OperationType.WorkersHired,
+                        plan.WorkersPerFactory * config.Raw.WorkerProductivity.HireCostPerWorker);
                     branch.BuiltAtTurn[factory.Id] = turn;
                     branch.PreviousLevel[factory.Id] = 1;
                 }
@@ -249,7 +267,7 @@ public static class IdealHallCalculator
             var previousLevel = branch.PreviousLevel[factory.Id];
             if (!RndCalculator.IsAtMaxLevel(previousLevel, rndConfig))
             {
-                branch.Cash -= rndConfig.MaxCommitmentPerTurn;
+                branch.Spend(FinanceHistoryCalculator.OperationType.RndInvested, rndConfig.MaxCommitmentPerTurn);
             }
 
             var turnsSinceBuilt = turn - branch.BuiltAtTurn[factory.Id] + 1;
@@ -296,9 +314,11 @@ public static class IdealHallCalculator
                 // (GameSession.RunTick). Раньше не списывалось вовсе, хотя это крупнейшая статья
                 // расходов на реальных конфигах — из-за чего X(t) был не потолком, а фикцией
                 // (docs/economy-accounting-audit.md, дефект 2, шаг 2).
-                branch.Cash -= result.OutputQuantity
-                                * config.Raw.Economy.ElectricityConsumptionPerOutputUnit
-                                * config.Raw.Economy.ElectricityBasePrice;
+                branch.Spend(
+                    FinanceHistoryCalculator.OperationType.FactoryOverhead,
+                    result.OutputQuantity
+                        * config.Raw.Economy.ElectricityConsumptionPerOutputUnit
+                        * config.Raw.Economy.ElectricityBasePrice);
             }
         }
     }
@@ -314,8 +334,12 @@ public static class IdealHallCalculator
     private static void ChargeOperatingCosts(BranchState branch, ResolvedGameConfig config)
     {
         var totalWorkers = branch.Team.Factories.Sum(f => f.Workers);
-        branch.Cash -= FinanceCalculator.CalculateSalaries(totalWorkers, config.Raw.WorkerProductivity);
-        branch.Cash -= FinanceCalculator.CalculateFactoryUpkeep(branch.Team.Factories, config.Raw.FactoryDefinitions, config.Raw.Wear);
+        branch.Spend(
+            FinanceHistoryCalculator.OperationType.SalariesPaid,
+            FinanceCalculator.CalculateSalaries(totalWorkers, config.Raw.WorkerProductivity));
+        branch.Spend(
+            FinanceHistoryCalculator.OperationType.FactoryUpkeep,
+            FinanceCalculator.CalculateFactoryUpkeep(branch.Team.Factories, config.Raw.FactoryDefinitions, config.Raw.Wear));
     }
 
     /// <summary>
@@ -328,7 +352,9 @@ public static class IdealHallCalculator
     private static void ChargeWarehouseFee(BranchState branch, ResolvedGameConfig config)
     {
         var totalStock = branch.Team.Warehouse.Stock.Sum(stock => stock.Quantity);
-        branch.Cash -= WarehouseFeeCalculator.Calculate(totalStock, config.Raw.Warehouse).Fee;
+        branch.Spend(
+            FinanceHistoryCalculator.OperationType.WarehouseFee,
+            WarehouseFeeCalculator.Calculate(totalStock, config.Raw.Warehouse).Fee);
     }
 
     /// <summary>
@@ -410,7 +436,7 @@ public static class IdealHallCalculator
             // своя такая же фабрика.
             var payment = quantity * unitCost;
             seller.Cash += payment;
-            buyer.Cash -= payment;
+            buyer.Spend(FinanceHistoryCalculator.OperationType.ContractDelivery, payment);
             transferredTotal += quantity;
         }
 

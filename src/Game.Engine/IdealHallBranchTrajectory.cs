@@ -18,4 +18,21 @@ public sealed record IdealHallBranchTrajectory
     /// см. <c>docs/production-balance.md</c> §3.
     /// </summary>
     public required IReadOnlyList<decimal> ValueByTurn { get; init; }
+
+    /// <summary>
+    /// Накопленный за всю траекторию расход по категориям — теми же <see
+    /// cref="FinanceHistoryCalculator.OperationType"/>, которыми движок разбирает собственный журнал.
+    /// Существует ради одной проверки (<c>IdealHallEngineReconciliationTests</c>, 2026-09-07): на
+    /// одинаковом сценарии идеальный зал и настоящий тик обязаны списать одно и то же по каждой
+    /// статье. Без неё сверять было нечего — зал отдавал только итоговое X(t), в котором пропущенная
+    /// статья расходов неотличима от честного расчёта, и ровно так три дефекта учёта прожили в
+    /// проекте несколько недель (<c>docs/economy-accounting-audit.md</c>).
+    ///
+    /// <para>
+    /// Не полный список категорий движка: капремонта здесь нет никогда (износ не моделируется, см.
+    /// doc-comment <see cref="IdealHallCalculator"/>), аварийной закупки — тоже (зал по построению
+    /// никогда не остаётся без сырья).
+    /// </para>
+    /// </summary>
+    public required IReadOnlyDictionary<FinanceHistoryCalculator.OperationType, decimal> ExpensesByType { get; init; }
 }
