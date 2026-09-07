@@ -126,6 +126,9 @@ else
     {
         <h4 class="h6 mt-4">Баланс по ходам</h4>
         @ChartRenderer.Render(BuildBalanceChartLayout())
+        <h4 class="h6 mt-4">Денежный поток по ходам</h4>
+        <p class="text-muted small">Разница баланса с прошлым ходом — не накопленный итог: выше нуля — заработали за этот ход, ниже — потратили больше, чем заработали.</p>
+        @ChartRenderer.Render(BuildCashFlowChartLayout())
         <h4 class="h6 mt-4">Репутация по ходам</h4>
         @ChartRenderer.Render(BuildReputationChartLayout())
     }
@@ -1573,6 +1576,36 @@ else
     private LineChartDiagram.ChartLayout BuildBalanceChartLayout()
     {
         var series = new[] { new LineChartDiagram.ChartSeries("Баланс", SectorColors.Palette[0], _history!.NetWorthByTurn) };
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
+    }
+
+    /// <summary>
+    /// Денежный поток по ходам (вкладка «Обзор», запрос пользователя: «важно видеть не только
+    /// баланс под конец партии, но и зарабатывают ли сейчас деньги, и сколько») — сумма прихода
+    /// минус сумма расхода за каждый ход по <see cref="_financeHistory"/> (та же полная и уже
+    /// проверенная разбивка операций, что показывает вкладка «Финансы»), не накопленный итог, как
+    /// <see cref="BuildBalanceChartLayout"/> выше. Сходится с разницей баланса между соседними
+    /// точками <see cref="FactoryHistoryCalculator.TeamFactoryHistory.NetWorthByTurn"/> по построению
+    /// — <see cref="FinanceHistoryCalculator"/> перечисляет каждую операцию, трогающую баланс
+    /// команды, ни одна не пропущена и не задвоена. Ходы совсем без операций получают 0, а не
+    /// выпадают из ряда, — берём полный диапазон ходов из <see cref="BuildBalanceChartLayout"/>, а не
+    /// только те, где что-то произошло, чтобы ось ходов совпадала с графиком баланса выше.
+    /// </summary>
+    private LineChartDiagram.ChartLayout BuildCashFlowChartLayout()
+    {
+        var flowByTurn = _financeHistory
+            .GroupBy(operation => operation.Turn)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(operation =>
+                    operation.Direction == FinanceHistoryCalculator.MoneyDirection.Income ? operation.Amount : -operation.Amount));
+
+        var points = _history!.NetWorthByTurn
+            .Select(point => (point.Turn, flowByTurn.GetValueOrDefault(point.Turn)))
+            .ToList();
+
+        var series = new[] { new LineChartDiagram.ChartSeries("Поток", SectorColors.Palette[1], points) };
 
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
     }

@@ -347,9 +347,6 @@ internal static class TestGameConfig
                 HireCostPerWorker = 50m,
                 FireCostPerWorker = 30m,
                 SalaryPerWorkerPerTurn = 5m,
-                // Заметно выше, чем в любом сценарии этого файла набирается рабочих — большинство
-                // тестов не про прогрессивную надбавку; тесты на неё используют собственный
-                // WorkerProductivityConfig с низким порогом.
             },
             Rnd = new RndConfig
             {
