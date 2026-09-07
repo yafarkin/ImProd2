@@ -50,6 +50,46 @@ public sealed record EconomyConfig
     /// <summary>Понижающий коэффициент цены при продаже сверх ёмкости рынка (0..1).</summary>
     public required decimal MarketCapacityOverflowDiscount { get; init; }
 
+    /// <summary>
+    /// Модель ценообразования сделок с системой — см. <see cref="Economy.PricingModel"/>. По
+    /// умолчанию <see cref="Economy.PricingModel.CostPlus"/>: до перекалибровки обеих боевых цепочек
+    /// (блок 11.8, <c>docs/external-economy.md</c> §9) экзогенная модель ещё не является рабочей
+    /// конфигурацией игры.
+    /// </summary>
+    public PricingModel PricingModel { get; init; } = PricingModel.CostPlus;
+
+    /// <summary>
+    /// Пол множителя эластичности при <see cref="Economy.PricingModel.External"/> (0..1): во сколько
+    /// раз может просесть цена материала при сколь угодно большом предложении зала. Рынок никогда не
+    /// платит ноль — цена стремится к <c>BaseSellPrice × Индекс × MarketPriceFloorRate</c>, но не
+    /// достигает его. Заглушка, требует калибровки (блок 11.8).
+    /// </summary>
+    public decimal MarketPriceFloorRate { get; init; } = 0.35m;
+
+    /// <summary>
+    /// Период полураспада «давления предложения», в ходах — тот же приём, что у
+    /// <see cref="EmergencyPurchasePressureHalfLifeTurns"/> и репутации (SPEC §6.2). Определяет, за
+    /// сколько ходов рынок «переваривает» залитый в него объём и цена возвращается к базовой. В
+    /// отличие от давления аварийных закупок это давление считается по продажам **всего зала**, а не
+    /// одной команды (единственный рычаг конкуренции внутри сектора, <c>docs/levers.md</c> §1.5).
+    /// Заглушка, требует калибровки (блок 11.8).
+    /// </summary>
+    public int MarketSupplyPressureHalfLifeTurns { get; init; } = 3;
+
+    /// <summary>
+    /// Нижняя граница индекса деловой активности (<c>docs/external-economy.md</c> §2.1) — сценарный
+    /// тренд не может увести экономику ниже неё.
+    /// </summary>
+    public decimal EconomyIndexMin { get; init; } = 0.85m;
+
+    /// <summary>
+    /// Верхняя граница индекса деловой активности. Диапазон намеренно узкий: выручка при полной
+    /// выборке ёмкости растёт как <b>Индекс²</b> (индекс двигает и цену, и ёмкость), поэтому даже
+    /// [0.85; 1.15] даёт размах выручки 0.72–1.32. Подбирать этот диапазон следует по размаху
+    /// выручки, а не по виду графика (<c>docs/external-economy.md</c> §2.1, калибровочная ловушка).
+    /// </summary>
+    public decimal EconomyIndexMax { get; init; } = 1.15m;
+
     /// <summary>Базовая цена электричества.</summary>
     public required decimal ElectricityBasePrice { get; init; }
 
