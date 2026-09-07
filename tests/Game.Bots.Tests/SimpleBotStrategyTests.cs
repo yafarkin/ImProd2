@@ -33,7 +33,7 @@ public class SimpleBotStrategyTests
 
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
+            config, endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
 
         var bot = new SimpleBot(teamId, sectorA, config, leverage: 0m);
@@ -50,7 +50,7 @@ public class SimpleBotStrategyTests
 
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
+            config, endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
 
         var bot = new SimpleBot(teamId, sectorA, config, leverage: 1m);
@@ -70,7 +70,7 @@ public class SimpleBotStrategyTests
         var sectorA = config.Sectors.Single(s => s.Id == "A");
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
+            config, endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
 
         var bot = new SimpleBot(teamId, sectorA, config, leverage: 1m, profile: 0m);
@@ -87,10 +87,10 @@ public class SimpleBotStrategyTests
     {
         var config = PilotBotSession.LoadConfig();
         var sectorA = config.Sectors.Single(s => s.Id == "A");
-        var maxTurns = config.Raw.SessionPresets.Single(p => p.Id == "short").MaxTurns;
+        var maxTurns = config.Raw.Duration.MaxTurns;
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: maxTurns, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
+            config, endTurn: maxTurns, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
 
         // profile=1 -> момент переключения точно на последнем ходу пресета (см. doc-comment
         // UpdateInvestmentPace) — до него вложения нулевые, на нём и после — на потолок leverage.

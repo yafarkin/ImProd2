@@ -6,7 +6,7 @@ public class SessionHistoryCalculatorTests
     [Fact]
     public void Build_Starts_With_The_Session_Started_Row_At_Turn_One_Settlement()
     {
-        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, endTurn: 10, Array.Empty<TeamSpec>());
 
         var rows = SessionHistoryCalculator.Build(session.Entries);
 
@@ -19,7 +19,7 @@ public class SessionHistoryCalculatorTests
     [Fact]
     public void Build_Tracks_Turn_And_Phase_Through_Timer_Driven_Advances()
     {
-        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, endTurn: 10, Array.Empty<TeamSpec>());
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision(1) -> Settlement(2)
@@ -35,7 +35,7 @@ public class SessionHistoryCalculatorTests
     [Fact]
     public void Build_Labels_A_Facilitator_Triggered_Advance_Differently_From_A_Timer_One()
     {
-        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, endTurn: 10, Array.Empty<TeamSpec>());
 
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
 
@@ -47,7 +47,7 @@ public class SessionHistoryCalculatorTests
     [Fact]
     public void Build_Records_Pause_Resume_And_Phase_Extension()
     {
-        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 10, Array.Empty<TeamSpec>());
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, endTurn: 10, Array.Empty<TeamSpec>());
 
         session.Pause();
         session.Resume();
@@ -63,7 +63,7 @@ public class SessionHistoryCalculatorTests
     [Fact]
     public void Build_Marks_The_Transition_Out_Of_The_Last_Decision_As_The_Session_Ending()
     {
-        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "short", endTurn: 1, Array.Empty<TeamSpec>());
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, endTurn: 1, Array.Empty<TeamSpec>());
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // конец хода 1 == EndTurn

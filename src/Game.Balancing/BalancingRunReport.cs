@@ -45,10 +45,7 @@ public sealed record RunMetadata
     /// <summary>Режим прогона — <c>"grid"</c> или <c>"ideal-hall"</c> (см. <see cref="RunMode"/>).</summary>
     public required string Mode { get; init; }
 
-    /// <summary>Id пресета длительности сессии.</summary>
-    public required string PresetId { get; init; }
-
-    /// <summary><c>SessionPresetConfig.MaxTurns</c> пресета — на сколько ходов посчитан идеальный зал.</summary>
+    /// <summary><c>SessionDurationConfig.MaxTurns</c> — на сколько ходов посчитан идеальный зал (публично известная верхняя граница, не тайный <c>EndTurn</c>).</summary>
     public required int MaxTurns { get; init; }
 
     /// <summary>Секторы цепочки — код и имя, для читаемости остального отчёта без обращения к исходному конфигу.</summary>

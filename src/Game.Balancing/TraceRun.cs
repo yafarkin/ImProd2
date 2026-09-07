@@ -18,11 +18,11 @@ internal static class TraceRun
 {
     public static async Task RunAsync(ResolvedGameConfig config, CliArguments cliArguments)
     {
-        var preset = config.Raw.SessionPresets.Single(p => p.Id == cliArguments.PresetId);
+        var duration = config.Raw.Duration;
 
         var idealHallTraceLines = new List<string>();
         IdealHallCalculator.Trace = idealHallTraceLines.Add;
-        var idealHall = IdealHallCalculator.Calculate(config, preset.MaxTurns);
+        var idealHall = IdealHallCalculator.Calculate(config, duration.MaxTurns);
         IdealHallCalculator.Trace = null;
 
         var idealHallTracePath = DerivePath(cliArguments.OutPath, "idealhall-trace.txt");
@@ -30,7 +30,7 @@ internal static class TraceRun
         Console.WriteLine($"Трассировка идеального зала записана: {Path.GetFullPath(idealHallTracePath)} ({idealHallTraceLines.Count} строк)");
         foreach (var branch in idealHall.Branches)
         {
-            Console.WriteLine($"  X({preset.MaxTurns}) {branch.SectorId} = {branch.ValueByTurn[^1]:F0}");
+            Console.WriteLine($"  X({duration.MaxTurns}) {branch.SectorId} = {branch.ValueByTurn[^1]:F0}");
         }
 
         var botTraceLines = new List<string>();
@@ -50,10 +50,10 @@ internal static class TraceRun
 
         Console.WriteLine($"Трассирую одну партию: leverage={cliArguments.Leverage:0.00}, profile={cliArguments.Profile:0.00}, команд на сектор={cliArguments.TeamsPerSector}.");
 
-        // Ход окончания — детерминирован и равен preset.MaxTurns (тот же горизонт, что считает
+        // Ход окончания — детерминирован и равен duration.MaxTurns (тот же горизонт, что считает
         // IdealHallCalculator), не случайная жеребьёвка в [MinTurns, MaxTurns] — иначе Score(T) и X(T)
         // сравнивают разные T (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-22).
-        var session = GameSession.StartWithEndTurn(config, preset.Id, preset.MaxTurns, teams);
+        var session = GameSession.StartWithEndTurn(config, duration.MaxTurns, teams);
         var random = new Random(2);
         RunWithTrace(session, bots, random, botTraceLines);
 
@@ -64,7 +64,7 @@ internal static class TraceRun
         foreach (var team in session.State.Teams.Values.OrderBy(t => t.Sector.Id).ThenBy(t => t.Name))
         {
             var score = FinalScoreCalculator.Calculate(team, materialCosts, config.Raw.FactoryDefinitions).Score;
-            Console.WriteLine($"  Score({preset.MaxTurns}) {team.Name} = {score:F0}");
+            Console.WriteLine($"  Score({duration.MaxTurns}) {team.Name} = {score:F0}");
         }
     }
 

@@ -15,7 +15,7 @@ public class PhaseAutoAdvancerTests
     private static GameSession StartSession(int endTurn = 999, Func<DateTimeOffset>? clock = null)
     {
         var config = TestGameConfig.BuildWithPhaseTiming(Timing);
-        return GameSession.StartWithEndTurn(config, "test", endTurn, Array.Empty<TeamSpec>(), clock: clock ?? (() => Epoch));
+        return GameSession.StartWithEndTurn(config, endTurn, Array.Empty<TeamSpec>(), clock: clock ?? (() => Epoch));
     }
 
     [Fact]

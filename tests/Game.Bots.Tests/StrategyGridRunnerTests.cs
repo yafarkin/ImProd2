@@ -40,7 +40,7 @@ public class StrategyGridRunnerTests
                 bots.Add(new SimpleBot(teamId, sector, config, leverage: leverage, profile: profile));
             }
 
-            var session = GameSession.StartWithEndTurn(config, "short", endTurn: 10, teams);
+            var session = GameSession.StartWithEndTurn(config, endTurn: 10, teams);
             return (session, (IReadOnlyList<SimpleBot>)bots, new Random(sessionIndex + 1));
         }, progressCalls.Add);
 
@@ -83,7 +83,7 @@ public class StrategyGridRunnerTests
                 bots.Add(new SimpleBot(teamId, sector, config, leverage: leverage, profile: profile));
             }
 
-            var session = GameSession.StartWithEndTurn(config, "short", endTurn: 15, teams);
+            var session = GameSession.StartWithEndTurn(config, endTurn: 15, teams);
             return (session, (IReadOnlyList<SimpleBot>)bots, new Random(sessionIndex + 1));
         }, idealHall: idealHall);
 

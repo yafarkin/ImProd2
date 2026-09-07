@@ -19,13 +19,13 @@ public sealed class FlexReprocessingShopTests
 
     private static (GameSession Session, Ulid TeamId) StartSession()
     {
-        var productionModelPath = Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", "control-twin-metallurgy.json");
+        var productionModelPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "control-twin-metallurgy.json");
         var sessionPath = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
         var config = GameConfigLoader.LoadFromFiles(productionModelPath, sessionPath);
 
         var teamId = Ulid.NewUlid();
         var teams = new List<TeamSpec> { new() { Id = teamId, Name = "Команда", SectorId = "A" } };
-        var session = GameSession.StartWithEndTurn(config, "full", 90, teams);
+        var session = GameSession.StartWithEndTurn(config, 90, teams);
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator); // Settlement(1) -> Decision(1)
         return (session, teamId);
     }

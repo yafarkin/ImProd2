@@ -182,7 +182,7 @@ public class GameSessionMarketTests
         var teamId = Ulid.NewUlid();
         var log = new EventLog<GameSessionState>(new GameSessionState(config));
         var session = GameSession.StartWithEndTurn(
-            log, "test", endTurn: 999,
+            log, endTurn: 999,
             new[] { new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id } });
         log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = teamId, Amount = 100_000m });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision

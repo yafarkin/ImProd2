@@ -30,7 +30,7 @@ public static class GameConfigComposer
             FactoryDefinitions = productionModel.FactoryDefinitions,
             GenerationResearch = productionModel.GenerationResearch,
             StartingConditions = session.StartingConditions,
-            SessionPresets = session.SessionPresets,
+            Duration = session.Duration,
             PhaseTiming = session.PhaseTiming,
             Economy = new EconomyConfig
             {

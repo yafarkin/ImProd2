@@ -67,7 +67,7 @@ internal static class CrossSectorConfigBuilder
             {
                 MaxInitialBuildBudget = 100_000m,
             },
-            SessionPresets = [new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 15, MaxTurns = 15, TurnDurationMinutes = 1 }],
+            Duration = new SessionDurationConfig { MinTurns = 15, MaxTurns = 15 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {

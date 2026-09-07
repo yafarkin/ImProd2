@@ -31,6 +31,9 @@
     <None Include="..\..\src\Game.Config\Samples\sessions\**\*.json" Link="Samples\sessions\%(RecursiveDir)%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\Fixtures\production-models\**\*.json" Link="Fixtures\production-models\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

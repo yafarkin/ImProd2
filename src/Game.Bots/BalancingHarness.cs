@@ -164,7 +164,7 @@ public static class BalancingHarness
         return bySector.ToDictionary(entry => entry.Key, entry => entry.Value.Average());
     }
 
-    /// <summary>X(turn) сектора <paramref name="sectorId"/> из <paramref name="idealHall"/>; <c>null</c>, если сектора нет в X(t) или ход вне просчитанного диапазона (например, конфиг звал сессию длиннее MaxTurns пресета, на котором строился идеальный зал).</summary>
+    /// <summary>X(turn) сектора <paramref name="sectorId"/> из <paramref name="idealHall"/>; <c>null</c>, если сектора нет в X(t) или ход вне просчитанного диапазона (например, конфиг звал сессию длиннее MaxTurns, на котором строился идеальный зал).</summary>
     private static decimal? TryGetIdealValue(IdealHallResult idealHall, string sectorId, int turn)
     {
         var branch = idealHall.Branches.FirstOrDefault(b => b.SectorId == sectorId);

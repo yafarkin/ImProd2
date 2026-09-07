@@ -204,7 +204,7 @@ try
         }
 
         var durableLog = DurableEventLog<GameSessionState>.Open(journalPath, snapshotPath, () => new GameSessionState(config));
-        session = GameSession.StartWithEndTurn(durableLog, "full", settings.Turns, teamSpecs);
+        session = GameSession.StartWithEndTurn(durableLog, settings.Turns, teamSpecs);
         // Сессия открывается в фазе расчёта (Settlement) — решения допустимы только в Decision.
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
 

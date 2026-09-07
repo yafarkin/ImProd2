@@ -19,7 +19,7 @@ internal static class TestSession
             new() { Id = teamId, Name = "Команда", SectorId = "A" },
         };
 
-        var session = GameSession.StartWithEndTurn(config, "short", endTurn, teams);
+        var session = GameSession.StartWithEndTurn(config, endTurn, teams);
         // Сессия открывается в фазе расчёта (Settlement, см. SessionStarted) — решения команд
         // допустимы только в Decision, продвигаем один раз, как и обычный ход игры.
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
@@ -38,7 +38,7 @@ internal static class TestSession
             new() { Id = teamBId, Name = "Команда Б", SectorId = "A" },
         };
 
-        var session = GameSession.StartWithEndTurn(config, "short", endTurn, teams);
+        var session = GameSession.StartWithEndTurn(config, endTurn, teams);
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
         return (session, teamAId, teamBId);
     }
@@ -59,7 +59,7 @@ internal static class TestSession
             new() { Id = teamBId, Name = "Команда Б", SectorId = "B" },
         };
 
-        var session = GameSession.StartWithEndTurn(config, "short", endTurn, teams);
+        var session = GameSession.StartWithEndTurn(config, endTurn, teams);
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
         return (session, teamAId, teamBId);
     }

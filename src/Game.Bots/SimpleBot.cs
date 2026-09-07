@@ -457,10 +457,10 @@ public sealed class SimpleBot
     /// Держит темп вложений в R&amp;D (командное исследование поколений и каждая построенная фабрика
     /// разом, на одну и ту же долю потолка) в соответствии с осями стратегии (Блок 7.3.2, doc-comment
     /// класса): доля потолка — <c>0</c> до момента переключения, <c>leverage</c> после него. Момент
-    /// переключения — <c>profile</c> доля длительности пресета сессии (<see
-    /// cref="Game.Config.Session.SessionPresetConfig.MaxTurns"/> — публично известная команде верхняя
+    /// переключения — <c>profile</c> доля длительности сессии (<see
+    /// cref="Game.Config.Session.SessionDurationConfig.MaxTurns"/> — публично известная команде верхняя
     /// граница, не тайный <see cref="GameSessionState.EndTurn"/>), от хода 0 (<c>profile=0</c> —
-    /// вкладывает с первого хода) до последнего хода пресета (<c>profile=1</c> — почти вся партия
+    /// вкладывает с первого хода) до последнего хода сессии (<c>profile=1</c> — почти вся партия
     /// на нулевых вложениях, резкий рывок под конец). «Скромный набор фабрик» бэк-лоадед профиля
     /// (`docs/balancing-bots.md` §2) — не отдельная логика, а естественное следствие нулевого темпа
     /// командного исследования поколений: новых уровней просто не открывается, пока не наступил
@@ -472,7 +472,7 @@ public sealed class SimpleBot
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var maxTurns = session.State.Config.Raw.SessionPresets.Single(p => p.Id == session.State.PresetId).MaxTurns;
+        var maxTurns = session.State.Config.Raw.Duration.MaxTurns;
         var switchTurn = (int)Math.Round(_profile * maxTurns, MidpointRounding.AwayFromZero);
         // _throttle=1 (по умолчанию, здоровый тренд) — точно то же значение, что и до финансовой
         // осторожности, см. doc-comment UpdateFinancialTrend.

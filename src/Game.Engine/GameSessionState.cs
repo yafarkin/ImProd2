@@ -101,9 +101,6 @@ public sealed class GameSessionState
     /// </summary>
     public string ConfigHash { get; internal set; } = string.Empty;
 
-    /// <summary>Пресет длительности сессии, по которому был разыгран <see cref="EndTurn"/>.</summary>
-    public string PresetId { get; internal set; } = string.Empty;
-
     /// <summary>
     /// Ход, на котором игра завершится — разыгран жеребьёвкой при старте сессии и неизвестен игрокам
     /// (SPEC §4). Не показывается на экранах напрямую.

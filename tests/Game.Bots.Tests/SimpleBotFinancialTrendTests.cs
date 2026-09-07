@@ -18,7 +18,7 @@ public class SimpleBotFinancialTrendTests
         var sectorA = config.Sectors.Single(s => s.Id == "A");
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
+            config, endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
 
         var bot = new SimpleBot(teamId, sectorA, config, leverage: 1m, profile: 0m);
@@ -37,7 +37,7 @@ public class SimpleBotFinancialTrendTests
         var sectorA = config.Sectors.Single(s => s.Id == "A");
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
+            config, endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer);
 
         // leverage=1 -> DistressThresholdTurns=4 (терпит дольше, аппетит к риску) -> нужно 4 хода
@@ -70,7 +70,7 @@ public class SimpleBotFinancialTrendTests
         var sectorA = config.Sectors.Single(s => s.Id == "A");
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
+            config, endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer);
 
         var bot = new SimpleBot(teamId, sectorA, config, leverage: 1m, profile: 0m);
@@ -114,7 +114,7 @@ public class SimpleBotFinancialTrendTests
         var sectorA = config.Sectors.Single(s => s.Id == "A");
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
+            config, endTurn: 15, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer);
 
         // leverage=0 -> DistressThresholdTurns=1, throttle доходит до пола (SimpleBot.MinThrottle) за

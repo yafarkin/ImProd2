@@ -12,20 +12,20 @@ namespace Game.Bots.Tests;
 /// </summary>
 public class DetailedSessionRunnerTests
 {
-    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", "debug-minimal.json");
-    private static string SessionPath => Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "debug-minimal.json");
+    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "debug-minimal.json");
+    private static string SessionPath => Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
 
     [Fact]
     public void Run_Produces_One_Snapshot_Per_Team_Per_Turn_With_Nonempty_Trace()
     {
         var config = GameConfigLoader.LoadFromFiles(ConfigPath, SessionPath);
-        var preset = config.Raw.SessionPresets.Single(p => p.Id == "full");
+        var duration = config.Raw.Duration;
         const int teamsPerSector = 1;
 
-        var result = DetailedSessionRunner.Run(config, preset.Id, preset.MaxTurns, teamsPerSector, maintainFactories: true, leverage: 1m, profile: 0m);
+        var result = DetailedSessionRunner.Run(config, duration.MaxTurns, teamsPerSector, maintainFactories: true, leverage: 1m, profile: 0m);
 
         var expectedTeamCount = config.Sectors.Count * teamsPerSector;
-        Assert.Equal(expectedTeamCount * preset.MaxTurns, result.Snapshots.Count);
+        Assert.Equal(expectedTeamCount * duration.MaxTurns, result.Snapshots.Count);
         Assert.NotEmpty(result.TraceLines);
         Assert.Equal(config.Sectors.Count, result.IdealHall.Branches.Count);
 
@@ -42,13 +42,13 @@ public class DetailedSessionRunnerTests
     public void Snapshots_Are_Ordered_By_Turn_Starting_From_One()
     {
         var config = GameConfigLoader.LoadFromFiles(ConfigPath, SessionPath);
-        var preset = config.Raw.SessionPresets.Single(p => p.Id == "full");
+        var duration = config.Raw.Duration;
 
-        var result = DetailedSessionRunner.Run(config, preset.Id, preset.MaxTurns, teamsPerSector: 1, maintainFactories: true, leverage: 1m, profile: 0m);
+        var result = DetailedSessionRunner.Run(config, duration.MaxTurns, teamsPerSector: 1, maintainFactories: true, leverage: 1m, profile: 0m);
 
         var turns = result.Snapshots.Select(s => s.Turn).Distinct().OrderBy(t => t).ToList();
         Assert.Equal(1, turns.First());
-        Assert.Equal(preset.MaxTurns, turns.Last());
+        Assert.Equal(duration.MaxTurns, turns.Last());
     }
 
     /// <summary>
@@ -61,9 +61,9 @@ public class DetailedSessionRunnerTests
     public void Every_Bracketed_Trace_Line_Is_Classified_Into_Exactly_One_Decision_Category()
     {
         var config = GameConfigLoader.LoadFromFiles(ConfigPath, SessionPath);
-        var preset = config.Raw.SessionPresets.Single(p => p.Id == "full");
+        var duration = config.Raw.Duration;
 
-        var result = DetailedSessionRunner.Run(config, preset.Id, preset.MaxTurns, teamsPerSector: 1, maintainFactories: true, leverage: 1m, profile: 0m);
+        var result = DetailedSessionRunner.Run(config, duration.MaxTurns, teamsPerSector: 1, maintainFactories: true, leverage: 1m, profile: 0m);
 
         var bracketedLineCount = result.TraceLines.Count(line => line.StartsWith('[') && line.Contains(']'));
         var classifiedLineCount = result.DecisionLogs.Sum(log =>
@@ -86,9 +86,9 @@ public class DetailedSessionRunnerTests
     public void Decision_Logs_Are_Split_Across_Multiple_Distinct_Turns_Not_Collapsed_Into_One()
     {
         var config = GameConfigLoader.LoadFromFiles(ConfigPath, SessionPath);
-        var preset = config.Raw.SessionPresets.Single(p => p.Id == "full");
+        var duration = config.Raw.Duration;
 
-        var result = DetailedSessionRunner.Run(config, preset.Id, preset.MaxTurns, teamsPerSector: 1, maintainFactories: true, leverage: 1m, profile: 0m);
+        var result = DetailedSessionRunner.Run(config, duration.MaxTurns, teamsPerSector: 1, maintainFactories: true, leverage: 1m, profile: 0m);
 
         foreach (var sectorId in result.DecisionLogs.Select(l => l.SectorId).Distinct())
         {

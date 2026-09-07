@@ -171,7 +171,7 @@ public static class DetailedSessionRunner
     /// <paramref name="endTurn"/> хода целиком.
     /// </summary>
     public static Result Run(
-        ResolvedGameConfig config, string presetId, int endTurn, int teamsPerSector,
+        ResolvedGameConfig config, int endTurn, int teamsPerSector,
         bool maintainFactories, decimal leverage, decimal profile)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -191,7 +191,7 @@ public static class DetailedSessionRunner
             }
         }
 
-        var session = GameSession.StartWithEndTurn(config, presetId, endTurn, teamSectorPairs.Select(p => p.Spec).ToList());
+        var session = GameSession.StartWithEndTurn(config, endTurn, teamSectorPairs.Select(p => p.Spec).ToList());
 
         var traceLines = new List<string>();
         var taggedTraceLines = new List<(int Turn, string Line)>();

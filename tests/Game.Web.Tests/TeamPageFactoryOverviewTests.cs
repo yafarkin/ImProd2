@@ -1,4 +1,5 @@
 using System.Net;
+using Game.Config.Loading;
 using Game.Domain;
 using Game.Engine;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -21,6 +22,17 @@ namespace Game.Web.Tests;
 /// </summary>
 public class TeamPageFactoryOverviewTests
 {
+    /// <summary>
+    /// Маленький детерминированный каталог (<c>tests/Fixtures/production-models/standard.json</c>):
+    /// два сектора по два-три передела. Тесты интерфейса должны опираться на неизменную форму
+    /// цепочки, а не на боевую производственную модель — иначе любая правка контента (2026-09-07:
+    /// у боевой модели стало по три сырьевых материала на сектор) роняет проверки вёрстки, которые
+    /// к содержанию цепочки отношения не имеют.
+    /// </summary>
+    private static ResolvedGameConfig FixtureConfig() => GameConfigLoader.LoadFromFiles(
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "standard.json"),
+        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json"));
+
     [Fact]
     public async Task Team_Page_Renders_Built_And_Unbuilt_Factory_Nodes()
     {
@@ -30,13 +42,12 @@ public class TeamPageFactoryOverviewTests
 
         try
         {
-            var sectorId = host.DefaultConfig.Sectors.First().Id;
+            host.SetDraftConfig(FixtureConfig());
+            var sectorId = host.DraftConfig.Sectors.First().Id;
             host.AddStagedTeam("Дельта", sectorId);
             var team = host.StagedTeams.Single();
             var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Дельта");
-            var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
-
-            host.StartSessionFromDraft(preset);
+            host.StartSessionFromDraft();
             host.Session!.AdvancePhase(PhaseTransitionTrigger.Facilitator); // Settlement -> Decision
 
             // Строим только рудник (уровень 0) — сталелитейный завод и прокатный стан сектора A
@@ -73,13 +84,12 @@ public class TeamPageFactoryOverviewTests
 
         try
         {
-            var sectorId = host.DefaultConfig.Sectors.First().Id;
+            host.SetDraftConfig(FixtureConfig());
+            var sectorId = host.DraftConfig.Sectors.First().Id;
             host.AddStagedTeam("Эпсилон", sectorId);
             var team = host.StagedTeams.Single();
             var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Эпсилон");
-            var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
-
-            host.StartSessionFromDraft(preset);
+            host.StartSessionFromDraft();
             host.Session!.AdvancePhase(PhaseTransitionTrigger.Facilitator); // Settlement -> Decision
 
             var mineDefinitionId = host.Session!.State.Config.FactoryDefinitions

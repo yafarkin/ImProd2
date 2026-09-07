@@ -27,7 +27,7 @@ internal static class PilotBotSession
             bots.Add(new SimpleBot(teamId, sector, config));
         }
 
-        var session = GameSession.StartWithEndTurn(config, "short", endTurn, teams);
+        var session = GameSession.StartWithEndTurn(config, endTurn, teams);
         return (session, bots);
     }
 }

@@ -145,7 +145,7 @@ public class ProductionCostLevelCalculatorTests
                 new FactoryDefinitionConfig { Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = ["ore-mining"], BuildCost = buildCost, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = fixedCostPerTurn },
             ],
             StartingConditions = new StartingConditionsConfig { MaxInitialBuildBudget = 100_000m },
-            SessionPresets = [new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 5, MaxTurns = 5, TurnDurationMinutes = 1 }],
+            Duration = new SessionDurationConfig { MinTurns = 5, MaxTurns = 5 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {
@@ -212,7 +212,7 @@ public class ProductionCostLevelCalculatorTests
                 new FactoryDefinitionConfig { Id = "factory2", Name = "Фабрика 2", SectorId = "A", RecipeIds = ["recipe2"], BuildCost = buildCosts[2], LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = fixedCosts[2] },
             ],
             StartingConditions = new StartingConditionsConfig { MaxInitialBuildBudget = 100_000m },
-            SessionPresets = [new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 5, MaxTurns = 5, TurnDurationMinutes = 1 }],
+            Duration = new SessionDurationConfig { MinTurns = 5, MaxTurns = 5 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {

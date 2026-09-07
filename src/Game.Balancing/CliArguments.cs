@@ -27,9 +27,6 @@ internal sealed record CliArguments
     /// </summary>
     public string? SessionPath { get; init; }
 
-    /// <summary>Пресет длительности сессии (SessionPresets.Id сессионного файла).</summary>
-    public string PresetId { get; init; } = "short";
-
     /// <summary>Партий на одну ячейку сетки <c>leverage</c>×<c>profile</c>.</summary>
     public int SessionsPerCell { get; init; } = 5;
 
@@ -146,7 +143,6 @@ internal sealed record CliArguments
             {
                 "--config" => result with { ConfigPath = NextValue() },
                 "--session" => result with { SessionPath = NextValue() },
-                "--preset" => result with { PresetId = NextValue() },
                 "--sessions-per-cell" => result with { SessionsPerCell = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--grid-steps" => result with { GridSteps = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--teams-per-sector" => result with { TeamsPerSector = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
@@ -173,7 +169,7 @@ internal sealed record CliArguments
                 "--sweep-payback-target" => result with { SweepPaybackWarningTurns = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--sweep-workers" => result with { SweepWorkers = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 _ => throw new ArgumentException(
-                    $"Unknown argument '{flag}'. Known flags: --config, --session, --preset, --sessions-per-cell, --grid-steps, " +
+                    $"Unknown argument '{flag}'. Known flags: --config, --session, --sessions-per-cell, --grid-steps, " +
                     "--teams-per-sector, --maintain-factories, --out, --mode, --workers, --leverage, --profile, --calibrate-lever, " +
                     "--calibrate-metric, --calibrate-target, --calibrate-min, --calibrate-max, --calibrate-tolerance, --calibrate-max-iterations, " +
                     "--sweep-levels, --sweep-base-build-cost, --sweep-base-fixed-cost, --sweep-base-production-rate, --sweep-input-quantity, " +

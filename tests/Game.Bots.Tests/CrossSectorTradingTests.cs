@@ -43,7 +43,7 @@ public class CrossSectorTradingTests
             new SimpleBot(teamBId, sectorB, config),
         };
 
-        var session = GameSession.StartWithEndTurn(config, "short", endTurn: 15, teams);
+        var session = GameSession.StartWithEndTurn(config, endTurn: 15, teams);
         BotSessionRunner.RunToCompletion(session, bots, new Random(1));
 
         Assert.True(session.State.IsFinished);
@@ -101,7 +101,7 @@ public class CrossSectorTradingTests
             new SimpleBot(teamBId, sectorB, config),
         };
 
-        var session = GameSession.StartWithEndTurn(config, "short", endTurn: 15, teams);
+        var session = GameSession.StartWithEndTurn(config, endTurn: 15, teams);
         BotSessionRunner.RunToCompletion(session, bots, new Random(1));
 
         Assert.True(session.State.IsFinished);
@@ -161,10 +161,7 @@ public class CrossSectorTradingTests
             {
                 MaxInitialBuildBudget = 100_000m,
             },
-            SessionPresets = new[]
-            {
-                new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 15, MaxTurns = 15, TurnDurationMinutes = 1 },
-            },
+            Duration = new SessionDurationConfig { MinTurns = 15, MaxTurns = 15 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {
@@ -302,10 +299,7 @@ public class CrossSectorTradingTests
             {
                 MaxInitialBuildBudget = 100_000m,
             },
-            SessionPresets = new[]
-            {
-                new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 15, MaxTurns = 15, TurnDurationMinutes = 1 },
-            },
+            Duration = new SessionDurationConfig { MinTurns = 15, MaxTurns = 15 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {

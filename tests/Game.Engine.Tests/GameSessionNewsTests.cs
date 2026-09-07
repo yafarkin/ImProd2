@@ -13,7 +13,7 @@ public class GameSessionNewsTests
         var teamId = Ulid.NewUlid();
 
         return GameSession.StartWithEndTurn(
-            config, "test", endTurn: 999,
+            config, endTurn: 999,
             new[]
             {
                 new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id },

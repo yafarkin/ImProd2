@@ -94,10 +94,7 @@ public class MultiRecipeIdealHallTests
             {
                 MaxInitialBuildBudget = 100_000m,
             },
-            SessionPresets = new[]
-            {
-                new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 10, MaxTurns = 10, TurnDurationMinutes = 1 },
-            },
+            Duration = new SessionDurationConfig { MinTurns = 10, MaxTurns = 10 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {

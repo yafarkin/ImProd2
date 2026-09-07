@@ -64,10 +64,6 @@
 
 <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
     <div>
-        <label class="form-label">Пресет</label>
-        <input class="form-control form-control-sm" style="width:8em" @bind="_presetId" />
-    </div>
-    <div>
         <label class="form-label">Ходов</label>
         <input type="number" min="1" class="form-control form-control-sm" style="width:7em" @bind="_endTurn" />
     </div>
@@ -511,7 +507,6 @@ else
     private string _selectedSession = "";
     private string _productionModelJson = "";
     private string _sessionJson = "";
-    private string _presetId = "full";
     private int _endTurn = 90;
     private int _teamsPerSector = 1;
     private decimal _leverage = 1m;
@@ -605,12 +600,9 @@ else
         }
 
         _sessionJson = JsonSerializer.Serialize(session, PrettyPrint);
-        var preset = session.SessionPresets.FirstOrDefault(p => p.Id == _presetId) ?? session.SessionPresets.FirstOrDefault();
-        if (preset is not null)
-        {
-            _presetId = preset.Id;
-            _endTurn = preset.MaxTurns;
-        }
+        // Горизонт прогона — MaxTurns, а не жеребьёвка в [MinTurns, MaxTurns]: стенд обязан быть
+        // детерминированным и сопоставимым с X(T) идеального зала, который считается ровно на MaxTurns.
+        _endTurn = session.Duration.MaxTurns;
     }
 
     private async Task RunAsync()
@@ -643,7 +635,7 @@ else
             _botCeiling = SimpleBot.MaxBuyPremiumRate;
             _sandwichHealthy = _botFloor >= _systemMargin && _botCeiling <= _emergencyMargin && _botFloor <= _botCeiling;
 
-            _result = DetailedSessionRunner.Run(config, _presetId, _endTurn, _teamsPerSector, _maintainFactories, _leverage, _profile);
+            _result = DetailedSessionRunner.Run(config, _endTurn, _teamsPerSector, _maintainFactories, _leverage, _profile);
             _teamNames = _result.Snapshots.Select(s => s.TeamName).Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList();
             _stepSectorId = _result.DecisionLogs.Select(l => l.SectorId).OrderBy(s => s, StringComparer.Ordinal).FirstOrDefault() ?? "";
             _stepIndex = 0;
@@ -733,7 +725,7 @@ else
                           ?? throw new InvalidOperationException("Сессионные параметры не заполнены.");
             var config = GameConfigLoader.Load(productionModel, session);
 
-            _interactive = InteractiveSessionRunner.Start(config, _presetId, _endTurn, _interactiveSectorId, _maintainFactories, _leverage, _profile);
+            _interactive = InteractiveSessionRunner.Start(config, _endTurn, _interactiveSectorId, _maintainFactories, _leverage, _profile);
             _interactiveActionLog.Clear();
             _interactiveHistory.Clear();
             RefreshProposal();

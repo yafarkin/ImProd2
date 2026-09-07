@@ -34,25 +34,26 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Начинает новую сессию: разыгрывает ход окончания в диапазоне пресета и пишет об этом и о
-    /// составе команд первую запись в журнал. Сессия сразу открывается в фазе расчёта первого хода.
+    /// Начинает новую сессию: разыгрывает ход окончания в диапазоне
+    /// <see cref="Game.Config.GameConfig.Duration"/> и пишет об этом и о составе команд первую запись
+    /// в журнал. Сессия сразу открывается в фазе расчёта первого хода.
     /// </summary>
     public static GameSession Start(
         ResolvedGameConfig config,
-        SessionPresetConfig preset,
         IReadOnlyList<TeamSpec> teams,
         Random endTurnRandom,
         JsonSerializerOptions? serializerOptions = null,
         Func<DateTimeOffset>? clock = null)
     {
-        var endTurn = SessionEndTurnDraw.Draw(preset, endTurnRandom);
-        return StartWithEndTurn(config, preset.Id, endTurn, teams, serializerOptions, clock);
+        ArgumentNullException.ThrowIfNull(config);
+
+        var endTurn = SessionEndTurnDraw.Draw(config.Raw.Duration, endTurnRandom);
+        return StartWithEndTurn(config, endTurn, teams, serializerOptions, clock);
     }
 
     /// <summary>Начинает сессию с уже известным ходом окончания (например, для тестов), заводя собственный in-memory журнал.</summary>
     public static GameSession StartWithEndTurn(
         ResolvedGameConfig config,
-        string presetId,
         int endTurn,
         IReadOnlyList<TeamSpec> teams,
         JsonSerializerOptions? serializerOptions = null,
@@ -61,7 +62,7 @@ public sealed class GameSession
         ArgumentNullException.ThrowIfNull(config);
 
         var log = new EventLog<GameSessionState>(new GameSessionState(config), serializerOptions, clock);
-        return StartWithEndTurn(log, presetId, endTurn, teams);
+        return StartWithEndTurn(log, endTurn, teams);
     }
 
     /// <summary>
@@ -71,7 +72,7 @@ public sealed class GameSession
     /// собственного <see cref="EventLog{TState}"/>.
     /// </summary>
     public static GameSession StartWithEndTurn(
-        IEventLog<GameSessionState> log, string presetId, int endTurn, IReadOnlyList<TeamSpec> teams)
+        IEventLog<GameSessionState> log, int endTurn, IReadOnlyList<TeamSpec> teams)
     {
         ArgumentNullException.ThrowIfNull(log);
         ArgumentNullException.ThrowIfNull(teams);
@@ -80,7 +81,6 @@ public sealed class GameSession
         log.Append(new SessionStarted
         {
             Id = Ulid.NewUlid(),
-            PresetId = presetId,
             EndTurn = endTurn,
             ConfigHash = config.ContentHash,
             Teams = teams,

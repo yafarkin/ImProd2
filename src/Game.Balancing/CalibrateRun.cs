@@ -32,20 +32,20 @@ internal static class CalibrateRun
             throw new ArgumentException("'--mode calibrate' требует '--calibrate-min' и '--calibrate-max'.");
         }
 
-        var preset = config.Raw.SessionPresets.Single(p => p.Id == cliArguments.PresetId);
+        var duration = config.Raw.Duration;
         var target = cliArguments.CalibrateTarget;
         var tolerance = cliArguments.CalibrateTolerance;
         var maxIterations = cliArguments.CalibrateMaxIterations;
 
         Console.WriteLine(
             $"Калибрую рычаг '{leverName}' ({lever.Description}) на отрезке [{min}, {max}], " +
-            $"метрика — {(cliArguments.CalibrateMetric == CalibrateMetric.Score ? $"Score({preset.MaxTurns})" : $"X({preset.MaxTurns})")}, " +
+            $"метрика — {(cliArguments.CalibrateMetric == CalibrateMetric.Score ? $"Score({duration.MaxTurns})" : $"X({duration.MaxTurns})")}, " +
             $"цель {target:F0} ± {tolerance:F0}, не больше {maxIterations} итераций сверх двух граничных.");
         Console.WriteLine();
 
         Func<ResolvedGameConfig, decimal> evaluateMetric = cliArguments.CalibrateMetric == CalibrateMetric.Score
-            ? resolved => EvaluateScore(resolved, preset, cliArguments)
-            : resolved => IdealHallCalculator.Calculate(resolved, preset.MaxTurns).Branches.Sum(b => b.ValueByTurn[^1]);
+            ? resolved => EvaluateScore(resolved, duration, cliArguments)
+            : resolved => IdealHallCalculator.Calculate(resolved, duration.MaxTurns).Branches.Sum(b => b.ValueByTurn[^1]);
 
         var result = Calibrator.FindTarget(
             config.Raw, lever.Apply, evaluateMetric, target, min, max, tolerance, maxIterations,
@@ -74,7 +74,7 @@ internal static class CalibrateRun
     /// (Блок 7.2), без построчной трассировки (<see cref="TraceRun"/>) — здесь важна только итоговая
     /// метрика, не разбор по ходам, поэтому быстрее гонять десятки раз подряд внутри бисекции.
     /// </summary>
-    private static decimal EvaluateScore(ResolvedGameConfig config, Config.Session.SessionPresetConfig preset, CliArguments cliArguments)
+    private static decimal EvaluateScore(ResolvedGameConfig config, Config.Session.SessionDurationConfig duration, CliArguments cliArguments)
     {
         var teams = new List<TeamSpec>();
         var bots = new List<SimpleBot>();
@@ -90,7 +90,7 @@ internal static class CalibrateRun
 
         // Тот же горизонт, что и X(T) (детерминированный EndTurn=MaxTurns, не случайная жеребьёвка) —
         // см. TraceRun.cs, step12: иначе метрика сравнивала бы разные T на каждой итерации бисекции.
-        var session = GameSession.StartWithEndTurn(config, preset.Id, preset.MaxTurns, teams);
+        var session = GameSession.StartWithEndTurn(config, duration.MaxTurns, teams);
         BotSessionRunner.RunToCompletion(session, bots, new Random(2));
 
         var materialCosts = MaterialCostCalculator.CalculateAll(config);

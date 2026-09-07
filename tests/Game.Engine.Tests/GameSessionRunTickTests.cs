@@ -13,7 +13,6 @@ public class GameSessionRunTickTests
         teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
             TestGameConfig.Resolved,
-            "test",
             endTurn: 999,
             new[]
             {
@@ -87,7 +86,7 @@ public class GameSessionRunTickTests
     [Fact]
     public void RunTick_With_No_Teams_Still_Publishes_The_Market_Update()
     {
-        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "test", endTurn: 999, Array.Empty<TeamSpec>());
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, endTurn: 999, Array.Empty<TeamSpec>());
 
         var appended = session.RunTick(new Random(1));
 

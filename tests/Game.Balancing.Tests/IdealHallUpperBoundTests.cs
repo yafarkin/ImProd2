@@ -52,7 +52,7 @@ public class IdealHallUpperBoundTests
             var teamId = Ulid.NewUlid();
             var teams = new List<TeamSpec> { new() { Id = teamId, Name = "Бот", SectorId = sector.Id } };
             var bots = new List<SimpleBot> { new(teamId, sector, config, leverage: leverage, profile: profile) };
-            var session = GameSession.StartWithEndTurn(config, "short", endTurn: 90, teams);
+            var session = GameSession.StartWithEndTurn(config, endTurn: 90, teams);
             return (session, (IReadOnlyList<SimpleBot>)bots, new Random(sessionIndex + 1));
         }, idealHall: idealHall);
 

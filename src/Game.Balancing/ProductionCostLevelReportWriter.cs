@@ -41,11 +41,11 @@ public static class ProductionCostLevelReportWriter
     /// </summary>
     public const decimal DefaultPaybackBufferTurns = 15m;
 
-    /// <summary>Порог окупаемости по умолчанию для конфига — самая длинная сессия минус <see cref="DefaultPaybackBufferTurns"/>, не меньше нуля.</summary>
-    public static decimal DefaultPaybackWarningTurns(IReadOnlyList<Game.Config.Session.SessionPresetConfig> presets)
+    /// <summary>Порог окупаемости по умолчанию для конфига — длина сессии минус <see cref="DefaultPaybackBufferTurns"/>, не меньше нуля.</summary>
+    public static decimal DefaultPaybackWarningTurns(Game.Config.Session.SessionDurationConfig duration)
     {
-        ArgumentNullException.ThrowIfNull(presets);
-        return presets.Count == 0 ? 0m : Math.Max(0m, presets.Max(p => p.MaxTurns) - DefaultPaybackBufferTurns);
+        ArgumentNullException.ThrowIfNull(duration);
+        return Math.Max(0m, duration.MaxTurns - DefaultPaybackBufferTurns);
     }
 
     /// <param name="rows"><see cref="ProductionCostLevelCalculator.Calculate"/>.</param>

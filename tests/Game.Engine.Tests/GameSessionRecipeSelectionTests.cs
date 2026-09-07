@@ -11,7 +11,6 @@ public class GameSessionRecipeSelectionTests
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
             config,
-            "test",
             endTurn: 999,
             new[]
             {
@@ -60,7 +59,6 @@ public class GameSessionRecipeSelectionTests
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
             config,
-            "test",
             endTurn: 999,
             new[]
             {

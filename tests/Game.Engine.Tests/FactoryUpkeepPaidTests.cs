@@ -125,7 +125,6 @@ public class FactoryUpkeepPaidTests
         log.Append(new SessionStarted
         {
             Id = Ulid.NewUlid(),
-            PresetId = "test",
             EndTurn = 999,
             ConfigHash = config.ContentHash,
             Teams = new[]

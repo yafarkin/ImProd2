@@ -174,12 +174,12 @@ public sealed class InteractiveSessionRunner
     /// Заводит по одной команде на сектор — одну из них (сектор <paramref name="manualSectorId"/>)
     /// человек ведёт вручную, остальные ведёт <see cref="SimpleBot"/> — и сразу проигрывает расчёт
     /// первого хода (сессия открывается в фазе <see cref="TurnPhase.Settlement"/> первого хода, см.
-    /// doc-comment <see cref="GameSession.StartWithEndTurn(ResolvedGameConfig,string,int,IReadOnlyList{TeamSpec},System.Text.Json.JsonSerializerOptions?,System.Func{System.DateTimeOffset}?)"/>)
+    /// doc-comment <see cref="GameSession.StartWithEndTurn(ResolvedGameConfig,int,IReadOnlyList{TeamSpec},System.Text.Json.JsonSerializerOptions?,System.Func{System.DateTimeOffset}?)"/>)
     /// — тот же первый шаг, что и <see cref="BotSessionRunner.RunToCompletion"/>, до входа в <see
     /// cref="TurnPhase.Decision"/>, чтобы вызывающий сразу получил готовую к решениям сессию.
     /// </summary>
     public static InteractiveSessionRunner Start(
-        ResolvedGameConfig config, string presetId, int endTurn, string manualSectorId,
+        ResolvedGameConfig config, int endTurn, string manualSectorId,
         bool maintainFactories, decimal leverage, decimal profile)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -193,7 +193,7 @@ public sealed class InteractiveSessionRunner
             throw new ArgumentException($"Unknown sector '{manualSectorId}'.", nameof(manualSectorId));
         }
 
-        var session = GameSession.StartWithEndTurn(config, presetId, endTurn, teamSectorPairs.Select(p => p.Spec).ToList());
+        var session = GameSession.StartWithEndTurn(config, endTurn, teamSectorPairs.Select(p => p.Spec).ToList());
         var random = new Random(2); // тот же детерминированный посев, что и DetailedSessionRunner/--mode trace
         var traceLines = new List<string>();
 

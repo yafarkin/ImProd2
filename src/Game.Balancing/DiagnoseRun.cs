@@ -52,7 +52,7 @@ internal static class DiagnoseRun
 {
     public static Task RunAsync(ResolvedGameConfig config, CliArguments cliArguments)
     {
-        var preset = config.Raw.SessionPresets.Single(p => p.Id == cliArguments.PresetId);
+        var duration = config.Raw.Duration;
 
         Console.WriteLine("=== 1. Себестоимость (без хода/рынка/ботов) ===");
         var costRows = ProductionCostLevelCalculator.Calculate(config, cliArguments.Workers);
@@ -71,7 +71,7 @@ internal static class DiagnoseRun
 
         Console.WriteLine();
         Console.WriteLine("=== 1b. Окупаемость по уровням (продажа 100% системе, без кросс-торговли) ===");
-        var paybackWarningTurns = ProductionCostLevelReportWriter.DefaultPaybackWarningTurns(config.Raw.SessionPresets);
+        var paybackWarningTurns = ProductionCostLevelReportWriter.DefaultPaybackWarningTurns(config.Raw.Duration);
         var badPayback = FindBadPaybackLevels(costRows, paybackWarningTurns);
         if (badPayback.Count == 0)
         {
@@ -135,13 +135,13 @@ internal static class DiagnoseRun
 
         Console.WriteLine();
         Console.WriteLine("=== 3. Идеальный зал X(t) — без бота вовсе ===");
-        var idealHall = IdealHallCalculator.Calculate(config, preset.MaxTurns);
+        var idealHall = IdealHallCalculator.Calculate(config, duration.MaxTurns);
         var idealVerdicts = new Dictionary<string, ChainVerdict>();
         foreach (var branch in idealHall.Branches)
         {
             var verdict = ClassifyTrajectory(branch.ValueByTurn);
             idealVerdicts[branch.SectorId] = verdict;
-            Console.WriteLine($"  {branch.SectorId}: X({preset.MaxTurns})={branch.ValueByTurn[^1]:F0} — {verdict.Label}");
+            Console.WriteLine($"  {branch.SectorId}: X({duration.MaxTurns})={branch.ValueByTurn[^1]:F0} — {verdict.Label}");
         }
 
         Console.WriteLine();
@@ -158,7 +158,7 @@ internal static class DiagnoseRun
             }
         }
 
-        var session = GameSession.StartWithEndTurn(config, preset.Id, preset.MaxTurns, teams);
+        var session = GameSession.StartWithEndTurn(config, duration.MaxTurns, teams);
         var metrics = BalancingHarness.RunSession(session, bots, new Random(2), idealHall);
 
         var averageScoreBySector = metrics.FinalScores
@@ -168,7 +168,7 @@ internal static class DiagnoseRun
         foreach (var (sectorId, convergence) in metrics.FinalConvergenceBySector.OrderBy(pair => pair.Key))
         {
             var score = averageScoreBySector.GetValueOrDefault(sectorId);
-            Console.WriteLine($"  {sectorId}: Score({preset.MaxTurns})={score:F0}, Score/X = {convergence:P0} (X — заведомо недостижимый потолок, низкий % — не сам по себе повод для тревоги, см. §Итоговый вердикт)");
+            Console.WriteLine($"  {sectorId}: Score({duration.MaxTurns})={score:F0}, Score/X = {convergence:P0} (X — заведомо недостижимый потолок, низкий % — не сам по себе повод для тревоги, см. §Итоговый вердикт)");
         }
 
         var convergenceTrend = ClassifyConvergenceTrend(metrics.Turns);

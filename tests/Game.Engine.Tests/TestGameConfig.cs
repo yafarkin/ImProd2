@@ -48,7 +48,6 @@ internal static class TestGameConfig
         log.Append(new SessionStarted
         {
             Id = Ulid.NewUlid(),
-            PresetId = "test",
             EndTurn = 999,
             ConfigHash = Resolved.ContentHash,
             Teams = new[]
@@ -76,7 +75,6 @@ internal static class TestGameConfig
         log.Append(new SessionStarted
         {
             Id = Ulid.NewUlid(),
-            PresetId = "test",
             EndTurn = 999,
             ConfigHash = Resolved.ContentHash,
             Teams = new[]
@@ -110,7 +108,6 @@ internal static class TestGameConfig
         var log = new EventLog<GameSessionState>(new GameSessionState(config ?? Resolved));
         var session = GameSession.StartWithEndTurn(
             log,
-            "test",
             endTurn: 999,
             new[]
             {
@@ -133,7 +130,6 @@ internal static class TestGameConfig
         var log = new EventLog<GameSessionState>(new GameSessionState(Resolved));
         var session = GameSession.StartWithEndTurn(
             log,
-            "test",
             endTurn: 999,
             new[]
             {
@@ -322,10 +318,7 @@ internal static class TestGameConfig
             {
                 MaxInitialBuildBudget = 100_000m,
             },
-            SessionPresets = new[]
-            {
-                new SessionPresetConfig { Id = "test", Name = "Test", MinTurns = 1, MaxTurns = 999, TurnDurationMinutes = 1 },
-            },
+            Duration = new SessionDurationConfig { MinTurns = 1, MaxTurns = 999 },
             PhaseTiming = phaseTiming ?? new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {

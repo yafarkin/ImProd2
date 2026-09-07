@@ -36,7 +36,6 @@ internal static class LoadTestRunner
 
         var configPath = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
         var config = GameConfigLoader.LoadFromFile(configPath);
-        var preset = config.Raw.SessionPresets.Single(p => p.Id == "short");
         var sectorA = config.Sectors.Single(s => s.Id == "A");
         var sectorB = config.Sectors.Single(s => s.Id == "B");
         var budgetMs = config.Raw.PhaseTiming.SettlementPhaseSeconds * 1000d;
@@ -56,7 +55,7 @@ internal static class LoadTestRunner
                 bots.Add(new SimpleBot(teamId, sector, config));
             }
 
-            var session = GameSession.Start(config, preset, teams, new Random(i + 1));
+            var session = GameSession.Start(config, teams, new Random(i + 1));
             var random = new Random(i + 1_000_000);
             var hasBuiltOut = false;
 
@@ -143,19 +142,20 @@ internal static class LoadTestRunner
             .WithWebHostBuilder(builder => builder.UseContentRoot(FindGameWebContentRoot()));
         var host = factory.Services.GetRequiredService<GameSessionHost>();
 
-        var config = host.TrainingConfig;
-        var preset = config.Raw.SessionPresets.Single(p => p.Id == "training");
-        var sectorA = config.Sectors.Single(s => s.Id == "A");
-        var sectorB = config.Sectors.Single(s => s.Id == "B");
+        // Боевой конфиг, а не тренировочный: нагрузку надо мерить на той модели, на которой реально
+        // играют (три сектора), и раскладывать команды по всем секторам, сколько бы их ни было, —
+        // жёсткая пара A/B ломалась при любой смене производственной модели.
+        var config = host.DefaultConfig;
+        var sectors = config.Sectors.ToList();
 
         var teams = new List<TeamSpec>();
         for (var t = 0; t < 8; t++)
         {
-            var sector = t % 2 == 0 ? sectorA : sectorB;
+            var sector = sectors[t % sectors.Count];
             teams.Add(new TeamSpec { Id = Ulid.NewUlid(), Name = $"Команда {t + 1}", SectorId = sector.Id });
         }
 
-        host.StartNewSession(config, preset, teams);
+        host.StartNewSession(config, teams);
 
         var participants = new List<(string Code, string Route)>();
         foreach (var team in teams)

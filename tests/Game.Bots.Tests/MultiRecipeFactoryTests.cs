@@ -30,7 +30,7 @@ public class MultiRecipeFactoryTests
         var sector = config.Sectors.Single();
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 5, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sector.Id } });
+            config, endTurn: 5, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sector.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
 
         var bot = new SimpleBot(teamId, sector, config, leverage: 1m);
@@ -52,7 +52,7 @@ public class MultiRecipeFactoryTests
         var sector = config.Sectors.Single();
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 5, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sector.Id } });
+            config, endTurn: 5, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sector.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
 
         var bot = new SimpleBot(teamId, sector, config, leverage: 1m);
@@ -109,10 +109,7 @@ public class MultiRecipeFactoryTests
             {
                 MaxInitialBuildBudget = 100_000m,
             },
-            SessionPresets = new[]
-            {
-                new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 5, MaxTurns = 5, TurnDurationMinutes = 1 },
-            },
+            Duration = new SessionDurationConfig { MinTurns = 5, MaxTurns = 5 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {

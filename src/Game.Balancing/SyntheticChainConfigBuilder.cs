@@ -76,7 +76,7 @@ public static class SyntheticChainConfigBuilder
             Recipes = recipes,
             FactoryDefinitions = factories,
             StartingConditions = new StartingConditionsConfig { MaxInitialBuildBudget = 1_000_000m },
-            SessionPresets = [new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 5, MaxTurns = 90, TurnDurationMinutes = 1 }],
+            Duration = new SessionDurationConfig { MinTurns = 5, MaxTurns = 90 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {

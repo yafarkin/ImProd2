@@ -43,7 +43,7 @@ public class BotSessionRunnerTests
         var sectorA = config.Sectors.Single(s => s.Id == "A");
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 15,
+            config, endTurn: 15,
             new[] { new TeamSpec { Id = teamId, Name = "Команда А", SectorId = sectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
 

@@ -18,7 +18,7 @@ public class JournalExportTests
         var first = root[0];
         Assert.Equal(session.Entries[0].SequenceNumber, first.GetProperty("SequenceNumber").GetInt32());
         Assert.Equal("SessionStarted", first.GetProperty("ChangeType").GetString());
-        Assert.Equal("test", first.GetProperty("Change").GetProperty("PresetId").GetString());
+        Assert.Equal(session.State.EndTurn, first.GetProperty("Change").GetProperty("EndTurn").GetInt32());
     }
 
     [Fact]

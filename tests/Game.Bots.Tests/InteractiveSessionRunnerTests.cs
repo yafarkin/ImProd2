@@ -13,7 +13,7 @@ namespace Game.Bots.Tests;
 /// </summary>
 public class InteractiveSessionRunnerTests
 {
-    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", "control-twin-metallurgy.json");
+    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "control-twin-metallurgy.json");
     private static string SessionPath => Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
 
     private static ResolvedGameConfig LoadConfig() => GameConfigLoader.LoadFromFiles(ConfigPath, SessionPath);
@@ -23,7 +23,7 @@ public class InteractiveSessionRunnerTests
     {
         var config = LoadConfig();
 
-        var runner = InteractiveSessionRunner.Start(config, "short", endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
+        var runner = InteractiveSessionRunner.Start(config, endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
 
         Assert.Equal(TurnPhase.Decision, runner.Session.State.CurrentPhase);
         Assert.Equal(1, runner.Session.State.CurrentTurn);
@@ -36,7 +36,7 @@ public class InteractiveSessionRunnerTests
     public void ApplyManualAction_BuildFactory_Spends_Money_And_Adds_The_Factory_Immediately()
     {
         var config = LoadConfig();
-        var runner = InteractiveSessionRunner.Start(config, "short", endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
+        var runner = InteractiveSessionRunner.Start(config, endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
         var balanceBefore = runner.Session.State.Teams[runner.ManualTeamId].Balance;
 
         var result = runner.ApplyManualAction(new ManualAction { Kind = ManualActionKind.BuildFactory, FactoryDefinitionId = "iron-mine" });
@@ -52,7 +52,7 @@ public class InteractiveSessionRunnerTests
     public void ApplyManualAction_With_Unknown_Factory_Returns_Failure_Instead_Of_Throwing()
     {
         var config = LoadConfig();
-        var runner = InteractiveSessionRunner.Start(config, "short", endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
+        var runner = InteractiveSessionRunner.Start(config, endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
 
         var result = runner.ApplyManualAction(new ManualAction { Kind = ManualActionKind.BuildFactory, FactoryDefinitionId = "does-not-exist" });
 
@@ -63,7 +63,7 @@ public class InteractiveSessionRunnerTests
     public void ApplyManualAction_Missing_Required_Field_Returns_Failure_Instead_Of_Throwing()
     {
         var config = LoadConfig();
-        var runner = InteractiveSessionRunner.Start(config, "short", endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
+        var runner = InteractiveSessionRunner.Start(config, endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
 
         // SellToSystem без materialId/volume — не должно уронить процесс, только вернуть Failure.
         var result = runner.ApplyManualAction(new ManualAction { Kind = ManualActionKind.SellToSystem });
@@ -80,7 +80,7 @@ public class InteractiveSessionRunnerTests
     public void CompleteTurn_Advances_The_Turn_While_The_Bot_Still_Builds_Out_Its_Own_Sector()
     {
         var config = LoadConfig();
-        var runner = InteractiveSessionRunner.Start(config, "short", endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
+        var runner = InteractiveSessionRunner.Start(config, endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
 
         var turnResult = runner.CompleteTurn();
 
@@ -104,7 +104,7 @@ public class InteractiveSessionRunnerTests
     public void ProposeManualTeamDecision_Does_Not_Touch_The_Real_Session()
     {
         var config = LoadConfig();
-        var runner = InteractiveSessionRunner.Start(config, "short", endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
+        var runner = InteractiveSessionRunner.Start(config, endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
         var balanceBefore = runner.Session.State.Teams[runner.ManualTeamId].Balance;
         var factoryCountBefore = runner.Session.State.Teams[runner.ManualTeamId].Factories.Count;
 
@@ -127,7 +127,7 @@ public class InteractiveSessionRunnerTests
     public void ApplyProposedActions_Remaps_The_Draft_FactoryId_To_The_Real_One_For_A_Build_Followed_By_Worker_Count()
     {
         var config = LoadConfig();
-        var runner = InteractiveSessionRunner.Start(config, "short", endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
+        var runner = InteractiveSessionRunner.Start(config, endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
         var proposal = runner.ProposeManualTeamDecision();
 
         var buildIndex = proposal.Actions.ToList().FindIndex(a => a.Kind == ManualActionKind.BuildFactory);
@@ -150,7 +150,7 @@ public class InteractiveSessionRunnerTests
     public void ApplyProposedActions_Applies_Only_The_Subset_Passed_In()
     {
         var config = LoadConfig();
-        var runner = InteractiveSessionRunner.Start(config, "short", endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
+        var runner = InteractiveSessionRunner.Start(config, endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
         var proposal = runner.ProposeManualTeamDecision();
         var buildActions = proposal.Actions.Where(a => a.Kind == ManualActionKind.BuildFactory).ToList();
         Assert.NotEmpty(buildActions);
@@ -168,7 +168,7 @@ public class InteractiveSessionRunnerTests
     public void CompleteTurn_Snapshot_Reflects_The_Manual_Teams_Own_Action_This_Turn()
     {
         var config = LoadConfig();
-        var runner = InteractiveSessionRunner.Start(config, "short", endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
+        var runner = InteractiveSessionRunner.Start(config, endTurn: 5, manualSectorId: "A", maintainFactories: true, leverage: 1m, profile: 0m);
 
         var buildResult = Assert.IsType<ManualActionResult.Success>(
             runner.ApplyManualAction(new ManualAction { Kind = ManualActionKind.BuildFactory, FactoryDefinitionId = "iron-mine" }));

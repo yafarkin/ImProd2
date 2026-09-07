@@ -17,30 +17,20 @@ public class GameConfigLoaderTests
     /// <summary>
     /// Все производственные модели, которые реально раздаёт `GameSessionHost`, должны сочетаться с
     /// любым сессионным набором и в любой комбинации проходить полную валидацию ссылочной
-    /// целостности — это и есть смысл разреза модель/сессия (Block, запрос пользователя): их можно
+    /// целостности — это и есть смысл разреза модель/сессия (запрос пользователя): их можно
     /// свободно комбинировать, а не только использовать в предустановленных парах. Ловит опечатки в
     /// каталоге (например, RecipeId, оставшийся от удалённого при слиянии типа фабрики), которые
     /// десериализация сама по себе не заметит.
+    ///
+    /// <para>
+    /// Комбинации перечисляются обходом каталогов, а не списком <c>InlineData</c> (2026-09-07): при
+    /// прежнем жёстком списке удаление или добавление файла роняло тест по <c>FileNotFoundException</c>,
+    /// а новый файл, наоборот, молча оставался непроверенным — ровно то и другое случилось при
+    /// сокращении набора моделей до двух.
+    /// </para>
     /// </summary>
     [Theory]
-    [InlineData("standard.json", "pilot.json")]
-    [InlineData("standard.json", "training.json")]
-    [InlineData("standard.json", "debug.json")]
-    [InlineData("debug.json", "pilot.json")]
-    [InlineData("debug.json", "training.json")]
-    [InlineData("debug.json", "debug.json")]
-    [InlineData("metallurgy-7.json", "pilot.json")]
-    [InlineData("metallurgy-7.json", "training.json")]
-    [InlineData("metallurgy-7.json", "debug.json")]
-    [InlineData("metallurgy-petrochemistry.json", "pilot.json")]
-    [InlineData("metallurgy-petrochemistry.json", "training.json")]
-    [InlineData("metallurgy-petrochemistry.json", "debug.json")]
-    [InlineData("metallurgy-petrochemistry-forestry.json", "pilot.json")]
-    [InlineData("metallurgy-petrochemistry-forestry.json", "training.json")]
-    [InlineData("metallurgy-petrochemistry-forestry.json", "debug.json")]
-    [InlineData("metallurgy-petrochemistry-forestry-electronics.json", "pilot.json")]
-    [InlineData("metallurgy-petrochemistry-forestry-electronics.json", "training.json")]
-    [InlineData("metallurgy-petrochemistry-forestry-electronics.json", "debug.json")]
+    [MemberData(nameof(EveryModelSessionCombination))]
     public void LoadFromFiles_Resolves_Every_Model_Session_Combination_Without_Validation_Errors(
         string productionModelFileName, string sessionFileName)
     {
@@ -50,20 +40,30 @@ public class GameConfigLoaderTests
         Assert.NotEmpty(resolved.FactoryDefinitions);
     }
 
-    /// <summary>
-    /// Разрез на модель+сессию (см. <see cref="GameConfigComposer"/>) не должен терять или менять ни
-    /// одного значения по сравнению со старым единым файлом: `standard.json` + `pilot.json` —
-    /// это ровно тот же каталог/экономика/сессия, что и раньше был в одном `gameconfig.pilot.json`.
-    /// </summary>
-    [Fact]
-    public void LoadFromFiles_Of_Standard_And_Pilot_Reproduces_Legacy_Combined_Sample()
+    public static TheoryData<string, string> EveryModelSessionCombination()
     {
-        var fromSplitFiles = GameConfigLoader.LoadFromFiles(ProductionModelPath("standard.json"), SessionPath("pilot.json"));
-        var fromCombinedFile = GameConfigLoader.LoadFromFile(SampleConfigPath);
+        var models = Directory.EnumerateFiles(Path.Combine(AppContext.BaseDirectory, "Samples", "production-models"), "*.json")
+            .Select(Path.GetFileName)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
+        var sessions = Directory.EnumerateFiles(Path.Combine(AppContext.BaseDirectory, "Samples", "sessions"), "*.json")
+            .Select(Path.GetFileName)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
 
-        Assert.Equal(
-            System.Text.Json.JsonSerializer.Serialize(fromCombinedFile.Raw),
-            System.Text.Json.JsonSerializer.Serialize(fromSplitFiles.Raw));
+        Assert.NotEmpty(models);
+        Assert.NotEmpty(sessions);
+
+        var data = new TheoryData<string, string>();
+        foreach (var model in models)
+        {
+            foreach (var session in sessions)
+            {
+                data.Add(model!, session!);
+            }
+        }
+
+        return data;
     }
 
     [Fact]

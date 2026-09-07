@@ -43,7 +43,7 @@ public class ChainCapacityPlannerTests
                 new FactoryDefinitionConfig { Id = "plant", Name = "Завод", SectorId = "A", RecipeIds = ["processing"], BuildCost = 800m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 20m },
             ],
             StartingConditions = new StartingConditionsConfig { MaxInitialBuildBudget = 100_000m },
-            SessionPresets = [new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 5, MaxTurns = 5, TurnDurationMinutes = 1 }],
+            Duration = new SessionDurationConfig { MinTurns = 5, MaxTurns = 5 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {
