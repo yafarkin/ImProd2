@@ -12,7 +12,7 @@ public class EmergencyPurchaseStepTests
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
 
-        var changes = EmergencyPurchaseStep.Run(team, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1);
+        var changes = EmergencyPurchaseStep.Run(team, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1, log.State.Market);
 
         Assert.Empty(changes);
     }
@@ -23,7 +23,7 @@ public class EmergencyPurchaseStepTests
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
         team.RequestEmergencyPurchase("ore", 5m);
 
-        var changes = EmergencyPurchaseStep.Run(team, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1);
+        var changes = EmergencyPurchaseStep.Run(team, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1, log.State.Market);
 
         var purchased = Assert.IsType<EmergencyPurchased>(Assert.Single(changes));
         Assert.Equal("ore", purchased.MaterialId);
@@ -40,7 +40,7 @@ public class EmergencyPurchaseStepTests
         team.RequestEmergencyPurchase("sheet", 1m);
         team.RequestEmergencyPurchase("ore", 1m);
 
-        var changes = EmergencyPurchaseStep.Run(team, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1);
+        var changes = EmergencyPurchaseStep.Run(team, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1, log.State.Market);
 
         Assert.Collection(
             changes,

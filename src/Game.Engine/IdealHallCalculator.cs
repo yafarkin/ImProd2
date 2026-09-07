@@ -525,7 +525,19 @@ public static class IdealHallCalculator
             return;
         }
 
-        var sale = MarketSaleCalculator.Calculate(market, materialCosts, config.Raw.Economy, material, remainingSurplus);
+        // Давление предложения (PricingModel.External) считается по журналу сессии, а у идеального
+        // зала журнала нет — он симулирует, а не играет. Пока подставляется объём, проданный в этом
+        // же ходу (Market.SoldThisTurn): по внутриходовой части это точно, но межходовой памяти
+        // рынка зал не видит и потому СИСТЕМАТИЧЕСКИ ЗАВЫШАЕТ выручку под внешней моделью.
+        // Собственный затухающий счётчик давления — блок 11.6 (docs/external-economy.md §9), там же
+        // это ловится сверкой IdealHallEngineReconciliationTests. До 11.6 X(t) под External
+        // некорректен; под CostPlus параметр не используется вовсе, поэтому нынешняя калибровка не
+        // затронута.
+        var supplyPressure = config.Raw.Economy.PricingModel == PricingModel.External
+            ? market.SoldThisTurn(material.Id)
+            : 0m;
+        var sale = MarketSaleCalculator.Calculate(
+            market, materialCosts, config.Raw.Economy, material, remainingSurplus, supplyPressure);
         var soldVolume = sale.WithinCapacityVolume + sale.OverflowVolume;
         if (soldVolume <= 0m)
         {

@@ -82,6 +82,63 @@ public static class ExternalPriceCalculator
     }
 
     /// <summary>
+    /// Средний множитель эластичности для продажи объёма <paramref name="volume"/>, начатой при
+    /// давлении <paramref name="supplyPressureBefore"/> — интеграл
+    /// <see cref="ElasticityMultiplier"/> по объёму, делённый на объём:
+    ///
+    /// <code>
+    /// средняя = Floor + (1 − Floor) × (ёмкость / объём) × ln( (ёмкость + p₀ + объём) / (ёмкость + p₀) )
+    /// </code>
+    ///
+    /// <para><b>Зачем интеграл, а не цена «на момент начала продажи».</b> Продажа сама двигает
+    /// давление, и надо решить, по какой точке кривой её оценивать. Если брать давление ДО продажи,
+    /// весь объём уходит по неиспорченной цене, и появляется арбитраж наоборот задуманному: выгодно
+    /// вывалить всё одним заказом, потому что собственный залив себя не задевает — наказаны только
+    /// соседи и будущие ходы. Если брать давление ПОСЛЕ, весь объём штрафуется по худшей точке, что
+    /// избыточно сурово к первой же единице.</para>
+    ///
+    /// <para>Интеграл снимает вопрос целиком: каждая следующая единица продаётся во всё более
+    /// насыщенный рынок, а результат <b>не зависит от того, как продажа разбита на заказы</b> — один
+    /// большой заказ и десять мелких подряд дают ровно ту же выручку. Именно это свойство и нужно:
+    /// механизм обязан наказывать объём, а не неумение его нарезать.</para>
+    ///
+    /// <para>Логарифм считается в <c>double</c> (у <c>decimal</c> его нет) — тот же приём и та же
+    /// точность, что у затухания по полураспаду в
+    /// <see cref="MarketSupplyPressureCalculator"/>.</para>
+    /// </summary>
+    public static decimal AverageElasticityMultiplier(
+        decimal capacity, decimal supplyPressureBefore, decimal volume, decimal priceFloorRate)
+    {
+        EnsurePositive(capacity, nameof(capacity));
+        EnsureNonNegative(supplyPressureBefore, nameof(supplyPressureBefore));
+        EnsurePositive(volume, nameof(volume));
+        EnsureRate(priceFloorRate, nameof(priceFloorRate));
+
+        var from = capacity + supplyPressureBefore;
+        var to = from + volume;
+        var integralOfDecayingPart = (decimal)Math.Log((double)(to / from)) * capacity;
+
+        return priceFloorRate + (1m - priceFloorRate) * integralOfDecayingPart / volume;
+    }
+
+    /// <summary>
+    /// Средняя цена единицы при продаже объёма <paramref name="volume"/> — то же, что
+    /// <see cref="SellPrice"/>, но с усреднением по объёму (см. <see cref="AverageElasticityMultiplier"/>).
+    /// Именно эта цена идёт в реальную сделку; <see cref="SellPrice"/> отвечает на другой вопрос —
+    /// «почём рынок берёт следующую единицу прямо сейчас», и годится для витрины котировки.
+    /// </summary>
+    public static decimal AverageSellPrice(
+        decimal baseSellPrice, decimal economyIndex, decimal capacity,
+        decimal supplyPressureBefore, decimal volume, decimal priceFloorRate)
+    {
+        EnsureNonNegative(baseSellPrice, nameof(baseSellPrice));
+        EnsurePositive(economyIndex, nameof(economyIndex));
+
+        return baseSellPrice * economyIndex
+               * AverageElasticityMultiplier(capacity, supplyPressureBefore, volume, priceFloorRate);
+    }
+
+    /// <summary>
     /// Цена, по которой система продаёт команде единицу материала аварийно (SPEC §5.3) — зеркало
     /// <see cref="SellPrice"/>: система работает маркетмейкером, покупает по цене сбыта и продаёт
     /// дороже неё в <paramref name="emergencyBaseMultiplier"/> раз. Полоса между двумя ценами — то,

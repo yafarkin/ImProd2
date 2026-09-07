@@ -17,17 +17,16 @@ public sealed record EconomyTrendPhaseConfig
     public required int EndTurn { get; init; }
 
     /// <summary>
-    /// Изменение цены за ход на этом отрезке.
-    /// <para><b>Уходит в блоке 11.5</b> вместе с <see cref="CapacityChangePerTurn"/> — их обоих
-    /// заменяет <see cref="IndexChangePerTurn"/> (состояние экономики описывается одним числом, а не
-    /// двумя несогласуемыми). Пока оставлены живыми: по ним всё ещё работает
-    /// <see cref="Game.Engine.MarketCalculator"/> в режиме
-    /// <see cref="PricingModel.CostPlus"/>, и убрать их сейчас значило бы изменить поведение
-    /// действующей игры в блоке, который заявлен как не меняющий его.</para>
+    /// Изменение цены за ход на этом отрезке — <b>только при <see cref="PricingModel.CostPlus"/></b>.
+    /// <para>При <see cref="PricingModel.External"/> не используется вовсе: состояние экономики там
+    /// описывается одним числом (<see cref="IndexChangePerTurn"/>), а не двумя несогласуемыми
+    /// абсолютными приращениями. Поле не удалено, потому что <c>CostPlus</c> сохранён как
+    /// калибровочно-регрессионный режим (<c>docs/TODO.md</c> №27) — вместе с ним живут и его
+    /// настройки.</para>
     /// </summary>
     public required decimal PriceChangePerTurn { get; init; }
 
-    /// <summary>Изменение ёмкости за ход на этом отрезке. Уходит в блоке 11.5 — см. <see cref="PriceChangePerTurn"/>.</summary>
+    /// <summary>Изменение ёмкости за ход на этом отрезке — только при <see cref="PricingModel.CostPlus"/>, см. <see cref="PriceChangePerTurn"/>.</summary>
     public required decimal CapacityChangePerTurn { get; init; }
 
     /// <summary>

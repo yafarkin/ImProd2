@@ -1652,8 +1652,22 @@ else
             return new SellPreviewResult(HasQuote: false, 0m, 0m, 0m, 0m, 0m);
         }
 
-        var result = MarketSaleCalculator.Calculate(_market, _materialCosts, _economyConfig, row.Material, volume);
-        var overflowUnitPrice = result.UnitPrice * _economyConfig.MarketCapacityOverflowDiscount;
+        // Давление предложения — то же, что увидит расчёт: считается по журналу на текущий ход.
+        // Предпросмотр обязан показывать ту же цену, что реально получится, включая просадку от уже
+        // состоявшихся продаж зала (в том числе чужих) — иначе игрок узнаёт о насыщении рынка только
+        // постфактум, и механизм конкуренции за сбыт становится необъяснимым.
+        var supplyPressure = _economyConfig.PricingModel == PricingModel.External
+            ? MarketSupplyPressureCalculator.CalculateRecentVolume(
+                Host.Session!.Entries, row.MaterialId, Host.Session!.State.CurrentTurn, _economyConfig)
+            : 0m;
+        var result = MarketSaleCalculator.Calculate(
+            _market, _materialCosts, _economyConfig, row.Material, volume, supplyPressure);
+
+        // Под внешней моделью цена непрерывна: отдельного «тарифа сверх лимита» нет, UnitPrice уже
+        // усреднён по всему объёму. Показывать вторую цену нечего — показывается та же.
+        var overflowUnitPrice = _economyConfig.PricingModel == PricingModel.External
+            ? result.UnitPrice
+            : result.UnitPrice * _economyConfig.MarketCapacityOverflowDiscount;
         var realUnitCost = _realUnitCostByMaterialId.GetValueOrDefault(row.MaterialId);
         var profit = result.TotalRevenue - realUnitCost * volume;
 

@@ -4,32 +4,44 @@ using Game.Domain;
 namespace Game.Engine;
 
 /// <summary>
-/// Расчёт продажи материала системе (Блок 6.1, SPEC §5.4): в пределах оставшейся на этот ход
-/// ёмкости — по себестоимости (<see cref="MaterialCostCalculator"/>, не рыночной котировке) ×
-/// <see cref="SystemSaleMarginMultiplier"/>; сверх ёмкости — та же цена с дополнительным понижающим
-/// коэффициентом (перепроизводство обваливает цену продажи). Наценка — фиксированная, ОДНА на все
-/// материалы независимо от уровня передела (запрос пользователя, rebalance/2-sector-stepwise,
-/// 2026-08-22: «цена продажи системе = себестоимость материала + 5%, вне зависимости от уровня»,
-/// расширено тем же днём до 10%/40%-окна для продажи/аварийной закупки — «маркетмейкер» шире, чем
-/// изначально) — до этого была настраиваемая таблица по уровню (<c>Economy.MarginMultiplierByProcessingLevel</c>),
-/// убрана целиком: асимметрично подобранные множители соседних уровней дважды (step8, step12)
-/// оказывались источником бага «переработка почти не приносит прибыли», хотя себестоимость по цепочке
-/// росла честно. Ёмкость (<see cref="Market.RemainingCapacityOf"/>) осталась привязана к рынку — это
-/// отдельный, не связанный с ценой механизм (сколько система готова выкупить за ход, не почём).
-/// Чистая функция — не мутирует ни склад, ни рынок.
+/// Расчёт продажи материала системе (Блок 6.1, SPEC §5.4). Ветвится по <see cref="PricingModel"/> —
+/// одна из двух точек движка, где модель ценообразования вообще различима (вторая — <see
+/// cref="EmergencyPurchaseStep"/>), <c>docs/external-economy.md</c> §8. Чистая функция: не мутирует
+/// ни склад, ни рынок.
+///
+/// <para><b><see cref="PricingModel.External"/></b> (блок 11.5) — цена задаётся внешней экономикой и
+/// от себестоимости не зависит: <c>BaseSellPrice × Индекс × Эластичность(давление)</c>. Объём
+/// продажи оценивается интегралом по кривой эластичности (<see
+/// cref="ExternalPriceCalculator.AverageElasticityMultiplier"/>), поэтому выручка не зависит от
+/// того, одним заказом продано или десятью. <c>WithinCapacityVolume</c>/<c>OverflowVolume</c> здесь
+/// не два ценовых тарифа (тарифа больше нет, цена непрерывна), а <b>сигнал интерфейсу</b>: сколько
+/// из проданного ушло в ещё не насыщенный рынок, а сколько — за его ёмкость.</para>
+///
+/// <para><b><see cref="PricingModel.CostPlus"/></b> — прежнее правило: себестоимость (<see
+/// cref="MaterialCostCalculator"/>) × фиксированная наценка <see cref="SystemSaleMarginMultiplier"/>,
+/// одна на все уровни передела; сверх ёмкости — та же цена с понижающим коэффициентом
+/// (ступенька). Сохранено как калибровочно-регрессионный режим, не как игровая опция.</para>
 /// </summary>
 public static class MarketSaleCalculator
 {
     /// <summary>
-    /// Наценка системной продажи над себестоимостью — везде и всегда 1.30× (себестоимость + 30%,
-    /// поднято с 20% тем же днём, step17), не зависит от уровня передела материала (см. doc-comment
-    /// класса). Положительная, но меньше аварийного плана (тот — <see
-    /// cref="EconomyConfig.EmergencyPurchaseBaseMultiplier"/>, обычно намного больше).
+    /// Наценка системной продажи над себестоимостью в режиме <see cref="PricingModel.CostPlus"/> —
+    /// 1.30× (себестоимость + 30%), не зависит от уровня передела. Это и есть то самое упрощение,
+    /// ради отладки цепочек введённое 2026-08-21 и снимаемое Фазой 11: под ним экономика замкнута
+    /// сама на себя (цена из себестоимости, себестоимость из цен входов), из-за чего не
+    /// вознаграждается ни глубина передела, ни эффективность
+    /// (<c>docs/economy-accounting-audit.md</c>).
     /// </summary>
     public const decimal SystemSaleMarginMultiplier = 1.30m;
 
+    /// <param name="supplyPressure">
+    /// Давление предложения по этому материалу ДО текущей продажи
+    /// (<see cref="MarketSupplyPressureCalculator"/>). В режиме <see cref="PricingModel.CostPlus"/>
+    /// не используется вовсе.
+    /// </param>
     public static MarketSaleResult Calculate(
-        Market market, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy, Material material, decimal volume)
+        Market market, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy,
+        Material material, decimal volume, decimal supplyPressure = 0m)
     {
         ArgumentNullException.ThrowIfNull(market);
         ArgumentNullException.ThrowIfNull(materialCosts);
@@ -40,6 +52,47 @@ public static class MarketSaleCalculator
             throw new ArgumentOutOfRangeException(nameof(volume), volume, "Sale volume must be positive.");
         }
 
+        return economy.PricingModel == PricingModel.External
+            ? CalculateExternal(market, economy, material, volume, supplyPressure)
+            : CalculateCostPlus(market, materialCosts, economy, material, volume);
+    }
+
+    private static MarketSaleResult CalculateExternal(
+        Market market, EconomyConfig economy, Material material, decimal volume, decimal supplyPressure)
+    {
+        var quote = market.QuoteOf(material.Id);
+        if (quote.Capacity <= 0m)
+        {
+            throw new InvalidOperationException(
+                $"Material '{material.Id}' has no market capacity: the elasticity curve is undefined without it. " +
+                "Give it a positive BaseCapacity in the production model.");
+        }
+
+        // Котировка уже несёт BaseSellPrice × Индекс (см. MarketCalculator), поэтому здесь остаётся
+        // домножить её на среднюю эластичность — индекс второй раз не применяется.
+        var averageUnitPrice = quote.Price
+                               * ExternalPriceCalculator.AverageElasticityMultiplier(
+                                   quote.Capacity, supplyPressure, volume, economy.MarketPriceFloorRate);
+
+        // Не ценовые тарифы, а сигнал интерфейсу «сколько ушло в ненасыщенный рынок» — см.
+        // doc-comment класса. Отсчитывается от давления, а не от Market.SoldThisTurn: под внешней
+        // моделью насыщение живёт дольше одного хода.
+        var headroom = Math.Max(0m, quote.Capacity - supplyPressure);
+        var withinCapacityVolume = Math.Min(volume, headroom);
+
+        return new MarketSaleResult
+        {
+            WithinCapacityVolume = withinCapacityVolume,
+            OverflowVolume = volume - withinCapacityVolume,
+            UnitPrice = averageUnitPrice,
+            TotalRevenue = volume * averageUnitPrice,
+        };
+    }
+
+    private static MarketSaleResult CalculateCostPlus(
+        Market market, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy,
+        Material material, decimal volume)
+    {
         var unitCost = materialCosts.TryGetValue(material.Id, out var cost) ? cost : 0m;
         var remainingCapacity = market.RemainingCapacityOf(material.Id);
 

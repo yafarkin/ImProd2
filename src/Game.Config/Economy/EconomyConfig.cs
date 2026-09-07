@@ -47,7 +47,14 @@ public sealed record EconomyConfig
     /// <summary>Базовые цена и ёмкость по каждому материалу (Блок 6.1), от которых тренд отсчитывает изменение по ходам.</summary>
     public required IReadOnlyList<MaterialMarketConfig> BaseMarketPerMaterial { get; init; }
 
-    /// <summary>Понижающий коэффициент цены при продаже сверх ёмкости рынка (0..1).</summary>
+    /// <summary>
+    /// Понижающий коэффициент цены при продаже сверх ёмкости рынка (0..1) — <b>только при
+    /// <see cref="Economy.PricingModel.CostPlus"/></b>, где насыщение рынка сделано ступенькой.
+    /// <para>При <see cref="Economy.PricingModel.External"/> не используется: там цена непрерывна,
+    /// ступеньки нет, и просадку за перепроизводство задаёт
+    /// <see cref="MarketPriceFloorRate"/> вместе с давлением предложения. Поле не удалено, потому
+    /// что вместе с режимом <c>CostPlus</c> живут и его настройки.</para>
+    /// </summary>
     public required decimal MarketCapacityOverflowDiscount { get; init; }
 
     /// <summary>

@@ -19,15 +19,22 @@ namespace Game.Engine;
 /// </summary>
 public static class SystemSaleStep
 {
+    /// <param name="entries">
+    /// Журнал сессии — нужен для давления предложения (<see cref="MarketSupplyPressureCalculator"/>)
+    /// при <see cref="PricingModel.External"/>. Передаётся тем же способом, что и в
+    /// <see cref="EmergencyPurchaseStep"/>: цена зависит от истории, а не только от состояния.
+    /// </param>
     public static IReadOnlyList<Change<GameSessionState>> Run(
         Team team, Market market, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy,
-        IReadOnlyDictionary<string, Material> materials, int currentTurn)
+        IReadOnlyDictionary<string, Material> materials, int currentTurn,
+        IReadOnlyList<EventLogEntry<GameSessionState>> entries)
     {
         ArgumentNullException.ThrowIfNull(team);
         ArgumentNullException.ThrowIfNull(market);
         ArgumentNullException.ThrowIfNull(materialCosts);
         ArgumentNullException.ThrowIfNull(economy);
         ArgumentNullException.ThrowIfNull(materials);
+        ArgumentNullException.ThrowIfNull(entries);
 
         var changes = new List<Change<GameSessionState>>();
 
@@ -56,7 +63,14 @@ public static class SystemSaleStep
                 continue;
             }
 
-            var sale = MarketSaleCalculator.Calculate(market, materialCosts, economy, material, volume);
+            // Давление берётся заново на каждую продажу — включая уже применённые продажи этого же
+            // хода. Именно так порядок команд (по возрастанию Team.Id) превращается в непрерывное,
+            // мелкое преимущество ранних вместо прежней лотереи «кому досталась последняя единица
+            // ёмкости по полной цене».
+            var supplyPressure = economy.PricingModel == PricingModel.External
+                ? MarketSupplyPressureCalculator.CalculateRecentVolume(entries, materialId, currentTurn, economy)
+                : 0m;
+            var sale = MarketSaleCalculator.Calculate(market, materialCosts, economy, material, volume, supplyPressure);
 
             changes.Add(new MaterialSoldToSystem
             {

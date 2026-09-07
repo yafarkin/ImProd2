@@ -1120,12 +1120,12 @@ public sealed class GameSession
             // производства, а продать можно было только то, что было на складе до него, не свежий
             // выпуск). Порядок команд между собой (внешний foreach, по возрастанию Team.Id) здесь и
             // решает гонку за общую ёмкость рынка между продажами разных команд.
-            foreach (var change in EmergencyPurchaseStep.Run(team, materialCosts, config.Raw.Economy, Entries, State.CurrentTurn))
+            foreach (var change in EmergencyPurchaseStep.Run(team, materialCosts, config.Raw.Economy, Entries, State.CurrentTurn, State.Market))
             {
                 appended.Add(_log.Append(change));
             }
 
-            foreach (var change in SystemSaleStep.Run(team, State.Market, materialCosts, config.Raw.Economy, config.Materials, State.CurrentTurn))
+            foreach (var change in SystemSaleStep.Run(team, State.Market, materialCosts, config.Raw.Economy, config.Materials, State.CurrentTurn, Entries))
             {
                 appended.Add(_log.Append(change));
             }
