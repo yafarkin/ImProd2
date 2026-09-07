@@ -868,10 +868,12 @@ public sealed class GameSession
 
     /// <summary>
     /// Ручное событие ведущего (SPEC §9.5): публикует конкретный заголовок из библиотеки, минуя
-    /// автоматический подбор по тренду (Блок 6.3) — тем же событием <see cref="NewsPublished"/> и с
-    /// тем же ограничением на повтор, так что использованный вручную заголовок больше никогда не
-    /// прозвучит, включая автоматический подбор следующих ходов. Не привязано к фазе решений — это
-    /// действие ведущего, а не команды.
+    /// автоматический подбор по тренду (Блок 6.3) — тем же событием <see cref="NewsPublished"/> и в
+    /// тот же общий пул, так что автоматический подбор будет считать этот заголовок уже прозвучавшим
+    /// и вернётся к нему в последнюю очередь. Повторная ручная публикация не запрещена: с блока 11.9
+    /// пул при исчерпании переиспользуется (<see cref="NewsCalculator.SelectNext"/>), и запрет
+    /// оставлял бы ведущего без половины библиотеки к концу партии. Не привязано к фазе решений —
+    /// это действие ведущего, а не команды.
     /// </summary>
     public EventLogEntry<GameSessionState> PublishManualNews(string newsItemId)
     {
@@ -879,10 +881,6 @@ public sealed class GameSession
         if (item is null)
         {
             throw new ArgumentException($"Unknown news item '{newsItemId}'.", nameof(newsItemId));
-        }
-        if (State.NewsFeed.IsPublished(newsItemId))
-        {
-            throw new InvalidOperationException($"News item '{newsItemId}' has already been published this session.");
         }
 
         return _log.Append(new NewsPublished
@@ -1208,8 +1206,11 @@ public sealed class GameSession
             EconomyIndex = EconomyIndexCalculator.Calculate(State.CurrentTurn, config.Raw.Economy),
         }));
 
-        var currentTrend = NewsCalculator.CurrentTrend(State.CurrentTurn, config.Raw.Economy.TrendScenario);
-        var nextNews = NewsCalculator.SelectNext(config.Raw.News, State.NewsFeed, currentTrend, newsRandom);
+        // Лента предупреждает заранее: заголовок этого хода описывает тренд, который наступит через
+        // NewsLookaheadTurns ходов (блок 11.9, docs/external-economy.md §5).
+        var forecastTrend = NewsCalculator.ForecastTrend(
+            State.CurrentTurn, config.Raw.NewsLookaheadTurns, config.Raw.Economy.TrendScenario);
+        var nextNews = NewsCalculator.SelectNext(config.Raw.News, State.NewsFeed, forecastTrend, newsRandom);
         if (nextNews is not null)
         {
             appended.Add(_log.Append(new NewsPublished

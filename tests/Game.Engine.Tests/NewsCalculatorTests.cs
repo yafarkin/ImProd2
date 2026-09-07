@@ -43,7 +43,7 @@ public class NewsCalculatorTests
     }
 
     [Fact]
-    public void SelectNext_Never_Repeats_An_Already_Published_Item()
+    public void SelectNext_Prefers_Items_That_Have_Not_Been_Published_Yet()
     {
         var library = new[]
         {
@@ -54,24 +54,84 @@ public class NewsCalculatorTests
         var random = new Random(1);
 
         var seen = new HashSet<string>();
-        for (var i = 0; i < library.Length; i++)
+        for (var turn = 1; turn <= library.Length; turn++)
         {
             var selected = NewsCalculator.SelectNext(library, feed, EconomyTrend.Up, random);
             Assert.NotNull(selected);
-            Assert.True(seen.Add(selected!.Id)); // ни разу не повторился
-            feed.Record(selected.Id);
+            Assert.True(seen.Add(selected!.Id)); // пока в пуле есть свежие — повторов нет
+            feed.Record(selected.Id, turn);
         }
     }
 
+    /// <summary>
+    /// Блок 11.9: исчерпание пула больше не означает тишину до конца партии — берётся самый давно
+    /// не звучавший заголовок тренда.
+    /// </summary>
     [Fact]
-    public void SelectNext_Returns_Null_When_The_Trend_Pool_Is_Exhausted()
+    public void SelectNext_Reuses_The_Least_Recently_Published_Item_When_The_Pool_Is_Exhausted()
+    {
+        var library = new[]
+        {
+            new NewsItemConfig { Id = "up-1", Trend = EconomyTrend.Up, Headline = "Первый" },
+            new NewsItemConfig { Id = "up-2", Trend = EconomyTrend.Up, Headline = "Второй" },
+            new NewsItemConfig { Id = "up-3", Trend = EconomyTrend.Up, Headline = "Третий" },
+        };
+        var feed = new NewsFeed();
+        feed.Record("up-1", 5);
+        feed.Record("up-2", 3);
+        feed.Record("up-3", 9);
+
+        // up-2 звучал давнее всех; up-3 звучал последним и потому исключён из кандидатов вовсе.
+        var selected = NewsCalculator.SelectNext(library, feed, EconomyTrend.Up, new Random(1));
+
+        Assert.Equal("up-2", selected!.Id);
+    }
+
+    /// <summary>
+    /// Тишина остаётся возможной ровно в одном случае — заголовков этого тренда нет в библиотеке
+    /// вовсе. Это дыра в контенте, а не исчерпание пула, и молча подставлять чужой тренд нельзя:
+    /// новость соврала бы о том, к чему готовиться.
+    /// </summary>
+    [Fact]
+    public void SelectNext_Returns_Null_Only_When_The_Trend_Has_No_Headlines_At_All()
     {
         var library = new[] { new NewsItemConfig { Id = "up-1", Trend = EconomyTrend.Up, Headline = "Единственный" } };
         var feed = new NewsFeed();
-        feed.Record("up-1");
 
-        var selected = NewsCalculator.SelectNext(library, feed, EconomyTrend.Up, new Random(1));
+        Assert.Null(NewsCalculator.SelectNext(library, feed, EconomyTrend.Down, new Random(1)));
+    }
 
-        Assert.Null(selected);
+    /// <summary>
+    /// Пул из одного заголовка — единственное место, где повтор подряд допустим: выбора нет, а
+    /// молчащая лента хуже повторившейся.
+    /// </summary>
+    [Fact]
+    public void SelectNext_Repeats_A_Single_Item_Pool_Rather_Than_Falling_Silent()
+    {
+        var library = new[] { new NewsItemConfig { Id = "up-1", Trend = EconomyTrend.Up, Headline = "Единственный" } };
+        var feed = new NewsFeed();
+        feed.Record("up-1", 1);
+
+        Assert.Equal("up-1", NewsCalculator.SelectNext(library, feed, EconomyTrend.Up, new Random(1))!.Id);
+    }
+
+    /// <summary>
+    /// Опережение: заголовок хода <c>t</c> описывает тренд хода <c>t + lookahead</c> — на ходу 3 при
+    /// опережении 3 лента уже предупреждает о спаде, начинающемся на ходу 6.
+    /// </summary>
+    [Fact]
+    public void ForecastTrend_Describes_The_Trend_That_Will_Be_In_Effect_Later()
+    {
+        Assert.Equal(EconomyTrend.Down, NewsCalculator.ForecastTrend(3, 3, TrendScenario));
+        Assert.Equal(EconomyTrend.Up, NewsCalculator.ForecastTrend(1, 1, TrendScenario));
+
+        // Нулевое опережение — прежнее поведение «лента как хроника».
+        Assert.Equal(NewsCalculator.CurrentTrend(3, TrendScenario), NewsCalculator.ForecastTrend(3, 0, TrendScenario));
+    }
+
+    [Fact]
+    public void ForecastTrend_Rejects_A_Negative_Lookahead()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => NewsCalculator.ForecastTrend(3, -1, TrendScenario));
     }
 }

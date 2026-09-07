@@ -7,9 +7,10 @@ namespace Game.Engine.Tests;
 /// <summary>Сквозной путь новостной ленты через <see cref="GameSession"/> (Блок 6.3, SPEC §4, §5.4, §13).</summary>
 public class GameSessionNewsTests
 {
-    private static GameSession StartSession(IReadOnlyList<NewsItemConfig> news)
+    private static GameSession StartSession(
+        IReadOnlyList<NewsItemConfig> news, IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null)
     {
-        var config = TestGameConfig.BuildWithNews(news);
+        var config = TestGameConfig.BuildWithNews(news, trendScenario);
         var teamId = Ulid.NewUlid();
 
         return GameSession.StartWithEndTurn(
@@ -46,8 +47,47 @@ public class GameSessionNewsTests
         Assert.True(session.State.NewsFeed.IsPublished("stable-1"));
     }
 
+    /// <summary>
+    /// Блок 11.9: лента — прогноз. На ходу 1 действует стабильность, но через <c>NewsLookaheadTurns</c>
+    /// ходов начнётся спад — и заголовок первого хода предупреждает именно о спаде, а не описывает
+    /// сегодняшний штиль.
+    /// </summary>
     [Fact]
-    public void RunTick_Never_Repeats_A_Headline_Across_Multiple_Ticks()
+    public void RunTick_Publishes_A_Headline_About_The_Trend_That_Is_Still_Ahead()
+    {
+        var scenario = new[]
+        {
+            new EconomyTrendPhaseConfig
+            {
+                Trend = EconomyTrend.Stable, StartTurn = 1, EndTurn = 3,
+                PriceChangePerTurn = 0m, CapacityChangePerTurn = 0m,
+            },
+            new EconomyTrendPhaseConfig
+            {
+                Trend = EconomyTrend.Down, StartTurn = 4, EndTurn = 20,
+                PriceChangePerTurn = 0m, CapacityChangePerTurn = 0m,
+            },
+        };
+        var news = new[]
+        {
+            new NewsItemConfig { Id = "stable-1", Trend = EconomyTrend.Stable, Headline = "Рынок замер" },
+            new NewsItemConfig { Id = "down-1", Trend = EconomyTrend.Down, Headline = "Заказчики сокращают закупки" },
+        };
+        var session = StartSession(news, scenario);
+
+        var appended = session.RunTick(new Random(1));
+
+        var published = Assert.IsType<NewsPublished>(appended.Single(e => e.Change is NewsPublished).Change);
+        Assert.Equal(EconomyTrend.Down, published.Trend);
+        Assert.Equal(1, published.Turn);
+    }
+
+    /// <summary>
+    /// Блок 11.9: пока в пуле есть не звучавшие заголовки — повторов нет; когда пул исчерпан, лента
+    /// не замолкает, а возвращается к самому давнему заголовку, не повторяя предыдущий подряд.
+    /// </summary>
+    [Fact]
+    public void RunTick_Exhausts_Fresh_Headlines_First_And_Then_Cycles_Without_Falling_Silent()
     {
         var news = new[]
         {
@@ -57,32 +97,29 @@ public class GameSessionNewsTests
         var session = StartSession(news);
 
         var published = new List<string>();
-        for (var i = 0; i < 2; i++)
+        for (var i = 0; i < 6; i++)
         {
             var appended = session.RunTick(new Random(1));
-            var newsEvent = appended.SingleOrDefault(e => e.Change is NewsPublished);
-            if (newsEvent is not null)
-            {
-                published.Add(((NewsPublished)newsEvent.Change).NewsItemId);
-            }
+            var newsEvent = Assert.Single(appended.Where(e => e.Change is NewsPublished));
+            published.Add(((NewsPublished)newsEvent.Change).NewsItemId);
 
             ToNextSettlement(session);
         }
 
-        Assert.Equal(2, published.Distinct().Count()); // оба заголовка прозвучали, ни один не повторился
-
-        // Пул на этот тренд исчерпан — третий тик не публикует новость вовсе (не повторяет силой).
-        var thirdTickAppended = session.RunTick(new Random(1));
-        Assert.DoesNotContain(thirdTickAppended, e => e.Change is NewsPublished);
+        Assert.Equal(2, published.Take(2).Distinct().Count()); // сначала оба свежих
+        Assert.All(
+            published.Zip(published.Skip(1)),
+            pair => Assert.NotEqual(pair.First, pair.Second)); // и дальше — без повторов подряд
     }
 
     [Fact]
-    public void PublishManualNews_Publishes_A_Specific_Item_Regardless_Of_Trend_And_Blocks_Future_Reuse()
+    public void PublishManualNews_Publishes_A_Specific_Item_Regardless_Of_Trend_And_Shares_The_Pool()
     {
         // TrendScenario пуст -> текущий тренд Stable, но ведущий вручную публикует заголовок Down.
         var news = new[]
         {
             new NewsItemConfig { Id = "down-1", Trend = EconomyTrend.Down, Headline = "Обвал цен на нефть" },
+            new NewsItemConfig { Id = "down-2", Trend = EconomyTrend.Down, Headline = "Спрос падает" },
         };
         var session = StartSession(news);
 
@@ -92,12 +129,13 @@ public class GameSessionNewsTests
         Assert.Equal(EconomyTrend.Down, published.Trend);
         Assert.True(session.State.NewsFeed.IsPublished("down-1"));
 
-        // Тот же заголовок нельзя опубликовать вручную повторно...
-        Assert.Throws<InvalidOperationException>(() => session.PublishManualNews("down-1"));
+        // Пул общий: автоматический подбор считает опубликованный вручную заголовок уже звучавшим и
+        // предпочтёт ему свежий.
+        var selected = NewsCalculator.SelectNext(news, session.State.NewsFeed, EconomyTrend.Down, new Random(1));
+        Assert.Equal("down-2", selected!.Id);
 
-        // ...и автоматический подбор (даже если бы тренд совпал) тоже его больше не выберет: пул общий.
-        var selected = NewsCalculator.SelectNext(new[] { news[0] }, session.State.NewsFeed, EconomyTrend.Down, new Random(1));
-        Assert.Null(selected);
+        // Повторная ручная публикация не запрещена — с блока 11.9 пул переиспользуется.
+        Assert.IsType<NewsPublished>(session.PublishManualNews("down-1").Change);
     }
 
     [Fact]

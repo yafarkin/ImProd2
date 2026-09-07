@@ -59,6 +59,9 @@ public sealed record SessionConfig
     /// <summary>Библиотека заголовков новостной ленты.</summary>
     public required IReadOnlyList<NewsItemConfig> News { get; init; }
 
+    /// <summary>См. <see cref="GameConfig.NewsLookaheadTurns"/>.</summary>
+    public int NewsLookaheadTurns { get; init; } = 3;
+
     /// <summary>Флаги включения механик MVP.</summary>
     public required FeatureFlagsConfig FeatureFlags { get; init; }
 }

@@ -64,6 +64,14 @@ public sealed record GameConfig
     /// <summary>Библиотека заголовков новостной ленты.</summary>
     public required IReadOnlyList<NewsItemConfig> News { get; init; }
 
+    /// <summary>
+    /// На сколько ходов вперёд смотрит новостная лента: заголовок хода <c>t</c> берётся из пула
+    /// тренда, действующего на ходу <c>t + NewsLookaheadTurns</c> (блок 11.9,
+    /// <c>docs/external-economy.md</c> §5). Ноль превращает ленту обратно в хронику — новость о
+    /// тренде, который к этому ходу уже применился.
+    /// </summary>
+    public int NewsLookaheadTurns { get; init; } = 3;
+
     /// <summary>Флаги включения механик MVP.</summary>
     public required FeatureFlagsConfig FeatureFlags { get; init; }
 }

@@ -127,7 +127,7 @@ else
 <h2 class="mt-4">Ручная новость</h2>
 @if (_availableNews.Count == 0)
 {
-    <p><em>Все заголовки уже опубликованы.</em></p>
+    <p><em>Библиотека заголовков пуста.</em></p>
 }
 else
 {
@@ -251,9 +251,20 @@ else
                 _grantTeamId = _teams.Count > 0 ? _teams[0].TeamId : null;
             }
 
+            // Показываем всю библиотеку, а не только не звучавшие: с блока 11.9 повторная публикация
+            // разрешена (пул при исчерпании переиспользуется), но уже звучавшие уходят вниз списка и
+            // помечаются ходом последней публикации, чтобы ведущий не повторялся по недосмотру.
             _availableNews = state.Config.Raw.News
-                .Where(item => !state.NewsFeed.IsPublished(item.Id))
-                .Select(item => new NewsOption(item.Id, $"[{DashboardDisplay.EconomyTrendLabel(item.Trend)}] {item.Headline}"))
+                .Select(item => new
+                {
+                    item.Id,
+                    Label = $"[{DashboardDisplay.EconomyTrendLabel(item.Trend)}] {item.Headline}",
+                    LastTurn = state.NewsFeed.LastPublishedTurn(item.Id),
+                })
+                .OrderBy(item => item.LastTurn ?? int.MinValue)
+                .Select(item => new NewsOption(
+                    item.Id,
+                    item.LastTurn is null ? item.Label : $"{item.Label} — звучала на ходу {item.LastTurn}"))
                 .ToList();
             if (_newsItemId is null || _availableNews.All(n => n.Id != _newsItemId))
             {
