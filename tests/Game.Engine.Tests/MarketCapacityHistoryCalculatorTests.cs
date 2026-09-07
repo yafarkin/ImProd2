@@ -59,7 +59,7 @@ public class MarketCapacityHistoryCalculatorTests
         log.Append(new MaterialSoldToSystem
         {
             Id = Ulid.NewUlid(), TeamId = buyer.Id, MaterialId = "ore", Volume = 20m,
-            WithinCapacityVolume = 20m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 200m,
+            WithinCapacityVolume = 20m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 200m, Turn = 1,
         });
 
         // Ore: ёмкость хода — 100, продано 20 -> остаток 80%.
@@ -79,12 +79,12 @@ public class MarketCapacityHistoryCalculatorTests
         log.Append(new MaterialSoldToSystem
         {
             Id = Ulid.NewUlid(), TeamId = buyer.Id, MaterialId = "ore", Volume = 80m,
-            WithinCapacityVolume = 80m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 800m,
+            WithinCapacityVolume = 80m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 800m, Turn = 1,
         });
         log.Append(new MaterialSoldToSystem // пробивает ёмкость 100 (80 + 80 = 160)
         {
             Id = Ulid.NewUlid(), TeamId = seller.Id, MaterialId = "ore", Volume = 80m,
-            WithinCapacityVolume = 20m, OverflowVolume = 60m, UnitPrice = 10m, TotalRevenue = 20m * 10m + 60m * 5m,
+            WithinCapacityVolume = 20m, OverflowVolume = 60m, UnitPrice = 10m, TotalRevenue = 20m * 10m + 60m * 5m, Turn = 1,
         });
 
         var points = MarketCapacityHistoryCalculator.SummarizeCurrentTurn(log.Entries, TestGameConfig.Resolved)[TestGameConfig.Ore.Id];
@@ -101,7 +101,7 @@ public class MarketCapacityHistoryCalculatorTests
         log.Append(new MaterialSoldToSystem
         {
             Id = Ulid.NewUlid(), TeamId = buyer.Id, MaterialId = "ore", Volume = 20m,
-            WithinCapacityVolume = 20m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 200m,
+            WithinCapacityVolume = 20m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 200m, Turn = 1,
         });
         log.Append(new MarketUpdated { Id = Ulid.NewUlid(), Quotes = TestGameConfig.Resolved.Raw.Economy.BaseMarketPerMaterial.ToDictionary(m => m.MaterialId, m => new MaterialQuote(m.BasePrice, m.BaseCapacity)), ElectricityPrice = 1m, Turn = 1, EconomyIndex = 1m });
 

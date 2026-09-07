@@ -31,7 +31,7 @@ public class TurnHistoryCalculatorTests
         log.Append(new MaterialSoldToSystem
         {
             Id = Ulid.NewUlid(), TeamId = team.Id, MaterialId = "ore", Volume = 20m,
-            WithinCapacityVolume = 20m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 200m,
+            WithinCapacityVolume = 20m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 200m, Turn = 1,
         });
         log.Append(new PhaseAdvanced { Id = Ulid.NewUlid(), Trigger = PhaseTransitionTrigger.Timer }); // Settlement -> Decision
         log.Append(new PhaseAdvanced { Id = Ulid.NewUlid(), Trigger = PhaseTransitionTrigger.Timer }); // Decision -> Settlement, ход 2

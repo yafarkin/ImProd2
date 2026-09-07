@@ -181,7 +181,7 @@ public class FinanceHistoryCalculatorTests
         log.Append(new MaterialSoldToSystem
         {
             Id = Ulid.NewUlid(), TeamId = team.Id, MaterialId = "ore", Volume = 20m,
-            WithinCapacityVolume = 20m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 200m,
+            WithinCapacityVolume = 20m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 200m, Turn = 1,
         });
 
         var operations = FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id);

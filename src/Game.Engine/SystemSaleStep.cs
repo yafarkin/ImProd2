@@ -21,7 +21,7 @@ public static class SystemSaleStep
 {
     public static IReadOnlyList<Change<GameSessionState>> Run(
         Team team, Market market, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy,
-        IReadOnlyDictionary<string, Material> materials)
+        IReadOnlyDictionary<string, Material> materials, int currentTurn)
     {
         ArgumentNullException.ThrowIfNull(team);
         ArgumentNullException.ThrowIfNull(market);
@@ -51,6 +51,7 @@ public static class SystemSaleStep
                     OverflowVolume = 0m,
                     UnitPrice = 0m,
                     TotalRevenue = 0m,
+                    Turn = currentTurn,
                 });
                 continue;
             }
@@ -67,6 +68,7 @@ public static class SystemSaleStep
                 OverflowVolume = sale.OverflowVolume,
                 UnitPrice = sale.UnitPrice,
                 TotalRevenue = sale.TotalRevenue,
+                Turn = currentTurn,
             });
         }
 

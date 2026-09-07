@@ -1125,7 +1125,7 @@ public sealed class GameSession
                 appended.Add(_log.Append(change));
             }
 
-            foreach (var change in SystemSaleStep.Run(team, State.Market, materialCosts, config.Raw.Economy, config.Materials))
+            foreach (var change in SystemSaleStep.Run(team, State.Market, materialCosts, config.Raw.Economy, config.Materials, State.CurrentTurn))
             {
                 appended.Add(_log.Append(change));
             }
