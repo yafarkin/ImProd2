@@ -43,8 +43,54 @@ public static class TeamSteadyStateCalculator
         /// <summary>Потолок вложений в R&amp;D — по потолку на КАЖДУЮ фабрику сектора (в отличие от поколения, R&amp;D назначается отдельно каждой фабрике).</summary>
         public required decimal RndPerTurn { get; init; }
 
+        /// <summary>Сколько фабрик в секторе — нужно, чтобы пересчитать потолок R&amp;D «на фабрику» из суммарного (<see cref="RndPerTurn"/>).</summary>
+        public required int FactoryCount { get; init; }
+
+        /// <summary>Потолок R&amp;D на одну фабрику из конфига — чтобы рецепт печатал «с X до ≤Y», а не только целевое число.</summary>
+        public required decimal RndCeilingPerFactory { get; init; }
+
         /// <summary>Чистый поток за ход в устойчивом состоянии — <c>&lt; 0</c> значит цепочка не может свести концы с концами, даже когда всё уже построено и капитальные расходы позади. Зарплата вычитается не здесь, а внутри <see cref="ProfitPerTurn"/> (она часть передела, см. его doc-comment).</summary>
         public decimal NetPerTurn => ProfitPerTurn - GenerationResearchPerTurn - RndPerTurn;
+
+        /// <summary>
+        /// Готовый рецепт правки для секции §1c диагностики — не «где-то не сходится», а три
+        /// конкретных числа, каждое из которых закрывает разрыв в одиночку (запрос пользователя
+        /// 2026-09-07: инструмент должен показывать, ЧТО править, а не только ЧТО сломано).
+        ///
+        /// <para>
+        /// Все три рычага независимы, поэтому и предлагаются как альтернативы, а не как сумма. Тот,
+        /// который окажется отрицательным, физически недостижим (например, разрыв больше, чем ВСЕ
+        /// вложения в R&amp;D вместе взятые) — такой вариант в рецепт не попадает вовсе, чтобы не
+        /// советовать невозможное.
+        /// </para>
+        /// </summary>
+        public string FormatPrescription()
+        {
+            var gap = -NetPerTurn;
+            var options = new List<string>();
+
+            var newRndCeiling = FactoryCount > 0 ? (ProfitPerTurn - GenerationResearchPerTurn) / FactoryCount : 0m;
+            if (newRndCeiling > 0m)
+            {
+                options.Add($"Rnd.MaxCommitmentPerTurn с {RndCeilingPerFactory:F0} до ≤{newRndCeiling:F0} на фабрику");
+            }
+
+            var newGenerationCeiling = ProfitPerTurn - RndPerTurn;
+            if (newGenerationCeiling > 0m)
+            {
+                options.Add($"GenerationResearch.MaxCommitmentPerTurn с {GenerationResearchPerTurn:F0} до ≤{newGenerationCeiling:F0}");
+            }
+
+            if (ProfitPerTurn > 0m)
+            {
+                options.Add($"суммарный передел сектора +{gap / ProfitPerTurn:P0} (глубже или шире цепочка)");
+            }
+
+            var head = $"{SectorId}: не хватает {gap:F0} ¤/ход в устойчивом состоянии.";
+            return options.Count == 0
+                ? head + " Ни один из рычагов (потолки вложений, глубина цепочки) разрыв не закрывает — сектор нежизнеспособен как есть."
+                : head + " Закрывается любым из: " + string.Join("; ", options) + ".";
+        }
     }
 
     public static IReadOnlyList<SectorSteadyState> Calculate(
@@ -70,6 +116,8 @@ public static class TeamSteadyStateCalculator
                     SalaryPerTurn = rowList.Sum(r => r.Workers) * salaryPerWorker,
                     GenerationResearchPerTurn = generationCeiling,
                     RndPerTurn = rowList.Count * rndCeilingPerFactory,
+                    FactoryCount = rowList.Count,
+                    RndCeilingPerFactory = rndCeilingPerFactory,
                 };
             })
             .OrderBy(s => s.SectorId, StringComparer.Ordinal)

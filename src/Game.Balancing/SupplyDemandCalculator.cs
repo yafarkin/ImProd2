@@ -166,7 +166,9 @@ public static class SupplyDemandCalculator
                 $"и она НЕ закрывается ни доньмом (потолок {ChainCapacityPlanner.MaxWorkersMultiplier}× базовой численности), " +
                 $"ни новыми фабриками (потолок {ChainCapacityPlanner.MaxFactoriesPerRecipe} на рецепт). " +
                 $"Потребители: {string.Join(", ", balance.ConsumerRecipeIds)}. " +
-                "Поднять ProductionRate производителей или снизить потребность/ProductionRate потребителей.")
+                $"→ Поднять ProductionRate производителей в {1m / balance.Ratio!.Value:F2}× " +
+                $"(с суммарных {balance.SupplyPerTurn:F0}/ход до {balance.DemandPerTurn:F0}/ход) " +
+                $"ЛИБО снизить количества входа у потребителей в те же {1m / balance.Ratio!.Value:F2}×.")
             .ToList();
     }
 

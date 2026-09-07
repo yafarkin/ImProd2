@@ -44,6 +44,8 @@ public class DiagnoseRunVerdictTests
         SalaryPerTurn = 2m,
         GenerationResearchPerTurn = 3m,
         RndPerTurn = 0m,
+        FactoryCount = 1,
+        RndCeilingPerFactory = 0m,
     };
 
     [Fact]

@@ -54,6 +54,21 @@ internal static class DiagnoseRun
     {
         var duration = config.Raw.Duration;
 
+        Console.WriteLine("=== 0. Правила дизайна цепочки (форма, а не числа) ===");
+        var designFindings = ChainDesignRules.Check(config);
+        if (designFindings.Count == 0)
+        {
+            Console.WriteLine("Нарушений не найдено: кросс-входы делят объём, последний уровень открывается вовремя, капзатраты и оборот укладываются в лимиты.");
+        }
+        else
+        {
+            foreach (var finding in designFindings)
+            {
+                Console.WriteLine($"  ⚠ [{finding.Rule}] {finding.Message}");
+            }
+        }
+
+        Console.WriteLine();
         Console.WriteLine("=== 1. Себестоимость (без хода/рынка/ботов) ===");
         var costRows = ProductionCostLevelCalculator.Calculate(config, cliArguments.Workers);
         var anomalies = FindCostAnomalies(costRows);
@@ -95,6 +110,10 @@ internal static class DiagnoseRun
             Console.WriteLine(
                 $"  {s.SectorId}: прибыль={s.ProfitPerTurn:F0}, зарплата={s.SalaryPerTurn:F0}, " +
                 $"поколение={s.GenerationResearchPerTurn:F0}, R&D={s.RndPerTurn:F0} → чистыми/ход={s.NetPerTurn:F0}{marker}");
+            if (s.NetPerTurn < 0m)
+            {
+                Console.WriteLine($"      → {s.FormatPrescription()}");
+            }
         }
 
         Console.WriteLine();
@@ -176,7 +195,7 @@ internal static class DiagnoseRun
 
         Console.WriteLine();
         Console.WriteLine("=== Итоговый вердикт ===");
-        PrintFinalVerdict(anomalies, badPayback, deficits, badSteadyStates, sandwich, idealVerdicts, averageScoreBySector);
+        PrintFinalVerdict(anomalies, badPayback, deficits, badSteadyStates, sandwich, idealVerdicts, averageScoreBySector, designFindings);
 
         return Task.CompletedTask;
     }
@@ -272,19 +291,26 @@ internal static class DiagnoseRun
         {
             problems.Add(
                 $"пол жадности бота (+{botFloor:P0}) ниже системной наценки (+{systemMargin:P0}) — продавец-бот " +
-                "соглашается на P2P-сделку хуже, чем дала бы прямая продажа системе; сделки P2P систематически невыгодны продавцу.");
+                "соглашается на P2P-сделку хуже, чем дала бы прямая продажа системе; сделки P2P систематически невыгодны продавцу. " +
+                $"→ Поднять SimpleBot.MinSellMarginRate с {botFloor:P0} до значения строго выше +{systemMargin:P0} " +
+                $"(и строго ниже потолка +{botCeiling:P0}).");
         }
 
         if (botCeiling > emergencyMargin)
         {
             problems.Add(
                 $"потолок жадности бота (+{botCeiling:P0}) выше аварийной наценки (+{emergencyMargin:P0}) — покупатель-бот " +
-                "готов переплатить в P2P больше, чем стоила бы аварийная закупка; проще закупиться у системы, не договариваться.");
+                "готов переплатить в P2P больше, чем стоила бы аварийная закупка; проще закупиться у системы, не договариваться. " +
+                $"→ Либо опустить SimpleBot.MaxBuyPremiumRate до значения ниже +{emergencyMargin:P0}, либо поднять " +
+                $"Economy.EmergencyPurchaseBaseMultiplier с {config.Raw.Economy.EmergencyPurchaseBaseMultiplier:F2} " +
+                $"до >{1m + botCeiling:F2} — второе честнее, если аварийная закупка задумана как дорогая крайняя мера.");
         }
 
         if (botFloor > botCeiling)
         {
-            problems.Add($"пол жадности (+{botFloor:P0}) выше потолка (+{botCeiling:P0}) — у бота вообще нет диапазона цены, в котором он готов и продавать, и покупать.");
+            problems.Add(
+                $"пол жадности (+{botFloor:P0}) выше потолка (+{botCeiling:P0}) — у бота вообще нет диапазона цены, в котором он готов и продавать, и покупать. " +
+                $"→ Развести MinSellMarginRate и MaxBuyPremiumRate так, чтобы весь диапазон лежал внутри [+{systemMargin:P0}; +{emergencyMargin:P0}].");
         }
 
         if (problems.Count == 0)
@@ -356,8 +382,20 @@ internal static class DiagnoseRun
     internal static void PrintFinalVerdict(
         IReadOnlyList<string> costAnomalies, IReadOnlyList<string> badPayback, IReadOnlyList<string> supplyDeficits,
         IReadOnlyList<TeamSteadyStateCalculator.SectorSteadyState> badSteadyStates, MarginSandwichResult sandwich,
-        IReadOnlyDictionary<string, ChainVerdict> idealVerdicts, IReadOnlyDictionary<string, decimal> averageScoreBySector)
+        IReadOnlyDictionary<string, ChainVerdict> idealVerdicts, IReadOnlyDictionary<string, decimal> averageScoreBySector,
+        IReadOnlyList<ChainDesignRules.Finding>? designFindings = null)
     {
+        // Печатается ПЕРЕД любым вердиктом, а не вместо него: нарушение правила дизайна само по себе
+        // не делает цепочку неиграбельной, но почти всегда объясняет, почему не сходятся числа ниже,
+        // и чинится раньше и дешевле, чем подбор коэффициентов.
+        if (designFindings is { Count: > 0 })
+        {
+            Console.WriteLine(
+                $"⚠ Сначала посмотрите §0: нарушено правил дизайна — {designFindings.Count} " +
+                $"({string.Join(", ", designFindings.Select(f => f.Rule).Distinct())}). " +
+                "Это форма цепочки, а не её числа; чинится раньше и дешевле любых коэффициентов.");
+        }
+
         if (costAnomalies.Count > 0)
         {
             Console.WriteLine("❌ ИГРАТЬ НЕЛЬЗЯ — есть аномалии себестоимости (см. §1). Чинить рецепты, дальше можно не смотреть.");
