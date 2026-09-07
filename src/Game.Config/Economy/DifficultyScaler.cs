@@ -28,7 +28,14 @@ public static class DifficultyScaler
     private static readonly double[] BuildCostAnchors = { 0.5, 0.7, 0.85, 1.0, 1.3, 1.7 };
     private static readonly double[] ProductionRateBonusPerLevelAnchors = { 2.0, 1.5, 1.2, 1.0, 0.7, 0.5 };
     private static readonly double[] ResearchPointThresholdAnchors = { 0.4, 0.6, 0.8, 1.0, 1.4, 2.0 };
-    private static readonly double[] BasePriceAnchors = { 1.5, 1.25, 1.1, 1.0, 0.85, 0.7 };
+    // Рычаг «доходность передела». До 2026-09-07 здесь был BasePrice по материалам — но под
+    // ценообразованием «себестоимость + фиксированная наценка» базовая цена не участвует ни в одной
+    // денежной операции (и системная продажа, и аварийная закупка берут цену из
+    // MaterialCostCalculator), то есть рычаг был мёртвым: бегунок двигал пять параметров из шести.
+    // FixedCostPerTurn — его честная замена, потому что под cost-plus именно содержание фабрики и
+    // есть задатчик прибыли: прибыль за ход = 0.30 × (содержание + электричество + зарплата).
+    // Направление то же, что было у цены: сложнее — доходность ниже. См. docs/levers.md §0.
+    private static readonly double[] FixedCostPerTurnAnchors = { 1.5, 1.25, 1.1, 1.0, 0.85, 0.7 };
     private static readonly double[] EmergencyPurchaseBaseMultiplierAnchors = { 0.667, 0.8, 0.9, 1.0, 1.2, 1.467 };
     private static readonly double[] AccelerationFactorPerTurnAnchors = { 0.125, 0.375, 0.625, 1.0, 1.75, 3.0 };
 
@@ -45,14 +52,18 @@ public static class DifficultyScaler
         var buildCostMultiplier = MultiplierAt(BuildCostAnchors, difficultyLevel);
         var productionBonusMultiplier = MultiplierAt(ProductionRateBonusPerLevelAnchors, difficultyLevel);
         var researchThresholdMultiplier = MultiplierAt(ResearchPointThresholdAnchors, difficultyLevel);
-        var basePriceMultiplier = MultiplierAt(BasePriceAnchors, difficultyLevel);
+        var fixedCostMultiplier = MultiplierAt(FixedCostPerTurnAnchors, difficultyLevel);
         var emergencyMultiplier = MultiplierAt(EmergencyPurchaseBaseMultiplierAnchors, difficultyLevel);
         var wearAccelerationMultiplier = MultiplierAt(AccelerationFactorPerTurnAnchors, difficultyLevel);
 
         return config with
         {
             FactoryDefinitions = config.FactoryDefinitions
-                .Select(f => f with { BuildCost = f.BuildCost * buildCostMultiplier })
+                .Select(f => f with
+                {
+                    BuildCost = f.BuildCost * buildCostMultiplier,
+                    FixedCostPerTurn = f.FixedCostPerTurn * fixedCostMultiplier,
+                })
                 .ToList(),
             Rnd = config.Rnd with
             {
@@ -69,9 +80,6 @@ public static class DifficultyScaler
             },
             Economy = config.Economy with
             {
-                BaseMarketPerMaterial = config.Economy.BaseMarketPerMaterial
-                    .Select(m => m with { BasePrice = m.BasePrice * basePriceMultiplier })
-                    .ToList(),
                 EmergencyPurchaseBaseMultiplier = config.Economy.EmergencyPurchaseBaseMultiplier * emergencyMultiplier,
             },
             Wear = config.Wear with

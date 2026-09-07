@@ -26,8 +26,9 @@ set -euo pipefail
 #  don't touch them by hand while a run is in progress.
 # ==================================================================
 
-export LM_STUDIO_BASE_URL="http://192.168.0.2:1234/v1/"
-export LLM_BOT_MODEL="openai/gpt-oss-20b"
+export LM_STUDIO_BASE_URL="http://localhost:1234/v1/"
+# export LLM_BOT_MODEL="openai/gpt-oss-20b"
+export LLM_BOT_MODEL="google/gemma-4-12b"
 export LLM_BOT_COUNT=1
 export LLM_BOT_TURNS=98
 
@@ -48,7 +49,7 @@ export LLM_BOT_MAX_CONSECUTIVE_FAILURES=8
 # one batch; anything beyond it is dropped. Lowered from 8 (2026-08-16
 # live runs: weak/small models reliably filled this cap repeating the
 # same wasteful action instead of stopping on their own).
-export LLM_BOT_MAX_ACTIONS_PER_TURN=5
+export LLM_BOT_MAX_ACTIONS_PER_TURN=8
 
 export LLM_BOT_TEMPERATURE=0.4
 export LLM_BOT_MAX_TOKENS=3000

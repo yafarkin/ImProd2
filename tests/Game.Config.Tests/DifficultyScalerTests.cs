@@ -19,7 +19,9 @@ public class DifficultyScalerTests
                 new FactoryDefinitionConfig
                 {
                     Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = Array.Empty<string>(),
-                    BuildCost = 1000m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m,
+                    // FixedCostPerTurn обязан быть ненулевым: с 2026-09-07 это один из шести рычагов бегунка
+                    // сложности (заменил мёртвый BasePrice), а множитель на нуле неотличим от отсутствия рычага.
+                    BuildCost = 1000m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 50m,
                 },
             });
 
@@ -102,7 +104,7 @@ public class DifficultyScalerTests
         Assert.True(scaled.Rnd.ProductionRateBonusPerLevel > config.Rnd.ProductionRateBonusPerLevel);
         Assert.True(scaled.Rnd.ResearchPointThresholdsByLevel[0] < config.Rnd.ResearchPointThresholdsByLevel[0]);
         Assert.True(scaled.GenerationResearch.ResearchPointThresholdsByGeneration[0] < config.GenerationResearch.ResearchPointThresholdsByGeneration[0]);
-        Assert.True(scaled.Economy.BaseMarketPerMaterial.Single().BasePrice > config.Economy.BaseMarketPerMaterial.Single().BasePrice);
+        Assert.True(scaled.FactoryDefinitions.Single().FixedCostPerTurn > config.FactoryDefinitions.Single().FixedCostPerTurn);
         Assert.True(scaled.Economy.EmergencyPurchaseBaseMultiplier < config.Economy.EmergencyPurchaseBaseMultiplier);
         Assert.True(scaled.Wear.AccelerationFactorPerTurn < config.Wear.AccelerationFactorPerTurn);
     }
@@ -118,8 +120,29 @@ public class DifficultyScalerTests
         Assert.True(scaled.Rnd.ProductionRateBonusPerLevel < config.Rnd.ProductionRateBonusPerLevel);
         Assert.True(scaled.Rnd.ResearchPointThresholdsByLevel[0] > config.Rnd.ResearchPointThresholdsByLevel[0]);
         Assert.True(scaled.GenerationResearch.ResearchPointThresholdsByGeneration[0] > config.GenerationResearch.ResearchPointThresholdsByGeneration[0]);
-        Assert.True(scaled.Economy.BaseMarketPerMaterial.Single().BasePrice < config.Economy.BaseMarketPerMaterial.Single().BasePrice);
+        Assert.True(scaled.FactoryDefinitions.Single().FixedCostPerTurn < config.FactoryDefinitions.Single().FixedCostPerTurn);
         Assert.True(scaled.Economy.EmergencyPurchaseBaseMultiplier > config.Economy.EmergencyPurchaseBaseMultiplier);
         Assert.True(scaled.Wear.AccelerationFactorPerTurn > config.Wear.AccelerationFactorPerTurn);
+    }
+
+    /// <summary>
+    /// Регрессия на замену мёртвого рычага (2026-09-07, <c>docs/levers.md</c> §1.6): `BasePrice` под
+    /// ценообразованием «себестоимость + наценка» не участвует ни в одной денежной операции — и
+    /// системная продажа, и аварийная закупка берут цену из <c>MaterialCostCalculator</c>. Пока это
+    /// так, бегунок сложности не имеет права её трогать: иначе один из шести рычагов снова окажется
+    /// холостым, а измерения сложности — завышенными на несуществующий эффект.
+    /// </summary>
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(5.0)]
+    public void Apply_Does_Not_Touch_BasePrice_Because_It_Drives_No_Money_Under_Cost_Plus(double difficultyLevel)
+    {
+        var config = BuildConfig();
+
+        var scaled = DifficultyScaler.Apply(config, difficultyLevel);
+
+        Assert.Equal(
+            config.Economy.BaseMarketPerMaterial.Single().BasePrice,
+            scaled.Economy.BaseMarketPerMaterial.Single().BasePrice);
     }
 }
