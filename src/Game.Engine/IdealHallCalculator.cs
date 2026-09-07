@@ -20,8 +20,8 @@ namespace Game.Engine;
 /// бесплатный подарок, просто без монопольной наценки.</item>
 /// <item>Остаток излишка материала, который не забрала ни одна соседняя ветка (после <see
 /// cref="TransferAcrossBranches"/>), продаётся системе тем же ходом по <see
-/// cref="MarketSaleCalculator"/> (себестоимость × <see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/>,
-/// включая понижающий коэффициент за превышение ёмкости) — аналог
+/// cref="MarketSaleCalculator"/> — по правилам действующей модели ценообразования, включая просадку
+/// цены за перепроизводство (собственный счётчик давления предложения, блок 11.6) — аналог
 /// <c>SimpleBot.SellSurplusToSystem</c> у реального бота, а не только пассивная оценка склада в конце
 /// хода (см. <see cref="ComputeValue"/>). Добавлено намеренно: без этого X(t) сильно
 /// недооценивал ветки с большим числом параллельных нисходящих переделов на одном сырье — у них
@@ -97,8 +97,18 @@ public static class IdealHallCalculator
         // Эталон обязан уметь то же, что и реальная команда (иначе он перестаёт быть верхней границей):
         // расшивать узкое место доньмом и второй фабрикой того же уровня — см. ChainCapacityPlanner.
         var capacityPlan = ChainCapacityPlanner.Plan(config);
+        var referencePrices = SystemSaleReferencePriceCalculator.CalculateAll(config, materialCosts);
         var branches = config.Sectors.Select(sector => CreateBranch(config, sector)).ToList();
         var market = new Market();
+
+        // Собственный счётчик давления предложения — зал симулирует, а не играет, журнала у него нет
+        // (блок 11.6, долг из 11.5). Эквивалентен MarketSupplyPressureCalculator по построению:
+        // затухание на 0.5^(1/полураспад) раз в ход плюс продажи текущего хода с полным весом дают
+        // ровно ту же взвешенную сумму, что и обход журнала. Без него зал систематически завышал бы
+        // выручку под External, не видя межходовой памяти рынка.
+        var supplyPressure = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        var pressureDecayPerTurn = (decimal)Math.Pow(
+            0.5, 1.0 / Math.Max(1, config.Raw.Economy.MarketSupplyPressureHalfLifeTurns));
 
         for (var turn = 1; turn <= maxTurns; turn++)
         {
@@ -106,19 +116,24 @@ public static class IdealHallCalculator
             var marketUpdate = MarketCalculator.Calculate(turn, config.Raw.Economy);
             market.ReplaceQuotes(marketUpdate.Quotes, marketUpdate.ElectricityPrice, EconomyIndexCalculator.Calculate(turn, config.Raw.Economy));
 
+            foreach (var materialId in supplyPressure.Keys.ToList())
+            {
+                supplyPressure[materialId] *= pressureDecayPerTurn;
+            }
+
             foreach (var branch in branches)
             {
                 AdvanceGeneration(branch, config, turn);
                 ChargeGenerationResearch(branch, config);
                 ChargeWarehouseFee(branch, config);
-                BuildNewlyUnlockedFactories(branch, config, turn, maxTurns, capacityPlan);
+                BuildNewlyUnlockedFactories(branch, config, turn, maxTurns, capacityPlan, referencePrices);
                 AdvanceFactoryLevelsAndChargeRnd(branch, config, turn);
                 RunProduction(branch, config);
                 ChargeOperatingCosts(branch, config);
                 TraceWarehouse(branch, "post-production");
             }
 
-            TransferAcrossBranches(branches, config, materialCosts, market);
+            TransferAcrossBranches(branches, config, materialCosts, market, supplyPressure);
 
             foreach (var branch in branches)
             {
@@ -243,7 +258,8 @@ public static class IdealHallCalculator
     /// </summary>
     private static void BuildNewlyUnlockedFactories(
         BranchState branch, ResolvedGameConfig config, int turn, int maxTurns,
-        IReadOnlyDictionary<(string FactoryDefinitionId, string RecipeId), ChainCapacityPlanner.RecipePlan> capacityPlan)
+        IReadOnlyDictionary<(string FactoryDefinitionId, string RecipeId), ChainCapacityPlanner.RecipePlan> capacityPlan,
+        IReadOnlyDictionary<string, decimal> referencePrices)
     {
         var turnsRemaining = maxTurns - turn + 1;
         var builtCountByPair = branch.Team.Factories
@@ -265,7 +281,8 @@ public static class IdealHallCalculator
 
                 if (alreadyBuilt == 0
                     && !WouldRecoverHireCostBeforeGameEnds(
-                        definition, recipe, plan.WorkersPerFactory, rawDefinition.FixedCostPerTurn, config, turnsRemaining))
+                        definition, recipe, plan.WorkersPerFactory, rawDefinition.FixedCostPerTurn, config, turnsRemaining,
+                        referencePrices))
                 {
                     // Даже разовый наём не отобьёт — пропускаем навсегда: с ростом turn окно только сужается.
                     continue;
@@ -290,18 +307,19 @@ public static class IdealHallCalculator
 
     /// <summary>
     /// Отобьёт ли пара (тип, рецепт), построенная сейчас, хотя бы свой разовый наём за оставшиеся
-    /// <paramref name="turnsRemaining"/> ходов. Прибыль за ход — <c>0.30 × собственный передел</c>,
-    /// где передел = <c>FixedCostPerTurn + электричество + зарплата</c> на свежепостроенной фабрике
-    /// первого уровня при <paramref name="workersPerFactory"/> рабочих (та же формула и те же
-    /// допущения, что <c>ProductionCostLevelCalculator</c> в Game.Balancing — 100% выпуска системе по
-    /// <see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/>, без кросс-торговли и без роста
-    /// выпуска от R&amp;D, то есть заведомо не оптимистичная). Возвращает <c>false</c>, если маржа с
-    /// продажи не положительна или <c>прибыль × turnsRemaining</c> меньше разового
+    /// <paramref name="turnsRemaining"/> ходов. Прибыль за ход — общая формула
+    /// <see cref="SystemSaleReferencePriceCalculator.ProfitPerTurn"/> (выпуск по опорной цене минус
+    /// входы по их опорной цене минус собственный передел) на свежепостроенной фабрике первого
+    /// уровня при <paramref name="workersPerFactory"/> рабочих: те же допущения, что у
+    /// <c>ProductionCostLevelCalculator</c> в Game.Balancing — 100% выпуска системе, без
+    /// кросс-торговли и без роста выпуска от R&amp;D, то есть заведомо не оптимистичная. Возвращает
+    /// <c>false</c>, если прибыль не положительна или <c>прибыль × turnsRemaining</c> меньше разового
     /// <c>HireCostPerWorker × workersPerFactory</c>.
     /// </summary>
     private static bool WouldRecoverHireCostBeforeGameEnds(
         FactoryDefinition definition, Recipe recipe, int workersPerFactory,
-        decimal fixedCostPerTurn, ResolvedGameConfig config, int turnsRemaining)
+        decimal fixedCostPerTurn, ResolvedGameConfig config, int turnsRemaining,
+        IReadOnlyDictionary<string, decimal> referencePrices)
     {
         var probe = new Factory(Ulid.NewUlid(), definition.Sector, definition, recipe);
         probe.Hire(workersPerFactory);
@@ -314,7 +332,14 @@ public static class IdealHallCalculator
             * config.Raw.Economy.ElectricityBasePrice;
         var salaryCost = workersPerFactory * config.Raw.WorkerProductivity.SalaryPerWorkerPerTurn;
         var conversionCost = fixedCostPerTurn + electricityCost + salaryCost;
-        var profitPerTurn = conversionCost * (MarketSaleCalculator.SystemSaleMarginMultiplier - 1m);
+        var batches = recipe.OutputQuantity > 0 ? output / recipe.OutputQuantity : 0m;
+        var inputsAtReferencePrice = recipe.Inputs.Sum(
+            input => input.Quantity * batches * SystemSaleReferencePriceCalculator.PriceOf(referencePrices, input.Material.Id));
+        var profitPerTurn = SystemSaleReferencePriceCalculator.ProfitPerTurn(
+            output,
+            SystemSaleReferencePriceCalculator.PriceOf(referencePrices, recipe.Output.Id),
+            inputsAtReferencePrice,
+            conversionCost);
         if (profitPerTurn <= 0m)
         {
             return false;
@@ -436,7 +461,7 @@ public static class IdealHallCalculator
     /// </summary>
     private static void TransferAcrossBranches(
         IReadOnlyList<BranchState> branches, ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> materialCosts,
-        Market market)
+        Market market, Dictionary<string, decimal> supplyPressure)
     {
         foreach (var material in config.Materials.Values)
         {
@@ -455,7 +480,7 @@ public static class IdealHallCalculator
             var transferred = TransferToBuyers(seller, branches, material, surplus, config, materialCosts);
             var remainingSurplus = surplus - transferred;
             Trace?.Invoke($"[ideal] transfer {material.Id,-12} продавец={seller.Sector.Id} излишек={surplus:F1} передано={transferred:F1} продано системе={remainingSurplus:F1}");
-            SellRemainingSurplusToSystem(seller, material, remainingSurplus, config, market, materialCosts);
+            SellRemainingSurplusToSystem(seller, material, remainingSurplus, config, market, materialCosts, supplyPressure);
         }
     }
 
@@ -518,26 +543,16 @@ public static class IdealHallCalculator
     /// </summary>
     private static void SellRemainingSurplusToSystem(
         BranchState seller, Material material, decimal remainingSurplus, ResolvedGameConfig config, Market market,
-        IReadOnlyDictionary<string, decimal> materialCosts)
+        IReadOnlyDictionary<string, decimal> materialCosts, Dictionary<string, decimal> supplyPressure)
     {
         if (remainingSurplus <= 0m || !market.HasQuote(material.Id))
         {
             return;
         }
 
-        // Давление предложения (PricingModel.External) считается по журналу сессии, а у идеального
-        // зала журнала нет — он симулирует, а не играет. Пока подставляется объём, проданный в этом
-        // же ходу (Market.SoldThisTurn): по внутриходовой части это точно, но межходовой памяти
-        // рынка зал не видит и потому СИСТЕМАТИЧЕСКИ ЗАВЫШАЕТ выручку под внешней моделью.
-        // Собственный затухающий счётчик давления — блок 11.6 (docs/external-economy.md §9), там же
-        // это ловится сверкой IdealHallEngineReconciliationTests. До 11.6 X(t) под External
-        // некорректен; под CostPlus параметр не используется вовсе, поэтому нынешняя калибровка не
-        // затронута.
-        var supplyPressure = config.Raw.Economy.PricingModel == PricingModel.External
-            ? market.SoldThisTurn(material.Id)
-            : 0m;
+        var pressureBefore = supplyPressure.GetValueOrDefault(material.Id);
         var sale = MarketSaleCalculator.Calculate(
-            market, materialCosts, config.Raw.Economy, material, remainingSurplus, supplyPressure);
+            market, materialCosts, config.Raw.Economy, material, remainingSurplus, pressureBefore);
         var soldVolume = sale.WithinCapacityVolume + sale.OverflowVolume;
         if (soldVolume <= 0m)
         {
@@ -547,6 +562,7 @@ public static class IdealHallCalculator
         seller.Team.Warehouse.Remove(material, soldVolume);
         seller.Cash += sale.TotalRevenue;
         market.RecordSale(material.Id, soldVolume);
+        supplyPressure[material.Id] = pressureBefore + soldVolume;
     }
 
     /// <summary>

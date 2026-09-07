@@ -102,7 +102,6 @@ public static class TeamSteadyStateCalculator
         var salaryPerWorker = config.Raw.WorkerProductivity.SalaryPerWorkerPerTurn;
         var generationCeiling = config.Raw.GenerationResearch.MaxCommitmentPerTurn;
         var rndCeilingPerFactory = config.Raw.Rnd.MaxCommitmentPerTurn;
-        var margin = MarketSaleCalculator.SystemSaleMarginMultiplier - 1m;
 
         return rows
             .GroupBy(r => r.SectorId)
@@ -112,7 +111,7 @@ public static class TeamSteadyStateCalculator
                 return new SectorSteadyState
                 {
                     SectorId = group.Key,
-                    ProfitPerTurn = rowList.Sum(r => r.ConversionCost * margin),
+                    ProfitPerTurn = rowList.Sum(r => r.ProfitPerTurn),
                     SalaryPerTurn = rowList.Sum(r => r.Workers) * salaryPerWorker,
                     GenerationResearchPerTurn = generationCeiling,
                     RndPerTurn = rowList.Count * rndCeilingPerFactory,

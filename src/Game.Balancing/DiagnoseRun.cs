@@ -274,14 +274,32 @@ internal static class DiagnoseRun
     /// </summary>
     internal static MarginSandwichResult CheckMarginSandwich(ResolvedGameConfig config)
     {
-        var systemMargin = MarketSaleCalculator.SystemSaleMarginMultiplier - 1m;
+        // Пол продавца — насколько выгоднее себестоимости продать системе. При CostPlus это одно
+        // число на всю игру; при External цена задана конфигом отдельно по каждому материалу,
+        // поэтому пол СВОЙ у каждого уровня, и проверять надо худший случай, а не среднее: контракт
+        // мёртв уже тогда, когда невыгоден хотя бы на одном материале (блок 11.6).
+        var materialCosts = MaterialCostCalculator.CalculateAll(config);
+        var referencePrices = SystemSaleReferencePriceCalculator.CalculateAll(config, materialCosts);
+        var marginByMaterial = materialCosts
+            .Where(pair => pair.Value > 0m && referencePrices.ContainsKey(pair.Key))
+            .ToDictionary(pair => pair.Key, pair => referencePrices[pair.Key] / pair.Value - 1m);
+
+        var systemMargin = marginByMaterial.Count > 0 ? marginByMaterial.Values.Max() : 0m;
         var emergencyMargin = config.Raw.Economy.EmergencyPurchaseBaseMultiplier - 1m;
         var botFloor = SimpleBot.MinSellMarginRate;
         var botCeiling = SimpleBot.MaxBuyPremiumRate;
 
+        // Разброс меньше половины процентного пункта — это не разброс, а шум последнего знака:
+        // под CostPlus наценка одинакова по построению, но price/cost − 1 по каждому материалу
+        // считается делением и совпадает не побитово. Диапазон печатается, только когда он реальный.
+        var lowestMargin = marginByMaterial.Count > 0 ? marginByMaterial.Values.Min() : 0m;
+        var systemMarginLabel = systemMargin - lowestMargin > 0.005m
+            ? $"+{lowestMargin:P0}..+{systemMargin:P0} (худший — {marginByMaterial.MaxBy(pair => pair.Value).Key})"
+            : $"+{systemMargin:P0}";
+
         var lines = new List<string>
         {
-            $"  Пол продавца (системная продажа): +{systemMargin:P0}",
+            $"  Пол продавца (системная продажа): {systemMarginLabel}",
             $"  Жадность бота в P2P: [+{botFloor:P0}; +{botCeiling:P0}]",
             $"  Потолок покупателя (аварийная закупка): +{emergencyMargin:P0}",
         };
@@ -291,7 +309,8 @@ internal static class DiagnoseRun
         {
             problems.Add(
                 $"пол жадности бота (+{botFloor:P0}) ниже системной наценки (+{systemMargin:P0}) — продавец-бот " +
-                "соглашается на P2P-сделку хуже, чем дала бы прямая продажа системе; сделки P2P систематически невыгодны продавцу. " +
+                "соглашается на P2P-сделку хуже, чем дала бы прямая продажа системе хотя бы по одному материалу; " +
+                "сделки P2P для него систематически невыгодны. " +
                 $"→ Поднять SimpleBot.MinSellMarginRate с {botFloor:P0} до значения строго выше +{systemMargin:P0} " +
                 $"(и строго ниже потолка +{botCeiling:P0}).");
         }

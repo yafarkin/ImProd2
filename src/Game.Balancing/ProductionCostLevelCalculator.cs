@@ -1,3 +1,4 @@
+using Game.Config.Economy;
 using Game.Config.Loading;
 using Game.Domain;
 using Game.Engine;
@@ -50,6 +51,26 @@ public static class ProductionCostLevelCalculator
         public required decimal TotalCost { get; init; }
         public required decimal UnitCost { get; init; }
 
+        /// <summary>
+        /// Полная себестоимость единицы — <b>рекурсивно</b>, с зарплатой на каждом уровне цепочки:
+        /// <c>(Σ вход × полная_себестоимость(вход) + собственный передел) / выпуск</c>. В отличие от
+        /// <see cref="UnitCost"/>, где зарплата исключена сознательно (та величина — для сравнения
+        /// отраслей между собой, а не для денег).
+        /// <para>Именно это база цены при <c>PricingModel.CostPlus</c>: движок берёт цену от
+        /// <c>MaterialCostCalculator</c>, а там зарплата включена и накапливается вдоль цепочки.
+        /// Добавить зарплату только своего уровня недостаточно — тождество прибыли тогда не сходится
+        /// уже на первом переделе (проверено при написании блока 11.6: расхождение ровно на
+        /// зарплату, зашитую во входах).</para>
+        /// </summary>
+        public required decimal FullUnitCost { get; init; }
+
+        /// <summary>
+        /// Опорная цена продажи единицы системе (<c>Game.Engine.SystemSaleReferencePriceCalculator</c>):
+        /// при <c>CostPlus</c> — <see cref="UnitCostWithSalary"/> × наценка, при <c>External</c> —
+        /// заданная в конфиге <c>BaseSellPrice</c>. Ненасыщенный рынок, нейтральный индекс.
+        /// </summary>
+        public required decimal ReferenceUnitPrice { get; init; }
+
         /// <summary>Цена постройки этой фабрики — нужна для <see cref="PaybackTurns"/>, сама по себе в себестоимость выпуска не входит (однократный расход, не за ход).</summary>
         public required decimal BuildCost { get; init; }
 
@@ -62,29 +83,35 @@ public static class ProductionCostLevelCalculator
 
         /// <summary>
         /// Прибыль за ход при том же консервативном допущении, что и <see cref="PaybackTurns"/> — 100%
-        /// выпуска продаётся системе по фиксированной наценке, без кросс-торговли. НЕ зависит от <see
+        /// выпуска продаётся системе, без кросс-торговли. НЕ зависит от <see
         /// cref="BuildCost"/> (тот однократный расход, здесь — только выпуск/себестоимость/наценка) —
         /// поэтому обратная задача (направление B плана исследований,
         /// <c>docs/rebalance-2sector/balance-experiment-plan.md</c>: «по целевому сроку окупаемости
         /// найти допустимый BuildCost») — это просто <c>ProfitPerTurn × целевой срок</c>, без бисекции,
         /// см. <see cref="MaxBuildCostForTargetPayback"/>.
         /// <para>
-        /// Считается от <see cref="ConversionCost"/> (собственный передел), НЕ от <see cref="TotalCost"/>
-        /// (2026-09-06, <c>docs/economy-accounting-audit.md</c>, дефект 3): входы фабрика либо покупает
-        /// (дешевле <c>себестоимость × наценка</c> никто не продаст — это пол продавца, системная
-        /// продажа), либо производит сама — и тогда маржа на них уже начислена уровню-производителю.
-        /// Прежняя формула <c>TotalCost × (наценка − 1)</c> начисляла маржу на себестоимость входов по
-        /// разу на КАЖДОМ уровне вертикальной цепочки: на боевом <c>metallurgy.json</c> сумма прибыли
-        /// выходила 3 940 ¤/ход против истинного максимума притока 1 764 ¤/ход, завышение в 2.23×.
-        /// Сумма <see cref="ProfitPerTurn"/> по конфигу обязана совпадать с
-        /// <c>0.30 × Σ передела</c> — тождеством денежной массы при cost-plus.
+        /// С блока 11.6 считается общей формулой
+        /// <c>выпуск × цена(выход) − Σ вход × цена(вход) − собственный передел</c>
+        /// (<c>Game.Engine.SystemSaleReferencePriceCalculator.ProfitPerTurn</c>), одинаковой для обеих
+        /// моделей ценообразования. Входы оцениваются по своей ЦЕНЕ ПРОДАЖИ, а не по себестоимости —
+        /// маржа на них уже начислена уровню-производителю (2026-09-06,
+        /// <c>docs/economy-accounting-audit.md</c>, дефект 3: прежняя формула
+        /// <c>TotalCost × (наценка − 1)</c> начисляла её по разу на КАЖДОМ переделе, на боевом
+        /// <c>metallurgy.json</c> завышение в 2.23×).
+        /// </para>
+        /// <para>
+        /// При <c>PricingModel.CostPlus</c> формула тождественно сводится к прежней
+        /// <c>0.30 × ConversionCost</c> — равенство точное, не приближённое, и закреплено тестом;
+        /// поэтому переезд на неё не сдвинул ни одного числа в откалиброванных цепочках. Сумма
+        /// <see cref="ProfitPerTurn"/> по конфигу там же совпадает с <c>0.30 × Σ передела</c> —
+        /// тождеством денежной массы.
         /// </para>
         /// </summary>
         public required decimal ProfitPerTurn { get; init; }
 
         /// <summary>
         /// Срок окупаемости (ходов) при самом консервативном допущении — 100% выпуска продаётся
-        /// СИСТЕМЕ по фиксированной наценке (<see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/>),
+        /// СИСТЕМЕ по опорной цене (<c>Game.Engine.SystemSaleReferencePriceCalculator</c>),
         /// кросс-торговля не учитывается вовсе (запрос пользователя, rebalance/2-sector-stepwise,
         /// 2026-08-23 — «идти с конца цепочки»: направление A плана исследований,
         /// <c>docs/rebalance-2sector/balance-experiment-plan.md</c>). Не занижение специально —
@@ -152,6 +179,12 @@ public static class ProductionCostLevelCalculator
         // сравнения отраслей между собой), но входит в собственный передел, от которого считается
         // ProfitPerTurn: там речь про настоящие деньги (docs/economy-accounting-audit.md, шаг 3).
         var salaryCost = workersPerFactory * productivity.SalaryPerWorkerPerTurn;
+        // Под External цена задана конфигом и от себестоимости не зависит вовсе; под CostPlus она
+        // выводится из себестоимости С ЗАРПЛАТОЙ этой же модели (не из MaterialCostCalculator) —
+        // так тождество прибыли остаётся точным при любом --workers, а не только при BaseWorkerCount.
+        var externalPriceByMaterialId = config.Raw.Economy.PricingModel == PricingModel.External
+            ? config.Raw.Economy.BaseMarketPerMaterial.ToDictionary(m => m.MaterialId, m => m.BaseSellPrice)
+            : null;
 
         var producerByMaterialId = new Dictionary<string, (FactoryDefinition FactoryDef, Recipe Recipe)>();
         foreach (var factoryDef in config.FactoryDefinitions)
@@ -226,7 +259,19 @@ public static class ProductionCostLevelCalculator
             var unitCost = outputQuantity > 0 ? totalCost / outputQuantity : 0m;
             var buildCost = buildCostByFactoryId[factoryDef.Id];
             var conversionCost = fixedCostPerTurn + electricityCost + salaryCost;
-            var profitPerTurn = conversionCost * (MarketSaleCalculator.SystemSaleMarginMultiplier - 1m);
+
+            var inputsAtFullCost = recipe.Inputs.Sum(
+                input => input.Quantity * batches * Resolve(input.Material.Id).FullUnitCost);
+            var fullUnitCost = outputQuantity > 0 ? (inputsAtFullCost + conversionCost) / outputQuantity : 0m;
+            var referenceUnitPrice = externalPriceByMaterialId is not null
+                ? externalPriceByMaterialId.GetValueOrDefault(materialId)
+                : fullUnitCost * MarketSaleCalculator.SystemSaleMarginMultiplier;
+
+            // Общая формула на обе модели: входы по ЦЕНЕ ПРОДАЖИ, не по себестоимости.
+            var inputsAtReferencePrice = recipe.Inputs.Sum(
+                input => input.Quantity * batches * Resolve(input.Material.Id).ReferenceUnitPrice);
+            var profitPerTurn = SystemSaleReferencePriceCalculator.ProfitPerTurn(
+                outputQuantity, referenceUnitPrice, inputsAtReferencePrice, conversionCost);
             var paybackTurns = profitPerTurn > 0m ? buildCost / profitPerTurn : (decimal?)null;
 
             var row = new FactoryRecipeCost
@@ -246,6 +291,8 @@ public static class ProductionCostLevelCalculator
                 ElectricityCost = electricityCost,
                 TotalCost = totalCost,
                 UnitCost = unitCost,
+                FullUnitCost = fullUnitCost,
+                ReferenceUnitPrice = referenceUnitPrice,
                 BuildCost = buildCost,
                 ConversionCost = conversionCost,
                 ProfitPerTurn = profitPerTurn,
