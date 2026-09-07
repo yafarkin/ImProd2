@@ -387,67 +387,67 @@
   "BaseMarketPerMaterial": [
     {
       "MaterialId": "iron-ore",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 4600
     },
     {
       "MaterialId": "coking-coal",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 1680
     },
     {
       "MaterialId": "limestone",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 770
     },
     {
       "MaterialId": "scrap-metal",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 600
     },
     {
       "MaterialId": "sinter",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 3320
     },
     {
       "MaterialId": "coke",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 1040
     },
     {
       "MaterialId": "pig-iron",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 1800
     },
     {
       "MaterialId": "crude-steel",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 1300
     },
     {
       "MaterialId": "slab",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 280
     },
     {
       "MaterialId": "billet",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 280
     },
     {
       "MaterialId": "hot-rolled-sheet",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "forging-bar",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "steel-structure",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 50
     }
   ],

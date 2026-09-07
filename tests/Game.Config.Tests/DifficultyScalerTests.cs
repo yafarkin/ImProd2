@@ -20,7 +20,7 @@ public class DifficultyScalerTests
                 {
                     Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = Array.Empty<string>(),
                     // FixedCostPerTurn обязан быть ненулевым: с 2026-09-07 это один из шести рычагов бегунка
-                    // сложности (заменил мёртвый BasePrice), а множитель на нуле неотличим от отсутствия рычага.
+                    // сложности (заменил мёртвый BaseSellPrice), а множитель на нуле неотличим от отсутствия рычага.
                     BuildCost = 1000m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 50m,
                 },
             });
@@ -29,7 +29,7 @@ public class DifficultyScalerTests
         {
             Economy = config.Economy with
             {
-                BaseMarketPerMaterial = new[] { new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100m } },
+                BaseMarketPerMaterial = new[] { new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 100m } },
             },
             GenerationResearch = config.GenerationResearch with
             {
@@ -99,7 +99,7 @@ public class DifficultyScalerTests
     /// (<see cref="EmergencyPurchaseBaseMultiplierAnchors"/> в коде) приколочена к 1.0 на уровнях 0–3
     /// намеренно (пересчёт 2026-09-07, docs/difficulty.md §8) — опустить её ниже потолка жадности бота
     /// (+50%) значит сломать «бутерброд наценок» §2 диагностики, а дефолт +55% уже почти вплотную к
-    /// этому потолку. Это не мёртвый рычаг, как когда-то `BasePrice`, а рычаг с занятой инвариантом
+    /// этому потолку. Это не мёртвый рычаг, как когда-то `BaseSellPrice`, а рычаг с занятой инвариантом
     /// лёгкой стороной: тяжёлая сторона (уровни 4–5) по-прежнему работает, см. тест ниже.
     /// </summary>
     [Fact]
@@ -137,23 +137,29 @@ public class DifficultyScalerTests
     }
 
     /// <summary>
-    /// Регрессия на замену мёртвого рычага (2026-09-07, <c>docs/levers.md</c> §1.6): `BasePrice` под
-    /// ценообразованием «себестоимость + наценка» не участвует ни в одной денежной операции — и
-    /// системная продажа, и аварийная закупка берут цену из <c>MaterialCostCalculator</c>. Пока это
-    /// так, бегунок сложности не имеет права её трогать: иначе один из шести рычагов снова окажется
-    /// холостым, а измерения сложности — завышенными на несуществующий эффект.
+    /// Регрессия на замену мёртвого рычага (2026-09-07, <c>docs/levers.md</c> §1.6): под
+    /// <see cref="PricingModel.CostPlus"/> <c>BaseSellPrice</c> не участвует ни в одной денежной
+    /// операции — и системная продажа, и аварийная закупка берут цену из
+    /// <c>MaterialCostCalculator</c>. Пока сессия в этом режиме, бегунок сложности не имеет права её
+    /// трогать: иначе один из шести рычагов снова окажется холостым, а измерения сложности —
+    /// завышенными на несуществующий эффект.
+    ///
+    /// <para>Под <see cref="PricingModel.External"/> всё наоборот: цена становится главным задатчиком
+    /// доходности, и <c>BaseSellPrice</c> возвращается как рычаг — это блок 11.11
+    /// (<c>docs/external-economy.md</c> §9). Тогда этот тест обязан быть переписан, а не удалён:
+    /// проверка должна стать «рычаг работает в External и молчит в CostPlus».</para>
     /// </summary>
     [Theory]
     [InlineData(0.0)]
     [InlineData(5.0)]
-    public void Apply_Does_Not_Touch_BasePrice_Because_It_Drives_No_Money_Under_Cost_Plus(double difficultyLevel)
+    public void Apply_Does_Not_Touch_BaseSellPrice_Because_It_Drives_No_Money_Under_Cost_Plus(double difficultyLevel)
     {
         var config = BuildConfig();
 
         var scaled = DifficultyScaler.Apply(config, difficultyLevel);
 
         Assert.Equal(
-            config.Economy.BaseMarketPerMaterial.Single().BasePrice,
-            scaled.Economy.BaseMarketPerMaterial.Single().BasePrice);
+            config.Economy.BaseMarketPerMaterial.Single().BaseSellPrice,
+            scaled.Economy.BaseMarketPerMaterial.Single().BaseSellPrice);
     }
 }

@@ -173,9 +173,9 @@ public class CrossSectorTradingTests
                     // Намеренно НЕ в "полосе сведения" (см. doc-comment BuildTwoSectorConfig) — регрессия
                     // как раз и проверяет, что для сырья это больше не нужно: продавец больше не требует
                     // маржи сверх собственной котировки (см. фикс ComputeSellOrders).
-                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "oil", BasePrice = 10m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "b-widget", BasePrice = 40m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "oil", BaseSellPrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "b-widget", BaseSellPrice = 40m, BaseCapacity = 100_000m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
@@ -308,14 +308,14 @@ public class CrossSectorTradingTests
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial = new[]
                 {
-                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 100_000m },
                     // Между расчётной себестоимостью (2 руды по 10 = 20) плюс пол продавца (+5%=21) и
                     // потолок покупателя (+20%=24, см. MinSellMarginRate/MaxBuyPremiumRate в
                     // SimpleBot) — иначе котировка рынка сама по себе никогда не попадёт в полосу
                     // сведения заявок стакана (наступили на этот же грабель при первом прогоне теста).
-                    new MaterialMarketConfig { MaterialId = "a-part", BasePrice = 23m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "oil", BasePrice = 10m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "b-widget", BasePrice = 40m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "a-part", BaseSellPrice = 23m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "oil", BaseSellPrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "b-widget", BaseSellPrice = 40m, BaseCapacity = 100_000m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,

@@ -329,8 +329,8 @@ internal static class TestGameConfig
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial = new[]
                 {
-                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100m },
-                    new MaterialMarketConfig { MaterialId = "sheet", BasePrice = 25m, BaseCapacity = 8m },
+                    new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 100m },
+                    new MaterialMarketConfig { MaterialId = "sheet", BaseSellPrice = 25m, BaseCapacity = 8m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,

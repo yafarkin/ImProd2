@@ -23,7 +23,7 @@ namespace Game.Balancing;
 /// доказано, что в симметричной топологии P2P даёт команде чистый ноль), можно честно посчитать
 /// окупаемость (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-23, направление A плана
 /// исследований — <c>docs/rebalance-2sector/balance-experiment-plan.md</c>). Это не наивная оценка
-/// прежних времён (`BasePrice × MarginMultiplierByProcessingLevel`, отвязанная от себестоимости) —
+/// прежних времён (`BaseSellPrice × MarginMultiplierByProcessingLevel`, отвязанная от себестоимости) —
 /// наценка накладывается на уже посчитанную настоящую себестоимость, не на произвольную табличную цену.
 /// </para>
 /// </summary>

@@ -42,7 +42,7 @@ public class ExternalPricingModelTests
     {
         var quote = MarketAt(External(), turn: 1).QuoteOf(Ore);
 
-        // BasePrice руды в TestGameConfig — 10, индекс без сценария нейтральный.
+        // BaseSellPrice руды в TestGameConfig — 10, индекс без сценария нейтральный.
         Assert.Equal(10m, quote.Price);
     }
 
@@ -192,7 +192,7 @@ public class ExternalPricingModelTests
     {
         var economy = External() with
         {
-            BaseMarketPerMaterial = [new MaterialMarketConfig { MaterialId = Ore, BasePrice = 10m, BaseCapacity = 0m }],
+            BaseMarketPerMaterial = [new MaterialMarketConfig { MaterialId = Ore, BaseSellPrice = 10m, BaseCapacity = 0m }],
         };
         var market = MarketAt(economy, turn: 1);
 

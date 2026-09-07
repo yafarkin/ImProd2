@@ -46,11 +46,11 @@ public class SystemSalePriceLadderCalculatorTests
             {
                 BaseMarketPerMaterial = new[]
                 {
-                    new MaterialMarketConfig { MaterialId = "rock", BasePrice = 0.02m, BaseCapacity = 5000m },
-                    new MaterialMarketConfig { MaterialId = "iron", BasePrice = 15m, BaseCapacity = 500m },
-                    new MaterialMarketConfig { MaterialId = "iron-sheet", BasePrice = 40m, BaseCapacity = 50m },
-                    new MaterialMarketConfig { MaterialId = "oil", BasePrice = 12m, BaseCapacity = 150m },
-                    new MaterialMarketConfig { MaterialId = "plastic", BasePrice = 28m, BaseCapacity = 100m },
+                    new MaterialMarketConfig { MaterialId = "rock", BaseSellPrice = 0.02m, BaseCapacity = 5000m },
+                    new MaterialMarketConfig { MaterialId = "iron", BaseSellPrice = 15m, BaseCapacity = 500m },
+                    new MaterialMarketConfig { MaterialId = "iron-sheet", BaseSellPrice = 40m, BaseCapacity = 50m },
+                    new MaterialMarketConfig { MaterialId = "oil", BaseSellPrice = 12m, BaseCapacity = 150m },
+                    new MaterialMarketConfig { MaterialId = "plastic", BaseSellPrice = 28m, BaseCapacity = 100m },
                 },
             },
         };
@@ -200,8 +200,8 @@ public class SystemSalePriceLadderCalculatorTests
         var updated = SystemSalePriceLadderCalculator.Apply(config.Raw, rows);
         var reloaded = GameConfigLoader.Load(GameConfigWriter.Save(updated));
 
-        Assert.Equal(14m, reloaded.Raw.Economy.BaseMarketPerMaterial.Single(m => m.MaterialId == "iron").BasePrice);
-        Assert.Equal(150m, reloaded.Raw.Economy.BaseMarketPerMaterial.Single(m => m.MaterialId == "iron-sheet").BasePrice);
+        Assert.Equal(14m, reloaded.Raw.Economy.BaseMarketPerMaterial.Single(m => m.MaterialId == "iron").BaseSellPrice);
+        Assert.Equal(150m, reloaded.Raw.Economy.BaseMarketPerMaterial.Single(m => m.MaterialId == "iron-sheet").BaseSellPrice);
     }
 
     /// <summary>

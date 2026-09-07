@@ -118,9 +118,9 @@ public class MultiRecipeFactoryTests
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial = new[]
                 {
-                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 1_000_000m },
-                    new MaterialMarketConfig { MaterialId = "alloy-x", BasePrice = 50m, BaseCapacity = 1_000_000m },
-                    new MaterialMarketConfig { MaterialId = "alloy-y", BasePrice = 50m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "alloy-x", BaseSellPrice = 50m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "alloy-y", BaseSellPrice = 50m, BaseCapacity = 1_000_000m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,

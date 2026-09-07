@@ -76,10 +76,10 @@ internal static class CrossSectorConfigBuilder
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial =
                 [
-                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "a-part", BasePrice = 23m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "oil", BasePrice = 10m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "b-widget", BasePrice = 40m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "a-part", BaseSellPrice = 23m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "oil", BaseSellPrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "b-widget", BaseSellPrice = 40m, BaseCapacity = 100_000m },
                 ],
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,

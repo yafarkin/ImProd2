@@ -99,7 +99,7 @@ public class GameConfigDeserializationTests
 
         Assert.Equal(5, config.Economy.BaseMarketPerMaterial.Count);
         var orePrice = Assert.Single(config.Economy.BaseMarketPerMaterial, p => p.MaterialId == "ore");
-        Assert.Equal(1m, orePrice.BasePrice);
+        Assert.Equal(1m, orePrice.BaseSellPrice);
         Assert.Equal(200m, orePrice.BaseCapacity);
 
         Assert.Equal(3, config.Economy.TrendScenario.Count);

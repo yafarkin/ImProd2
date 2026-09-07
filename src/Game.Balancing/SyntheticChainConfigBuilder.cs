@@ -66,7 +66,7 @@ public static class SyntheticChainConfigBuilder
                 LiquidationValueCoefficient = 0.5m,
                 FixedCostPerTurn = levels[level].FixedCostPerTurn,
             });
-            market.Add(new MaterialMarketConfig { MaterialId = materialId, BasePrice = 10m, BaseCapacity = 1_000_000m });
+            market.Add(new MaterialMarketConfig { MaterialId = materialId, BaseSellPrice = 10m, BaseCapacity = 1_000_000m });
         }
 
         var config = new GameConfig

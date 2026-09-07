@@ -194,7 +194,7 @@ public class ChainDesignRulesTests
             Economy = raw.Economy with
             {
                 BaseMarketPerMaterial = materials
-                    .Select(m => new MaterialMarketConfig { MaterialId = m.Id, BasePrice = 10m, BaseCapacity = 1_000_000m })
+                    .Select(m => new MaterialMarketConfig { MaterialId = m.Id, BaseSellPrice = 10m, BaseCapacity = 1_000_000m })
                     .ToList(),
             },
         });

@@ -47,7 +47,7 @@ public static class MarketCalculator
         foreach (var baseline in economy.BaseMarketPerMaterial)
         {
             quotes[baseline.MaterialId] = new MaterialQuote(
-                baseline.BasePrice * index,
+                baseline.BaseSellPrice * index,
                 ExternalPriceCalculator.Capacity(baseline.BaseCapacity, index));
         }
 
@@ -66,7 +66,7 @@ public static class MarketCalculator
         foreach (var baseline in economy.BaseMarketPerMaterial)
         {
             quotes[baseline.MaterialId] = new MaterialQuote(
-                Math.Max(0m, baseline.BasePrice + priceDelta),
+                Math.Max(0m, baseline.BaseSellPrice + priceDelta),
                 Math.Max(0m, baseline.BaseCapacity + capacityDelta));
         }
 

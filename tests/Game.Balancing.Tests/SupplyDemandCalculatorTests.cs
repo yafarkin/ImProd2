@@ -171,8 +171,8 @@ public class SupplyDemandCalculatorTests
             {
                 BaseMarketPerMaterial =
                 [
-                    new MaterialMarketConfig { MaterialId = "bar", BasePrice = 1m, BaseCapacity = 1000m },
-                    new MaterialMarketConfig { MaterialId = "fastener", BasePrice = 1m, BaseCapacity = 1000m },
+                    new MaterialMarketConfig { MaterialId = "bar", BaseSellPrice = 1m, BaseCapacity = 1000m },
+                    new MaterialMarketConfig { MaterialId = "fastener", BaseSellPrice = 1m, BaseCapacity = 1000m },
                 ],
             },
         };

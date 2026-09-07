@@ -93,7 +93,7 @@ public class IdealHallCalculatorTests
     public void Calculate_Sells_Uncontested_Surplus_To_The_System_Instead_Of_Leaving_It_Idle()
     {
         // Ветка добывает намного больше руды, чем сама же перерабатывает — остаток раньше просто
-        // лежал на складе и оценивался по плоской BasePrice в конце хода (см. doc-comment класса,
+        // лежал на складе и оценивался по плоской BaseSellPrice в конце хода (см. doc-comment класса,
         // «намеренно добавлено»); теперь он должен активно продаваться системе каждый ход по
         // себестоимости × MarketSaleCalculator.SystemSaleMarginMultiplier (фиксированная наценка,
         // с 2026-08-22 одна на все уровни передела — параметризовать нечем, раньше тест сравнивал
@@ -149,8 +149,8 @@ public class IdealHallCalculatorTests
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial = new[]
                 {
-                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 1_000_000m },
-                    new MaterialMarketConfig { MaterialId = "part", BasePrice = 50m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "part", BaseSellPrice = 50m, BaseCapacity = 1_000_000m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
@@ -228,7 +228,7 @@ public class IdealHallCalculatorTests
     /// Та же цепочка (А самодостаточен, Б зависит от А напрямую), что <c>Game.Bots.Tests.CrossSectorTradingTests.BuildTwoSectorConfig</c>
     /// — см. её doc-comment за подробным разбором; здесь дополнительно нужна прибыльность обеих
     /// веток (не только сам факт сделки) — с 2026-08-21 цена продажи системе считается от
-    /// себестоимости (<see cref="MaterialCostCalculator"/>), не от <c>BasePrice</c> — тот здесь
+    /// себестоимости (<see cref="MaterialCostCalculator"/>), не от <c>BaseSellPrice</c> — тот здесь
     /// влияет только на ёмкость рынка, значение самой цены больше не используется. С 2026-08-22
     /// наценка системной продажи фиксирована (<see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/>,
     /// 1.05×) и параметризовать её в этом фикстуре больше нечем — <c>FixedCostPerTurn=0</c> у всех
@@ -301,13 +301,13 @@ public class IdealHallCalculatorTests
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial = new[]
                 {
-                    // BasePrice здесь больше ни на что не влияет (см. doc-comment BuildTwoSectorConfig)
+                    // BaseSellPrice здесь больше ни на что не влияет (см. doc-comment BuildTwoSectorConfig)
                     // — оставлены как заглушки, реальная прибыльность обеих веток задаётся себестоимостью
                     // и фиксированной наценкой продажи системе (MarketSaleCalculator.SystemSaleMarginMultiplier).
-                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "a-part", BasePrice = 300m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "oil", BasePrice = 10m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "b-widget", BasePrice = 500m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "a-part", BaseSellPrice = 300m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "oil", BaseSellPrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "b-widget", BaseSellPrice = 500m, BaseCapacity = 100_000m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,

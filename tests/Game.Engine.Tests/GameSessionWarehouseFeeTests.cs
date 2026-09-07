@@ -29,7 +29,7 @@ public class GameSessionWarehouseFeeTests
         // заявки на закупку тем же тиком) — поэтому увидеть плату можно только на СЛЕДУЮЩЕМ, четвёртом
         // ходу, когда закупленные 10 единиц уже лежат на складе с начала хода.
         session.EmergencyPurchase(teamId, "ore", 10m); // склад: 10 единиц, бесплатный лимит — 5;
-        // цена = 10 (BasePrice) * 2 (EmergencyPurchaseBaseMultiplier, давления ещё нет) = 20/ед., итого 200
+        // цена = 10 (BaseSellPrice) * 2 (EmergencyPurchaseBaseMultiplier, давления ещё нет) = 20/ед., итого 200
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 3
         session.RunTick(new Random(1)); // закупка резрешена, склад: 10 единиц ore
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 3

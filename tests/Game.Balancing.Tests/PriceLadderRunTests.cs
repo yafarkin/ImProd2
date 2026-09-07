@@ -36,8 +36,8 @@ public class PriceLadderRunTests
             {
               "Sectors": [ { "Id": "A", "Name": "Металлургия" } ],
               "BaseMarketPerMaterial": [
-                { "MaterialId": "ore", "BasePrice": 1, "BaseCapacity": 100 },
-                { "MaterialId": "sheet", "BasePrice": 1, "BaseCapacity": 10 }
+                { "MaterialId": "ore", "BaseSellPrice": 1, "BaseCapacity": 100 },
+                { "MaterialId": "sheet", "BaseSellPrice": 1, "BaseCapacity": 10 }
               ]
             }
             """);
@@ -48,8 +48,8 @@ public class PriceLadderRunTests
 
             Assert.Equal(2, updated);
             var market = JsonDocument.Parse(File.ReadAllText(path)).RootElement.GetProperty("BaseMarketPerMaterial");
-            Assert.Equal(2.6m, market[0].GetProperty("BasePrice").GetDecimal());
-            Assert.Equal(14m, market[1].GetProperty("BasePrice").GetDecimal());
+            Assert.Equal(2.6m, market[0].GetProperty("BaseSellPrice").GetDecimal());
+            Assert.Equal(14m, market[1].GetProperty("BaseSellPrice").GetDecimal());
         }
         finally
         {
@@ -68,7 +68,7 @@ public class PriceLadderRunTests
               "Economy": {
                 "ElectricityBasePrice": 2.0,
                 "BaseMarketPerMaterial": [
-                  { "MaterialId": "ore", "BasePrice": 1, "BaseCapacity": 100 }
+                  { "MaterialId": "ore", "BaseSellPrice": 1, "BaseCapacity": 100 }
                 ]
               }
             }
@@ -80,7 +80,7 @@ public class PriceLadderRunTests
 
             Assert.Equal(1, updated);
             var economy = JsonDocument.Parse(File.ReadAllText(path)).RootElement.GetProperty("Economy");
-            Assert.Equal(2.6m, economy.GetProperty("BaseMarketPerMaterial")[0].GetProperty("BasePrice").GetDecimal());
+            Assert.Equal(2.6m, economy.GetProperty("BaseMarketPerMaterial")[0].GetProperty("BaseSellPrice").GetDecimal());
             Assert.Equal(2.0m, economy.GetProperty("ElectricityBasePrice").GetDecimal());
         }
         finally
@@ -102,7 +102,7 @@ public class PriceLadderRunTests
               "Sectors": [ { "Id": "A", "Name": "Металлургия" } ],
               "Recipes": [ { "Id": "mining", "ProductionRate": 1000 } ],
               "BaseMarketPerMaterial": [
-                { "MaterialId": "ore", "BasePrice": 1, "BaseCapacity": 100 }
+                { "MaterialId": "ore", "BaseSellPrice": 1, "BaseCapacity": 100 }
               ],
               "GenerationResearch": { "Thresholds": [ 1, 2, 3 ] }
             }
@@ -135,8 +135,8 @@ public class PriceLadderRunTests
             """
             {
               "BaseMarketPerMaterial": [
-                { "MaterialId": "ore", "BasePrice": 1, "BaseCapacity": 100 },
-                { "MaterialId": "unrelated", "BasePrice": 7, "BaseCapacity": 10 }
+                { "MaterialId": "ore", "BaseSellPrice": 1, "BaseCapacity": 100 },
+                { "MaterialId": "unrelated", "BaseSellPrice": 7, "BaseCapacity": 10 }
               ]
             }
             """);
@@ -148,7 +148,7 @@ public class PriceLadderRunTests
             Assert.Equal(1, updated);
             Assert.NotEqual(Rows().Count, updated);
             var market = JsonDocument.Parse(File.ReadAllText(path)).RootElement.GetProperty("BaseMarketPerMaterial");
-            Assert.Equal(7m, market[1].GetProperty("BasePrice").GetDecimal());
+            Assert.Equal(7m, market[1].GetProperty("BaseSellPrice").GetDecimal());
         }
         finally
         {

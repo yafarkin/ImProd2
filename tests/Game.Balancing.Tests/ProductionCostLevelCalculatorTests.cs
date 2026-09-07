@@ -152,7 +152,7 @@ public class ProductionCostLevelCalculatorTests
                 EmergencyPurchaseBaseMultiplier = 2m,
                 EmergencyPurchasePressureMultiplierPerUnit = 0m,
                 EmergencyPurchasePressureHalfLifeTurns = 3,
-                BaseMarketPerMaterial = [new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 1_000_000m }],
+                BaseMarketPerMaterial = [new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 1_000_000m }],
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
                 ElectricityConsumptionPerOutputUnit = 0m,
@@ -221,9 +221,9 @@ public class ProductionCostLevelCalculatorTests
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial =
                 [
-                    new MaterialMarketConfig { MaterialId = "material0", BasePrice = 10m, BaseCapacity = 1_000_000m },
-                    new MaterialMarketConfig { MaterialId = "material1", BasePrice = 20m, BaseCapacity = 1_000_000m },
-                    new MaterialMarketConfig { MaterialId = "material2", BasePrice = 40m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "material0", BaseSellPrice = 10m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "material1", BaseSellPrice = 20m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "material2", BaseSellPrice = 40m, BaseCapacity = 1_000_000m },
                 ],
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,

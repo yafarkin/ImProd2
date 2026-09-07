@@ -168,27 +168,27 @@
     "BaseMarketPerMaterial": [
       {
         "MaterialId": "ore",
-        "BasePrice": 1,
+        "BaseSellPrice": 1,
         "BaseCapacity": 200
       },
       {
         "MaterialId": "sheet",
-        "BasePrice": 25,
+        "BaseSellPrice": 25,
         "BaseCapacity": 120
       },
       {
         "MaterialId": "rebar",
-        "BasePrice": 30,
+        "BaseSellPrice": 30,
         "BaseCapacity": 80
       },
       {
         "MaterialId": "oil",
-        "BasePrice": 12,
+        "BaseSellPrice": 12,
         "BaseCapacity": 150
       },
       {
         "MaterialId": "plastic",
-        "BasePrice": 28,
+        "BaseSellPrice": 28,
         "BaseCapacity": 100
       }
     ],

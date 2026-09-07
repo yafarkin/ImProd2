@@ -8,7 +8,7 @@ namespace Game.Balancing;
 /// 2026-08-15) — не бот, не идеальный зал, мгновенный подсчёт по одному конфигу: суммарная «ценность»
 /// (<c>BaseCapacity × себестоимость × <see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/></c>,
 /// себестоимость через <see cref="MaterialCostCalculator"/> — до 2026-08-22 здесь была
-/// <c>BasePrice × маржа уровня</c>, но с rebalance/2-sector-stepwise <c>BasePrice</c> ни на что не
+/// <c>BaseSellPrice × маржа уровня</c>, но с rebalance/2-sector-stepwise <c>BaseSellPrice</c> ни на что не
 /// влияет, реальная системная цена — только себестоимость) материалов уровня 1..<see
 /// cref="Game.Config.Economy.GenerationResearchConfig.StartingGeneration"/> в каждом секторе — то есть
 /// то, что команда может продавать, вообще не вкладываясь в исследование поколений.

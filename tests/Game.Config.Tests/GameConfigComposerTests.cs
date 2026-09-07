@@ -32,7 +32,7 @@ public class GameConfigComposerTests
                 BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m,
             },
         },
-        BaseMarketPerMaterial = new[] { new MaterialMarketConfig { MaterialId = "ore", BasePrice = 3m, BaseCapacity = 500m } },
+        BaseMarketPerMaterial = new[] { new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 3m, BaseCapacity = 500m } },
         GenerationResearch = new GenerationResearchConfig
         {
             StartingGeneration = 1,
@@ -122,7 +122,7 @@ public class GameConfigComposerTests
 
         var orePrice = Assert.Single(config.Economy.BaseMarketPerMaterial);
         Assert.Equal("ore", orePrice.MaterialId);
-        Assert.Equal(3m, orePrice.BasePrice);
+        Assert.Equal(3m, orePrice.BaseSellPrice);
 
         Assert.Equal(1.5m, config.Economy.EmergencyPurchaseBaseMultiplier);
         Assert.Equal(0.5m, config.Economy.WarehouseLiquidationRate);

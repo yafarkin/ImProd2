@@ -1678,282 +1678,282 @@
   "BaseMarketPerMaterial": [
     {
       "MaterialId": "iron-ore",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 4000
     },
     {
       "MaterialId": "coking-coal",
-      "BasePrice": 1.2,
+      "BaseSellPrice": 1.2,
       "BaseCapacity": 3000
     },
     {
       "MaterialId": "limestone",
-      "BasePrice": 0.6,
+      "BaseSellPrice": 0.6,
       "BaseCapacity": 3500
     },
     {
       "MaterialId": "scrap-metal",
-      "BasePrice": 0.8,
+      "BaseSellPrice": 0.8,
       "BaseCapacity": 2500
     },
     {
       "MaterialId": "coke",
-      "BasePrice": 3,
+      "BaseSellPrice": 3,
       "BaseCapacity": 1400
     },
     {
       "MaterialId": "wire-rod",
-      "BasePrice": 4,
+      "BaseSellPrice": 4,
       "BaseCapacity": 900
     },
     {
       "MaterialId": "pig-iron",
-      "BasePrice": 6,
+      "BaseSellPrice": 6,
       "BaseCapacity": 700
     },
     {
       "MaterialId": "fasteners",
-      "BasePrice": 9,
+      "BaseSellPrice": 9,
       "BaseCapacity": 1800
     },
     {
       "MaterialId": "crude-steel",
-      "BasePrice": 14,
+      "BaseSellPrice": 14,
       "BaseCapacity": 400
     },
     {
       "MaterialId": "cast-iron",
-      "BasePrice": 14,
+      "BaseSellPrice": 14,
       "BaseCapacity": 400
     },
     {
       "MaterialId": "billet",
-      "BasePrice": 22,
+      "BaseSellPrice": 22,
       "BaseCapacity": 220
     },
     {
       "MaterialId": "slab",
-      "BasePrice": 22,
+      "BaseSellPrice": 22,
       "BaseCapacity": 220
     },
     {
       "MaterialId": "engine-block-castings",
-      "BasePrice": 22,
+      "BaseSellPrice": 22,
       "BaseCapacity": 220
     },
     {
       "MaterialId": "forging-bar",
-      "BasePrice": 34,
+      "BaseSellPrice": 34,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "hot-rolled-sheet",
-      "BasePrice": 34,
+      "BaseSellPrice": 34,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "heat-treated-castings",
-      "BasePrice": 34,
+      "BaseSellPrice": 34,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "forged-blanks",
-      "BasePrice": 55,
+      "BaseSellPrice": 55,
       "BaseCapacity": 60
     },
     {
       "MaterialId": "cold-rolled-sheet",
-      "BasePrice": 55,
+      "BaseSellPrice": 55,
       "BaseCapacity": 60
     },
     {
       "MaterialId": "rough-machined-block",
-      "BasePrice": 55,
+      "BaseSellPrice": 55,
       "BaseCapacity": 60
     },
     {
       "MaterialId": "machined-parts",
-      "BasePrice": 95,
+      "BaseSellPrice": 95,
       "BaseCapacity": 28
     },
     {
       "MaterialId": "stamped-panels",
-      "BasePrice": 95,
+      "BaseSellPrice": 95,
       "BaseCapacity": 28
     },
     {
       "MaterialId": "engine-block-finished",
-      "BasePrice": 95,
+      "BaseSellPrice": 95,
       "BaseCapacity": 28
     },
     {
       "MaterialId": "gearbox-assembly",
-      "BasePrice": 900,
+      "BaseSellPrice": 900,
       "BaseCapacity": 5
     },
     {
       "MaterialId": "welded-body",
-      "BasePrice": 700,
+      "BaseSellPrice": 700,
       "BaseCapacity": 5
     },
     {
       "MaterialId": "engine",
-      "BasePrice": 1200,
+      "BaseSellPrice": 1200,
       "BaseCapacity": 4
     },
     {
       "MaterialId": "automobile",
-      "BasePrice": 4800,
+      "BaseSellPrice": 4800,
       "BaseCapacity": 1
     },
     {
       "MaterialId": "scrap-alloy",
-      "BasePrice": 4.4,
+      "BaseSellPrice": 4.4,
       "BaseCapacity": 900
     },
     {
       "MaterialId": "carbon-briquette",
-      "BasePrice": 3.3,
+      "BaseSellPrice": 3.3,
       "BaseCapacity": 1400
     },
     {
       "MaterialId": "iron-ore-2",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 4000
     },
     {
       "MaterialId": "coking-coal-2",
-      "BasePrice": 1.2,
+      "BaseSellPrice": 1.2,
       "BaseCapacity": 3000
     },
     {
       "MaterialId": "limestone-2",
-      "BasePrice": 0.6,
+      "BaseSellPrice": 0.6,
       "BaseCapacity": 3500
     },
     {
       "MaterialId": "scrap-metal-2",
-      "BasePrice": 0.8,
+      "BaseSellPrice": 0.8,
       "BaseCapacity": 2500
     },
     {
       "MaterialId": "coke-2",
-      "BasePrice": 3,
+      "BaseSellPrice": 3,
       "BaseCapacity": 1400
     },
     {
       "MaterialId": "wire-rod-2",
-      "BasePrice": 4,
+      "BaseSellPrice": 4,
       "BaseCapacity": 900
     },
     {
       "MaterialId": "pig-iron-2",
-      "BasePrice": 6,
+      "BaseSellPrice": 6,
       "BaseCapacity": 700
     },
     {
       "MaterialId": "fasteners-2",
-      "BasePrice": 9,
+      "BaseSellPrice": 9,
       "BaseCapacity": 1800
     },
     {
       "MaterialId": "crude-steel-2",
-      "BasePrice": 14,
+      "BaseSellPrice": 14,
       "BaseCapacity": 400
     },
     {
       "MaterialId": "cast-iron-2",
-      "BasePrice": 14,
+      "BaseSellPrice": 14,
       "BaseCapacity": 400
     },
     {
       "MaterialId": "billet-2",
-      "BasePrice": 22,
+      "BaseSellPrice": 22,
       "BaseCapacity": 220
     },
     {
       "MaterialId": "slab-2",
-      "BasePrice": 22,
+      "BaseSellPrice": 22,
       "BaseCapacity": 220
     },
     {
       "MaterialId": "engine-block-castings-2",
-      "BasePrice": 22,
+      "BaseSellPrice": 22,
       "BaseCapacity": 220
     },
     {
       "MaterialId": "forging-bar-2",
-      "BasePrice": 34,
+      "BaseSellPrice": 34,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "hot-rolled-sheet-2",
-      "BasePrice": 34,
+      "BaseSellPrice": 34,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "heat-treated-castings-2",
-      "BasePrice": 34,
+      "BaseSellPrice": 34,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "forged-blanks-2",
-      "BasePrice": 55,
+      "BaseSellPrice": 55,
       "BaseCapacity": 60
     },
     {
       "MaterialId": "cold-rolled-sheet-2",
-      "BasePrice": 55,
+      "BaseSellPrice": 55,
       "BaseCapacity": 60
     },
     {
       "MaterialId": "rough-machined-block-2",
-      "BasePrice": 55,
+      "BaseSellPrice": 55,
       "BaseCapacity": 60
     },
     {
       "MaterialId": "machined-parts-2",
-      "BasePrice": 95,
+      "BaseSellPrice": 95,
       "BaseCapacity": 28
     },
     {
       "MaterialId": "stamped-panels-2",
-      "BasePrice": 95,
+      "BaseSellPrice": 95,
       "BaseCapacity": 28
     },
     {
       "MaterialId": "engine-block-finished-2",
-      "BasePrice": 95,
+      "BaseSellPrice": 95,
       "BaseCapacity": 28
     },
     {
       "MaterialId": "gearbox-assembly-2",
-      "BasePrice": 900,
+      "BaseSellPrice": 900,
       "BaseCapacity": 5
     },
     {
       "MaterialId": "welded-body-2",
-      "BasePrice": 700,
+      "BaseSellPrice": 700,
       "BaseCapacity": 5
     },
     {
       "MaterialId": "engine-2",
-      "BasePrice": 1200,
+      "BaseSellPrice": 1200,
       "BaseCapacity": 4
     },
     {
       "MaterialId": "automobile-2",
-      "BasePrice": 4800,
+      "BaseSellPrice": 4800,
       "BaseCapacity": 1
     },
     {
       "MaterialId": "scrap-alloy-2",
-      "BasePrice": 4.4,
+      "BaseSellPrice": 4.4,
       "BaseCapacity": 900
     },
     {
       "MaterialId": "carbon-briquette-2",
-      "BasePrice": 3.3,
+      "BaseSellPrice": 3.3,
       "BaseCapacity": 1400
     }
   ],

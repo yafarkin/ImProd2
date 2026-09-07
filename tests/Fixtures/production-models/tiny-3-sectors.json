@@ -292,47 +292,47 @@
   "BaseMarketPerMaterial": [
     {
       "MaterialId": "material1_1",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 200
     },
     {
       "MaterialId": "material2_1",
-      "BasePrice": 25,
+      "BaseSellPrice": 25,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "material3_1",
-      "BasePrice": 100,
+      "BaseSellPrice": 100,
       "BaseCapacity": 60
     },
     {
       "MaterialId": "material1_2",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 200
     },
     {
       "MaterialId": "material2_2",
-      "BasePrice": 25,
+      "BaseSellPrice": 25,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "material3_2",
-      "BasePrice": 100,
+      "BaseSellPrice": 100,
       "BaseCapacity": 60
     },
     {
       "MaterialId": "material1_3",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 200
     },
     {
       "MaterialId": "material2_3",
-      "BasePrice": 25,
+      "BaseSellPrice": 25,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "material3_3",
-      "BasePrice": 100,
+      "BaseSellPrice": 100,
       "BaseCapacity": 60
     }
   ],

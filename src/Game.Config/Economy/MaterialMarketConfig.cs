@@ -12,7 +12,7 @@ public sealed record MaterialMarketConfig
     public required string MaterialId { get; init; }
 
     /// <summary>Базовая цена за единицу на первый ход сессии, до применения тренда.</summary>
-    public required decimal BasePrice { get; init; }
+    public required decimal BaseSellPrice { get; init; }
 
     /// <summary>Базовая ёмкость (сколько единиц система выкупит по полной цене за ход) на первый ход сессии.</summary>
     public required decimal BaseCapacity { get; init; }

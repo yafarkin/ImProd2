@@ -3,7 +3,7 @@ using Game.Config.Loading;
 namespace Game.Config.Economy;
 
 /// <summary>
-/// Считает лестницу экзогенных цен сбыта — <see cref="MaterialMarketConfig.BasePrice"/> по каждому
+/// Считает лестницу экзогенных цен сбыта — <see cref="MaterialMarketConfig.BaseSellPrice"/> по каждому
 /// материалу конфига (блок 11.2, <c>docs/external-economy.md</c> §4):
 ///
 /// <code>
@@ -113,7 +113,7 @@ public static class SystemSalePriceLadderCalculator
                 material.Sector.Id,
                 material.Level,
                 unitCost,
-                marketByMaterialId[material.Id].BasePrice,
+                marketByMaterialId[material.Id].BaseSellPrice,
                 unitCost * (1m + margin)));
         }
 
@@ -134,7 +134,7 @@ public static class SystemSalePriceLadderCalculator
 
         var newPriceByMaterialId = rows.ToDictionary(r => r.MaterialId, r => r.NewPrice);
         var newMarket = config.Economy.BaseMarketPerMaterial
-            .Select(m => newPriceByMaterialId.TryGetValue(m.MaterialId, out var newPrice) ? m with { BasePrice = newPrice } : m)
+            .Select(m => newPriceByMaterialId.TryGetValue(m.MaterialId, out var newPrice) ? m with { BaseSellPrice = newPrice } : m)
             .ToList();
 
         return config with { Economy = config.Economy with { BaseMarketPerMaterial = newMarket } };

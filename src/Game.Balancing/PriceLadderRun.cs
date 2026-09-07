@@ -56,7 +56,7 @@ internal static class PriceLadderRun
     }
 
     /// <summary>
-    /// Точечно правит <c>BasePrice</c> в <c>BaseMarketPerMaterial</c> файла. Понимает обе формы,
+    /// Точечно правит <c>BaseSellPrice</c> в <c>BaseMarketPerMaterial</c> файла. Понимает обе формы,
     /// которые умеет грузить <see cref="ConfigSelector"/>: файл production-модели (массив в корне) и
     /// уже собранный <c>GameConfig</c> (массив внутри <c>Economy</c>). Возвращает число реально
     /// обновлённых записей.
@@ -82,7 +82,7 @@ internal static class PriceLadderRun
                 continue;
             }
 
-            entry["BasePrice"] = JsonValue.Create(Math.Round(newPrice, 4));
+            entry["BaseSellPrice"] = JsonValue.Create(Math.Round(newPrice, 4));
             updated++;
         }
 

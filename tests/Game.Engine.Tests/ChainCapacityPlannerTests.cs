@@ -52,8 +52,8 @@ public class ChainCapacityPlannerTests
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial =
                 [
-                    new MaterialMarketConfig { MaterialId = "raw", BasePrice = 1m, BaseCapacity = 1_000_000m },
-                    new MaterialMarketConfig { MaterialId = "processed", BasePrice = 5m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "raw", BaseSellPrice = 1m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "processed", BaseSellPrice = 5m, BaseCapacity = 1_000_000m },
                 ],
                 MarketCapacityOverflowDiscount = 1m,
                 ElectricityBasePrice = 2m,

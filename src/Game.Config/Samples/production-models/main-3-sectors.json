@@ -828,137 +828,137 @@
   "BaseMarketPerMaterial": [
     {
       "MaterialId": "iron-ore",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 1360.0
     },
     {
       "MaterialId": "coking-coal",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 620.0
     },
     {
       "MaterialId": "limestone",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 230.0
     },
     {
       "MaterialId": "coke",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 380.0
     },
     {
       "MaterialId": "sinter",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 980.0
     },
     {
       "MaterialId": "pig-iron",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 530.0
     },
     {
       "MaterialId": "crude-steel",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 350.0
     },
     {
       "MaterialId": "steel-sheet",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 140.0
     },
     {
       "MaterialId": "steel-frame",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 50.0
     },
     {
       "MaterialId": "crude-oil",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 1560.0
     },
     {
       "MaterialId": "natural-gas",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 120.0
     },
     {
       "MaterialId": "catalyst-clay",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 180.0
     },
     {
       "MaterialId": "naphtha",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 1000.0
     },
     {
       "MaterialId": "industrial-gas",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 130.0
     },
     {
       "MaterialId": "ethylene",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 560.0
     },
     {
       "MaterialId": "polymer-granulate",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 320.0
     },
     {
       "MaterialId": "plastic-panel",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 120.0
     },
     {
       "MaterialId": "composite-body",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 50.0
     },
     {
       "MaterialId": "roundwood",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 1640.0
     },
     {
       "MaterialId": "resin",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 100.0
     },
     {
       "MaterialId": "peat",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 30.0
     },
     {
       "MaterialId": "lumber",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 770.0
     },
     {
       "MaterialId": "pulp",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 120.0
     },
     {
       "MaterialId": "plywood",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 410.0
     },
     {
       "MaterialId": "laminated-beam",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 230.0
     },
     {
       "MaterialId": "wood-panel",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 120.0
     },
     {
       "MaterialId": "furniture-module",
-      "BasePrice": 1,
+      "BaseSellPrice": 1,
       "BaseCapacity": 50.0
     }
   ],
