@@ -23,24 +23,65 @@
         "StartTurn": 1,
         "EndTurn": 10,
         "PriceChangePerTurn": 0,
-        "CapacityChangePerTurn": 0
+        "CapacityChangePerTurn": 0,
+        "IndexChangePerTurn": 0
       },
       {
         "Trend": "Up",
         "StartTurn": 11,
         "EndTurn": 25,
-        "PriceChangePerTurn": 0.5,
-        "CapacityChangePerTurn": 2
+        "PriceChangePerTurn": 0,
+        "CapacityChangePerTurn": 0,
+        "IndexChangePerTurn": 0.01
       },
       {
         "Trend": "Down",
         "StartTurn": 26,
-        "EndTurn": 35,
-        "PriceChangePerTurn": -0.5,
-        "CapacityChangePerTurn": -2
+        "EndTurn": 40,
+        "PriceChangePerTurn": 0,
+        "CapacityChangePerTurn": 0,
+        "IndexChangePerTurn": -0.012
+      },
+      {
+        "Trend": "Stable",
+        "StartTurn": 41,
+        "EndTurn": 52,
+        "PriceChangePerTurn": 0,
+        "CapacityChangePerTurn": 0,
+        "IndexChangePerTurn": 0
+      },
+      {
+        "Trend": "Down",
+        "StartTurn": 53,
+        "EndTurn": 64,
+        "PriceChangePerTurn": 0,
+        "CapacityChangePerTurn": 0,
+        "IndexChangePerTurn": -0.01
+      },
+      {
+        "Trend": "Up",
+        "StartTurn": 65,
+        "EndTurn": 80,
+        "PriceChangePerTurn": 0,
+        "CapacityChangePerTurn": 0,
+        "IndexChangePerTurn": 0.014
+      },
+      {
+        "Trend": "Stable",
+        "StartTurn": 81,
+        "EndTurn": 98,
+        "PriceChangePerTurn": 0,
+        "CapacityChangePerTurn": 0,
+        "IndexChangePerTurn": 0
       }
     ],
-    "WarehouseLiquidationRate": 0.5
+    "WarehouseLiquidationRate": 0.5,
+    "PricingModel": "External",
+    "MarketCapacityScale": 20,
+    "MarketPriceFloorRate": 0.35,
+    "MarketSupplyPressureHalfLifeTurns": 3,
+    "EconomyIndexMin": 0.85,
+    "EconomyIndexMax": 1.15
   },
   "WorkerProductivity": {
     "BaseWorkerCount": 10,

@@ -2,85 +2,85 @@
   "Sectors": [
     {
       "Id": "A",
-      "Name": "Металлургия"
+      "Name": "\u041C\u0435\u0442\u0430\u043B\u043B\u0443\u0440\u0433\u0438\u044F"
     }
   ],
   "Materials": [
     {
       "Id": "iron-ore",
-      "Name": "Железная руда",
+      "Name": "\u0416\u0435\u043B\u0435\u0437\u043D\u0430\u044F \u0440\u0443\u0434\u0430",
       "SectorId": "A",
       "Level": 0
     },
     {
       "Id": "coking-coal",
-      "Name": "Коксующийся уголь",
+      "Name": "\u041A\u043E\u043A\u0441\u0443\u044E\u0449\u0438\u0439\u0441\u044F \u0443\u0433\u043E\u043B\u044C",
       "SectorId": "A",
       "Level": 0
     },
     {
       "Id": "limestone",
-      "Name": "Известняк",
+      "Name": "\u0418\u0437\u0432\u0435\u0441\u0442\u043D\u044F\u043A",
       "SectorId": "A",
       "Level": 0
     },
     {
       "Id": "scrap-metal",
-      "Name": "Металлолом",
+      "Name": "\u041C\u0435\u0442\u0430\u043B\u043B\u043E\u043B\u043E\u043C",
       "SectorId": "A",
       "Level": 0
     },
     {
       "Id": "sinter",
-      "Name": "Агломерат",
+      "Name": "\u0410\u0433\u043B\u043E\u043C\u0435\u0440\u0430\u0442",
       "SectorId": "A",
       "Level": 1
     },
     {
       "Id": "coke",
-      "Name": "Кокс",
+      "Name": "\u041A\u043E\u043A\u0441",
       "SectorId": "A",
       "Level": 1
     },
     {
       "Id": "pig-iron",
-      "Name": "Чугун",
+      "Name": "\u0427\u0443\u0433\u0443\u043D",
       "SectorId": "A",
       "Level": 2
     },
     {
       "Id": "crude-steel",
-      "Name": "Сталь",
+      "Name": "\u0421\u0442\u0430\u043B\u044C",
       "SectorId": "A",
       "Level": 3
     },
     {
       "Id": "slab",
-      "Name": "Сляб",
+      "Name": "\u0421\u043B\u044F\u0431",
       "SectorId": "A",
       "Level": 4
     },
     {
       "Id": "billet",
-      "Name": "Заготовка",
+      "Name": "\u0417\u0430\u0433\u043E\u0442\u043E\u0432\u043A\u0430",
       "SectorId": "A",
       "Level": 4
     },
     {
       "Id": "hot-rolled-sheet",
-      "Name": "Горячекатаный лист",
+      "Name": "\u0413\u043E\u0440\u044F\u0447\u0435\u043A\u0430\u0442\u0430\u043D\u044B\u0439 \u043B\u0438\u0441\u0442",
       "SectorId": "A",
       "Level": 5
     },
     {
       "Id": "forging-bar",
-      "Name": "Кованый пруток",
+      "Name": "\u041A\u043E\u0432\u0430\u043D\u044B\u0439 \u043F\u0440\u0443\u0442\u043E\u043A",
       "SectorId": "A",
       "Level": 5
     },
     {
       "Id": "steel-structure",
-      "Name": "Металлоконструкция",
+      "Name": "\u041C\u0435\u0442\u0430\u043B\u043B\u043E\u043A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F",
       "SectorId": "A",
       "Level": 6
     }
@@ -242,7 +242,7 @@
   "FactoryDefinitions": [
     {
       "Id": "iron-mine",
-      "Name": "Рудник",
+      "Name": "\u0420\u0443\u0434\u043D\u0438\u043A",
       "SectorId": "A",
       "RecipeIds": [
         "iron-ore-recipe"
@@ -253,7 +253,7 @@
     },
     {
       "Id": "coal-mine",
-      "Name": "Угольная шахта",
+      "Name": "\u0423\u0433\u043E\u043B\u044C\u043D\u0430\u044F \u0448\u0430\u0445\u0442\u0430",
       "SectorId": "A",
       "RecipeIds": [
         "coking-coal-recipe"
@@ -264,7 +264,7 @@
     },
     {
       "Id": "limestone-quarry",
-      "Name": "Известняковый карьер",
+      "Name": "\u0418\u0437\u0432\u0435\u0441\u0442\u043D\u044F\u043A\u043E\u0432\u044B\u0439 \u043A\u0430\u0440\u044C\u0435\u0440",
       "SectorId": "A",
       "RecipeIds": [
         "limestone-recipe"
@@ -275,7 +275,7 @@
     },
     {
       "Id": "scrap-yard",
-      "Name": "Пункт приёма лома",
+      "Name": "\u041F\u0443\u043D\u043A\u0442 \u043F\u0440\u0438\u0451\u043C\u0430 \u043B\u043E\u043C\u0430",
       "SectorId": "A",
       "RecipeIds": [
         "scrap-metal-recipe"
@@ -286,7 +286,7 @@
     },
     {
       "Id": "sinter-plant",
-      "Name": "Агломерационная фабрика",
+      "Name": "\u0410\u0433\u043B\u043E\u043C\u0435\u0440\u0430\u0446\u0438\u043E\u043D\u043D\u0430\u044F \u0444\u0430\u0431\u0440\u0438\u043A\u0430",
       "SectorId": "A",
       "RecipeIds": [
         "sinter-recipe"
@@ -297,7 +297,7 @@
     },
     {
       "Id": "coking-plant",
-      "Name": "Коксохимический завод",
+      "Name": "\u041A\u043E\u043A\u0441\u043E\u0445\u0438\u043C\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u0437\u0430\u0432\u043E\u0434",
       "SectorId": "A",
       "RecipeIds": [
         "coke-recipe"
@@ -308,7 +308,7 @@
     },
     {
       "Id": "blast-furnace",
-      "Name": "Доменная печь",
+      "Name": "\u0414\u043E\u043C\u0435\u043D\u043D\u0430\u044F \u043F\u0435\u0447\u044C",
       "SectorId": "A",
       "RecipeIds": [
         "pig-iron-recipe"
@@ -319,7 +319,7 @@
     },
     {
       "Id": "oxygen-converter",
-      "Name": "Кислородный конвертер",
+      "Name": "\u041A\u0438\u0441\u043B\u043E\u0440\u043E\u0434\u043D\u044B\u0439 \u043A\u043E\u043D\u0432\u0435\u0440\u0442\u0435\u0440",
       "SectorId": "A",
       "RecipeIds": [
         "crude-steel-recipe"
@@ -330,7 +330,7 @@
     },
     {
       "Id": "slab-caster",
-      "Name": "МНЛЗ (слябы)",
+      "Name": "\u041C\u041D\u041B\u0417 (\u0441\u043B\u044F\u0431\u044B)",
       "SectorId": "A",
       "RecipeIds": [
         "slab-recipe"
@@ -341,7 +341,7 @@
     },
     {
       "Id": "billet-caster",
-      "Name": "МНЛЗ (заготовка)",
+      "Name": "\u041C\u041D\u041B\u0417 (\u0437\u0430\u0433\u043E\u0442\u043E\u0432\u043A\u0430)",
       "SectorId": "A",
       "RecipeIds": [
         "billet-recipe"
@@ -352,7 +352,7 @@
     },
     {
       "Id": "hot-rolling-mill",
-      "Name": "Стан горячей прокатки",
+      "Name": "\u0421\u0442\u0430\u043D \u0433\u043E\u0440\u044F\u0447\u0435\u0439 \u043F\u0440\u043E\u043A\u0430\u0442\u043A\u0438",
       "SectorId": "A",
       "RecipeIds": [
         "hot-rolled-sheet-recipe"
@@ -363,7 +363,7 @@
     },
     {
       "Id": "bar-mill",
-      "Name": "Сортовой стан",
+      "Name": "\u0421\u043E\u0440\u0442\u043E\u0432\u043E\u0439 \u0441\u0442\u0430\u043D",
       "SectorId": "A",
       "RecipeIds": [
         "forging-bar-recipe"
@@ -374,7 +374,7 @@
     },
     {
       "Id": "fabrication-shop",
-      "Name": "Цех металлоконструкций",
+      "Name": "\u0426\u0435\u0445 \u043C\u0435\u0442\u0430\u043B\u043B\u043E\u043A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439",
       "SectorId": "A",
       "RecipeIds": [
         "steel-structure-recipe"
@@ -387,67 +387,67 @@
   "BaseMarketPerMaterial": [
     {
       "MaterialId": "iron-ore",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.0388,
       "BaseCapacity": 4600
     },
     {
       "MaterialId": "coking-coal",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.0595,
       "BaseCapacity": 1680
     },
     {
       "MaterialId": "limestone",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.0957,
       "BaseCapacity": 770
     },
     {
       "MaterialId": "scrap-metal",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.1112,
       "BaseCapacity": 600
     },
     {
       "MaterialId": "sinter",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.1250,
       "BaseCapacity": 3320
     },
     {
       "MaterialId": "coke",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.2022,
       "BaseCapacity": 1040
     },
     {
       "MaterialId": "pig-iron",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.4362,
       "BaseCapacity": 1800
     },
     {
       "MaterialId": "crude-steel",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.8363,
       "BaseCapacity": 1300
     },
     {
       "MaterialId": "slab",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 3.3316,
       "BaseCapacity": 280
     },
     {
       "MaterialId": "billet",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 3.3316,
       "BaseCapacity": 280
     },
     {
       "MaterialId": "hot-rolled-sheet",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 12.5131,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "forging-bar",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 12.5131,
       "BaseCapacity": 120
     },
     {
       "MaterialId": "steel-structure",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 75.1646,
       "BaseCapacity": 50
     }
   ],

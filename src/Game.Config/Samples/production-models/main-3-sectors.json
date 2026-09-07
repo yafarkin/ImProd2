@@ -2,177 +2,177 @@
   "Sectors": [
     {
       "Id": "A",
-      "Name": "Металлургия"
+      "Name": "\u041C\u0435\u0442\u0430\u043B\u043B\u0443\u0440\u0433\u0438\u044F"
     },
     {
       "Id": "B",
-      "Name": "Нефтехимия"
+      "Name": "\u041D\u0435\u0444\u0442\u0435\u0445\u0438\u043C\u0438\u044F"
     },
     {
       "Id": "V",
-      "Name": "Лесная промышленность"
+      "Name": "\u041B\u0435\u0441\u043D\u0430\u044F \u043F\u0440\u043E\u043C\u044B\u0448\u043B\u0435\u043D\u043D\u043E\u0441\u0442\u044C"
     }
   ],
   "Materials": [
     {
       "Id": "iron-ore",
-      "Name": "Железная руда",
+      "Name": "\u0416\u0435\u043B\u0435\u0437\u043D\u0430\u044F \u0440\u0443\u0434\u0430",
       "SectorId": "A",
       "Level": 0
     },
     {
       "Id": "coking-coal",
-      "Name": "Коксующийся уголь",
+      "Name": "\u041A\u043E\u043A\u0441\u0443\u044E\u0449\u0438\u0439\u0441\u044F \u0443\u0433\u043E\u043B\u044C",
       "SectorId": "A",
       "Level": 0
     },
     {
       "Id": "limestone",
-      "Name": "Известняк",
+      "Name": "\u0418\u0437\u0432\u0435\u0441\u0442\u043D\u044F\u043A",
       "SectorId": "A",
       "Level": 0
     },
     {
       "Id": "coke",
-      "Name": "Кокс",
+      "Name": "\u041A\u043E\u043A\u0441",
       "SectorId": "A",
       "Level": 1
     },
     {
       "Id": "sinter",
-      "Name": "Агломерат",
+      "Name": "\u0410\u0433\u043B\u043E\u043C\u0435\u0440\u0430\u0442",
       "SectorId": "A",
       "Level": 1
     },
     {
       "Id": "pig-iron",
-      "Name": "Чугун",
+      "Name": "\u0427\u0443\u0433\u0443\u043D",
       "SectorId": "A",
       "Level": 2
     },
     {
       "Id": "crude-steel",
-      "Name": "Сталь",
+      "Name": "\u0421\u0442\u0430\u043B\u044C",
       "SectorId": "A",
       "Level": 3
     },
     {
       "Id": "steel-sheet",
-      "Name": "Стальной лист",
+      "Name": "\u0421\u0442\u0430\u043B\u044C\u043D\u043E\u0439 \u043B\u0438\u0441\u0442",
       "SectorId": "A",
       "Level": 4
     },
     {
       "Id": "steel-frame",
-      "Name": "Стальной каркас",
+      "Name": "\u0421\u0442\u0430\u043B\u044C\u043D\u043E\u0439 \u043A\u0430\u0440\u043A\u0430\u0441",
       "SectorId": "A",
       "Level": 5
     },
     {
       "Id": "crude-oil",
-      "Name": "Нефть",
+      "Name": "\u041D\u0435\u0444\u0442\u044C",
       "SectorId": "B",
       "Level": 0
     },
     {
       "Id": "natural-gas",
-      "Name": "Природный газ",
+      "Name": "\u041F\u0440\u0438\u0440\u043E\u0434\u043D\u044B\u0439 \u0433\u0430\u0437",
       "SectorId": "B",
       "Level": 0
     },
     {
       "Id": "catalyst-clay",
-      "Name": "Катализаторная глина",
+      "Name": "\u041A\u0430\u0442\u0430\u043B\u0438\u0437\u0430\u0442\u043E\u0440\u043D\u0430\u044F \u0433\u043B\u0438\u043D\u0430",
       "SectorId": "B",
       "Level": 0
     },
     {
       "Id": "naphtha",
-      "Name": "Нафта",
+      "Name": "\u041D\u0430\u0444\u0442\u0430",
       "SectorId": "B",
       "Level": 1
     },
     {
       "Id": "industrial-gas",
-      "Name": "Технические газы",
+      "Name": "\u0422\u0435\u0445\u043D\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u0433\u0430\u0437\u044B",
       "SectorId": "B",
       "Level": 1
     },
     {
       "Id": "ethylene",
-      "Name": "Этилен",
+      "Name": "\u042D\u0442\u0438\u043B\u0435\u043D",
       "SectorId": "B",
       "Level": 2
     },
     {
       "Id": "polymer-granulate",
-      "Name": "Полимерный гранулят",
+      "Name": "\u041F\u043E\u043B\u0438\u043C\u0435\u0440\u043D\u044B\u0439 \u0433\u0440\u0430\u043D\u0443\u043B\u044F\u0442",
       "SectorId": "B",
       "Level": 3
     },
     {
       "Id": "plastic-panel",
-      "Name": "Пластиковая панель",
+      "Name": "\u041F\u043B\u0430\u0441\u0442\u0438\u043A\u043E\u0432\u0430\u044F \u043F\u0430\u043D\u0435\u043B\u044C",
       "SectorId": "B",
       "Level": 4
     },
     {
       "Id": "composite-body",
-      "Name": "Композитный корпус",
+      "Name": "\u041A\u043E\u043C\u043F\u043E\u0437\u0438\u0442\u043D\u044B\u0439 \u043A\u043E\u0440\u043F\u0443\u0441",
       "SectorId": "B",
       "Level": 5
     },
     {
       "Id": "roundwood",
-      "Name": "Круглый лес",
+      "Name": "\u041A\u0440\u0443\u0433\u043B\u044B\u0439 \u043B\u0435\u0441",
       "SectorId": "V",
       "Level": 0
     },
     {
       "Id": "resin",
-      "Name": "Живица",
+      "Name": "\u0416\u0438\u0432\u0438\u0446\u0430",
       "SectorId": "V",
       "Level": 0
     },
     {
       "Id": "peat",
-      "Name": "Торф",
+      "Name": "\u0422\u043E\u0440\u0444",
       "SectorId": "V",
       "Level": 0
     },
     {
       "Id": "lumber",
-      "Name": "Пиломатериал",
+      "Name": "\u041F\u0438\u043B\u043E\u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B",
       "SectorId": "V",
       "Level": 1
     },
     {
       "Id": "pulp",
-      "Name": "Целлюлоза",
+      "Name": "\u0426\u0435\u043B\u043B\u044E\u043B\u043E\u0437\u0430",
       "SectorId": "V",
       "Level": 1
     },
     {
       "Id": "plywood",
-      "Name": "Фанера",
+      "Name": "\u0424\u0430\u043D\u0435\u0440\u0430",
       "SectorId": "V",
       "Level": 2
     },
     {
       "Id": "laminated-beam",
-      "Name": "Клеёный брус",
+      "Name": "\u041A\u043B\u0435\u0451\u043D\u044B\u0439 \u0431\u0440\u0443\u0441",
       "SectorId": "V",
       "Level": 3
     },
     {
       "Id": "wood-panel",
-      "Name": "Мебельный щит",
+      "Name": "\u041C\u0435\u0431\u0435\u043B\u044C\u043D\u044B\u0439 \u0449\u0438\u0442",
       "SectorId": "V",
       "Level": 4
     },
     {
       "Id": "furniture-module",
-      "Name": "Мебельный модуль",
+      "Name": "\u041C\u0435\u0431\u0435\u043B\u044C\u043D\u044B\u0439 \u043C\u043E\u0434\u0443\u043B\u044C",
       "SectorId": "V",
       "Level": 5
     }
@@ -529,7 +529,7 @@
   "FactoryDefinitions": [
     {
       "Id": "iron-mine",
-      "Name": "Рудник",
+      "Name": "\u0420\u0443\u0434\u043D\u0438\u043A",
       "SectorId": "A",
       "RecipeIds": [
         "iron-ore-recipe"
@@ -540,7 +540,7 @@
     },
     {
       "Id": "coal-mine",
-      "Name": "Угольная шахта",
+      "Name": "\u0423\u0433\u043E\u043B\u044C\u043D\u0430\u044F \u0448\u0430\u0445\u0442\u0430",
       "SectorId": "A",
       "RecipeIds": [
         "coking-coal-recipe"
@@ -551,7 +551,7 @@
     },
     {
       "Id": "limestone-quarry",
-      "Name": "Известняковый карьер",
+      "Name": "\u0418\u0437\u0432\u0435\u0441\u0442\u043D\u044F\u043A\u043E\u0432\u044B\u0439 \u043A\u0430\u0440\u044C\u0435\u0440",
       "SectorId": "A",
       "RecipeIds": [
         "limestone-recipe"
@@ -562,7 +562,7 @@
     },
     {
       "Id": "coking-plant",
-      "Name": "Коксохимический завод",
+      "Name": "\u041A\u043E\u043A\u0441\u043E\u0445\u0438\u043C\u0438\u0447\u0435\u0441\u043A\u0438\u0439 \u0437\u0430\u0432\u043E\u0434",
       "SectorId": "A",
       "RecipeIds": [
         "coke-recipe"
@@ -573,7 +573,7 @@
     },
     {
       "Id": "sinter-plant",
-      "Name": "Агломерационная фабрика",
+      "Name": "\u0410\u0433\u043B\u043E\u043C\u0435\u0440\u0430\u0446\u0438\u043E\u043D\u043D\u0430\u044F \u0444\u0430\u0431\u0440\u0438\u043A\u0430",
       "SectorId": "A",
       "RecipeIds": [
         "sinter-recipe"
@@ -584,7 +584,7 @@
     },
     {
       "Id": "blast-furnace",
-      "Name": "Доменная печь",
+      "Name": "\u0414\u043E\u043C\u0435\u043D\u043D\u0430\u044F \u043F\u0435\u0447\u044C",
       "SectorId": "A",
       "RecipeIds": [
         "pig-iron-recipe"
@@ -595,7 +595,7 @@
     },
     {
       "Id": "oxygen-converter",
-      "Name": "Кислородный конвертер",
+      "Name": "\u041A\u0438\u0441\u043B\u043E\u0440\u043E\u0434\u043D\u044B\u0439 \u043A\u043E\u043D\u0432\u0435\u0440\u0442\u0435\u0440",
       "SectorId": "A",
       "RecipeIds": [
         "crude-steel-recipe"
@@ -606,7 +606,7 @@
     },
     {
       "Id": "rolling-mill",
-      "Name": "Прокатный стан",
+      "Name": "\u041F\u0440\u043E\u043A\u0430\u0442\u043D\u044B\u0439 \u0441\u0442\u0430\u043D",
       "SectorId": "A",
       "RecipeIds": [
         "steel-sheet-recipe"
@@ -617,7 +617,7 @@
     },
     {
       "Id": "frame-shop",
-      "Name": "Цех металлоконструкций",
+      "Name": "\u0426\u0435\u0445 \u043C\u0435\u0442\u0430\u043B\u043B\u043E\u043A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u0439",
       "SectorId": "A",
       "RecipeIds": [
         "steel-frame-recipe"
@@ -628,7 +628,7 @@
     },
     {
       "Id": "oil-field",
-      "Name": "Нефтепромысел",
+      "Name": "\u041D\u0435\u0444\u0442\u0435\u043F\u0440\u043E\u043C\u044B\u0441\u0435\u043B",
       "SectorId": "B",
       "RecipeIds": [
         "crude-oil-recipe"
@@ -639,7 +639,7 @@
     },
     {
       "Id": "gas-field",
-      "Name": "Газовый промысел",
+      "Name": "\u0413\u0430\u0437\u043E\u0432\u044B\u0439 \u043F\u0440\u043E\u043C\u044B\u0441\u0435\u043B",
       "SectorId": "B",
       "RecipeIds": [
         "natural-gas-recipe"
@@ -650,7 +650,7 @@
     },
     {
       "Id": "clay-pit",
-      "Name": "Глиняный карьер",
+      "Name": "\u0413\u043B\u0438\u043D\u044F\u043D\u044B\u0439 \u043A\u0430\u0440\u044C\u0435\u0440",
       "SectorId": "B",
       "RecipeIds": [
         "catalyst-clay-recipe"
@@ -661,7 +661,7 @@
     },
     {
       "Id": "refinery",
-      "Name": "НПЗ",
+      "Name": "\u041D\u041F\u0417",
       "SectorId": "B",
       "RecipeIds": [
         "naphtha-recipe"
@@ -672,7 +672,7 @@
     },
     {
       "Id": "air-separation",
-      "Name": "Воздухоразделение",
+      "Name": "\u0412\u043E\u0437\u0434\u0443\u0445\u043E\u0440\u0430\u0437\u0434\u0435\u043B\u0435\u043D\u0438\u0435",
       "SectorId": "B",
       "RecipeIds": [
         "industrial-gas-recipe"
@@ -683,7 +683,7 @@
     },
     {
       "Id": "cracker",
-      "Name": "Пиролизная установка",
+      "Name": "\u041F\u0438\u0440\u043E\u043B\u0438\u0437\u043D\u0430\u044F \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0430",
       "SectorId": "B",
       "RecipeIds": [
         "ethylene-recipe"
@@ -694,7 +694,7 @@
     },
     {
       "Id": "polymer-plant",
-      "Name": "Полимерный завод",
+      "Name": "\u041F\u043E\u043B\u0438\u043C\u0435\u0440\u043D\u044B\u0439 \u0437\u0430\u0432\u043E\u0434",
       "SectorId": "B",
       "RecipeIds": [
         "polymer-granulate-recipe"
@@ -705,7 +705,7 @@
     },
     {
       "Id": "panel-line",
-      "Name": "Линия панелей",
+      "Name": "\u041B\u0438\u043D\u0438\u044F \u043F\u0430\u043D\u0435\u043B\u0435\u0439",
       "SectorId": "B",
       "RecipeIds": [
         "plastic-panel-recipe"
@@ -716,7 +716,7 @@
     },
     {
       "Id": "body-shop",
-      "Name": "Цех корпусов",
+      "Name": "\u0426\u0435\u0445 \u043A\u043E\u0440\u043F\u0443\u0441\u043E\u0432",
       "SectorId": "B",
       "RecipeIds": [
         "composite-body-recipe"
@@ -727,7 +727,7 @@
     },
     {
       "Id": "logging-site",
-      "Name": "Лесосека",
+      "Name": "\u041B\u0435\u0441\u043E\u0441\u0435\u043A\u0430",
       "SectorId": "V",
       "RecipeIds": [
         "roundwood-recipe"
@@ -738,7 +738,7 @@
     },
     {
       "Id": "resin-tapping",
-      "Name": "Подсочка",
+      "Name": "\u041F\u043E\u0434\u0441\u043E\u0447\u043A\u0430",
       "SectorId": "V",
       "RecipeIds": [
         "resin-recipe"
@@ -749,7 +749,7 @@
     },
     {
       "Id": "peat-bog",
-      "Name": "Торфоразработка",
+      "Name": "\u0422\u043E\u0440\u0444\u043E\u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0430",
       "SectorId": "V",
       "RecipeIds": [
         "peat-recipe"
@@ -760,7 +760,7 @@
     },
     {
       "Id": "sawmill",
-      "Name": "Лесопилка",
+      "Name": "\u041B\u0435\u0441\u043E\u043F\u0438\u043B\u043A\u0430",
       "SectorId": "V",
       "RecipeIds": [
         "lumber-recipe"
@@ -771,7 +771,7 @@
     },
     {
       "Id": "pulp-mill",
-      "Name": "Целлюлозный завод",
+      "Name": "\u0426\u0435\u043B\u043B\u044E\u043B\u043E\u0437\u043D\u044B\u0439 \u0437\u0430\u0432\u043E\u0434",
       "SectorId": "V",
       "RecipeIds": [
         "pulp-recipe"
@@ -782,7 +782,7 @@
     },
     {
       "Id": "plywood-mill",
-      "Name": "Фанерный комбинат",
+      "Name": "\u0424\u0430\u043D\u0435\u0440\u043D\u044B\u0439 \u043A\u043E\u043C\u0431\u0438\u043D\u0430\u0442",
       "SectorId": "V",
       "RecipeIds": [
         "plywood-recipe"
@@ -793,7 +793,7 @@
     },
     {
       "Id": "glulam-shop",
-      "Name": "Цех клеёного бруса",
+      "Name": "\u0426\u0435\u0445 \u043A\u043B\u0435\u0451\u043D\u043E\u0433\u043E \u0431\u0440\u0443\u0441\u0430",
       "SectorId": "V",
       "RecipeIds": [
         "laminated-beam-recipe"
@@ -804,7 +804,7 @@
     },
     {
       "Id": "panel-shop",
-      "Name": "Щитовой цех",
+      "Name": "\u0429\u0438\u0442\u043E\u0432\u043E\u0439 \u0446\u0435\u0445",
       "SectorId": "V",
       "RecipeIds": [
         "wood-panel-recipe"
@@ -815,7 +815,7 @@
     },
     {
       "Id": "assembly-shop",
-      "Name": "Сборочный цех",
+      "Name": "\u0421\u0431\u043E\u0440\u043E\u0447\u043D\u044B\u0439 \u0446\u0435\u0445",
       "SectorId": "V",
       "RecipeIds": [
         "furniture-module-recipe"
@@ -828,137 +828,137 @@
   "BaseMarketPerMaterial": [
     {
       "MaterialId": "iron-ore",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.0674,
       "BaseCapacity": 1360.0
     },
     {
       "MaterialId": "coking-coal",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.1168,
       "BaseCapacity": 620.0
     },
     {
       "MaterialId": "limestone",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.2707,
       "BaseCapacity": 230.0
     },
     {
       "MaterialId": "coke",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.4391,
       "BaseCapacity": 380.0
     },
     {
       "MaterialId": "sinter",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.2612,
       "BaseCapacity": 980.0
     },
     {
       "MaterialId": "pig-iron",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.9946,
       "BaseCapacity": 530.0
     },
     {
       "MaterialId": "crude-steel",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 2.5098,
       "BaseCapacity": 350.0
     },
     {
       "MaterialId": "steel-sheet",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 9.3198,
       "BaseCapacity": 140.0
     },
     {
       "MaterialId": "steel-frame",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 41.8836,
       "BaseCapacity": 50.0
     },
     {
       "MaterialId": "crude-oil",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.0617,
       "BaseCapacity": 1560.0
     },
     {
       "MaterialId": "natural-gas",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.4897,
       "BaseCapacity": 120.0
     },
     {
       "MaterialId": "catalyst-clay",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.3351,
       "BaseCapacity": 180.0
     },
     {
       "MaterialId": "naphtha",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.2557,
       "BaseCapacity": 1000.0
     },
     {
       "MaterialId": "industrial-gas",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 1.1265,
       "BaseCapacity": 130.0
     },
     {
       "MaterialId": "ethylene",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.7883,
       "BaseCapacity": 560.0
     },
     {
       "MaterialId": "polymer-granulate",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 2.6071,
       "BaseCapacity": 320.0
     },
     {
       "MaterialId": "plastic-panel",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 10.0166,
       "BaseCapacity": 120.0
     },
     {
       "MaterialId": "composite-body",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 44.2300,
       "BaseCapacity": 50.0
     },
     {
       "MaterialId": "roundwood",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.0607,
       "BaseCapacity": 1640.0
     },
     {
       "MaterialId": "resin",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.5954,
       "BaseCapacity": 100.0
     },
     {
       "MaterialId": "peat",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 1.9240,
       "BaseCapacity": 30.0
     },
     {
       "MaterialId": "lumber",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 0.2508,
       "BaseCapacity": 770.0
     },
     {
       "MaterialId": "pulp",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 1.3161,
       "BaseCapacity": 120.0
     },
     {
       "MaterialId": "plywood",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 1.0365,
       "BaseCapacity": 410.0
     },
     {
       "MaterialId": "laminated-beam",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 3.0904,
       "BaseCapacity": 230.0
     },
     {
       "MaterialId": "wood-panel",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 10.5546,
       "BaseCapacity": 120.0
     },
     {
       "MaterialId": "furniture-module",
-      "BaseSellPrice": 1,
+      "BaseSellPrice": 44.9130,
       "BaseCapacity": 50.0
     }
   ],
