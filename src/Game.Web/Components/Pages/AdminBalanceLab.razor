@@ -1,0 +1,907 @@
+@page "/admin/balance-lab"
+@attribute [Authorize(Roles = "Administrator")]
+@rendermode InteractiveServer
+@inject GameSessionHost Host
+@inject DebugModeState DebugMode
+@using System.Net
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components
+@using Game.Balancing
+@using Game.Bots
+@using Game.Bots.Llm
+@using Game.Config.Catalog
+@using Game.Config.Loading
+@using Game.Config.ProductionModel
+@using Game.Config.Session
+@using Game.Engine
+
+<PageTitle>Лаборатория баланса</PageTitle>
+
+<p><a href="/session">← Назад к странице сессии</a></p>
+
+@if (!DebugMode.Enabled)
+{
+    <div class="alert alert-warning">
+        Лаборатория баланса доступна только при включённом <code>DebugMode</code> в
+        <code>appsettings.json</code> — на реальном мероприятии он выключен.
+    </div>
+    return;
+}
+
+<h1>Лаборатория баланса</h1>
+<p class="text-muted small">
+    Не сессия — отдельная песочница (<code>TODO.md</code> №28): гоняет себестоимость по уровням,
+    идеальный зал и настоящих ботов на ЛЮБОЙ введённой ниже цепочке, никак не трогая
+    черновой/запущенный конфиг сессии. Глубинные числа цепочки (<c>ProductionRate</c>,
+    <c>BuildCost</c>, кросс-связи, наценки) правятся прямо в текстовых полях JSON ниже — отдельных
+    полей для них здесь нет.
+</p>
+
+<div class="d-flex flex-wrap gap-3 mb-3">
+    <div style="flex:1 1 420px; min-width:320px">
+        <label class="form-label">Производственная модель — выбрать файл или вставить/поправить JSON</label>
+        <select class="form-select form-select-sm mb-1" @bind="_selectedProductionModel" @bind:after="LoadSelectedProductionModel">
+            <option value="">— не выбрано —</option>
+            @foreach (var name in Host.ProductionModels.Keys.OrderBy(n => n, StringComparer.Ordinal))
+            {
+                <option value="@name">@name</option>
+            }
+        </select>
+        <textarea class="form-control font-monospace" style="font-size:0.8em" rows="14" @bind="_productionModelJson"></textarea>
+    </div>
+    <div style="flex:1 1 420px; min-width:320px">
+        <label class="form-label">Сессионные параметры — выбрать файл или вставить/поправить JSON</label>
+        <select class="form-select form-select-sm mb-1" @bind="_selectedSession" @bind:after="LoadSelectedSession">
+            <option value="">— не выбрано —</option>
+            @foreach (var name in Host.SessionConfigs.Keys.OrderBy(n => n, StringComparer.Ordinal))
+            {
+                <option value="@name">@name</option>
+            }
+        </select>
+        <textarea class="form-control font-monospace" style="font-size:0.8em" rows="14" @bind="_sessionJson"></textarea>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+    <div>
+        <label class="form-label">Ходов</label>
+        <input type="number" min="1" class="form-control form-control-sm" style="width:7em" @bind="_endTurn" />
+    </div>
+    <div>
+        <label class="form-label">Команд на сектор</label>
+        <input type="number" min="1" class="form-control form-control-sm" style="width:7em" @bind="_teamsPerSector" />
+    </div>
+    <div>
+        <label class="form-label">Leverage (0-1)</label>
+        <input type="number" step="0.05" min="0" max="1" class="form-control form-control-sm" style="width:7em" @bind="_leverage" />
+    </div>
+    <div>
+        <label class="form-label">Profile (0-1)</label>
+        <input type="number" step="0.05" min="0" max="1" class="form-control form-control-sm" style="width:7em" @bind="_profile" />
+    </div>
+    <div>
+        <label class="form-label">Рабочих (себестоимость)</label>
+        <input type="number" min="1" class="form-control form-control-sm" style="width:7em" @bind="_workers" />
+    </div>
+    <div class="form-check">
+        <input type="checkbox" class="form-check-input" id="maintain" @bind="_maintainFactories" />
+        <label class="form-check-label" for="maintain">Чинить фабрики</label>
+    </div>
+    <div>
+        <button type="button" class="btn btn-primary" @onclick="RunAsync" disabled="@_running">
+            @(_running ? "Считаю..." : "Запустить")
+        </button>
+    </div>
+</div>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger"><pre class="mb-0" style="white-space:pre-wrap">@_error</pre></div>
+}
+
+<h2 class="mt-5">Интерактивный режим — сыграть за одну команду вручную</h2>
+<p class="text-muted small">
+    Продолжение «отладка производства» (docs/rebalance-2sector/balance-experiment-plan.md) — не
+    только смотреть, что решил бот (см. «Пошаговый просмотр» ниже), а самому вести одну команду по
+    тем же шести из семи категорий его решений (постройка, наём/рецепт, R&amp;D/поколение, капремонт,
+    продажа системе, аварийная закупка — P2P-обмен пока не включён, см. doc-comment
+    <code>InteractiveSessionRunner</code>), ход за ходом, пока остальные секторы ведёт
+    <code>SimpleBot</code> — та же производственная модель и сессия, что заданы в текстовых полях выше.
+</p>
+
+@if (_interactive is null)
+{
+    <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+        <div>
+            <label class="form-label">Сектор — веду вручную</label>
+            <select class="form-select form-select-sm" style="width:14em" @bind="_interactiveSectorId">
+                <option value="">— выбрать —</option>
+                @foreach (var sector in InteractiveSectorOptions())
+                {
+                    <option value="@sector.Id">@sector.Id — @sector.Name</option>
+                }
+            </select>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary" @onclick="StartInteractive">Начать</button>
+        </div>
+    </div>
+    @if (_interactiveError is not null)
+    {
+        <div class="alert alert-danger"><pre class="mb-0" style="white-space:pre-wrap">@_interactiveError</pre></div>
+    }
+}
+else
+{
+    var team = _interactive.Session.State.Teams[_interactive.ManualTeamId];
+    <div class="d-flex flex-wrap gap-3 align-items-center mb-2">
+        <strong>Ход @_interactive.Session.State.CurrentTurn</strong>
+        <span>Баланс: @DashboardDisplay.FormatMoney(team.Balance)</span>
+        <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="StopInteractive">Сбросить и начать заново</button>
+    </div>
+
+    @if (_interactive.Session.State.IsFinished)
+    {
+        <div class="alert alert-success">Партия закончена на ходу @_interactive.Session.State.CurrentTurn.</div>
+    }
+    else
+    {
+        <h4 class="h6 mt-3">Предложение бота на этот ход</h4>
+        <p class="text-muted small">
+            То же самое, что решил бы <code>SimpleBot</code> за эту команду (числа и обоснование —
+            его собственный текст, не приближение) — ничего не применяется само по себе. Отметьте,
+            что принять, при желании поправьте число прямо в строке, и нажмите «Применить отмеченные»
+            — или просто ничего не трогайте и сразу переходите к ходу, тогда предложение пропадёт,
+            не оставив следа.
+        </p>
+        <table class="table table-sm table-bordered align-middle mb-2" style="max-width:56em">
+            <tbody>
+                <tr><th style="width:12em">1. Финансовый тренд</th><td>@RenderLines(_proposal!.Reasoning.FinancialTrend)</td></tr>
+                <tr><th>2. Постройка</th><td>@RenderLines(_proposal.Reasoning.Build)</td></tr>
+                <tr><th>3. Темп вложений (R&amp;D/поколение)</th><td>@RenderLines(_proposal.Reasoning.InvestmentPace)</td></tr>
+                <tr><th>4. Капремонт</th><td>@RenderLines(_proposal.Reasoning.Overhaul)</td></tr>
+                <tr><th>7. Остаток системе</th><td>@RenderLines(_proposal.Reasoning.SystemSale)</td></tr>
+            </tbody>
+        </table>
+
+        @if (_proposalActions.Count == 0)
+        {
+            <p class="text-muted small"><em>Бот не предлагает ни одного конкретного действия на этот ход.</em></p>
+        }
+        else
+        {
+            <ul class="list-unstyled">
+                @for (var i = 0; i < _proposalActions.Count; i++)
+                {
+                    var index = i;
+                    var proposedAction = _proposalActions[index];
+                    <li class="d-flex align-items-center gap-2 mb-1">
+                        <input type="checkbox" class="form-check-input" @bind="_proposalSelected[index]" />
+                        <span>@DescribeProposedAction(proposedAction, team)</span>
+                        @if (proposedAction.Kind == ManualActionKind.SetWorkerCount)
+                        {
+                            <input type="number" min="0" class="form-control form-control-sm" style="width:6em" @bind="_proposalActions[index].Count" />
+                        }
+                        else if (proposedAction.Kind is ManualActionKind.SetRndCommitment or ManualActionKind.SetGenerationResearchCommitment)
+                        {
+                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" style="width:8em" @bind="_proposalActions[index].Amount" />
+                        }
+                        else if (proposedAction.Kind == ManualActionKind.SellToSystem)
+                        {
+                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" style="width:8em" @bind="_proposalActions[index].Volume" />
+                        }
+                    </li>
+                }
+            </ul>
+            <div class="d-flex gap-2 mb-3">
+                <button type="button" class="btn btn-primary btn-sm" @onclick="ApplySelectedProposal">Применить отмеченные</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="RefreshProposal">Обновить предложение</button>
+            </div>
+        }
+
+        <div class="d-flex flex-wrap gap-4" style="align-items:flex-start">
+            <div style="flex:1 1 420px; min-width:320px">
+                <h4 class="h6">Состояние команды</h4>
+                <div style="max-height:420px; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:0.5em">
+                    <pre class="mb-0" style="font-size:0.75em; white-space:pre-wrap">@BotStateSnapshotBuilder.Build(_interactive.Session, _interactive.ManualTeamId)</pre>
+                </div>
+            </div>
+            <div style="flex:1 1 380px; min-width:320px">
+                <h4 class="h6">Своё действие</h4>
+                <p class="text-muted small">Для всего, что бот не предлагает сам (смена рецепта, аварийная закупка) — или чтобы сделать не то, что он предложил.</p>
+                <div class="d-flex flex-column gap-2 mb-2">
+                    <select class="form-select form-select-sm" @bind="_actionKind">
+                        @foreach (var kind in Enum.GetValues<ManualActionKind>())
+                        {
+                            <option value="@kind">@ActionKindLabel(kind)</option>
+                        }
+                    </select>
+
+                    @if (_actionKind == ManualActionKind.BuildFactory)
+                    {
+                        <select class="form-select form-select-sm" @bind="_actionFactoryDefinitionId">
+                            <option value="">— тип фабрики —</option>
+                            @foreach (var definition in BuildableFactoryDefinitions(team))
+                            {
+                                <option value="@definition.Id">@definition.Id — @definition.Name</option>
+                            }
+                        </select>
+                        <input class="form-control form-control-sm" placeholder="рецепт (необязательно — первый по умолчанию)" @bind="_actionRecipeId" />
+                    }
+                    else if (_actionKind is ManualActionKind.SetWorkerCount or ManualActionKind.SelectRecipe
+                        or ManualActionKind.SetRndCommitment or ManualActionKind.SetOverhaulRequested)
+                    {
+                        <select class="form-select form-select-sm" @bind="_actionFactoryIdText">
+                            <option value="">— фабрика —</option>
+                            @foreach (var factory in team.Factories)
+                            {
+                                <option value="@factory.Id">@factory.Definition.Name (@factory.SelectedRecipe.Id, рабочих @factory.Workers)</option>
+                            }
+                        </select>
+
+                        @if (_actionKind == ManualActionKind.SetWorkerCount)
+                        {
+                            <input type="number" min="0" class="form-control form-control-sm" @bind="_actionCount" />
+                        }
+                        else if (_actionKind == ManualActionKind.SelectRecipe)
+                        {
+                            <select class="form-select form-select-sm" @bind="_actionRecipeId">
+                                <option value="">— рецепт —</option>
+                                @foreach (var recipe in RecipeOptions(team))
+                                {
+                                    <option value="@recipe.Id">@recipe.Id</option>
+                                }
+                            </select>
+                        }
+                        else if (_actionKind == ManualActionKind.SetRndCommitment)
+                        {
+                            <input type="number" min="0" step="0.01" class="form-control form-control-sm" placeholder="¤/ход" @bind="_actionAmount" />
+                        }
+                        else if (_actionKind == ManualActionKind.SetOverhaulRequested)
+                        {
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="interactiveOverhaulEnabled" @bind="_actionEnabled" />
+                                <label class="form-check-label" for="interactiveOverhaulEnabled">Заказать капремонт (снять галочку — отменить запрос)</label>
+                            </div>
+                        }
+                    }
+                    else if (_actionKind == ManualActionKind.SetGenerationResearchCommitment)
+                    {
+                        <input type="number" min="0" step="0.01" class="form-control form-control-sm" placeholder="¤/ход" @bind="_actionAmount" />
+                    }
+                    else if (_actionKind is ManualActionKind.SellToSystem or ManualActionKind.EmergencyPurchase)
+                    {
+                        <select class="form-select form-select-sm" @bind="_actionMaterialId">
+                            <option value="">— материал —</option>
+                            @foreach (var material in MaterialOptionsFor(_actionKind, team))
+                            {
+                                <option value="@material.Id">@material.Id</option>
+                            }
+                        </select>
+                        <input type="number" min="0" step="0.01" class="form-control form-control-sm" placeholder="объём" @bind="_actionVolume" />
+                    }
+
+                    <button type="button" class="btn btn-secondary btn-sm" @onclick="ApplyAction">Применить сейчас</button>
+                </div>
+
+                @if (_interactiveActionLog.Count > 0)
+                {
+                    <ul class="list-unstyled small">
+                        @foreach (var line in _interactiveActionLog) { <li>@line</li> }
+                    </ul>
+                }
+
+                <button type="button" class="btn btn-primary" @onclick="CompleteInteractiveTurn">Следующий ход →</button>
+            </div>
+        </div>
+
+        @if (_interactiveHistory.Count > 0)
+        {
+            var lastTurn = _interactiveHistory[^1];
+            <h4 class="h6 mt-4">Что сделали боты остальных секторов на ходу @lastTurn.Turn</h4>
+            <div style="max-height:240px; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:0.5em">
+                <pre class="mb-0" style="font-size:0.75em">@string.Join("\n", lastTurn.BotTraceLines)</pre>
+            </div>
+
+            <h4 class="h6 mt-4">Ручная команда по ходам</h4>
+            @ChartRenderer.Render(BuildInteractiveBalanceChartLayout())
+        }
+    }
+}
+
+@if (_result is not null)
+{
+    <h3>Вердикт</h3>
+    @if (_costAnomalies.Count > 0)
+    {
+        <div class="alert alert-danger">
+            <strong>❌ Аномалии себестоимости — материал дешевле собственного сырья:</strong>
+            <ul class="mb-0">
+                @foreach (var a in _costAnomalies) { <li>@a</li> }
+            </ul>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-success mb-2">✅ Аномалий себестоимости не найдено.</div>
+    }
+
+    @if (_badPayback.Count > 0)
+    {
+        <div class="alert alert-danger">
+            <strong>❌ Уровни, которые не окупаются за @_paybackWarningTurns.ToString("F0") ход(ов) при продаже 100% системе (без кросс-торговли):</strong>
+            <ul class="mb-0">
+                @foreach (var b in _badPayback) { <li>@b</li> }
+            </ul>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-success mb-2">✅ Все уровни окупаются не дольше @_paybackWarningTurns.ToString("F0") ход(ов).</div>
+    }
+
+    <div class="alert @(_sandwichHealthy ? "alert-success" : "alert-warning") mb-2">
+        <div>Пол продавца (системная продажа): +@_systemMargin.ToString("P0")</div>
+        <div>Жадность бота в P2P: [+@_botFloor.ToString("P0"); +@_botCeiling.ToString("P0")]</div>
+        <div>Потолок покупателя (аварийная закупка): +@_emergencyMargin.ToString("P0")</div>
+        <div>@(_sandwichHealthy ? "✅ Бутерброд корректен." : "⚠ Бутерброд наценок нарушен — P2P невыгоден одной из сторон.")</div>
+    </div>
+
+    <h4>Идеальный зал X(t) по секторам</h4>
+    <div class="d-flex flex-wrap gap-3">
+        <div style="flex:2 1 600px; min-width:0; overflow-x:auto">
+            @ChartRenderer.Render(BuildIdealHallChartLayout())
+        </div>
+        <div style="flex:1 1 280px; min-width:0">
+            <table class="table table-sm">
+                <thead><tr><th>Сектор</th><th>X(T)</th><th>Траектория</th></tr></thead>
+                <tbody>
+                    @foreach (var branch in _result.IdealHall.Branches)
+                    {
+                        var verdict = DiagnoseRun.ClassifyTrajectory(branch.ValueByTurn);
+                        <tr>
+                            <td>@branch.SectorId</td>
+                            <td>@branch.ValueByTurn[^1].ToString("F0")</td>
+                            <td>@verdict.Label</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h4 class="mt-4">Реальные боты по ходам</h4>
+    <div class="d-flex gap-2 align-items-center mb-2">
+        <label class="form-label mb-0">Столбец:</label>
+        <select class="form-select form-select-sm" style="width:16em" @bind="_selectedColumn">
+            @foreach (var name in Columns.Keys) { <option value="@name">@name</option> }
+        </select>
+    </div>
+    <div style="overflow-x:auto">
+        @ChartRenderer.Render(BuildTeamChartLayout())
+    </div>
+
+    <h4 class="mt-4">Таблица по ходам</h4>
+    <div class="d-flex gap-2 align-items-center mb-2">
+        <label class="form-label mb-0">Команда:</label>
+        <select class="form-select form-select-sm" style="width:16em" @bind="_selectedTeamFilter">
+            <option value="">— все —</option>
+            @foreach (var name in _teamNames) { <option value="@name">@name</option> }
+        </select>
+    </div>
+    <div class="table-responsive" style="max-height:480px; overflow-y:auto">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>Ход</th><th>Команда</th><th>Сектор</th><th>Баланс</th><th>Score</th><th>Поток за ход</th>
+                    <th>Доход</th><th>Постройка</th><th>Наём/увольн.</th><th>Зарплата</th><th>Содержание</th>
+                    <th>R&amp;D</th><th>Поколение</th><th>Капремонт</th><th>Электричество</th><th>Склад</th><th>Авар.закупка</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in FilteredSnapshots())
+                {
+                    <tr>
+                        <td>@s.Turn</td><td>@s.TeamName</td><td>@s.SectorId</td>
+                        <td>@s.Balance.ToString("F0")</td><td>@s.Score.ToString("F0")</td><td>@s.CashFlowThisTurn.ToString("F0")</td>
+                        <td>@s.Income.ToString("F0")</td><td>@s.BuildCost.ToString("F0")</td><td>@s.HireFireCost.ToString("F0")</td>
+                        <td>@s.Salary.ToString("F0")</td><td>@s.Upkeep.ToString("F0")</td><td>@s.Rnd.ToString("F0")</td>
+                        <td>@s.Generation.ToString("F0")</td><td>@s.Overhaul.ToString("F0")</td><td>@s.Electricity.ToString("F0")</td>
+                        <td>@s.WarehouseFee.ToString("F0")</td><td>@s.EmergencyPurchase.ToString("F0")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <h4 class="mt-4">Себестоимость и окупаемость по уровням</h4>
+    <p class="text-muted small">
+        Окупаемость (направление A плана исследований) — сколько ходов нужно этому уровню, чтобы
+        BuildCost отбился ТОЛЬКО продажей 100% выпуска системе, без кросс-торговли (гарантированный
+        пол, не оптимистичная оценка). Строки дольше @_paybackWarningTurns.ToString("F0") ход(ов) подсвечены.
+    </p>
+    <div class="table-responsive" style="max-height:360px; overflow-y:auto">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr><th>Сектор</th><th>Уровень</th><th>Фабрика</th><th>Рецепт</th><th>Выпуск</th><th>Себест./ед.</th><th>Итого/ход</th><th>BuildCost</th><th>Окупаемость (ход)</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _costRows)
+                {
+                    var isBad = row.PaybackTurns is null || row.PaybackTurns > _paybackWarningTurns;
+                    <tr class="@(isBad ? "table-danger" : "")">
+                        <td>@row.SectorId</td><td>@row.Level</td><td>@row.FactoryId</td><td>@row.RecipeId</td>
+                        <td>@row.OutputMaterialId</td><td>@row.UnitCost.ToString("0.####")</td><td>@row.TotalCost.ToString("F0")</td>
+                        <td>@row.BuildCost.ToString("F0")</td>
+                        <td>@(row.PaybackTurns is { } p ? p.ToString("F1") : "никогда")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <h4 class="mt-4">Пошаговый просмотр решений бота</h4>
+    <div class="form-check mb-2">
+        <input type="checkbox" class="form-check-input" id="stepMode" @bind="_stepMode" />
+        <label class="form-check-label" for="stepMode">Пошаговый режим — один ход, один сектор, цифры и мотивация</label>
+    </div>
+    @if (_stepMode)
+    {
+        var sectorIds = _result.DecisionLogs.Select(l => l.SectorId).Distinct().OrderBy(s => s, StringComparer.Ordinal).ToList();
+        @if (_teamsPerSector > 1)
+        {
+            <div class="alert alert-warning">
+                Команд на сектор больше 1 — журнал решений различает только сектор, не конкретную
+                команду внутри него (у трассировки <code>SimpleBot</code> нет отдельного признака команды).
+                Ниже показаны решения всех его команд вперемешку, не одной конкретной.
+            </div>
+        }
+        <div class="d-flex flex-wrap gap-2 align-items-end mb-2">
+            <div>
+                <label class="form-label mb-0">Сектор</label>
+                <select class="form-select form-select-sm" @bind="_stepSectorId" @bind:after="ResetStepIndex">
+                    @foreach (var id in sectorIds) { <option value="@id">@id</option> }
+                </select>
+            </div>
+            @{ var logs = StepLogsForSector(); }
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => _stepIndex--" disabled="@(_stepIndex <= 0)">← Ход</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => _stepIndex++" disabled="@(_stepIndex >= logs.Count - 1)">Ход →</button>
+            </div>
+            @if (logs.Count > 0)
+            {
+                <span class="text-muted">Ход @(logs[_stepIndex].Turn) из @logs.Count показанных (сектор @_stepSectorId)</span>
+            }
+        </div>
+
+        @if (logs.Count == 0)
+        {
+            <p class="text-muted"><em>Для этого сектора нет строк решений в журнале.</em></p>
+        }
+        else
+        {
+            var log = logs[_stepIndex];
+            <table class="table table-sm table-bordered align-middle" style="max-width:56em">
+                <tbody>
+                    <tr><th style="width:12em">1. Финансовый тренд</th><td>@RenderLines(log.FinancialTrend)</td></tr>
+                    <tr><th>2. Постройка</th><td>@RenderLines(log.Build)</td></tr>
+                    <tr><th>3. Темп вложений (R&amp;D/поколение)</th><td>@RenderLines(log.InvestmentPace)</td></tr>
+                    <tr><th>4. Капремонт</th><td>@RenderLines(log.Overhaul)</td></tr>
+                    <tr><th>5. Продажа (P2P)</th><td>@RenderLines(log.Sell)</td></tr>
+                    <tr><th>6. Покупка (P2P)</th><td>@RenderLines(log.Buy)</td></tr>
+                    <tr><th>7. Остаток системе</th><td>@RenderLines(log.SystemSale)</td></tr>
+                </tbody>
+            </table>
+        }
+    }
+
+    <h4 class="mt-4">Действия ботов (журнал решений, весь текст)</h4>
+    <input class="form-control form-control-sm mb-2" style="max-width:24em" placeholder="фильтр (например, sector2)" @bind="_traceFilter" @bind:event="oninput" />
+    <div style="max-height:400px; overflow:auto; background:#1e1e1e; color:#d4d4d4; padding:0.5em">
+        <pre class="mb-0" style="font-size:0.75em">@string.Join("\n", FilteredTraceLines())</pre>
+    </div>
+}
+
+@code {
+    private string _selectedProductionModel = "";
+    private string _selectedSession = "";
+    private string _productionModelJson = "";
+    private string _sessionJson = "";
+    private int _endTurn = 90;
+    private int _teamsPerSector = 1;
+    private decimal _leverage = 1m;
+    private decimal _profile = 0m;
+    private int _workers = 10;
+    private bool _maintainFactories = true;
+    private bool _running;
+    private string? _error;
+
+    private DetailedSessionRunner.Result? _result;
+    private IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> _costRows = Array.Empty<ProductionCostLevelCalculator.FactoryRecipeCost>();
+    private IReadOnlyList<string> _costAnomalies = Array.Empty<string>();
+    private IReadOnlyList<string> _badPayback = Array.Empty<string>();
+    private decimal _paybackWarningTurns;
+    private bool _sandwichHealthy;
+    private decimal _systemMargin, _botFloor, _botCeiling, _emergencyMargin;
+    private IReadOnlyList<string> _teamNames = Array.Empty<string>();
+    private string _selectedTeamFilter = "";
+    private string _selectedColumn = "Баланс";
+    private string _traceFilter = "";
+    private bool _stepMode;
+    private string _stepSectorId = "";
+    private int _stepIndex;
+
+    private InteractiveSessionRunner? _interactive;
+    private string _interactiveSectorId = "";
+    private string? _interactiveError;
+    private readonly List<string> _interactiveActionLog = new();
+    private readonly List<InteractiveSessionRunner.TurnResult> _interactiveHistory = new();
+
+    private InteractiveSessionRunner.TurnProposal? _proposal;
+    private List<ManualAction> _proposalActions = new();
+    private List<bool> _proposalSelected = new();
+
+    // Форма «одно действие» — поля, не относящиеся к выбранному _actionKind, просто не читаются.
+    private ManualActionKind _actionKind = ManualActionKind.BuildFactory;
+    private string _actionFactoryDefinitionId = "";
+    private string _actionFactoryIdText = "";
+    private string _actionRecipeId = "";
+    private decimal _actionAmount;
+    private int _actionCount;
+    private string _actionMaterialId = "";
+    private decimal _actionVolume;
+    private bool _actionEnabled;
+
+    private Ulid? _actionFactoryId => Ulid.TryParse(_actionFactoryIdText, null, out var id) ? id : null;
+
+    // UnsafeRelaxedJsonEscaping — иначе кириллица (Name у секторов/материалов/фабрик) уходит в
+    // текстовое поле как Се... — нечитаемо для ручной правки (весь смысл этого поля).
+    // "Unsafe" здесь не про опасность данных — про то, что кодировщик больше не эскейпит символы,
+    // которые могли бы что-то значить в HTML/JS-контексте; тут это чистый textarea, не разметка.
+    private static readonly JsonSerializerOptions PrettyPrint = new()
+    {
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    private static readonly Dictionary<string, Func<DetailedSessionRunner.TeamTurnSnapshot, decimal>> Columns = new()
+    {
+        ["Баланс"] = s => s.Balance,
+        ["Score"] = s => s.Score,
+        ["Поток за ход"] = s => s.CashFlowThisTurn,
+        ["Доход (накопл.)"] = s => s.Income,
+        ["Постройка (накопл.)"] = s => s.BuildCost,
+        ["Наём/увольнение (накопл.)"] = s => s.HireFireCost,
+        ["Зарплата (накопл.)"] = s => s.Salary,
+        ["Содержание (накопл.)"] = s => s.Upkeep,
+        ["R&D (накопл.)"] = s => s.Rnd,
+        ["Поколение (накопл.)"] = s => s.Generation,
+        ["Капремонт (накопл.)"] = s => s.Overhaul,
+        ["Электричество (накопл.)"] = s => s.Electricity,
+        ["Склад (накопл.)"] = s => s.WarehouseFee,
+        ["Авар. закупка (накопл.)"] = s => s.EmergencyPurchase,
+    };
+
+    private void LoadSelectedProductionModel()
+    {
+        if (_selectedProductionModel.Length == 0 || !Host.ProductionModels.TryGetValue(_selectedProductionModel, out var model))
+        {
+            return;
+        }
+
+        _productionModelJson = JsonSerializer.Serialize(model, PrettyPrint);
+    }
+
+    private void LoadSelectedSession()
+    {
+        if (_selectedSession.Length == 0 || !Host.SessionConfigs.TryGetValue(_selectedSession, out var session))
+        {
+            return;
+        }
+
+        _sessionJson = JsonSerializer.Serialize(session, PrettyPrint);
+        // Горизонт прогона — MaxTurns, а не жеребьёвка в [MinTurns, MaxTurns]: стенд обязан быть
+        // детерминированным и сопоставимым с X(T) идеального зала, который считается ровно на MaxTurns.
+        _endTurn = session.Duration.MaxTurns;
+    }
+
+    private async Task RunAsync()
+    {
+        _error = null;
+        _result = null;
+        _running = true;
+        StateHasChanged();
+        await Task.Yield();
+
+        try
+        {
+            var productionModel = JsonSerializer.Deserialize<ProductionModelConfig>(_productionModelJson)
+                                   ?? throw new InvalidOperationException("Производственная модель не заполнена.");
+            var session = JsonSerializer.Deserialize<SessionConfig>(_sessionJson)
+                          ?? throw new InvalidOperationException("Сессионные параметры не заполнены.");
+            var config = GameConfigLoader.Load(productionModel, session);
+
+            _costRows = ProductionCostLevelCalculator.Calculate(config, _workers);
+            _costAnomalies = DiagnoseRun.FindCostAnomalies(_costRows);
+            // Именно этот прогон (не все пресеты конфига разом, как в CLI --mode diagnose) —
+            // пользователь уже выбрал конкретное число ходов выше; тот же запас (см.
+            // ProductionCostLevelReportWriter.DefaultPaybackBufferTurns), не половина от _endTurn.
+            _paybackWarningTurns = Math.Max(0m, _endTurn - ProductionCostLevelReportWriter.DefaultPaybackBufferTurns);
+            _badPayback = DiagnoseRun.FindBadPaybackLevels(_costRows, _paybackWarningTurns);
+
+            _systemMargin = MarketSaleCalculator.SystemSaleMarginMultiplier - 1m;
+            _emergencyMargin = config.Raw.Economy.EmergencyPurchaseBaseMultiplier - 1m;
+            _botFloor = SimpleBot.MinSellMarginRate;
+            _botCeiling = SimpleBot.MaxBuyPremiumRate;
+            _sandwichHealthy = _botFloor >= _systemMargin && _botCeiling <= _emergencyMargin && _botFloor <= _botCeiling;
+
+            _result = DetailedSessionRunner.Run(config, _endTurn, _teamsPerSector, _maintainFactories, _leverage, _profile);
+            _teamNames = _result.Snapshots.Select(s => s.TeamName).Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList();
+            _stepSectorId = _result.DecisionLogs.Select(l => l.SectorId).OrderBy(s => s, StringComparer.Ordinal).FirstOrDefault() ?? "";
+            _stepIndex = 0;
+        }
+        catch (GameConfigValidationException ex)
+        {
+            _error = "Конфиг не проходит валидацию:\n" + string.Join("\n", ex.Errors);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _running = false;
+        }
+    }
+
+    private IEnumerable<DetailedSessionRunner.TeamTurnSnapshot> FilteredSnapshots() =>
+        _result!.Snapshots.Where(s => _selectedTeamFilter.Length == 0 || s.TeamName == _selectedTeamFilter);
+
+    private IEnumerable<string> FilteredTraceLines() =>
+        _traceFilter.Length == 0
+            ? _result!.TraceLines
+            : _result!.TraceLines.Where(l => l.Contains(_traceFilter, StringComparison.OrdinalIgnoreCase));
+
+    private void ResetStepIndex() => _stepIndex = 0;
+
+    private List<DetailedSessionRunner.TurnDecisionLog> StepLogsForSector() =>
+        _result!.DecisionLogs.Where(l => l.SectorId == _stepSectorId).OrderBy(l => l.Turn).ToList();
+
+    private static MarkupString RenderLines(IReadOnlyList<string> lines) =>
+        lines.Count == 0
+            ? new MarkupString("<span class=\"text-muted\">—</span>")
+            : new MarkupString(string.Join("<br/>", lines.Select(l => WebUtility.HtmlEncode(l))));
+
+    private LineChartDiagram.ChartLayout BuildIdealHallChartLayout()
+    {
+        var series = _result!.IdealHall.Branches
+            .Select((branch, index) => new LineChartDiagram.ChartSeries(
+                branch.SectorId, SectorColors.Palette[index % SectorColors.Palette.Length],
+                branch.ValueByTurn.Select((v, t) => (Turn: t, Value: v)).ToList()))
+            .ToList();
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 720, 260, DashboardDisplay.FormatMoney);
+    }
+
+    private LineChartDiagram.ChartLayout BuildTeamChartLayout()
+    {
+        var selector = Columns[_selectedColumn];
+        var series = _teamNames
+            .Select((name, index) => new LineChartDiagram.ChartSeries(
+                name, SectorColors.Palette[index % SectorColors.Palette.Length],
+                _result!.Snapshots.Where(s => s.TeamName == name).Select(s => (s.Turn, Value: selector(s))).ToList()))
+            .ToList();
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 900, 280, DashboardDisplay.FormatMoney);
+    }
+
+    /// <summary>Секторы для выпадающего списка «за кого играть» — читает уже введённый JSON модели напрямую, без полной валидации (та происходит только при <see cref="StartInteractive"/>).</summary>
+    private IReadOnlyList<SectorConfig> InteractiveSectorOptions()
+    {
+        try
+        {
+            var model = JsonSerializer.Deserialize<ProductionModelConfig>(_productionModelJson);
+            return model?.Sectors ?? Array.Empty<SectorConfig>();
+        }
+        catch (JsonException)
+        {
+            return Array.Empty<SectorConfig>();
+        }
+    }
+
+    private void StartInteractive()
+    {
+        _interactiveError = null;
+        try
+        {
+            if (_interactiveSectorId.Length == 0)
+            {
+                throw new InvalidOperationException("Выберите сектор, за который играть вручную.");
+            }
+
+            var productionModel = JsonSerializer.Deserialize<ProductionModelConfig>(_productionModelJson)
+                                   ?? throw new InvalidOperationException("Производственная модель не заполнена.");
+            var session = JsonSerializer.Deserialize<SessionConfig>(_sessionJson)
+                          ?? throw new InvalidOperationException("Сессионные параметры не заполнены.");
+            var config = GameConfigLoader.Load(productionModel, session);
+
+            _interactive = InteractiveSessionRunner.Start(config, _endTurn, _interactiveSectorId, _maintainFactories, _leverage, _profile);
+            _interactiveActionLog.Clear();
+            _interactiveHistory.Clear();
+            RefreshProposal();
+        }
+        catch (GameConfigValidationException ex)
+        {
+            _interactiveError = "Конфиг не проходит валидацию:\n" + string.Join("\n", ex.Errors);
+        }
+        catch (Exception ex)
+        {
+            _interactiveError = ex.Message;
+        }
+    }
+
+    private void StopInteractive()
+    {
+        _interactive = null;
+        _interactiveError = null;
+        _interactiveActionLog.Clear();
+        _interactiveHistory.Clear();
+        _proposal = null;
+        _proposalActions.Clear();
+        _proposalSelected.Clear();
+    }
+
+    /// <summary>Пересчитывает предложение бота для ручной команды на текущий ход — ничего в сессии не меняет (см. doc-comment <see cref="InteractiveSessionRunner.ProposeManualTeamDecision"/>).</summary>
+    private void RefreshProposal()
+    {
+        if (_interactive is null || _interactive.Session.State.IsFinished)
+        {
+            _proposal = null;
+            _proposalActions = new List<ManualAction>();
+            _proposalSelected = new List<bool>();
+            return;
+        }
+
+        _proposal = _interactive.ProposeManualTeamDecision();
+        _proposalActions = _proposal.Actions.ToList();
+        _proposalSelected = _proposalActions.Select(_ => true).ToList(); // по умолчанию отмечено всё — «не менять вообще» в один клик
+    }
+
+    /// <summary>Человекочитаемое описание одного предложенного действия для чеклиста — не путать с <see cref="ManualActionResult.Success.Description"/> (тот пишется постфактум, этот — заранее, до применения).</summary>
+    private string DescribeProposedAction(ManualAction action, Game.Domain.Team team)
+    {
+        string FactoryLabel(Ulid? factoryId)
+        {
+            if (factoryId is not { } id)
+            {
+                return "?";
+            }
+
+            var existing = team.Factories.FirstOrDefault(f => f.Id == id);
+            if (existing is not null)
+            {
+                return existing.Definition.Name;
+            }
+
+            // Ещё не построена по-настоящему — она где-то раньше в этом же предложении (см. doc-comment ManualAction.FactoryId).
+            var relatedBuild = _proposalActions.FirstOrDefault(a => a.Kind == ManualActionKind.BuildFactory && a.FactoryId == id);
+            return relatedBuild?.FactoryDefinitionId ?? id.ToString();
+        }
+
+        return action.Kind switch
+        {
+            ManualActionKind.BuildFactory => $"Построить «{action.FactoryDefinitionId}» (рецепт {action.RecipeId})",
+            ManualActionKind.SetWorkerCount => $"Рабочих на «{FactoryLabel(action.FactoryId)}»: {action.Count}",
+            ManualActionKind.SelectRecipe => $"Сменить рецепт «{FactoryLabel(action.FactoryId)}» на «{action.RecipeId}»",
+            ManualActionKind.SetRndCommitment => $"R&D «{FactoryLabel(action.FactoryId)}»: {action.Amount:0.##}¤/ход",
+            ManualActionKind.SetGenerationResearchCommitment => $"Исследование поколения: {action.Amount:0.##}¤/ход",
+            ManualActionKind.SetOverhaulRequested => $"Капремонт «{FactoryLabel(action.FactoryId)}»: {(action.Enabled == true ? "заказать" : "отменить запрос")}",
+            ManualActionKind.SellToSystem => $"Продать системе {action.Volume:0.##} «{action.MaterialId}»",
+            ManualActionKind.EmergencyPurchase => $"Аварийная закупка {action.Volume:0.##} «{action.MaterialId}»",
+            _ => action.Kind.ToString(),
+        };
+    }
+
+    private void ApplySelectedProposal()
+    {
+        if (_interactive is null)
+        {
+            return;
+        }
+
+        var chosen = _proposalActions.Where((_, index) => _proposalSelected[index]).ToList();
+        var results = _interactive.ApplyProposedActions(chosen);
+        foreach (var result in results)
+        {
+            _interactiveActionLog.Add(result switch
+            {
+                ManualActionResult.Success success => $"✅ {success.Description}",
+                ManualActionResult.Failure failure => $"❌ {failure.Message}",
+                _ => "?",
+            });
+        }
+
+        RefreshProposal(); // предложение могло устареть (постройка занята, толерантность к минусу сдвинулась и т.п.) — пересчитываем начисто
+    }
+
+    private void ApplyAction()
+    {
+        if (_interactive is null)
+        {
+            return;
+        }
+
+        var action = new ManualAction
+        {
+            Kind = _actionKind,
+            FactoryDefinitionId = _actionFactoryDefinitionId.Length > 0 ? _actionFactoryDefinitionId : null,
+            FactoryId = _actionFactoryId,
+            RecipeId = _actionRecipeId.Length > 0 ? _actionRecipeId : null,
+            Amount = _actionAmount,
+            Count = _actionCount,
+            MaterialId = _actionMaterialId.Length > 0 ? _actionMaterialId : null,
+            Volume = _actionVolume,
+            Enabled = _actionEnabled,
+        };
+
+        var result = _interactive.ApplyManualAction(action);
+        _interactiveActionLog.Add(result switch
+        {
+            ManualActionResult.Success success => $"✅ {success.Description}",
+            ManualActionResult.Failure failure => $"❌ {failure.Message}",
+            _ => "?",
+        });
+        RefreshProposal(); // ручное действие могло повлиять на то, что бот предложил бы дальше (баланс, уже построенные фабрики)
+    }
+
+    private void CompleteInteractiveTurn()
+    {
+        if (_interactive is null)
+        {
+            return;
+        }
+
+        var turnResult = _interactive.CompleteTurn();
+        _interactiveHistory.Add(turnResult);
+        _interactiveActionLog.Clear();
+        _interactiveActionLog.Add(
+            $"— ход {turnResult.Turn} завершён, поток за ход {turnResult.ManualTeamSnapshot.CashFlowThisTurn.ToString("F0")}¤, " +
+            $"баланс {turnResult.ManualTeamSnapshot.Balance.ToString("F0")}¤ —");
+        RefreshProposal();
+    }
+
+    private static string ActionKindLabel(ManualActionKind kind) => kind switch
+    {
+        ManualActionKind.BuildFactory => "Построить фабрику",
+        ManualActionKind.SetWorkerCount => "Число рабочих",
+        ManualActionKind.SelectRecipe => "Сменить рецепт",
+        ManualActionKind.SetRndCommitment => "R&D фабрики",
+        ManualActionKind.SetGenerationResearchCommitment => "Исследование поколения",
+        ManualActionKind.SetOverhaulRequested => "Капремонт",
+        ManualActionKind.SellToSystem => "Продать системе",
+        ManualActionKind.EmergencyPurchase => "Аварийная закупка",
+        _ => kind.ToString(),
+    };
+
+    private IReadOnlyList<FactoryDefinition> BuildableFactoryDefinitions(Game.Domain.Team team) =>
+        _interactive!.Session.State.Config.FactoryDefinitions
+            .Where(definition => definition.Sector == team.Sector && definition.Recipes[0].Output.Level <= team.UnlockedGeneration)
+            .OrderBy(definition => definition.Id, StringComparer.Ordinal)
+            .ToList();
+
+    private IReadOnlyList<Recipe> RecipeOptions(Game.Domain.Team team) =>
+        team.Factories.FirstOrDefault(f => f.Id == _actionFactoryId)?.Definition.Recipes ?? Array.Empty<Recipe>();
+
+    /// <summary>Продать можно только то, что реально лежит на складе; купить — любой материал сектора (как на <c>Team.razor</c>).</summary>
+    private IReadOnlyList<Material> MaterialOptionsFor(ManualActionKind kind, Game.Domain.Team team) =>
+        kind == ManualActionKind.SellToSystem
+            ? team.Warehouse.Stock.Where(s => s.Quantity > 0).Select(s => s.Material).OrderBy(m => m.Id, StringComparer.Ordinal).ToList()
+            : _interactive!.Session.State.Config.Materials.Values.Where(m => m.Sector == team.Sector).OrderBy(m => m.Id, StringComparer.Ordinal).ToList();
+
+    private LineChartDiagram.ChartLayout BuildInteractiveBalanceChartLayout()
+    {
+        var points = _interactiveHistory.Select(t => (t.Turn, Value: t.ManualTeamSnapshot.Balance)).ToList();
+        var series = new List<LineChartDiagram.ChartSeries> { new("Баланс (ручная команда)", SectorColors.Palette[0], points) };
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 720, 240, DashboardDisplay.FormatMoney);
+    }
+}

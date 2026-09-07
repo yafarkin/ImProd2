@@ -129,7 +129,7 @@ public sealed class BotStateSnapshotBuilderTests
     [Fact]
     public void Build_OnlyOneSectorOccupied_OmitsCrossSectorDemandSection()
     {
-        // gameconfig.pilot.json объявляет сектор Б в справочнике, но StartSingleTeamSession сажает
+        // legacy-combined-gameconfig.json объявляет сектор Б в справочнике, но StartSingleTeamSession сажает
         // ВСЕ команды в А — секция должна судить по реально занятым секторам, не по каталогу конфига
         // (см. doc-comment BotStateSnapshotBuilder.AppendCrossSectorDemand).
         var (session, teamId) = TestSession.StartSingleTeamSession();
@@ -169,7 +169,7 @@ public sealed class BotStateSnapshotBuilderTests
             new() { Id = teamAId, Name = "Команда А", SectorId = "A" },
             new() { Id = teamBId, Name = "Команда Б", SectorId = "B" },
         };
-        var session = GameSession.StartWithEndTurn(config, "short", 15, teams);
+        var session = GameSession.StartWithEndTurn(config, 15, teams);
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
 
         var snapshotA = BotStateSnapshotBuilder.Build(session, teamAId);
@@ -201,7 +201,7 @@ public sealed class BotStateSnapshotBuilderTests
             new() { Id = teamAId, Name = "Команда А", SectorId = "A" },
             new() { Id = teamBId, Name = "Команда Б", SectorId = "B" },
         };
-        var session = GameSession.StartWithEndTurn(config, "short", 15, teams);
+        var session = GameSession.StartWithEndTurn(config, 15, teams);
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
         var posted = session.PostTradeOffer(teamAId, Game.Domain.TradeOfferDirection.Sell, "a-part", Game.Domain.ContractType.Spot, 10m, 5m, 8m);
         var offerId = ((TradeOfferPosted)posted.Change).TradeOfferId;
@@ -224,7 +224,7 @@ public sealed class BotStateSnapshotBuilderTests
             new() { Id = teamAId, Name = "Команда А", SectorId = "A" },
             new() { Id = teamBId, Name = "Команда Б", SectorId = "B" },
         };
-        var session = GameSession.StartWithEndTurn(config, "short", 15, teams);
+        var session = GameSession.StartWithEndTurn(config, 15, teams);
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
         // Б покупает a-part — то, что производит А (a-part входит в sellCandidates у А).
         var posted = session.PostTradeOffer(teamBId, Game.Domain.TradeOfferDirection.Buy, "a-part", Game.Domain.ContractType.Spot, 10m, 5m, 8m);
@@ -262,7 +262,7 @@ public sealed class BotStateSnapshotBuilderTests
             new() { Id = teamAId, Name = "Команда А", SectorId = "A" },
             new() { Id = teamBId, Name = "Команда Б", SectorId = "B" },
         };
-        var session = GameSession.StartWithEndTurn(config, "short", 15, teams);
+        var session = GameSession.StartWithEndTurn(config, 15, teams);
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
 
         session.BuildFactory(teamAId, "mine-a");

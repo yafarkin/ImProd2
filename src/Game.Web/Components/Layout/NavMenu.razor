@@ -1,3 +1,5 @@
+@inject DebugModeState DebugMode
+
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">Производственные цепочки</a>
@@ -62,6 +64,19 @@
                     <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Персонал
                 </NavLink>
             </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/price-ladder">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Лестница цен
+                </NavLink>
+            </div>
+            @if (DebugMode.Enabled)
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="admin/balance-lab">
+                        <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Лаборатория баланса
+                    </NavLink>
+                </div>
+            }
         </AuthorizeView>
 
         <AuthorizeView>

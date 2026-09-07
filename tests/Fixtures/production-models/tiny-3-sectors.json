@@ -1,0 +1,347 @@
+{
+  "Sectors": [
+    {
+      "Id": "sector1",
+      "Name": "Сектор 1"
+    },
+    {
+      "Id": "sector2",
+      "Name": "Сектор 2"
+    },
+    {
+      "Id": "sector3",
+      "Name": "Сектор 3"
+    }
+  ],
+  "Materials": [
+    {
+      "Id": "material1_1",
+      "Name": "Материал 1_1",
+      "SectorId": "sector1",
+      "Level": 0
+    },
+    {
+      "Id": "material2_1",
+      "Name": "Материал 2_1",
+      "SectorId": "sector1",
+      "Level": 1
+    },
+    {
+      "Id": "material3_1",
+      "Name": "Материал 3_1",
+      "SectorId": "sector1",
+      "Level": 2
+    },
+    {
+      "Id": "material1_2",
+      "Name": "Материал 1_2",
+      "SectorId": "sector2",
+      "Level": 0
+    },
+    {
+      "Id": "material2_2",
+      "Name": "Материал 2_2",
+      "SectorId": "sector2",
+      "Level": 1
+    },
+    {
+      "Id": "material3_2",
+      "Name": "Материал 3_2",
+      "SectorId": "sector2",
+      "Level": 2
+    },
+    {
+      "Id": "material1_3",
+      "Name": "Материал 1_3",
+      "SectorId": "sector3",
+      "Level": 0
+    },
+    {
+      "Id": "material2_3",
+      "Name": "Материал 2_3",
+      "SectorId": "sector3",
+      "Level": 1
+    },
+    {
+      "Id": "material3_3",
+      "Name": "Материал 3_3",
+      "SectorId": "sector3",
+      "Level": 2
+    }
+  ],
+  "Recipes": [
+    {
+      "Id": "recipe1_1",
+      "OutputMaterialId": "material1_1",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 50.0
+    },
+    {
+      "Id": "recipe2_1",
+      "OutputMaterialId": "material2_1",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "material1_1",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "material1_3",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 20.0
+    },
+    {
+      "Id": "recipe3_1",
+      "OutputMaterialId": "material3_1",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "material2_1",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "material2_2",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 7.5
+    },
+    {
+      "Id": "recipe1_2",
+      "OutputMaterialId": "material1_2",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 50.0
+    },
+    {
+      "Id": "recipe2_2",
+      "OutputMaterialId": "material2_2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "material1_2",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "material1_1",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 20.0
+    },
+    {
+      "Id": "recipe3_2",
+      "OutputMaterialId": "material3_2",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "material2_2",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "material2_3",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 7.5
+    },
+    {
+      "Id": "recipe1_3",
+      "OutputMaterialId": "material1_3",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 50.0
+    },
+    {
+      "Id": "recipe2_3",
+      "OutputMaterialId": "material2_3",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "material1_3",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "material1_2",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 20.0
+    },
+    {
+      "Id": "recipe3_3",
+      "OutputMaterialId": "material3_3",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "material2_3",
+          "Quantity": 1
+        },
+        {
+          "MaterialId": "material2_1",
+          "Quantity": 1
+        }
+      ],
+      "ProductionRate": 7.5
+    }
+  ],
+  "FactoryDefinitions": [
+    {
+      "Id": "factory1_1",
+      "Name": "Фабрика 1_1",
+      "SectorId": "sector1",
+      "RecipeIds": [
+        "recipe1_1"
+      ],
+      "BuildCost": 350,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 6.67
+    },
+    {
+      "Id": "factory2_1",
+      "Name": "Фабрика 2_1",
+      "SectorId": "sector1",
+      "RecipeIds": [
+        "recipe2_1"
+      ],
+      "BuildCost": 800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 20.0
+    },
+    {
+      "Id": "factory3_1",
+      "Name": "Фабрика 3_1",
+      "SectorId": "sector1",
+      "RecipeIds": [
+        "recipe3_1"
+      ],
+      "BuildCost": 1650,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 46.67
+    },
+    {
+      "Id": "factory1_2",
+      "Name": "Фабрика 1_2",
+      "SectorId": "sector2",
+      "RecipeIds": [
+        "recipe1_2"
+      ],
+      "BuildCost": 350,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 6.67
+    },
+    {
+      "Id": "factory2_2",
+      "Name": "Фабрика 2_2",
+      "SectorId": "sector2",
+      "RecipeIds": [
+        "recipe2_2"
+      ],
+      "BuildCost": 800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 20.0
+    },
+    {
+      "Id": "factory3_2",
+      "Name": "Фабрика 3_2",
+      "SectorId": "sector2",
+      "RecipeIds": [
+        "recipe3_2"
+      ],
+      "BuildCost": 1650,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 46.67
+    },
+    {
+      "Id": "factory1_3",
+      "Name": "Фабрика 1_3",
+      "SectorId": "sector3",
+      "RecipeIds": [
+        "recipe1_3"
+      ],
+      "BuildCost": 350,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 6.67
+    },
+    {
+      "Id": "factory2_3",
+      "Name": "Фабрика 2_3",
+      "SectorId": "sector3",
+      "RecipeIds": [
+        "recipe2_3"
+      ],
+      "BuildCost": 800,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 20.0
+    },
+    {
+      "Id": "factory3_3",
+      "Name": "Фабрика 3_3",
+      "SectorId": "sector3",
+      "RecipeIds": [
+        "recipe3_3"
+      ],
+      "BuildCost": 1650,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 46.67
+    }
+  ],
+  "BaseMarketPerMaterial": [
+    {
+      "MaterialId": "material1_1",
+      "BasePrice": 1,
+      "BaseCapacity": 200
+    },
+    {
+      "MaterialId": "material2_1",
+      "BasePrice": 25,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "material3_1",
+      "BasePrice": 100,
+      "BaseCapacity": 60
+    },
+    {
+      "MaterialId": "material1_2",
+      "BasePrice": 1,
+      "BaseCapacity": 200
+    },
+    {
+      "MaterialId": "material2_2",
+      "BasePrice": 25,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "material3_2",
+      "BasePrice": 100,
+      "BaseCapacity": 60
+    },
+    {
+      "MaterialId": "material1_3",
+      "BasePrice": 1,
+      "BaseCapacity": 200
+    },
+    {
+      "MaterialId": "material2_3",
+      "BasePrice": 25,
+      "BaseCapacity": 120
+    },
+    {
+      "MaterialId": "material3_3",
+      "BasePrice": 100,
+      "BaseCapacity": 60
+    }
+  ],
+  "GenerationResearch": {
+    "StartingGeneration": 1,
+    "ResearchPointThresholdsByGeneration": [
+      25
+    ],
+    "DiminishingReturnsExponent": 0.5,
+    "MaxCommitmentPerTurn": 300
+  }
+}

@@ -2,19 +2,19 @@
 set -euo pipefail
 
 # ==================================================================
-#  LLM bots for im_prod - stage 1 (single sector), unattended run.
-#  See run-llm-bots-stage2.sh for the two-sector (metallurgy +
-#  petrochemistry) counterpart, once a single-bot run here checks out
-#  clean. Put this file in the repository root (next to ImProd.sln)
-#  and run it:
-#      chmod +x run-llm-bots-stage1.sh   # once
-#      ./run-llm-bots-stage1.sh
+#  LLM bots for im_prod - training model (single sector,
+#  training-1-sector.json), unattended run. See run-llm-bots-game.sh for
+#  the three-sector counterpart, once a single-bot run here checks
+#  out clean. Put this file in the repository root (next to
+#  ImProd.sln) and run it:
+#      chmod +x run-llm-bots-training.sh   # once
+#      ./run-llm-bots-training.sh
 #  Adjust the settings below for your setup - the LM Studio server
 #  address is already set for the desktop PC.
 #
 #  How long this really takes: one bot's turn on that hardware
 #  (partial CPU/96GB RAM offload) took 2-5 minutes in the 2026-08-16
-#  measurements. Even 1 bot x 90 turns can be hours, not minutes; the
+#  measurements. Even 1 bot x 98 turns can be hours, not minutes; the
 #  run won't stop on its own unless it actually gets stuck (see
 #  LLM_BOT_MAX_CONSECUTIVE_FAILURES below).
 #
@@ -29,7 +29,7 @@ set -euo pipefail
 export LM_STUDIO_BASE_URL="http://192.168.0.2:1234/v1/"
 export LLM_BOT_MODEL="openai/gpt-oss-20b"
 export LLM_BOT_COUNT=1
-export LLM_BOT_TURNS=90
+export LLM_BOT_TURNS=98
 
 # Generous timeout for a single request - catches a real hang without
 # cutting off honest long thinking by the model.

@@ -11,6 +11,30 @@ using Game.Engine;
 // интерактивный список (ConfigSelector) — без хардкода секторов A/Б прежних блоков. Блок 7.3.2
 // (docs/balancing-bots.md §2): по-прежнему прогоняет сетку leverage×profile, не одну стратегию.
 var cliArguments = CliArguments.Parse(args);
+
+// Направление C (Блок «геометрическая развёртка», rebalance/2-sector-stepwise, 2026-08-24) — цепочка
+// целиком синтетическая, собирается из --sweep-* флагов, не из файла, поэтому выходит раньше
+// ConfigSelector.Load (тому иначе пришлось бы спрашивать --config, который здесь не нужен вовсе).
+if (cliArguments.Mode == RunMode.Sweep)
+{
+    var sweepResults = GeometricChainSweep.Run(
+        cliArguments.SweepBaseBuildCost,
+        cliArguments.SweepBaseFixedCostPerTurn,
+        cliArguments.SweepBaseProductionRate,
+        cliArguments.SweepLevels,
+        cliArguments.SweepInputQuantityPerLevel,
+        cliArguments.SweepGrowthSteps,
+        cliArguments.SweepDecaySteps,
+        cliArguments.SweepPaybackWarningTurns,
+        cliArguments.SweepWorkers);
+    var sweepReportText = GeometricChainSweepReportWriter.Format(sweepResults, cliArguments.SweepLevels, cliArguments.SweepPaybackWarningTurns);
+    var sweepOutPath = cliArguments.OutPath == "balancing-report.json" ? "sweep-report.txt" : cliArguments.OutPath;
+    await File.WriteAllTextAsync(sweepOutPath, sweepReportText);
+    Console.Write(sweepReportText);
+    Console.WriteLine($"Отчёт направления C записан: {Path.GetFullPath(sweepOutPath)}");
+    return;
+}
+
 var config = ConfigSelector.Load(cliArguments);
 
 // Блок «аналитический расчёт себестоимости» — статический срез без хода/рынка/ботов, поэтому выходит
@@ -18,14 +42,40 @@ var config = ConfigSelector.Load(cliArguments);
 if (cliArguments.Mode == RunMode.CostLevels)
 {
     var costRows = ProductionCostLevelCalculator.Calculate(config, cliArguments.Workers);
-    var reportText = ProductionCostLevelReportWriter.Format(costRows);
+    var paybackWarningTurns = ProductionCostLevelReportWriter.DefaultPaybackWarningTurns(config.Raw.Duration);
+    var reportText = ProductionCostLevelReportWriter.Format(costRows, paybackWarningTurns);
     var costLevelsOutPath = cliArguments.OutPath == "balancing-report.json" ? "cost-level-report.txt" : cliArguments.OutPath;
     await File.WriteAllTextAsync(costLevelsOutPath, reportText);
     Console.WriteLine($"Отчёт себестоимости по уровням записан: {Path.GetFullPath(costLevelsOutPath)}");
     return;
 }
 
-var preset = config.Raw.SessionPresets.Single(p => p.Id == cliArguments.PresetId);
+// Блок «трассировка ботов» (rebalance/2-sector-stepwise) — одна партия с построчным логом решений,
+// не JSON-отчёт по сетке, поэтому тоже выходит раньше остальной инфраструктуры грида.
+if (cliArguments.Mode == RunMode.Trace)
+{
+    await TraceRun.RunAsync(config, cliArguments);
+    return;
+}
+
+// Блок «автоподбор параметров» (rebalance/2-sector-stepwise) — бисекция по одному рычагу конфига до
+// заданной цели по X(t)/Score(t), тоже одна партия/расчёт за итерацию, не сетка.
+if (cliArguments.Mode == RunMode.Calibrate)
+{
+    await CalibrateRun.RunAsync(config, cliArguments);
+    return;
+}
+
+// Блок «единая диагностика» (rebalance/2-sector-stepwise, 2026-08-23) — себестоимость + бутерброд
+// наценок + идеальный зал + реальный бот одним прогоном, тоже выходит раньше остальной инфраструктуры
+// грида (ей своя пресетная инфраструктура не нужна, только duration.MaxTurns).
+if (cliArguments.Mode == RunMode.Diagnose)
+{
+    await DiagnoseRun.RunAsync(config, cliArguments);
+    return;
+}
+
+var duration = config.Raw.Duration;
 
 if (cliArguments.TeamsPerSector <= 0)
 {
@@ -47,8 +97,7 @@ var metadata = new RunMetadata
     ConfigPath = cliArguments.ConfigPath ?? "(выбран интерактивно)",
     SessionPath = cliArguments.SessionPath,
     Mode = cliArguments.Mode == RunMode.IdealHall ? "ideal-hall" : "grid",
-    PresetId = cliArguments.PresetId,
-    MaxTurns = preset.MaxTurns,
+    MaxTurns = duration.MaxTurns,
     Sectors = sectorSummaries,
     GitCommit = GitCommitReader.TryGetCurrentCommit(),
     GeneratedAtUtc = DateTimeOffset.UtcNow,
@@ -57,7 +106,7 @@ var metadata = new RunMetadata
 // Блок 7.3.5 (docs/balancing-bots.md §3): X(t) зависит только от конфига, не от leverage/profile —
 // считается один раз и используется и как самостоятельный режим (--mode ideal-hall), и как опорная
 // линия сходимости Score(t)/X(t) для сетки ботовых стратегий ниже.
-var idealHall = IdealHallCalculator.Calculate(config, preset.MaxTurns);
+var idealHall = IdealHallCalculator.Calculate(config, duration.MaxTurns);
 var idealHallSection = new IdealHallSection
 {
     ValueByTurnBySector = idealHall.Branches.ToDictionary(b => b.SectorId, b => b.ValueByTurn),
@@ -65,7 +114,7 @@ var idealHallSection = new IdealHallSection
 
 if (cliArguments.Mode == RunMode.IdealHall)
 {
-    PrintIdealHallTable(idealHall, preset.MaxTurns);
+    PrintIdealHallTable(idealHall, duration.MaxTurns);
     await WriteReportAsync(
         new BalancingRunReport { Metadata = metadata, IdealHall = idealHallSection, GenerationParity = generationParitySection },
         cliArguments.OutPath);
@@ -95,10 +144,16 @@ var results = StrategyGridRunner.Run(leverageLevels, profileLevels, cliArguments
         }
     }
 
-    // Зерно жеребьёвки хода окончания и решений ботов зависит и от ячейки, и от номера партии внутри
-    // неё — иначе все ячейки играли бы на одном и том же наборе партий, что скрыло бы часть разброса.
+    // Зерно решений ботов зависит и от ячейки, и от номера партии внутри неё — иначе все ячейки
+    // играли бы на одном и том же наборе партий, что скрыло бы часть разброса. Ход окончания —
+    // ДЕТЕРМИНИРОВАН и равен duration.MaxTurns (тому же горизонту, что считает IdealHallCalculator), не
+    // случайная жеребьёвка в [MinTurns, MaxTurns] (запрос пользователя, rebalance/2-sector-stepwise,
+    // 2026-08-22) — здесь сравниваем Score(t) реального бота с X(t) идеального зала на одном и том же
+    // t, иначе сходимость Score/X считает разные горизонты и ничего не значит. Настоящая случайная
+    // жеребьёвка (SPEC §4 — MaxTurns публично известен, точный EndTurn нет) остаётся только в реальной
+    // игре (Game.Web), не в этом диагностическом инструменте.
     var seed = (int)(leverage * 1000) * 100_000 + (int)(profile * 1000) * 1000 + sessionIndex;
-    var session = GameSession.Start(config, preset, teams, new Random(seed + 1));
+    var session = GameSession.StartWithEndTurn(config, duration.MaxTurns, teams);
     return (session, (IReadOnlyList<SimpleBot>)bots, new Random(seed + 1_000_000));
 }, progress =>
 {
@@ -157,7 +212,7 @@ static string FormatNullable(decimal? value, string format) =>
 /// <summary>Консольная таблица X(t) — только для режима --mode ideal-hall, чтобы видеть числа сразу, не только в JSON.</summary>
 static void PrintIdealHallTable(IdealHallResult result, int maxTurns)
 {
-    Console.WriteLine($"Идеальный зал: {maxTurns} ходов (MaxTurns пресета — публично известная верхняя граница, не тайный EndTurn).");
+    Console.WriteLine($"Идеальный зал: {maxTurns} ходов (MaxTurns сессии — публично известная верхняя граница, не тайный EndTurn).");
     Console.WriteLine();
 
     var header = "Ход " + string.Join(' ', result.Branches.Select(b => $"{b.SectorId,14}"));

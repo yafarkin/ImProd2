@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Linq;
 using System.Text;
+using Game.Engine;
 
 namespace Game.Balancing;
 
@@ -10,20 +12,45 @@ namespace Game.Balancing;
 /// (тот же смысл, что в интерфейсе — «Себестоимость единицы», см. <c>DashboardDisplay.FormatUnitCost</c>
 /// в Game.Web, здесь не переиспользуется напрямую, чтобы не тянуть зависимость на Game.Web ради двух
 /// форматных строк), плюс «Себестоимость на 1 рабочего» — честная единица сравнения между фабриками и
-/// уровнями с разным числом параллельных фабрик. Никакой цены продажи/margin в отчёте намеренно нет —
-/// в этой игре реальная цена складывается из рыночной котировки и переговоров с другими командами,
-/// заранее неизвестна и не выводится из конфига («нет никакого margin», запрос пользователя,
-/// 2026-08-21 — прежняя наивная оценка выручки/прибыли через `BasePrice × MarginMultiplierByProcessingLevel`
-/// удалена как вводящая в заблуждение). В конце — сводная таблица «сектор;уровень;сумма расходов
-/// уровня» с отметкой, где разброс между секторами на одном уровне превышает <see
-/// cref="LevelParityWarningRatio"/>.
+/// уровнями с разным числом параллельных фабрик. В конце — сводная таблица «сектор;уровень;сумма
+/// расходов уровня» с отметкой, где разброс между секторами на одном уровне превышает <see
+/// cref="LevelParityWarningRatio"/>, и таблица окупаемости по уровням (<see cref="AppendPaybackSummary"/>).
+/// <para>
+/// Раньше (2026-08-21) в отчёте намеренно не было никакой цены продажи/margin — реальная цена
+/// складывалась из рыночной котировки и переговоров, заранее неизвестна. С тех пор игра перешла на
+/// фиксированную наценку системной продажи (<see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/>,
+/// не рыночная котировка) — и по ней, как по гарантированному ПОЛУ дохода (без кросс-торговли вообще:
+/// доказано, что в симметричной топологии P2P даёт команде чистый ноль), можно честно посчитать
+/// окупаемость (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-23, направление A плана
+/// исследований — <c>docs/rebalance-2sector/balance-experiment-plan.md</c>). Это не наивная оценка
+/// прежних времён (`BasePrice × MarginMultiplierByProcessingLevel`, отвязанная от себестоимости) —
+/// наценка накладывается на уже посчитанную настоящую себестоимость, не на произвольную табличную цену.
+/// </para>
 /// </summary>
 public static class ProductionCostLevelReportWriter
 {
     /// <summary>Порог «стоит отметить» разброса между самым дорогим и самым дешёвым сектором на одном уровне (запрос пользователя — не больше 15%).</summary>
     public const decimal LevelParityWarningRatio = 1.15m;
 
-    public static string Format(IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows)
+    /// <summary>
+    /// Запас ходов на конец партии для окупаемости по умолчанию (решение пользователя, 2026-08-23:
+    /// «к ходу 75 из 90 в плюс, чтобы оставалось 15 ходов запаса на рост или исправление ситуации» —
+    /// не <c>MaxTurns / 2</c>, как было раньше по умолчанию, а именно <c>MaxTurns − 15</c>). Единое
+    /// место — <c>Program.cs</c> (<c>--mode cost-levels</c>), <c>DiagnoseRun</c> и
+    /// <c>AdminBalanceLab.razor</c> берут порог отсюда, не считают втроём по-разному.
+    /// </summary>
+    public const decimal DefaultPaybackBufferTurns = 15m;
+
+    /// <summary>Порог окупаемости по умолчанию для конфига — длина сессии минус <see cref="DefaultPaybackBufferTurns"/>, не меньше нуля.</summary>
+    public static decimal DefaultPaybackWarningTurns(Game.Config.Session.SessionDurationConfig duration)
+    {
+        ArgumentNullException.ThrowIfNull(duration);
+        return Math.Max(0m, duration.MaxTurns - DefaultPaybackBufferTurns);
+    }
+
+    /// <param name="rows"><see cref="ProductionCostLevelCalculator.Calculate"/>.</param>
+    /// <param name="paybackWarningTurns">Порог «стоит отметить» для окупаемости (в ходах) — выше него уровень флагуется как рискованный (см. <see cref="AppendPaybackSummary"/>). <c>null</c> — без предупреждений, только цифры.</param>
+    public static string Format(IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows, decimal? paybackWarningTurns = null)
     {
         ArgumentNullException.ThrowIfNull(rows);
 
@@ -74,6 +101,15 @@ public static class ProductionCostLevelReportWriter
                     text.AppendLine(
                         $"  Себестоимость на 1 рабочего: {FormatMoney(row.CostPerWorker)} /ход (честная единица сравнения между " +
                         "фабриками/уровнями с разным числом параллельных фабрик)");
+                    text.AppendLine(
+                        $"  Окупаемость (BuildCost={FormatMoney(row.BuildCost)}, продажа 100% выпуска системе, без кросс-торговли): " +
+                        (row.PaybackTurns is { } payback ? $"{payback:F1} ход(ов)" : "никогда (нулевая или отрицательная маржа)"));
+                    if (paybackWarningTurns is { } targetTurns)
+                    {
+                        text.AppendLine(
+                            $"  Допустимый BuildCost при цели {targetTurns:F0} ход(ов) (направление B, обратная задача): " +
+                            $"≤{FormatMoney(row.MaxBuildCostForTargetPayback(targetTurns))}");
+                    }
 
                     if (row.Inputs.Count > 0)
                     {
@@ -101,7 +137,55 @@ public static class ProductionCostLevelReportWriter
         AppendLevelSummary(text, rows);
         AppendByLevelBySectorView(text, rows);
         AppendMonotonicityCheck(text, rows);
+        AppendPaybackSummary(text, rows, paybackWarningTurns);
         return text.ToString();
+    }
+
+    /// <summary>
+    /// Срок окупаемости каждого уровня в изоляции (направление A плана исследований,
+    /// <c>docs/rebalance-2sector/balance-experiment-plan.md</c>, 2026-08-23) — сводная таблица по
+    /// каждой строке <see cref="ProductionCostLevelCalculator.FactoryRecipeCost.PaybackTurns"/>, с
+    /// отметкой ⚠, если он превышает <paramref name="warningTurns"/> (например, половину длительности
+    /// самой длинной сессии — решение пользователя: «мы не уверены, что реально до конца дойдут
+    /// ребята, а так есть риск застрять в финансовой яме», окупаемость обязана уложиться с запасом,
+    /// не ровно к последнему ходу).
+    /// </summary>
+    private static void AppendPaybackSummary(
+        StringBuilder text, IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows, decimal? warningTurns)
+    {
+        text.AppendLine(
+            warningTurns is { } w
+                ? $"=== Окупаемость по уровням (продажа 100% системе, без кросс-торговли; порог предупреждения — {w:F0} ход(ов)) ==="
+                : "=== Окупаемость по уровням (продажа 100% системе, без кросс-торговли) ===");
+        text.AppendLine(
+            warningTurns is { }
+                ? "sector;level;factory;recipe;build_cost;payback_turns;max_build_cost_for_target"
+                : "sector;level;factory;recipe;build_cost;payback_turns");
+
+        var ordered = rows
+            .OrderBy(r => r.SectorId, StringComparer.Ordinal)
+            .ThenBy(r => r.Level)
+            .ThenBy(r => r.FactoryId, StringComparer.Ordinal)
+            .ThenBy(r => r.RecipeId, StringComparer.Ordinal)
+            .ToList();
+
+        foreach (var row in ordered)
+        {
+            var paybackText = row.PaybackTurns is { } payback
+                ? payback.ToString("F1", CultureInfo.InvariantCulture)
+                : "never";
+            var marker = row.PaybackTurns is null || (warningTurns is { } threshold && row.PaybackTurns > threshold)
+                ? " ⚠"
+                : "";
+            var line = $"{row.SectorId};{row.Level};{row.FactoryId};{row.RecipeId};{row.BuildCost.ToString("0.##", CultureInfo.InvariantCulture)};{paybackText}";
+            if (warningTurns is { } target)
+            {
+                line += $";{row.MaxBuildCostForTargetPayback(target).ToString("0.##", CultureInfo.InvariantCulture)}";
+            }
+            text.AppendLine(line + marker);
+        }
+
+        text.AppendLine();
     }
 
     /// <summary>

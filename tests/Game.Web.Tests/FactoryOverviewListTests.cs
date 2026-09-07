@@ -1,3 +1,4 @@
+using Game.Config.Loading;
 using Game.Domain;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,11 +16,21 @@ public class FactoryOverviewListTests
     private static readonly IReadOnlyDictionary<Ulid, decimal> NoOutputs = new Dictionary<Ulid, decimal>();
     private static readonly IReadOnlyDictionary<Ulid, decimal> NoMaxes = new Dictionary<Ulid, decimal>();
 
+
+    /// <summary>
+    /// Маленький детерминированный каталог (<c>tests/Fixtures/production-models/standard.json</c>):
+    /// два сектора по два-три передела. Тесты интерфейса должны опираться на неизменную форму
+    /// цепочки, а не на боевую производственную модель — иначе любая правка контента (2026-09-07:
+    /// у боевой модели стало по три сырьевых материала на сектор) роняет проверки вёрстки, которые
+    /// к содержанию цепочки отношения не имеют.
+    /// </summary>
+    private static ResolvedGameConfig FixtureConfig() => GameConfigLoader.LoadFromFiles(
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "tiny-2-sectors.json"),
+        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json"));
+
     private static (FactoryDefinition Mine, FactoryDefinition Mill, Sector Sector) SectorAMineAndMill()
     {
-        using var factory = new WebApplicationFactory<Program>();
-        var host = factory.Services.GetRequiredService<GameSessionHost>();
-        var config = host.DefaultConfig;
+        var config = FixtureConfig();
         var sectorA = config.Sectors.First();
         var definitions = config.FactoryDefinitions.Where(d => d.Sector.Id == sectorA.Id).ToList();
         var mine = definitions.Single(d => d.Recipes.Single().Output.Level == 0);

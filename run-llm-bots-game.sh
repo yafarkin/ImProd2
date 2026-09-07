@@ -2,20 +2,20 @@
 set -euo pipefail
 
 # ==================================================================
-#  LLM bots for im_prod - stage 2 (two sectors: metallurgy A +
-#  petrochemistry B), unattended run. Same runner as
-#  run-llm-bots-stage1.sh, different production model + bot layout -
-#  see LLM_BOT_PRODUCTION_MODEL/LLM_BOT_SECTORS below. Put this file
-#  in the repository root (next to ImProd.sln) and run it:
-#      chmod +x run-llm-bots-stage2.sh   # once
-#      ./run-llm-bots-stage2.sh
+#  LLM bots for im_prod - game model (three sectors: metallurgy A +
+#  petrochemistry B + forestry V), unattended run. Same runner as
+#  run-llm-bots-training.sh, different production model + bot layout
+#  - see LLM_BOT_PRODUCTION_MODEL/LLM_BOT_SECTORS below. Put this
+#  file in the repository root (next to ImProd.sln) and run it:
+#      chmod +x run-llm-bots-game.sh   # once
+#      ./run-llm-bots-game.sh
 #  Adjust the settings below for your setup - the LM Studio server
 #  address is already set for the desktop PC.
 #
-#  Purpose (request 2026-08-20): first confirm a single stage-1 bot
+#  Purpose (request 2026-08-20): first confirm a single training-model bot
 #  behaves normally with the latest fixes (rate cap, wear warning,
 #  required "reason", checkpoint/resume), THEN move to this script -
-#  it puts one bot in sector A and one in sector B so the public
+#  it puts one bot in each of the three sectors so the public
 #  trade-offer board (PostSellOffer/PostBuyOffer/FulfillTradeOffer)
 #  actually gets exercised between two different sectors, not just
 #  built and left untested.
@@ -32,7 +32,7 @@ set -euo pipefail
 #  starting over. That file (and the session journal alongside it)
 #  are deleted automatically once a run finishes or gives up cleanly;
 #  don't touch them by hand while a run is in progress. Don't switch
-#  between running stage1.sh and stage2.sh while a ".working.json"
+#  between running training.sh and game.sh while a ".working.json"
 #  from the other one is still sitting there unresolved - they share
 #  the same executable folder and checkpoint file name.
 # ==================================================================
@@ -40,12 +40,12 @@ set -euo pipefail
 export LM_STUDIO_BASE_URL="http://192.168.0.2:1234/v1/"
 export LLM_BOT_MODEL="openai/gpt-oss-20b"
 
-# Stage 2 production model (metallurgy A + petrochemistry B, see
-# docs/production-staging.md) and one bot per sector, round-robin.
-export LLM_BOT_PRODUCTION_MODEL="metallurgy-petrochemistry.json"
-export LLM_BOT_SECTORS="A,B"
-export LLM_BOT_COUNT=2
-export LLM_BOT_TURNS=90
+# Game production model (metallurgy A + petrochemistry B + forestry V,
+# see docs/production-staging.md) and one bot per sector, round-robin.
+export LLM_BOT_PRODUCTION_MODEL="main-3-sectors.json"
+export LLM_BOT_SECTORS="A,B,V"
+export LLM_BOT_COUNT=3
+export LLM_BOT_TURNS=98
 
 # Generous timeout for a single request - catches a real hang without
 # cutting off honest long thinking by the model.

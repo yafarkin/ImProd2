@@ -1,3 +1,4 @@
+using Game.Config.Loading;
 using Game.Domain;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,76 +8,46 @@ namespace Game.Web.Tests;
 /// <summary>Раскладка цепочки материалов в SVG-координаты (запрос пользователя «отрисовка всей цепочки материалов») — над пилотным конфигом (Блок 9.3).</summary>
 public class MaterialChainDiagramTests
 {
-    private static Game.Config.Loading.ResolvedGameConfig PilotConfig()
+    /// <summary>
+    /// Маленький неизменный каталог (<c>tests/Fixtures/production-models/standard.json</c>): два
+    /// сектора, пять материалов, руда → лист → арматура. Раскладку (узлы, столбцы, цвета, подписи
+    /// рёбер) проверяем на нём, а не на боевой модели — правило геометрии не зависит от контента, а
+    /// прибивать проверки вёрстки к живой цепочке значит ронять их при каждой правке баланса.
+    /// </summary>
+    private static ResolvedGameConfig LayoutFixture() => GameConfigLoader.LoadFromFiles(
+        FixturePath("tiny-2-sectors.json"), SessionPath);
+
+    /// <summary>
+    /// Боевая трёхсекторная модель — на ней проверяем ровно то, что без реального контента проверить
+    /// нельзя: кросс-секторные рёбра, схождение веток и сквозные рёбра через границу сектора.
+    /// </summary>
+    private static ResolvedGameConfig GameConfig()
     {
         using var factory = new WebApplicationFactory<Program>();
         var host = factory.Services.GetRequiredService<GameSessionHost>();
         return host.DefaultConfig;
     }
 
-    private static Game.Config.Loading.ResolvedGameConfig DebugConfig()
-    {
-        using var factory = new WebApplicationFactory<Program>();
-        var host = factory.Services.GetRequiredService<GameSessionHost>();
-        return host.DebugConfig;
-    }
-
     /// <summary>
-    /// metallurgy.json — production-модель с сознательными сквозными рёбрами (крепёж уровня 2 как
-    /// прямой вход сборок уровня 8-9), нужна отдельно от <see cref="DefaultConfig"/>/<see
-    /// cref="DebugConfig"/> для проверки <see cref="MaterialChainDiagram.Edge.LevelSpan"/>.
+    /// <c>mirrored-sectors-deep-chain.json</c> — фикстура с сознательным сквозным ребром громадного
+    /// пролёта (крепёж уровня 2 как прямой вход сборки коробки передач уровня 8). Живым моделям такой
+    /// глубины больше нет (обе сокращены до 6-7 уровней 2026-09-07), а проверять верхнюю границу
+    /// <see cref="MaterialChainDiagram.Edge.LevelSpan"/> на чём-то надо — поэтому файл и оставлен
+    /// среди тестовых фикстур, хотя как играбельная цепочка он замещён.
     /// </summary>
-    private static Game.Config.Loading.ResolvedGameConfig MetallurgyConfig()
-    {
-        using var factory = new WebApplicationFactory<Program>();
-        var host = factory.Services.GetRequiredService<GameSessionHost>();
-        return Game.Config.Loading.GameConfigLoader.Load(host.ProductionModels["metallurgy"], host.SessionConfigs["pilot"]);
-    }
+    private static ResolvedGameConfig DeepChainFixture() => GameConfigLoader.LoadFromFiles(
+        FixturePath("mirrored-sectors-deep-chain.json"), SessionPath);
 
-    /// <summary>
-    /// metallurgy-petrochemistry.json — стадия 2 плана раскрытия секторов (`docs/production-staging.md`):
-    /// у каждой отрасли своя заготовка большого продукта (автомобиль/катер), обе тянут материалы у
-    /// соседней отрасли — взаимно, а не односторонне.
-    /// </summary>
-    private static Game.Config.Loading.ResolvedGameConfig MetallurgyPetrochemistryConfig()
-    {
-        using var factory = new WebApplicationFactory<Program>();
-        var host = factory.Services.GetRequiredService<GameSessionHost>();
-        return Game.Config.Loading.GameConfigLoader.Load(
-            host.ProductionModels["metallurgy-petrochemistry"], host.SessionConfigs["pilot"]);
-    }
+    private static string FixturePath(string fileName) =>
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", fileName);
 
-    /// <summary>
-    /// metallurgy-petrochemistry-forestry.json — стадия 3 плана (`docs/production-staging.md`): третий
-    /// сектор (В, Лес и агротекстиль) замыкает связи в треугольник, а не просто добавляет ещё одну
-    /// независимую пару — каждая отрасль одновременно и поставщик, и заказчик у каждой из двух других.
-    /// </summary>
-    private static Game.Config.Loading.ResolvedGameConfig MetallurgyPetrochemistryForestryConfig()
-    {
-        using var factory = new WebApplicationFactory<Program>();
-        var host = factory.Services.GetRequiredService<GameSessionHost>();
-        return Game.Config.Loading.GameConfigLoader.Load(
-            host.ProductionModels["metallurgy-petrochemistry-forestry"], host.SessionConfigs["pilot"]);
-    }
-
-    /// <summary>
-    /// metallurgy-petrochemistry-forestry-electronics.json — стадия 4, последняя, плана
-    /// (`docs/production-staging.md`): четвёртый сектор (Д, Электроника) не самодостаточен даже на
-    /// первом переделе (собственное сырьё — только кремний) и поставляет электронный модуль во все
-    /// три чужих флагмана разом, впервые доводя их до настоящего готового продукта, а не заготовки.
-    /// </summary>
-    private static Game.Config.Loading.ResolvedGameConfig MetallurgyPetrochemistryForestryElectronicsConfig()
-    {
-        using var factory = new WebApplicationFactory<Program>();
-        var host = factory.Services.GetRequiredService<GameSessionHost>();
-        return Game.Config.Loading.GameConfigLoader.Load(
-            host.ProductionModels["metallurgy-petrochemistry-forestry-electronics"], host.SessionConfigs["pilot"]);
-    }
+    private static string SessionPath =>
+        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json");
 
     [Fact]
     public void Build_Places_Every_Material_As_A_Node_And_Every_Recipe_Input_As_An_Edge()
     {
-        var config = PilotConfig();
+        var config = LayoutFixture();
 
         var layout = MaterialChainDiagram.Build(config);
 
@@ -91,7 +62,7 @@ public class MaterialChainDiagramTests
     [Fact]
     public void Build_Colors_Materials_Of_The_Same_Sector_Alike_And_Different_Sectors_Differently()
     {
-        var config = PilotConfig();
+        var config = LayoutFixture();
         var layout = MaterialChainDiagram.Build(config);
 
         var bySector = layout.Nodes.ToLookup(node => node.Material.Sector.Id);
@@ -109,7 +80,7 @@ public class MaterialChainDiagramTests
     [Fact]
     public void Build_Places_Raw_Materials_In_The_Leftmost_Column_And_Higher_Levels_Further_Right()
     {
-        var config = PilotConfig();
+        var config = LayoutFixture();
         var layout = MaterialChainDiagram.Build(config);
 
         var rawX = layout.Nodes.Where(node => node.Material.IsRawMaterial).Select(node => node.X).Distinct().Single();
@@ -122,7 +93,7 @@ public class MaterialChainDiagramTests
     [Fact]
     public void Build_Labels_Edges_With_The_Recipe_Input_Ratio_Per_One_Unit_Of_Output()
     {
-        var config = PilotConfig();
+        var config = LayoutFixture();
         var sheet = config.Materials["sheet"];
         var recipe = config.RecipeBook.GetRecipe(sheet);
         var oreInput = recipe.Inputs.Single();
@@ -138,54 +109,49 @@ public class MaterialChainDiagramTests
     }
 
     /// <summary>
-    /// Ревизия нефтехимии (запрос пользователя: ПВХ реально не делают из полиэтилена, шинный корд не
-    /// имеет отношения к оконным рамам — обе связи в старой версии debug.json существовали только
-    /// ради диагонали на диаграмме, не по химии). Настоящая конвергенция двух веток нефтехимии
-    /// (пластиковой и резиновой) теперь — «Композитные материалы» (SPEC production-chains.md: «из
-    /// Пластика + Резины»). ПВХ-профиль и шинный корд — разные материалы одного уровня, у каждого
-    /// материала внутри уровня своя строка (см. doc-comment <see cref="MaterialChainDiagram"/>), а
-    /// «Композитные материалы» — один узел с одной Y — значит хотя бы один из двух входов физически не
-    /// может лечь горизонтально и обязан остаться видимой диагональю, какой бы из двух рецепт ни
-    /// выбрал «своим» при сортировке строк.
+    /// Материал, у которого сходятся ветки из разных секторов, обязан рисоваться настоящим
+    /// схождением: слагаемые лежат в РАЗНЫХ строках раскладки (у каждого материала внутри уровня
+    /// своя строка, см. doc-comment <see cref="MaterialChainDiagram"/>), а цель — один узел с одной Y,
+    /// значит хотя бы одно из входящих рёбер физически не может лечь горизонтально. Стальной каркас
+    /// (А, уровень 5) собирается из своего листа (А), полимерного гранулята (Б) и фанеры (В) — три
+    /// ветки, три сектора.
     /// </summary>
     [Fact]
-    public void Build_Draws_Composite_Material_As_A_Convergence_Of_Both_Petrochemical_Branches()
+    public void Build_Draws_A_Convergence_Point_As_Diagonals_From_Different_Rows()
     {
-        var config = DebugConfig();
+        var config = GameConfig();
         var layout = MaterialChainDiagram.Build(config);
 
-        var pvcProfile = layout.Nodes.Single(n => n.Material.Id == "pvc-profile");
-        var tireCord = layout.Nodes.Single(n => n.Material.Id == "tire-cord");
-        Assert.NotEqual(pvcProfile.Y, tireCord.Y); // разные ветки — разные строки.
+        var sheet = layout.Nodes.Single(n => n.Material.Id == "steel-sheet");
+        var granulate = layout.Nodes.Single(n => n.Material.Id == "polymer-granulate");
+        var plywood = layout.Nodes.Single(n => n.Material.Id == "plywood");
+        Assert.Equal(3, new[] { sheet.Y, granulate.Y, plywood.Y }.Distinct().Count());
 
-        var fromPvcProfile = layout.Edges.Single(e => e.SourceMaterialId == "pvc-profile" && e.TargetMaterialId == "composite-material");
-        var fromTireCord = layout.Edges.Single(e => e.SourceMaterialId == "tire-cord" && e.TargetMaterialId == "composite-material");
-        Assert.True(
-            fromPvcProfile.Y1 != fromPvcProfile.Y2 || fromTireCord.Y1 != fromTireCord.Y2,
-            "At least one of the two inputs into composite-material must render as a diagonal cross-branch edge.");
+        var incoming = layout.Edges.Where(e => e.TargetMaterialId == "steel-frame").ToList();
+        Assert.Equal(3, incoming.Count);
+        Assert.Contains(incoming, e => e.Y1 != e.Y2);
     }
 
     /// <summary>
-    /// Связь между секторами «Металлургия» и «Нефтегазохимия» (запрос пользователя «где у нас идёт
-    /// связь металлургов и нефтехимией», Block 9.5, ревизия — запрос пользователя: у шин настоящий
-    /// корд стальной, не медный): добыча железа/меди берёт нефть как топливо, заготовки шин — стальную
-    /// проволоку как металлокорд, а корпус судна — металлоконструкции как балласт/такелажную оснастку.
-    /// Все три — рёбра между узлами разных секторов, которые в раскладке лежат в разных вертикальных
-    /// блоках, поэтому такое ребро всегда заметная длинная диагональ, а не короткая линия внутри одной
-    /// ветки.
+    /// Связь между секторами — это ребро между узлами, которые в раскладке лежат в разных
+    /// вертикальных блоках, поэтому оно всегда заметная длинная диагональ, а не короткая линия внутри
+    /// одной ветки. Проверяем на трёх реальных импортных входах боевой модели, по одному на каждое
+    /// принимающее направление, вместе с количеством из рецепта: количество кросс-входа ДЕЛИТСЯ со
+    /// своим сырьём, а не добавляется сверху (правило
+    /// <c>docs/production-chain-calibration-lessons.md</c>), поэтому оно дробное — круглая единица
+    /// здесь была бы первым признаком вернувшегося аддитивного кросс-ребра.
     /// </summary>
     [Fact]
-    public void Build_Draws_Cross_Sector_Links_Between_Metallurgy_And_Petrochemistry()
+    public void Build_Draws_Cross_Sector_Links_As_Diagonals_With_A_Shared_Input_Quantity()
     {
-        var config = DebugConfig();
+        var config = GameConfig();
         var layout = MaterialChainDiagram.Build(config);
 
         foreach (var (sourceId, targetId, quantity) in new[]
                  {
-                     ("oil", "iron", 5m),
-                     ("oil", "copper", 10m),
-                     ("steel-wire", "tire-carcass", 2m),
-                     ("steel-structures", "hull", 2m),
+                     ("industrial-gas", "crude-steel", 0.3m),   // Б -> А
+                     ("pulp", "polymer-granulate", 0.3m),       // В -> Б
+                     ("pig-iron", "laminated-beam", 0.15m),     // А -> В
                  })
         {
             var source = layout.Nodes.Single(n => n.Material.Id == sourceId);
@@ -199,27 +165,12 @@ public class MaterialChainDiagramTests
             Assert.NotEqual(edge.Y1, edge.Y2);
             var recipe = config.RecipeBook.GetRecipe(target.Material);
             Assert.Equal(quantity, recipe.Inputs.Single(input => input.Material.Id == sourceId).Quantity);
+            Assert.True(
+                quantity < 1m,
+                $"Кросс-вход {sourceId} -> {targetId} должен делить количество со своим сырьём, а не добавляться сверху.");
         }
     }
 
-    /// <summary>
-    /// Запрос пользователя: сделать в самой нефтехимии связь «фабрика N берёт материал не с
-    /// предыдущего уровня, а издалека», по образцу крепежа в metallurgy.json. Технический углерод
-    /// (сажа, уровень 1) и клеевой состав из метанола (уровень 2) — оба реалистичные шинные
-    /// добавки — идут напрямую в заготовки шин (уровень 4), минуя уровни между ними.
-    /// </summary>
-    [Fact]
-    public void Build_Marks_Petrochemical_Skip_Level_Edges_With_LevelSpan_Greater_Than_One()
-    {
-        var config = DebugConfig();
-        var layout = MaterialChainDiagram.Build(config);
-
-        var carbonBlackSkip = layout.Edges.Single(e => e.SourceMaterialId == "carbon-black" && e.TargetMaterialId == "tire-carcass");
-        Assert.Equal(3, carbonBlackSkip.LevelSpan); // carbon-black (level 1) -> tire-carcass (level 4).
-
-        var adhesiveSkip = layout.Edges.Single(e => e.SourceMaterialId == "cord-adhesive" && e.TargetMaterialId == "tire-carcass");
-        Assert.Equal(2, adhesiveSkip.LevelSpan); // cord-adhesive (level 2) -> tire-carcass (level 4).
-    }
 
     /// <summary>
     /// Запрос пользователя: на глубоких цепочках со сквозными рёбрами (материал N-го уровня как вход
@@ -230,7 +181,7 @@ public class MaterialChainDiagramTests
     [Fact]
     public void Build_Labels_Each_Edge_With_The_Material_Ids_Of_Both_Ends()
     {
-        var config = PilotConfig();
+        var config = LayoutFixture();
         var sheet = config.Materials["sheet"];
         var recipe = config.RecipeBook.GetRecipe(sheet);
         var oreInput = recipe.Inputs.Single();
@@ -247,12 +198,12 @@ public class MaterialChainDiagramTests
     /// Тот же запрос пользователя, дальше: <see cref="MaterialChainDiagram.Edge.LevelSpan"/> должен
     /// отличать «сквозные» рёбра от обычных «соседних» — на нём страница решает, приглушать ли ребро
     /// по умолчанию. Проверяем на реальном сквозном ребре (крепёж уровня 2 — прямой вход сборки
-    /// коробки передач уровня 8 в metallurgy.json, минуя все промежуточные переделы).
+    /// коробки передач уровня 8 в mirrored-sectors-deep-chain.json, минуя все промежуточные переделы).
     /// </summary>
     [Fact]
     public void Build_Marks_Skip_Level_Edges_With_A_LevelSpan_Greater_Than_One()
     {
-        var config = MetallurgyConfig();
+        var config = DeepChainFixture();
         var layout = MaterialChainDiagram.Build(config);
 
         var fastenerSkipEdge = layout.Edges.Single(e => e.SourceMaterialId == "fasteners" && e.TargetMaterialId == "gearbox-assembly");
@@ -263,191 +214,74 @@ public class MaterialChainDiagramTests
     }
 
     /// <summary>
-    /// Стадия 2 плана (`docs/production-staging.md`): рычаг должен идти в обе стороны, не
-    /// односторонне (запрос пользователя — обсуждение риска «сектор держит всех за яйца»). Автомобиль
-    /// (сектор А) тянет шины/эмаль/бензин у Б, катер (сектор Б) тянет двигатель/крепёж у А — оба
-    /// флагмана зависят от чужого сектора, ни один не самодостаточен. Заодно (запрос пользователя:
-    /// «готовые шины выглядят нашлепкой» — их единственным потребителем был чужой флагман) шины теперь
-    /// нужны и самой нефтехимии: катер комплектуется прицепом (2 колеса), а не только продаёт шины на
-    /// сторону — без своего шинного завода Б не может закрыть даже собственный флагман, не только
-    /// чужой.
+    /// Взаимозависимость секторов должна идти во ВСЕ стороны, а не односторонне (обсуждение риска
+    /// «сектор держит всех за яйца»): в боевой модели у каждого из шести направлений между тремя
+    /// отраслями есть ровно по две связи, и у каждого сектора по четыре импортных входа и четыре
+    /// экспортных. Раньше это проверялось поштучно на стадиях 2-4 плана раскрытия секторов; те файлы
+    /// удалены 2026-09-07 вместе со стадиями, а само правило перенесено сюда и усилено — считаем не
+    /// «есть хоть одна связь», а замкнутость треугольника целиком.
     /// </summary>
     [Fact]
-    public void Build_Draws_Metallurgy_Petrochemistry_Flagships_As_Mutually_Dependent_On_Both_Sectors()
+    public void Build_Draws_All_Sector_Pairs_As_A_Closed_Ring_Of_Mutual_Dependency()
     {
-        var config = MetallurgyPetrochemistryConfig();
+        var config = GameConfig();
+
+        var crossLinks = config.Materials.Values
+            .Select(material => (Output: material, Recipe: config.RecipeBook.TryGetRecipe(material)))
+            .Where(pair => pair.Recipe is not null)
+            .SelectMany(pair => pair.Recipe!.Inputs.Select(input => (
+                From: input.Material.Sector.Id,
+                To: pair.Output.Sector.Id)))
+            .Where(link => link.From != link.To)
+            .ToList();
+
+        var sectorIds = config.Sectors.Select(sector => sector.Id).ToList();
+        Assert.Equal(3, sectorIds.Count);
+
+        foreach (var from in sectorIds)
+        {
+            foreach (var to in sectorIds.Where(id => id != from))
+            {
+                Assert.True(
+                    crossLinks.Count(link => link.From == from && link.To == to) >= 1,
+                    $"Нет ни одной связи {from} -> {to}: треугольник разомкнут, сектор {to} ничего не покупает у {from}.");
+            }
+        }
+
+        foreach (var sectorId in sectorIds)
+        {
+            Assert.True(crossLinks.Any(link => link.To == sectorId), $"Сектор {sectorId} ничего не импортирует.");
+            Assert.True(crossLinks.Any(link => link.From == sectorId), $"Сектор {sectorId} ничего не экспортирует.");
+        }
+    }
+
+    /// <summary>
+    /// Сквозные рёбра пересекают не только уровни внутри отрасли, но и границу сектора: фанера
+    /// (В, уровень 2) идёт напрямую и в стальной каркас (А, уровень 5), и в композитный корпус
+    /// (Б, уровень 5), минуя все промежуточные переделы обеих отраслей. На таком ребре страница
+    /// решает, приглушать ли его по умолчанию, поэтому <see cref="MaterialChainDiagram.Edge.LevelSpan"/>
+    /// обязан считаться по разнице уровней, а не по факту «сосед/не сосед».
+    /// </summary>
+    [Fact]
+    public void Build_Marks_Cross_Sector_Skip_Level_Edges_With_A_LevelSpan_Greater_Than_One()
+    {
+        var config = GameConfig();
         var layout = MaterialChainDiagram.Build(config);
 
-        var automobile = config.Materials["automobile"];
-        var automobileRecipe = config.RecipeBook.GetRecipe(automobile);
-        Assert.Equal("A", automobile.Sector.Id);
-        foreach (var petrochemicalInput in new[] { "tires", "paint", "gasoline" })
-        {
-            Assert.Contains(automobileRecipe.Inputs, input => input.Material.Id == petrochemicalInput);
-        }
+        var intoFrame = layout.Edges.Single(e => e.SourceMaterialId == "plywood" && e.TargetMaterialId == "steel-frame");
+        Assert.Equal(3, intoFrame.LevelSpan); // фанера (уровень 2) -> стальной каркас (уровень 5).
 
-        var boat = config.Materials["boat"];
-        var boatRecipe = config.RecipeBook.GetRecipe(boat);
-        Assert.Equal("B", boat.Sector.Id);
-        foreach (var metallurgyInput in new[] { "engine", "fasteners" })
-        {
-            Assert.Contains(boatRecipe.Inputs, input => input.Material.Id == metallurgyInput);
-        }
+        var intoBody = layout.Edges.Single(e => e.SourceMaterialId == "plywood" && e.TargetMaterialId == "composite-body");
+        Assert.Equal(3, intoBody.LevelSpan); // фанера (уровень 2) -> композитный корпус (уровень 5).
 
-        // Шины — не только экспорт в чужой флагман, но и обязательный ингредиент своего собственного.
-        Assert.Contains(boatRecipe.Inputs, input => input.Material.Id == "tires");
-
-        // Оба перекрёстных ребра — между разными столбцами секторов, значит заметная диагональ, не короткая линия.
-        foreach (var (sourceId, targetId) in new[] { ("tires", "automobile"), ("engine", "boat") })
-        {
-            var source = layout.Nodes.Single(n => n.Material.Id == sourceId);
-            var target = layout.Nodes.Single(n => n.Material.Id == targetId);
-            Assert.NotEqual(source.Material.Sector.Id, target.Material.Sector.Id);
-        }
-    }
-
-    /// <summary>
-    /// Ещё один вариант той же идеи: сквозные рёбра теперь идут и МЕЖДУ секторами, не только внутри
-    /// одного — бензин (Б, уровень 1) и эмаль (Б, уровень 2) идут напрямую в автомобиль (А, уровень 7),
-    /// минуя все промежуточные переделы обеих отраслей.
-    /// </summary>
-    [Fact]
-    public void Build_Marks_Cross_Sector_Skip_Level_Edges_Into_The_Automobile()
-    {
-        var config = MetallurgyPetrochemistryConfig();
-        var layout = MaterialChainDiagram.Build(config);
-
-        var gasolineSkip = layout.Edges.Single(e => e.SourceMaterialId == "gasoline" && e.TargetMaterialId == "automobile");
-        Assert.Equal(6, gasolineSkip.LevelSpan); // level 1 -> level 7.
-
-        var paintSkip = layout.Edges.Single(e => e.SourceMaterialId == "paint" && e.TargetMaterialId == "automobile");
-        Assert.Equal(5, paintSkip.LevelSpan); // level 2 -> level 7.
-    }
-
-    /// <summary>
-    /// Стадия 3 плана: каждая пара секторов должна зависеть друг от друга напрямую — не только А↔Б
-    /// (унаследовано со стадии 2), но и обе новые связи с В. Без этого В рисковала стать «подвешенной»
-    /// третьей отраслью, которая только продаёт себя А и Б, но сама ничего у них не покупает (или
-    /// наоборот) — см. обсуждение риска «сектор держит всех за яйца» на стадии 2.
-    /// </summary>
-    [Fact]
-    public void Build_Draws_All_Three_Sectors_As_A_Closed_Triangle_Of_Mutual_Dependency()
-    {
-        var config = MetallurgyPetrochemistryForestryConfig();
-
-        var automobileRecipe = config.RecipeBook.GetRecipe(config.Materials["automobile"]);
-        Assert.Contains(automobileRecipe.Inputs, i => i.Material.Id == "tires"); // A <- B
-        Assert.Contains(automobileRecipe.Inputs, i => i.Material.Id == "upholstery"); // A <- V
-
-        var boatRecipe = config.RecipeBook.GetRecipe(config.Materials["boat"]);
-        Assert.Contains(boatRecipe.Inputs, i => i.Material.Id == "engine"); // B <- A
-        Assert.Contains(boatRecipe.Inputs, i => i.Material.Id == "upholstery"); // B <- V
-
-        var houseRecipe = config.RecipeBook.GetRecipe(config.Materials["house"]);
-        Assert.Contains(houseRecipe.Inputs, i => i.Material.Id == "fasteners"); // V <- A
-        Assert.Contains(houseRecipe.Inputs, i => i.Material.Id == "paint"); // V <- B
-
-        // Шинный корд — ещё одна закрытая связь Б+В внутри самой цепочки, не только на верхнем уровне.
-        var tireCordRecipe = config.RecipeBook.GetRecipe(config.Materials["tire-cord"]);
-        Assert.Contains(tireCordRecipe.Inputs, i => i.Material.Id == "technical-fabric"); // B <- V
-    }
-
-    /// <summary>
-    /// Стадия 3 сохраняет и углубляет паттерн сквозных рёбер: теперь они пересекают не только уровни
-    /// внутри одной отрасли, но и границы секторов — бензин (Б, уровень 1) идёт напрямую в автомобиль
-    /// (А, уровень 6), крепёж (А, уровень 2) — напрямую в дом (В, уровень 4).
-    /// </summary>
-    [Fact]
-    public void Build_Marks_Cross_Sector_Skip_Level_Edges_At_Stage_Three()
-    {
-        var config = MetallurgyPetrochemistryForestryConfig();
-        var layout = MaterialChainDiagram.Build(config);
-
-        var gasolineSkip = layout.Edges.Single(e => e.SourceMaterialId == "gasoline" && e.TargetMaterialId == "automobile");
-        Assert.Equal(5, gasolineSkip.LevelSpan); // level 1 -> level 6.
-
-        var fastenersSkip = layout.Edges.Single(e => e.SourceMaterialId == "fasteners" && e.TargetMaterialId == "house");
-        Assert.Equal(2, fastenersSkip.LevelSpan); // level 2 -> level 4.
-    }
-
-    /// <summary>
-    /// Стадия 4 — последняя: впервые каждый сектор доходит до настоящего готового продукта (не
-    /// «базовая комплектация»), потому что электроника (Д) закрывает последний штрих у всех трёх
-    /// чужих флагманов разом. Не единым безликим «электронным модулем» на все три (сессия
-    /// 2026-08-14 — так электроника оказывалась единственным поставщиком одного и того же входа
-    /// сразу трём чужим флагманам, что и создавало несоразмерный перекос в её пользу, см.
-    /// docs/production-staging.md), а тремя разными профильными изделиями — своя электроника
-    /// под машину, дом и катер, — каждое из которых мультимедиасистема, медиакомплекс, навигация
-    /// собирается из общего электронного модуля отдельным переделом. Проверяем, что Д действительно
-    /// универсальный поставщик (во все три, просто не одним и тем же материалом), и что у самой Д
-    /// тоже есть флагман, а не только экспорт наружу.
-    /// </summary>
-    [Fact]
-    public void Build_Draws_Electronics_As_A_Universal_Finishing_Supplier_To_All_Three_Flagships()
-    {
-        var config = MetallurgyPetrochemistryForestryElectronicsConfig();
-
-        var specializedElectronicsByFlagship = new Dictionary<string, string>
-        {
-            ["automobile"] = "car-multimedia",
-            ["boat"] = "boat-navigation",
-            ["house"] = "home-media-complex",
-        };
-
-        foreach (var (flagshipId, electronicsMaterialId) in specializedElectronicsByFlagship)
-        {
-            var recipe = config.RecipeBook.GetRecipe(config.Materials[flagshipId]);
-            Assert.Contains(recipe.Inputs, i => i.Material.Id == electronicsMaterialId);
-
-            var electronicsMaterial = config.Materials[electronicsMaterialId];
-            Assert.Equal("D", electronicsMaterial.Sector.Id);
-
-            // Все три профильных изделия сами собираются из общего электронного модуля — Д не
-            // размножает независимые ветки на каждый флагман, а специализирует один и тот же узел.
-            var electronicsRecipe = config.RecipeBook.GetRecipe(electronicsMaterial);
-            Assert.Contains(electronicsRecipe.Inputs, i => i.Material.Id == "electronic-module");
-        }
-
-        var computingComplex = config.Materials["computing-complex"];
-        Assert.Equal("D", computingComplex.Sector.Id);
-        var computingComplexRecipe = config.RecipeBook.GetRecipe(computingComplex);
-        Assert.Contains(computingComplexRecipe.Inputs, i => i.Material.Id == "electronic-module"); // свой флагман — модуль напрямую, без профильной надстройки.
-        Assert.Contains(computingComplexRecipe.Inputs, i => i.Material.Id == "radiator"); // D <- A, own flagship too.
-    }
-
-    /// <summary>
-    /// Запрос пользователя ещё на моменте постановки задачи (до стадии 2): зависимость должна идти не
-    /// только напрямую, но и через разные циклы. Электроника — единственный сектор в этой лестнице,
-    /// который зависит от леса и агротекстиля (В) не напрямую, а транзитивно через нефтехимию (Б):
-    /// печатные платы делаются из текстолита (Б), а текстолит — из ткани (В). У Д нет собственного
-    /// прямого рецепта, потребляющего материал В.
-    /// </summary>
-    [Fact]
-    public void Build_Connects_Electronics_To_Forestry_Only_Transitively_Through_Petrochemistry()
-    {
-        var config = MetallurgyPetrochemistryForestryElectronicsConfig();
-
-        var vMaterialIds = config.Materials.Values.Where(m => m.Sector.Id == "V").Select(m => m.Id).ToHashSet();
-        var dRecipes = config.Materials.Values
-            .Where(m => m.Sector.Id == "D")
-            .Select(m => config.RecipeBook.TryGetRecipe(m))
-            .Where(recipe => recipe is not null);
-        Assert.All(dRecipes, recipe => Assert.DoesNotContain(recipe!.Inputs, i => vMaterialIds.Contains(i.Material.Id)));
-
-        var textolite = config.Materials["textolite"];
-        var textoliteRecipe = config.RecipeBook.GetRecipe(textolite);
-        Assert.Equal("B", textolite.Sector.Id);
-        Assert.Contains(textoliteRecipe.Inputs, i => i.Material.Id == "fabric"); // B <- V, one level before D touches it.
-
-        var circuitBoard = config.Materials["circuit-board"];
-        var circuitBoardRecipe = config.RecipeBook.GetRecipe(circuitBoard);
-        Assert.Contains(circuitBoardRecipe.Inputs, i => i.Material.Id == "textolite"); // D <- B, closing the transitive chain.
+        var adjacent = layout.Edges.Single(e => e.SourceMaterialId == "steel-sheet" && e.TargetMaterialId == "steel-frame");
+        Assert.Equal(1, adjacent.LevelSpan); // соседний уровень — не сквозное ребро.
     }
 
     [Fact]
     public void AggregateRawMaterials_Sums_Quantities_Across_The_Whole_Pyramid()
     {
-        var config = PilotConfig();
+        var config = LayoutFixture();
         var rebar = config.Materials["rebar"];
 
         var pyramid = CostCalculator.BuildInputPyramid(rebar, 1m, config.RecipeBook);

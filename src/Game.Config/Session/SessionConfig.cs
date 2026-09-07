@@ -26,8 +26,8 @@ public sealed record SessionConfig
     /// </summary>
     public double DifficultyLevel { get; init; } = 3.0;
 
-    /// <summary>Доступные пресеты длительности сессии.</summary>
-    public required IReadOnlyList<SessionPresetConfig> SessionPresets { get; init; }
+    /// <summary>Длительность сессии — число ходов (с жеребьёвкой точной концовки) и длина хода.</summary>
+    public required SessionDurationConfig Duration { get; init; }
 
     /// <summary>Длительности фаз хода.</summary>
     public required PhaseTimingConfig PhaseTiming { get; init; }

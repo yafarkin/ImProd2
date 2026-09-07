@@ -59,8 +59,7 @@ public class SessionControlPageTests
             host.AddStagedTeam("Эта", sectorId);
             var team = host.StagedTeams.Single();
             host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Эта");
-            var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
-            host.StartSessionFromDraft(preset);
+            host.StartSessionFromDraft();
 
             var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await adminClient.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = host.AdminCode! }));

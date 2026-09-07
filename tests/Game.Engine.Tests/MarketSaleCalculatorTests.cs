@@ -3,7 +3,7 @@ using Game.Domain;
 
 namespace Game.Engine.Tests;
 
-/// <summary>Расчёт продажи материала системе (Блок 6.1, SPEC §5.4): ёмкость, понижающий коэффициент, маржа передела.</summary>
+/// <summary>Расчёт продажи материала системе (Блок 6.1, SPEC §5.4): ёмкость, понижающий коэффициент, фиксированная наценка.</summary>
 public class MarketSaleCalculatorTests
 {
     private static readonly Sector Sector = new("A", "Sector A");
@@ -18,10 +18,6 @@ public class MarketSaleCalculatorTests
             EmergencyPurchasePressureMultiplierPerUnit = 0m,
             EmergencyPurchasePressureHalfLifeTurns = 1,
             BaseMarketPerMaterial = Array.Empty<MaterialMarketConfig>(),
-            MarginMultiplierByProcessingLevel = new[]
-            {
-                new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m },
-            },
             MarketCapacityOverflowDiscount = 0.5m,
             ElectricityBasePrice = 1m,
             ElectricityConsumptionPerOutputUnit = 0m,
@@ -30,61 +26,68 @@ public class MarketSaleCalculatorTests
         };
     }
 
-    private static Market BuildMarket(string materialId, decimal price, decimal capacity)
+    /// <summary>Ёмкость по-прежнему на рынке (см. doc-comment MarketSaleCalculator) — цена больше не оттуда, только капасити.</summary>
+    private static Market BuildMarket(string materialId, decimal capacity)
     {
         var market = new Market();
-        market.ReplaceQuotes(new Dictionary<string, MaterialQuote> { [materialId] = new(price, capacity) }, electricityPrice: 0m);
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote> { [materialId] = new(price: 0m, capacity) }, electricityPrice: 0m);
         return market;
     }
 
-    [Fact]
-    public void A_Sale_Within_Capacity_Is_Priced_At_The_Full_Quote()
-    {
-        var market = BuildMarket("ore", price: 10m, capacity: 100m);
+    private static IReadOnlyDictionary<string, decimal> MaterialCosts(string materialId, decimal unitCost) =>
+        new Dictionary<string, decimal> { [materialId] = unitCost };
 
-        var result = MarketSaleCalculator.Calculate(market, BuildEconomy(), RawMaterial, volume: 20m);
+    [Fact]
+    public void A_Sale_Within_Capacity_Is_Priced_At_The_Full_Cost()
+    {
+        var market = BuildMarket("ore", capacity: 100m);
+
+        var result = MarketSaleCalculator.Calculate(market, MaterialCosts("ore", 100m), BuildEconomy(), RawMaterial, volume: 20m);
 
         Assert.Equal(20m, result.WithinCapacityVolume);
         Assert.Equal(0m, result.OverflowVolume);
-        Assert.Equal(10m, result.UnitPrice); // уровень 0 -> множитель по умолчанию 1
-        Assert.Equal(200m, result.TotalRevenue);
+        Assert.Equal(130m, result.UnitPrice); // 100 * SystemSaleMarginMultiplier (1.30)
+        Assert.Equal(2600m, result.TotalRevenue);
     }
 
     [Fact]
     public void A_Sale_Straddling_The_Remaining_Capacity_Splits_Into_Full_Price_And_Discounted_Parts()
     {
-        var market = BuildMarket("ore", price: 10m, capacity: 8m);
+        var market = BuildMarket("ore", capacity: 8m);
 
-        var result = MarketSaleCalculator.Calculate(market, BuildEconomy(), RawMaterial, volume: 10m);
+        var result = MarketSaleCalculator.Calculate(market, MaterialCosts("ore", 100m), BuildEconomy(), RawMaterial, volume: 10m);
 
         Assert.Equal(8m, result.WithinCapacityVolume);
         Assert.Equal(2m, result.OverflowVolume);
-        Assert.Equal(10m, result.UnitPrice);
-        // 8 * 10 + 2 * (10 * 0.5) = 80 + 10 = 90 (перепроизводство обваливает цену за лишние 2 единицы)
-        Assert.Equal(90m, result.TotalRevenue);
+        Assert.Equal(130m, result.UnitPrice);
+        // 8 * 130 + 2 * (130 * 0.5) = 1040 + 130 = 1170 (перепроизводство обваливает цену за лишние 2 единицы)
+        Assert.Equal(1170m, result.TotalRevenue);
     }
 
     [Fact]
     public void A_Sale_Already_Beyond_Consumed_Capacity_Is_Priced_Entirely_At_The_Discount()
     {
-        var market = BuildMarket("ore", price: 10m, capacity: 5m);
+        var market = BuildMarket("ore", capacity: 5m);
         market.RecordSale("ore", 5m); // ёмкость этого хода уже выбрана предыдущей продажей
 
-        var result = MarketSaleCalculator.Calculate(market, BuildEconomy(), RawMaterial, volume: 4m);
+        var result = MarketSaleCalculator.Calculate(market, MaterialCosts("ore", 100m), BuildEconomy(), RawMaterial, volume: 4m);
 
         Assert.Equal(0m, result.WithinCapacityVolume);
         Assert.Equal(4m, result.OverflowVolume);
-        Assert.Equal(20m, result.TotalRevenue); // 4 * (10 * 0.5)
+        Assert.Equal(260m, result.TotalRevenue); // 4 * (130 * 0.5)
     }
 
     [Fact]
-    public void Higher_Processing_Level_Sells_With_Its_Configured_Margin_Multiplier()
+    public void Higher_Processing_Level_Sells_With_The_Same_Flat_Margin_As_Raw_Material()
     {
-        var market = BuildMarket("sheet", price: 10m, capacity: 100m);
+        // С 2026-08-22 (запрос пользователя) наценка одна на все уровни передела — до этого здесь была
+        // настраиваемая таблица по уровню (level 1 отдельно от level 0), убрана целиком (см. doc-comment
+        // MarketSaleCalculator.SystemSaleMarginMultiplier).
+        var market = BuildMarket("sheet", capacity: 100m);
 
-        var result = MarketSaleCalculator.Calculate(market, BuildEconomy(), ProcessedMaterial, volume: 5m);
+        var result = MarketSaleCalculator.Calculate(market, MaterialCosts("sheet", 10m), BuildEconomy(), ProcessedMaterial, volume: 5m);
 
-        Assert.Equal(12m, result.UnitPrice); // 10 * 1.2 (уровень 1 сконфигурирован)
-        Assert.Equal(60m, result.TotalRevenue);
+        Assert.Equal(13m, result.UnitPrice); // 10 * 1.30 — тот же множитель, что и у сырья (level 0)
+        Assert.Equal(65m, result.TotalRevenue);
     }
 }

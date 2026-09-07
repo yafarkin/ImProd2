@@ -254,7 +254,7 @@ public static class BotStateSnapshotBuilder
 
     /// <summary>
     /// Не по каталогу конфига (<c>state.Config.Sectors</c>) — по реально занятым секторам среди
-    /// команд ЭТОЙ сессии: тестовый <c>gameconfig.pilot.json</c> объявляет оба сектора A/Б даже там,
+    /// команд ЭТОЙ сессии: тестовый <c>legacy-combined-gameconfig.json</c> объявляет оба сектора A/Б даже там,
     /// где играет только сектор A (см. <c>TestSession.StartSingleTeamSession</c>), а стадия 1
     /// (<c>metallurgy.json</c>) при этом сама по себе однoceкторная. Общий источник для <see
     /// cref="AppendCrossSectorDemand"/> и <see cref="AppendActionSuggestions"/> — второй секции нужны

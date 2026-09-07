@@ -21,6 +21,10 @@ namespace Game.Balancing;
 /// cref="ProductionCalculator.CalculateCapacityBreakdown"/>) — на свежепостроенной фабрике первого
 /// уровня, без простоя, чтобы не дублировать формулу мощности рабочих (линейно до <see
 /// cref="Game.Config.Economy.WorkerProductivityConfig.BaseWorkerCount"/>, дальше — убывающая отдача).
+/// Сюда же (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-23, направление A плана
+/// исследований <c>docs/rebalance-2sector/balance-experiment-plan.md</c>) — окупаемость каждого
+/// уровня в изоляции (<see cref="FactoryRecipeCost.PaybackTurns"/>), без хода/бота/кросс-торговли,
+/// тот же дешёвый статический снимок, что и себестоимость.
 /// </summary>
 public static class ProductionCostLevelCalculator
 {
@@ -45,6 +49,62 @@ public static class ProductionCostLevelCalculator
         public required decimal ElectricityCost { get; init; }
         public required decimal TotalCost { get; init; }
         public required decimal UnitCost { get; init; }
+
+        /// <summary>Цена постройки этой фабрики — нужна для <see cref="PaybackTurns"/>, сама по себе в себестоимость выпуска не входит (однократный расход, не за ход).</summary>
+        public required decimal BuildCost { get; init; }
+
+        /// <summary>
+        /// Собственный передел фабрики за ход — <c>FixedCostPerTurn + электричество + зарплата</c>,
+        /// то есть всё, что фабрика добавляет к стоимости входов. Именно от него, а не от полной
+        /// себестоимости, считается <see cref="ProfitPerTurn"/> — см. его doc-comment.
+        /// </summary>
+        public required decimal ConversionCost { get; init; }
+
+        /// <summary>
+        /// Прибыль за ход при том же консервативном допущении, что и <see cref="PaybackTurns"/> — 100%
+        /// выпуска продаётся системе по фиксированной наценке, без кросс-торговли. НЕ зависит от <see
+        /// cref="BuildCost"/> (тот однократный расход, здесь — только выпуск/себестоимость/наценка) —
+        /// поэтому обратная задача (направление B плана исследований,
+        /// <c>docs/rebalance-2sector/balance-experiment-plan.md</c>: «по целевому сроку окупаемости
+        /// найти допустимый BuildCost») — это просто <c>ProfitPerTurn × целевой срок</c>, без бисекции,
+        /// см. <see cref="MaxBuildCostForTargetPayback"/>.
+        /// <para>
+        /// Считается от <see cref="ConversionCost"/> (собственный передел), НЕ от <see cref="TotalCost"/>
+        /// (2026-09-06, <c>docs/economy-accounting-audit.md</c>, дефект 3): входы фабрика либо покупает
+        /// (дешевле <c>себестоимость × наценка</c> никто не продаст — это пол продавца, системная
+        /// продажа), либо производит сама — и тогда маржа на них уже начислена уровню-производителю.
+        /// Прежняя формула <c>TotalCost × (наценка − 1)</c> начисляла маржу на себестоимость входов по
+        /// разу на КАЖДОМ уровне вертикальной цепочки: на боевом <c>metallurgy.json</c> сумма прибыли
+        /// выходила 3 940 ¤/ход против истинного максимума притока 1 764 ¤/ход, завышение в 2.23×.
+        /// Сумма <see cref="ProfitPerTurn"/> по конфигу обязана совпадать с
+        /// <c>0.30 × Σ передела</c> — тождеством денежной массы при cost-plus.
+        /// </para>
+        /// </summary>
+        public required decimal ProfitPerTurn { get; init; }
+
+        /// <summary>
+        /// Срок окупаемости (ходов) при самом консервативном допущении — 100% выпуска продаётся
+        /// СИСТЕМЕ по фиксированной наценке (<see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/>),
+        /// кросс-торговля не учитывается вовсе (запрос пользователя, rebalance/2-sector-stepwise,
+        /// 2026-08-23 — «идти с конца цепочки»: направление A плана исследований,
+        /// <c>docs/rebalance-2sector/balance-experiment-plan.md</c>). Не занижение специально —
+        /// доказано ранее в этой же ветке, что в симметричной топологии P2P-обмен даёт команде чистый
+        /// ноль (продано ровно столько же, сколько куплено), весь реальный доход всё равно идёт через
+        /// системную продажу; окупаемость на этом полу — самый честный, не оптимистичный тест.
+        /// <c>null</c> — уровень никогда не окупится (прибыль с продажи ≤ 0).
+        /// </summary>
+        public decimal? PaybackTurns { get; init; }
+
+        /// <summary>
+        /// Обратная задача направления B (<c>docs/rebalance-2sector/balance-experiment-plan.md</c>,
+        /// 2026-08-24): наибольший <see cref="BuildCost"/>, при котором окупаемость ещё укладывается в
+        /// <paramref name="targetPaybackTurns"/> ходов — <c>ProfitPerTurn × targetPaybackTurns</c>
+        /// (прямая формула, не бисекция, потому что <see cref="ProfitPerTurn"/> от <see
+        /// cref="BuildCost"/> не зависит). <c>0</c> — уровень никогда не окупится ни при каком
+        /// положительном <see cref="BuildCost"/> (нулевая или отрицательная маржа с продажи).
+        /// </summary>
+        public decimal MaxBuildCostForTargetPayback(decimal targetPaybackTurns) =>
+            ProfitPerTurn > 0m ? ProfitPerTurn * targetPaybackTurns : 0m;
 
         /// <summary>
         /// = <see cref="TotalCost"/> / <see cref="Workers"/> — честная единица сравнения между
@@ -83,10 +143,15 @@ public static class ProductionCostLevelCalculator
         }
 
         var fixedCostByFactoryId = config.Raw.FactoryDefinitions.ToDictionary(d => d.Id, d => d.FixedCostPerTurn);
+        var buildCostByFactoryId = config.Raw.FactoryDefinitions.ToDictionary(d => d.Id, d => d.BuildCost);
         var electricityRate = config.Raw.Economy.ElectricityConsumptionPerOutputUnit;
         var electricityPrice = config.Raw.Economy.ElectricityBasePrice;
         var productivity = config.Raw.WorkerProductivity;
         var rnd = config.Raw.Rnd;
+        // Зарплата НЕ входит в UnitCost (сознательно, см. doc-comment класса — та величина для
+        // сравнения отраслей между собой), но входит в собственный передел, от которого считается
+        // ProfitPerTurn: там речь про настоящие деньги (docs/economy-accounting-audit.md, шаг 3).
+        var salaryCost = workersPerFactory * productivity.SalaryPerWorkerPerTurn;
 
         var producerByMaterialId = new Dictionary<string, (FactoryDefinition FactoryDef, Recipe Recipe)>();
         foreach (var factoryDef in config.FactoryDefinitions)
@@ -159,6 +224,10 @@ public static class ProductionCostLevelCalculator
             var electricityCost = outputQuantity * electricityRate * electricityPrice;
             var totalCost = inputCost + fixedCostPerTurn + electricityCost;
             var unitCost = outputQuantity > 0 ? totalCost / outputQuantity : 0m;
+            var buildCost = buildCostByFactoryId[factoryDef.Id];
+            var conversionCost = fixedCostPerTurn + electricityCost + salaryCost;
+            var profitPerTurn = conversionCost * (MarketSaleCalculator.SystemSaleMarginMultiplier - 1m);
+            var paybackTurns = profitPerTurn > 0m ? buildCost / profitPerTurn : (decimal?)null;
 
             var row = new FactoryRecipeCost
             {
@@ -177,6 +246,10 @@ public static class ProductionCostLevelCalculator
                 ElectricityCost = electricityCost,
                 TotalCost = totalCost,
                 UnitCost = unitCost,
+                BuildCost = buildCost,
+                ConversionCost = conversionCost,
+                ProfitPerTurn = profitPerTurn,
+                PaybackTurns = paybackTurns,
                 CostPerWorker = totalCost / workersPerFactory,
                 RawMaterialsPerUnit = rawMaterialsPerUnit,
             };

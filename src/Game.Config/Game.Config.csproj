@@ -3,9 +3,6 @@
     <ProjectReference Include="..\Game.Domain\Game.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Samples\gameconfig.pilot.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="Samples\production-models\**\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

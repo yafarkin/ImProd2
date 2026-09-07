@@ -1,74 +1,195 @@
 {
+  "Sectors": [
+    {
+      "Id": "A",
+      "Name": "Металлургия"
+    },
+    {
+      "Id": "B",
+      "Name": "Нефтегазохимия"
+    }
+  ],
+  "Materials": [
+    {
+      "Id": "ore",
+      "Name": "Железная руда",
+      "SectorId": "A",
+      "Level": 0
+    },
+    {
+      "Id": "sheet",
+      "Name": "Стальные листы",
+      "SectorId": "A",
+      "Level": 1
+    },
+    {
+      "Id": "rebar",
+      "Name": "Арматура",
+      "SectorId": "A",
+      "Level": 2
+    },
+    {
+      "Id": "oil",
+      "Name": "Нефть",
+      "SectorId": "B",
+      "Level": 0
+    },
+    {
+      "Id": "plastic",
+      "Name": "Пластик",
+      "SectorId": "B",
+      "Level": 1
+    }
+  ],
+  "Recipes": [
+    {
+      "Id": "ore-mining",
+      "OutputMaterialId": "ore",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 100
+    },
+    {
+      "Id": "oil-drilling",
+      "OutputMaterialId": "oil",
+      "OutputQuantity": 1,
+      "Inputs": [],
+      "ProductionRate": 1
+    },
+    {
+      "Id": "sheet-from-ore",
+      "OutputMaterialId": "sheet",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "ore",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 75
+    },
+    {
+      "Id": "rebar-from-sheet",
+      "OutputMaterialId": "rebar",
+      "OutputQuantity": 10,
+      "Inputs": [
+        {
+          "MaterialId": "sheet",
+          "Quantity": 3
+        }
+      ],
+      "ProductionRate": 2
+    },
+    {
+      "Id": "plastic-from-oil",
+      "OutputMaterialId": "plastic",
+      "OutputQuantity": 1,
+      "Inputs": [
+        {
+          "MaterialId": "oil",
+          "Quantity": 2
+        }
+      ],
+      "ProductionRate": 1
+    }
+  ],
+  "FactoryDefinitions": [
+    {
+      "Id": "iron-mine",
+      "Name": "Рудник",
+      "SectorId": "A",
+      "RecipeIds": [
+        "ore-mining"
+      ],
+      "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
+    },
+    {
+      "Id": "steel-mill",
+      "Name": "Сталелитейный завод",
+      "SectorId": "A",
+      "RecipeIds": [
+        "sheet-from-ore"
+      ],
+      "BuildCost": 1500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 30
+    },
+    {
+      "Id": "rolling-mill",
+      "Name": "Прокатный стан",
+      "SectorId": "A",
+      "RecipeIds": [
+        "rebar-from-sheet"
+      ],
+      "BuildCost": 3000,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 60
+    },
+    {
+      "Id": "oil-well",
+      "Name": "Нефтяная скважина",
+      "SectorId": "B",
+      "RecipeIds": [
+        "oil-drilling"
+      ],
+      "BuildCost": 500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 10
+    },
+    {
+      "Id": "petrochemical-plant",
+      "Name": "Нефтехимический завод",
+      "SectorId": "B",
+      "RecipeIds": [
+        "plastic-from-oil"
+      ],
+      "BuildCost": 1500,
+      "LiquidationValueCoefficient": 0.5,
+      "FixedCostPerTurn": 30
+    }
+  ],
   "StartingConditions": {
     "MaxInitialBuildBudget": 10000
   },
-  "SessionPresets": [
-    {
-      "Id": "short",
-      "Name": "Короткая",
-      "MinTurns": 15,
-      "MaxTurns": 20,
-      "TurnDurationMinutes": 7
-    },
-    {
-      "Id": "medium",
-      "Name": "Средняя",
-      "MinTurns": 25,
-      "MaxTurns": 35,
-      "TurnDurationMinutes": 8
-    },
-    {
-      "Id": "full",
-      "Name": "Полная",
-      "MinTurns": 40,
-      "MaxTurns": 90,
-      "TurnDurationMinutes": 10
-    }
-  ],
+  "Duration": {
+    "MinTurns": 15,
+    "MaxTurns": 20
+  },
   "PhaseTiming": {
     "SettlementPhaseSeconds": 20,
     "DecisionPhaseSeconds": 300
   },
   "Economy": {
-    "EmergencyPurchaseBaseMultiplier": 1.5,
+    "EmergencyPurchaseBaseMultiplier": 1.4,
     "EmergencyPurchasePressureMultiplierPerUnit": 0.05,
     "EmergencyPurchasePressureHalfLifeTurns": 3,
-    "MarginMultiplierByProcessingLevel": [
+    "BaseMarketPerMaterial": [
       {
-        "Level": 1,
-        "MarginMultiplier": 1.0
+        "MaterialId": "ore",
+        "BasePrice": 1,
+        "BaseCapacity": 200
       },
       {
-        "Level": 2,
-        "MarginMultiplier": 1.15
+        "MaterialId": "sheet",
+        "BasePrice": 25,
+        "BaseCapacity": 120
       },
       {
-        "Level": 3,
-        "MarginMultiplier": 1.3
+        "MaterialId": "rebar",
+        "BasePrice": 30,
+        "BaseCapacity": 80
       },
       {
-        "Level": 4,
-        "MarginMultiplier": 1.5
+        "MaterialId": "oil",
+        "BasePrice": 12,
+        "BaseCapacity": 150
       },
       {
-        "Level": 5,
-        "MarginMultiplier": 1.75
-      },
-      {
-        "Level": 6,
-        "MarginMultiplier": 2.05
-      },
-      {
-        "Level": 7,
-        "MarginMultiplier": 2.4
-      },
-      {
-        "Level": 8,
-        "MarginMultiplier": 2.8
-      },
-      {
-        "Level": 9,
-        "MarginMultiplier": 3.3
+        "MaterialId": "plastic",
+        "BasePrice": 28,
+        "BaseCapacity": 100
       }
     ],
     "MarketCapacityOverflowDiscount": 0.5,
@@ -223,5 +344,13 @@
   "FeatureFlags": {
     "TaxesEnabled": false,
     "EmergencyPurchaseEnabled": true
+  },
+  "GenerationResearch": {
+    "StartingGeneration": 1,
+    "ResearchPointThresholdsByGeneration": [
+      25
+    ],
+    "DiminishingReturnsExponent": 0.5,
+    "MaxCommitmentPerTurn": 300
   }
 }

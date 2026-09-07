@@ -29,10 +29,7 @@ internal static class GameConfigTestBuilder
             {
                 MaxInitialBuildBudget = 1000m,
             },
-            SessionPresets = new[]
-            {
-                new SessionPresetConfig { Id = "short", Name = "Short", MinTurns = 1, MaxTurns = 2, TurnDurationMinutes = 1 },
-            },
+            Duration = new SessionDurationConfig { MinTurns = 1, MaxTurns = 2 },
             PhaseTiming = new PhaseTimingConfig
             {
                 SettlementPhaseSeconds = 1,
@@ -44,7 +41,6 @@ internal static class GameConfigTestBuilder
                 EmergencyPurchasePressureMultiplierPerUnit = 0m,
                 EmergencyPurchasePressureHalfLifeTurns = 1,
                 BaseMarketPerMaterial = Array.Empty<MaterialMarketConfig>(),
-                MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
                 ElectricityConsumptionPerOutputUnit = 0m,

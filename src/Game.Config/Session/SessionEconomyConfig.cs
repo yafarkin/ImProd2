@@ -22,9 +22,6 @@ public sealed record SessionEconomyConfig
     /// <summary>См. <see cref="EconomyConfig.EmergencyPurchasePressureHalfLifeTurns"/>.</summary>
     public required int EmergencyPurchasePressureHalfLifeTurns { get; init; }
 
-    /// <summary>См. <see cref="EconomyConfig.MarginMultiplierByProcessingLevel"/>.</summary>
-    public required IReadOnlyList<ProcessingLevelMarginConfig> MarginMultiplierByProcessingLevel { get; init; }
-
     /// <summary>См. <see cref="EconomyConfig.MarketCapacityOverflowDiscount"/>.</summary>
     public required decimal MarketCapacityOverflowDiscount { get; init; }
 

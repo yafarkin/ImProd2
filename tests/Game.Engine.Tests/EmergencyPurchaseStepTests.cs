@@ -12,7 +12,7 @@ public class EmergencyPurchaseStepTests
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
 
-        var changes = EmergencyPurchaseStep.Run(team, log.State.Market, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1);
+        var changes = EmergencyPurchaseStep.Run(team, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1);
 
         Assert.Empty(changes);
     }
@@ -23,14 +23,14 @@ public class EmergencyPurchaseStepTests
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();
         team.RequestEmergencyPurchase("ore", 5m);
 
-        var changes = EmergencyPurchaseStep.Run(team, log.State.Market, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1);
+        var changes = EmergencyPurchaseStep.Run(team, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1);
 
         var purchased = Assert.IsType<EmergencyPurchased>(Assert.Single(changes));
         Assert.Equal("ore", purchased.MaterialId);
         Assert.Equal(5m, purchased.Volume);
-        // TestGameConfig: ore BasePrice=10, EmergencyPurchaseBaseMultiplier=2 -> 20/ед., без давления.
-        Assert.Equal(20m, purchased.UnitPrice);
-        Assert.Equal(100m, purchased.TotalCost);
+        // TestGameConfig: себестоимость ore = 5, EmergencyPurchaseBaseMultiplier=2 -> 10/ед., без давления.
+        Assert.Equal(10m, purchased.UnitPrice);
+        Assert.Equal(50m, purchased.TotalCost);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public class EmergencyPurchaseStepTests
         team.RequestEmergencyPurchase("sheet", 1m);
         team.RequestEmergencyPurchase("ore", 1m);
 
-        var changes = EmergencyPurchaseStep.Run(team, log.State.Market, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1);
+        var changes = EmergencyPurchaseStep.Run(team, TestGameConfig.MaterialCosts, TestGameConfig.Resolved.Raw.Economy, log.Entries, currentTurn: 1);
 
         Assert.Collection(
             changes,

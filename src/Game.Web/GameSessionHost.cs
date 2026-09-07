@@ -250,19 +250,19 @@ public sealed class GameSessionHost
         }
     }
 
-    /// <summary>Конфиг по умолчанию (SPEC-заглушка пилота) — предложен на экране администратора, может быть заменён загрузкой своего файла.</summary>
+    /// <summary>
+    /// Конфиг по умолчанию — трёхсекторная цепочка (боевая игра) с единственным сессионным набором
+    /// параметров. Предложен на экране администратора, может быть заменён загрузкой своего файла.
+    /// </summary>
     public ResolvedGameConfig DefaultConfig { get; }
 
-    /// <summary>Тренировочный конфиг (Блок 10.2, SPEC §10) — та же производственная модель, что и <see cref="DefaultConfig"/>, но короткий пресет (8–10 ходов), суммарно ~50–60 минут на сессию.</summary>
-    public ResolvedGameConfig TrainingConfig { get; }
-
     /// <summary>
-    /// Отладочный конфиг — отладочная производственная модель (крупнее <see cref="DefaultConfig"/>,
-    /// чтобы было на чём смотреть длинные цепочки) и очень короткий ход (30 секунд суммарно на фазы),
-    /// 300 ходов подряд, чтобы наблюдать в динамике, как меняются цифры и графики, не дожидаясь
-    /// реальной игры.
+    /// Тренировочный конфиг (Блок 10.2, SPEC §10) — те же сессионные параметры и та же длительность,
+    /// что у <see cref="DefaultConfig"/>, но односекторная цепочка: командам показывают всю механику
+    /// на цепочке, которую видно целиком, без кросс-секторной торговли (решение пользователя
+    /// 2026-09-07: две производственные модели — обучающая и боевая, обе под одну длительность).
     /// </summary>
-    public ResolvedGameConfig DebugConfig { get; }
+    public ResolvedGameConfig TrainingConfig { get; }
 
     /// <summary>
     /// Производственные модели (каталог секторов/материалов/рецептов/фабрик), из которых
@@ -304,9 +304,8 @@ public sealed class GameSessionHost
         SessionConfigs = Directory.EnumerateFiles(sessionsDirectory, "*.json")
             .ToDictionary(path => Path.GetFileNameWithoutExtension(path)!, GameConfigLoader.LoadSessionFromFile);
 
-        DefaultConfig = GameConfigLoader.Load(ProductionModels["standard"], SessionConfigs["pilot"]);
-        TrainingConfig = GameConfigLoader.Load(ProductionModels["standard"], SessionConfigs["training"]);
-        DebugConfig = GameConfigLoader.Load(ProductionModels["debug"], SessionConfigs["debug"]);
+        DefaultConfig = GameConfigLoader.Load(ProductionModels["main-3-sectors"], SessionConfigs["main"]);
+        TrainingConfig = GameConfigLoader.Load(ProductionModels["training-1-sector"], SessionConfigs["main"]);
 
         _sessionDirectory = Path.Combine(AppContext.BaseDirectory, "App_Data", "session");
         Directory.CreateDirectory(_sessionDirectory);
@@ -351,10 +350,9 @@ public sealed class GameSessionHost
     /// список команд — им пользуются юнит-тесты движка, которым команды для проверяемой механики
     /// не нужны.
     /// </summary>
-    public GameSession StartNewSession(ResolvedGameConfig config, SessionPresetConfig preset, IReadOnlyList<TeamSpec> teams)
+    public GameSession StartNewSession(ResolvedGameConfig config, IReadOnlyList<TeamSpec> teams)
     {
         ArgumentNullException.ThrowIfNull(config);
-        ArgumentNullException.ThrowIfNull(preset);
         ArgumentNullException.ThrowIfNull(teams);
         if (teams.Count == 0)
         {
@@ -375,8 +373,8 @@ public sealed class GameSessionHost
                 Path.Combine(_sessionDirectory, "snapshot.json"),
                 () => new GameSessionState(config));
 
-            var endTurn = SessionEndTurnDraw.Draw(preset, Random.Shared);
-            var session = GameSession.StartWithEndTurn(durableLog, preset.Id, endTurn, teams);
+            var endTurn = SessionEndTurnDraw.Draw(config.Raw.Duration, Random.Shared);
+            var session = GameSession.StartWithEndTurn(durableLog, endTurn, teams);
             session.Pause();
 
             Session = session;
@@ -419,10 +417,8 @@ public sealed class GameSessionHost
     /// проверка именно здесь, а не в <see cref="StartNewSession"/>: тот принимает только
     /// <see cref="TeamSpec"/> без какой-либо информации об участниках.
     /// </summary>
-    public GameSession StartSessionFromDraft(SessionPresetConfig preset)
+    public GameSession StartSessionFromDraft()
     {
-        ArgumentNullException.ThrowIfNull(preset);
-
         lock (SyncRoot)
         {
             ResolvedGameConfig config;
@@ -447,7 +443,7 @@ public sealed class GameSessionHost
                     $"Cannot start a session while these teams have no manager assigned: {string.Join(", ", teamsWithoutManager)}.");
             }
 
-            var session = StartNewSession(config, preset, teamSpecs);
+            var session = StartNewSession(config, teamSpecs);
 
             foreach (var participant in participants)
             {
@@ -475,10 +471,8 @@ public sealed class GameSessionHost
     /// состояние» и так буквально означает старт с нуля. Как и <see cref="StartNewSession"/>, сразу
     /// ставит новую сессию на паузу.
     /// </summary>
-    public GameSession ResetSession(SessionPresetConfig preset)
+    public GameSession ResetSession()
     {
-        ArgumentNullException.ThrowIfNull(preset);
-
         lock (SyncRoot)
         {
             if (Session is null)
@@ -500,8 +494,8 @@ public sealed class GameSessionHost
                 Path.Combine(_sessionDirectory, "snapshot.json"),
                 () => new GameSessionState(DefaultConfig));
 
-            var endTurn = SessionEndTurnDraw.Draw(preset, Random.Shared);
-            var session = GameSession.StartWithEndTurn(durableLog, preset.Id, endTurn, teams);
+            var endTurn = SessionEndTurnDraw.Draw(DefaultConfig.Raw.Duration, Random.Shared);
+            var session = GameSession.StartWithEndTurn(durableLog, endTurn, teams);
             session.Pause();
 
             foreach (var participant in participants)

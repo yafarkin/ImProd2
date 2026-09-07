@@ -30,7 +30,7 @@ public static class GameConfigComposer
             FactoryDefinitions = productionModel.FactoryDefinitions,
             GenerationResearch = productionModel.GenerationResearch,
             StartingConditions = session.StartingConditions,
-            SessionPresets = session.SessionPresets,
+            Duration = session.Duration,
             PhaseTiming = session.PhaseTiming,
             Economy = new EconomyConfig
             {
@@ -38,7 +38,6 @@ public static class GameConfigComposer
                 EmergencyPurchasePressureMultiplierPerUnit = session.Economy.EmergencyPurchasePressureMultiplierPerUnit,
                 EmergencyPurchasePressureHalfLifeTurns = session.Economy.EmergencyPurchasePressureHalfLifeTurns,
                 BaseMarketPerMaterial = productionModel.BaseMarketPerMaterial,
-                MarginMultiplierByProcessingLevel = session.Economy.MarginMultiplierByProcessingLevel,
                 MarketCapacityOverflowDiscount = session.Economy.MarketCapacityOverflowDiscount,
                 ElectricityBasePrice = session.Economy.ElectricityBasePrice,
                 ElectricityConsumptionPerOutputUnit = session.Economy.ElectricityConsumptionPerOutputUnit,

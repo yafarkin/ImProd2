@@ -16,7 +16,6 @@ public class ConfigBindingTests
         var started = new SessionStarted
         {
             Id = Ulid.NewUlid(),
-            PresetId = "test",
             EndTurn = 999,
             ConfigHash = new string('0', 64), // заведомо чужой хеш
             Teams = Array.Empty<TeamSpec>(),
@@ -32,7 +31,6 @@ public class ConfigBindingTests
         var started = new SessionStarted
         {
             Id = Ulid.NewUlid(),
-            PresetId = "test",
             EndTurn = 999,
             ConfigHash = TestGameConfig.Resolved.ContentHash,
             Teams = Array.Empty<TeamSpec>(),

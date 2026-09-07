@@ -20,6 +20,9 @@ internal static class TestGameConfig
 {
     public static readonly ResolvedGameConfig Resolved = Build();
 
+    /// <summary>Себестоимость каждого материала <see cref="Resolved"/> (<see cref="MaterialCostCalculator"/>) — общий вход для тестов шагов, которые раньше брали цену из рыночной котировки.</summary>
+    public static readonly IReadOnlyDictionary<string, decimal> MaterialCosts = MaterialCostCalculator.CalculateAll(Resolved);
+
     public static Sector SectorA => Resolved.Sectors[0];
     public static Material Ore => Resolved.Materials["ore"];
     public static Material Sheet => Resolved.Materials["sheet"];
@@ -45,7 +48,6 @@ internal static class TestGameConfig
         log.Append(new SessionStarted
         {
             Id = Ulid.NewUlid(),
-            PresetId = "test",
             EndTurn = 999,
             ConfigHash = Resolved.ContentHash,
             Teams = new[]
@@ -73,7 +75,6 @@ internal static class TestGameConfig
         log.Append(new SessionStarted
         {
             Id = Ulid.NewUlid(),
-            PresetId = "test",
             EndTurn = 999,
             ConfigHash = Resolved.ContentHash,
             Teams = new[]
@@ -107,7 +108,6 @@ internal static class TestGameConfig
         var log = new EventLog<GameSessionState>(new GameSessionState(config ?? Resolved));
         var session = GameSession.StartWithEndTurn(
             log,
-            "test",
             endTurn: 999,
             new[]
             {
@@ -130,7 +130,6 @@ internal static class TestGameConfig
         var log = new EventLog<GameSessionState>(new GameSessionState(Resolved));
         var session = GameSession.StartWithEndTurn(
             log,
-            "test",
             endTurn: 999,
             new[]
             {
@@ -319,10 +318,7 @@ internal static class TestGameConfig
             {
                 MaxInitialBuildBudget = 100_000m,
             },
-            SessionPresets = new[]
-            {
-                new SessionPresetConfig { Id = "test", Name = "Test", MinTurns = 1, MaxTurns = 999, TurnDurationMinutes = 1 },
-            },
+            Duration = new SessionDurationConfig { MinTurns = 1, MaxTurns = 999 },
             PhaseTiming = phaseTiming ?? new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {
@@ -335,10 +331,6 @@ internal static class TestGameConfig
                 {
                     new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100m },
                     new MaterialMarketConfig { MaterialId = "sheet", BasePrice = 25m, BaseCapacity = 8m },
-                },
-                MarginMultiplierByProcessingLevel = new[]
-                {
-                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,

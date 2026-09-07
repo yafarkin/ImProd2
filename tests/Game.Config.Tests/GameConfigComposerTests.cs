@@ -48,14 +48,13 @@ public class GameConfigComposerTests
         {
             MaxInitialBuildBudget = 1000m,
         },
-        SessionPresets = new[] { new SessionPresetConfig { Id = "short", Name = "Short", MinTurns = 1, MaxTurns = 2, TurnDurationMinutes = 1 } },
+        Duration = new SessionDurationConfig { MinTurns = 1, MaxTurns = 2 },
         PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
         Economy = new SessionEconomyConfig
         {
             EmergencyPurchaseBaseMultiplier = 1.5m,
             EmergencyPurchasePressureMultiplierPerUnit = 0.1m,
             EmergencyPurchasePressureHalfLifeTurns = 5,
-            MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
             MarketCapacityOverflowDiscount = 0.5m,
             ElectricityBasePrice = 0.2m,
             ElectricityConsumptionPerOutputUnit = 0.1m,

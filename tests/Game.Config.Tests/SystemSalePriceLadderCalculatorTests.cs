@@ -49,11 +49,6 @@ public class SystemSalePriceLadderCalculatorTests
                     new MaterialMarketConfig { MaterialId = "oil", BasePrice = 12m, BaseCapacity = 150m },
                     new MaterialMarketConfig { MaterialId = "plastic", BasePrice = 28m, BaseCapacity = 100m },
                 },
-                MarginMultiplierByProcessingLevel = new[]
-                {
-                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.0m },
-                    new ProcessingLevelMarginConfig { Level = 2, MarginMultiplier = 1.15m },
-                },
             },
         };
 
@@ -111,7 +106,10 @@ public class SystemSalePriceLadderCalculatorTests
         var iron = rows.Single(r => r.MaterialId == "iron");
         var ironSheet = rows.Single(r => r.MaterialId == "iron-sheet");
         Assert.Equal(0.3m, iron.NewPrice, precision: 3);
-        Assert.Equal(3.913m, ironSheet.NewPrice, precision: 3);
+        // Наценка теперь фиксированная (1.05×, одна на все уровни, см. doc-comment класса) — числитель
+        // и знаменатель формулы сокращаются, значение отличается от старого (3.913, когда уровни 1 и 2
+        // были настроены на разные множители 1.0/1.15).
+        Assert.Equal(4.5m, ironSheet.NewPrice, precision: 3);
     }
 
     [Fact]

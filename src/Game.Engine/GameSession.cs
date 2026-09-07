@@ -34,25 +34,26 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Начинает новую сессию: разыгрывает ход окончания в диапазоне пресета и пишет об этом и о
-    /// составе команд первую запись в журнал. Сессия сразу открывается в фазе расчёта первого хода.
+    /// Начинает новую сессию: разыгрывает ход окончания в диапазоне
+    /// <see cref="Game.Config.GameConfig.Duration"/> и пишет об этом и о составе команд первую запись
+    /// в журнал. Сессия сразу открывается в фазе расчёта первого хода.
     /// </summary>
     public static GameSession Start(
         ResolvedGameConfig config,
-        SessionPresetConfig preset,
         IReadOnlyList<TeamSpec> teams,
         Random endTurnRandom,
         JsonSerializerOptions? serializerOptions = null,
         Func<DateTimeOffset>? clock = null)
     {
-        var endTurn = SessionEndTurnDraw.Draw(preset, endTurnRandom);
-        return StartWithEndTurn(config, preset.Id, endTurn, teams, serializerOptions, clock);
+        ArgumentNullException.ThrowIfNull(config);
+
+        var endTurn = SessionEndTurnDraw.Draw(config.Raw.Duration, endTurnRandom);
+        return StartWithEndTurn(config, endTurn, teams, serializerOptions, clock);
     }
 
     /// <summary>Начинает сессию с уже известным ходом окончания (например, для тестов), заводя собственный in-memory журнал.</summary>
     public static GameSession StartWithEndTurn(
         ResolvedGameConfig config,
-        string presetId,
         int endTurn,
         IReadOnlyList<TeamSpec> teams,
         JsonSerializerOptions? serializerOptions = null,
@@ -61,7 +62,7 @@ public sealed class GameSession
         ArgumentNullException.ThrowIfNull(config);
 
         var log = new EventLog<GameSessionState>(new GameSessionState(config), serializerOptions, clock);
-        return StartWithEndTurn(log, presetId, endTurn, teams);
+        return StartWithEndTurn(log, endTurn, teams);
     }
 
     /// <summary>
@@ -71,7 +72,7 @@ public sealed class GameSession
     /// собственного <see cref="EventLog{TState}"/>.
     /// </summary>
     public static GameSession StartWithEndTurn(
-        IEventLog<GameSessionState> log, string presetId, int endTurn, IReadOnlyList<TeamSpec> teams)
+        IEventLog<GameSessionState> log, int endTurn, IReadOnlyList<TeamSpec> teams)
     {
         ArgumentNullException.ThrowIfNull(log);
         ArgumentNullException.ThrowIfNull(teams);
@@ -80,7 +81,6 @@ public sealed class GameSession
         log.Append(new SessionStarted
         {
             Id = Ulid.NewUlid(),
-            PresetId = presetId,
             EndTurn = endTurn,
             ConfigHash = config.ContentHash,
             Teams = teams,
@@ -519,12 +519,12 @@ public sealed class GameSession
 
     /// <summary>
     /// Объявляет желаемый объём аварийной закупки материала на ближайший расчёт (SPEC §4, §5.3:
-    /// решения не применяются сразу — только на расчёте; цена — текущая рыночная котировка ×
-    /// множитель, служит потолком монопольных цен). Само объявление бесплатно и мгновенно, тем же
-    /// приёмом, что и <see cref="SetWorkerCount"/>: реальная покупка (склад, деньги) происходит один раз,
-    /// на расчёте (<see cref="EmergencyPurchaseStep"/>), считая цену уже по фактической истории на тот
-    /// момент. Последнее объявление по этому материалу в пределах хода замещает предыдущее; 0 снимает
-    /// заявку. Требует включённого флага и фазы решений.
+    /// решения не применяются сразу — только на расчёте; цена — себестоимость материала (<see
+    /// cref="MaterialCostCalculator"/>) × множитель, намеренно большой, аварийный вариант). Само
+    /// объявление бесплатно и мгновенно, тем же приёмом, что и <see cref="SetWorkerCount"/>: реальная
+    /// покупка (склад, деньги) происходит один раз, на расчёте (<see cref="EmergencyPurchaseStep"/>),
+    /// считая цену уже по фактической истории на тот момент. Последнее объявление по этому материалу
+    /// в пределах хода замещает предыдущее; 0 снимает заявку. Требует включённого флага и фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> EmergencyPurchase(Ulid teamId, string materialId, decimal volume)
     {
@@ -546,8 +546,9 @@ public sealed class GameSession
         {
             throw new ArgumentException($"Unknown material '{materialId}'.", nameof(materialId));
         }
-        // Санити-проверка сейчас (материал вообще когда-либо котировался) — сама цена всё равно
-        // считается заново на расчёте, по котировке на тот момент, см. EmergencyPurchaseStep.
+        // Санити-проверка сейчас (материал вообще существует в конфиге и уже котировался хоть
+        // когда-то) — сама цена считается по себестоимости на расчёте, не по котировке, см.
+        // EmergencyPurchaseStep/MaterialCostCalculator.
         GetQuoteOrThrow(materialId);
 
         return _log.Append(new EmergencyPurchaseRequested
@@ -663,9 +664,10 @@ public sealed class GameSession
     /// cref="BuildFactory"/> (SPEC §5.6/§5.11, запрос пользователя). Выручка — <c>LiquidationValueCoefficient</c>
     /// той же конфигурации фабрики, но не от полной <c>BuildCost</c>, а от остаточной стоимости с
     /// учётом реального состояния (<see cref="FactoryResidualValueCalculator"/>, та же формула, что и
-    /// итоговый счёт в конце игры, <see cref="FinalScoreCalculator"/>, 2026-08-23 — убитая ремонтом
-    /// фабрика продаётся дешевле свежей, раньше продавалась по той же цене) — команда видит эту цену
-    /// заранее, до продажи (UI берёт то же значение). Требует фазы решений.
+    /// итоговый счёт в конце игры, <see cref="FinalScoreCalculator"/>, доработано 2026-08-23 —
+    /// запрос пользователя: раньше убитая ремонтом фабрика продавалась по той же цене, что и
+    /// свежепостроенная) — команда видит эту цену заранее, до продажи (UI берёт то же значение).
+    /// Требует фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> SellFactory(Ulid teamId, Ulid factoryId)
     {
@@ -1099,6 +1101,9 @@ public sealed class GameSession
 
         var appended = new List<EventLogEntry<GameSessionState>>();
         var config = State.Config;
+        // Себестоимость каждого материала (не рыночная котировка — см. doc-comment MaterialCostCalculator)
+        // — общий якорь цены для аварийной закупки и продажи системе этого хода, один расчёт на всех.
+        var materialCosts = MaterialCostCalculator.CalculateAll(config);
 
         foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
         {
@@ -1115,12 +1120,12 @@ public sealed class GameSession
             // производства, а продать можно было только то, что было на складе до него, не свежий
             // выпуск). Порядок команд между собой (внешний foreach, по возрастанию Team.Id) здесь и
             // решает гонку за общую ёмкость рынка между продажами разных команд.
-            foreach (var change in EmergencyPurchaseStep.Run(team, State.Market, config.Raw.Economy, Entries, State.CurrentTurn))
+            foreach (var change in EmergencyPurchaseStep.Run(team, materialCosts, config.Raw.Economy, Entries, State.CurrentTurn))
             {
                 appended.Add(_log.Append(change));
             }
 
-            foreach (var change in SystemSaleStep.Run(team, State.Market, config.Raw.Economy, config.Materials))
+            foreach (var change in SystemSaleStep.Run(team, State.Market, materialCosts, config.Raw.Economy, config.Materials))
             {
                 appended.Add(_log.Append(change));
             }
@@ -1128,14 +1133,16 @@ public sealed class GameSession
 
         // Производство и доставка межкомандных контрактов идут по уровням цепочки СРАЗУ ПОСЛЕ
         // производства каждого уровня, а не по командам целиком с одной глобальной доставкой в конце
-        // (2026-08-23) — раньше контракт, подписанный на прошлом ходу под поставку этим ходом,
-        // доставлялся ПОСЛЕ того, как производство всех уровней всех команд этого хода уже
-        // отработало по старым остаткам, и реально был доступен только следующему ходу —
-        // двухходовой лаг вместо одноходового, из-за которого фабрики, зависящие от чужого сектора,
-        // хронически недобирали сырьё. Теперь: все команды считают уровень L → доставляются
-        // контракты именно на материалы уровня L → все команды считают уровень L+1 (и так видят уже
-        // доставленное). Порядок команд внутри уровня — по Team.Id, тот же, что раньше был внешним
-        // циклом.
+        // (rebalance/2-sector-stepwise, 2026-08-23, запрос пользователя) — раньше контракт,
+        // подписанный на прошлом ходу под поставку этим ходом, доставлялся ПОСЛЕ того, как
+        // производство всех уровней всех команд этого хода уже отработало по старым остаткам, и
+        // реально был доступен только следующему ходу — двухходовой лаг вместо одноходового, из-за
+        // которого фабрики, зависящие от чужого сектора, хронически недобирали сырьё (найдено:
+        // выпуск material2/material3 в 2-секторном кросс-сценарии держался на ~половине от
+        // изолированного сектора, при том что SimpleBot.BuyBufferCycles=1 целится ровно в один ход).
+        // Теперь: все команды считают уровень L → доставляются контракты именно на материалы уровня L
+        // → все команды считают уровень L+1 (и так видят уже доставленное). Порядок команд внутри
+        // уровня — по Team.Id, тот же, что раньше был внешним циклом.
         var levels = config.Materials.Values.Select(material => material.Level).Distinct().OrderBy(level => level).ToList();
         foreach (var level in levels)
         {
@@ -1163,9 +1170,17 @@ public sealed class GameSession
                     // выпуска, а не с числом рабочих или потреблённым сырьём (запрос пользователя),
                     // и известна только здесь, после расчёта производства (см. doc-comment
                     // TickFinanceStep — фиксированная часть, FactoryUpkeepPaid, списана раньше).
+                    // Цена — БАЗОВАЯ из конфига, не дрейфующая State.Market.ElectricityPrice
+                    // (docs/economy-accounting-audit.md, дефект 1, шаг 1): цену продажи при cost-plus
+                    // считает MaterialCostCalculator по Economy.ElectricityBasePrice, и если списывать
+                    // здесь по живой цене тренда, каждая единица продаётся дешевле, чем обошлась
+                    // (в сессиях проекта дрейф застревает на +2.5 к базе 2.0 — биллинг был в 2.25 раза
+                    // выше цены). Тренд остаётся рычагом рыночных котировок; вернуть его сюда можно
+                    // будет только вместе с настоящей рыночной моделью (docs/TODO.md №27), которая
+                    // пересчитывает и цену продажи.
                     var overheadCost = result.OutputQuantity
                                         * config.Raw.Economy.ElectricityConsumptionPerOutputUnit
-                                        * State.Market.ElectricityPrice;
+                                        * config.Raw.Economy.ElectricityBasePrice;
                     appended.Add(_log.Append(new FactoryProduced
                     {
                         Id = Ulid.NewUlid(),

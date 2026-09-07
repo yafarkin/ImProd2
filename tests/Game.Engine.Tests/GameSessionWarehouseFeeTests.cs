@@ -13,7 +13,6 @@ public class GameSessionWarehouseFeeTests
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
             config,
-            "test",
             endTurn: 999,
             new[]
             {

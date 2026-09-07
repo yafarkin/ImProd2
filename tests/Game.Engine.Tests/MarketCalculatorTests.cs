@@ -16,7 +16,6 @@ public class MarketCalculatorTests
             {
                 new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100m },
             },
-            MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
             MarketCapacityOverflowDiscount = 0.5m,
             ElectricityBasePrice = 5m,
             ElectricityConsumptionPerOutputUnit = 0m,

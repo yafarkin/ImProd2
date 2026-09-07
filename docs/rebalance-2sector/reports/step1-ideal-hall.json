@@ -1,0 +1,45 @@
+{
+  "Metadata": {
+    "ConfigPath": "/Users/yafarkin/Documents/dev/im_prod/src/Game.Config/Samples/production-models/debug-minimal.json",
+    "SessionPath": null,
+    "Mode": "ideal-hall",
+    "PresetId": "short",
+    "MaxTurns": 20,
+    "Sectors": [
+      {
+        "Id": "sector1",
+        "Name": "Сектор 1"
+      }
+    ],
+    "GitCommit": "6cabc61abda5698fa2bab03e9d5e50da94d3227f",
+    "GeneratedAtUtc": "2026-08-21T11:57:15.495909+00:00"
+  },
+  "IdealHall": {
+    "ValueByTurnBySector": {
+      "sector1": [
+        5060.000,
+        11120.000,
+        17180.000,
+        23240.000,
+        29400.000,
+        36040.000,
+        42710.000,
+        49380.000,
+        56050.000,
+        62720.000,
+        69662.0000,
+        76878.0000,
+        84370.0000,
+        92140.0000,
+        100190.0000,
+        108898.0000,
+        118129.0000,
+        127661.0000,
+        137496.0000,
+        147636.0000
+      ]
+    }
+  },
+  "Grid": null,
+  "GenerationParity": null
+}

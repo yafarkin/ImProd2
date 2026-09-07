@@ -104,12 +104,16 @@
         </ul>
 
         <h2 class="mt-3">Начать сессию</h2>
-        <select class="form-select w-auto mb-3" @bind="_selectedPresetId">
-            @foreach (var preset in Host.DraftConfig.Raw.SessionPresets)
-            {
-                <option value="@preset.Id">@preset.Name (@(preset.MinTurns)-@(preset.MaxTurns) ходов)</option>
-            }
-        </select>
+        <p class="mb-3">
+            Длительность: <strong>@DurationLabel(Host.DraftConfig.Raw)</strong>.
+            <span class="text-muted">
+                <em>
+                    Число ходов задано производственной моделью и не выбирается — под формат
+                    мероприятия подгоняется длина хода (фазы выше). Точный ход окончания
+                    разыгрывается на старте и не показывается ни игрокам, ни ведущему.
+                </em>
+            </span>
+        </p>
         <button type="button" class="btn btn-primary" @onclick="StartSession">Начать сессию</button>
     }
     else
@@ -192,12 +196,7 @@ else
         </em>
     </p>
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <select class="form-select w-auto" @bind="_resetPresetId">
-            @foreach (var preset in Host.DefaultConfig.Raw.SessionPresets)
-            {
-                <option value="@preset.Id">@preset.Name (@(preset.MinTurns)-@(preset.MaxTurns) ходов)</option>
-            }
-        </select>
+        <span>Новая сессия: <strong>@DurationLabel(Host.DefaultConfig.Raw)</strong>.</span>
         <button type="button" class="btn btn-danger" @onclick="ResetSession">Сбросить и начать заново</button>
     </div>
 }
@@ -214,8 +213,6 @@ else
     private string? _selectedSessionConfigId;
     private double _difficultyLevel = 3.0;
     private double _appliedDifficultyLevel = 3.0;
-    private string? _selectedPresetId;
-    private string? _resetPresetId;
     private string? _errorMessage;
 
     private int _decisionSeconds;
@@ -247,10 +244,8 @@ else
         var authState = await AuthenticationStateTask!;
         _isAdministrator = authState.User.IsInRole("Administrator");
 
-        _selectedPresetId = Host.DraftConfig.Raw.SessionPresets.Count > 0 ? Host.DraftConfig.Raw.SessionPresets[0].Id : null;
-        _resetPresetId = Host.DefaultConfig.Raw.SessionPresets.Count > 0 ? Host.DefaultConfig.Raw.SessionPresets[0].Id : null;
-        _selectedProductionModelId = Host.ProductionModels.ContainsKey("standard") ? "standard" : Host.ProductionModels.Keys.FirstOrDefault();
-        _selectedSessionConfigId = Host.SessionConfigs.ContainsKey("pilot") ? "pilot" : Host.SessionConfigs.Keys.FirstOrDefault();
+        _selectedProductionModelId = Host.ProductionModels.Keys.FirstOrDefault();
+        _selectedSessionConfigId = Host.SessionConfigs.Keys.FirstOrDefault();
         SyncPhaseTimingFields();
 
         Refresh();
@@ -318,15 +313,13 @@ else
     // ещё не описанный здесь) просто показывается как есть, ничего не ломает.
     private static readonly IReadOnlyDictionary<string, string> ProductionModelNames = new Dictionary<string, string>
     {
-        ["standard"] = "Стандартная",
-        ["debug"] = "Отладочная (расширенный каталог)",
+        ["training-1-sector"] = "Обучающая — металлургия, один сектор",
+        ["main-3-sectors"] = "Боевая — металлургия, нефтехимия, лес",
     };
 
     private static readonly IReadOnlyDictionary<string, string> SessionConfigNames = new Dictionary<string, string>
     {
-        ["pilot"] = "Пилот",
-        ["training"] = "Тренировочная (короткие ходы, ~8-10)",
-        ["debug"] = "Отладочная (30 сек/ход, 300 ходов)",
+        ["main"] = "Основная",
     };
 
     private static string ProductionModelLabel(string id, ProductionModelConfig model)
@@ -338,9 +331,22 @@ else
     private static string SessionConfigLabel(string id, SessionConfig session)
     {
         var name = SessionConfigNames.TryGetValue(id, out var known) ? known : id;
-        return session.SessionPresets.Count == 1
-            ? $"{name} ({session.SessionPresets[0].MinTurns}-{session.SessionPresets[0].MaxTurns} ходов)"
-            : $"{name} ({session.SessionPresets.Count} пресетов длительности)";
+        return $"{name} ({session.Duration.MinTurns}-{session.Duration.MaxTurns} ходов)";
+    }
+
+    /// <summary>
+    /// Длительность партии словами: диапазон ходов и во что он выливается по часам при текущей
+    /// длине хода. Часы считаются из <see cref="PhaseTimingConfig"/> — единственного источника длины
+    /// хода (см. doc-comment <see cref="SessionDurationConfig"/>), а не из отдельного «ориентировочно
+    /// N минут», которое разъезжалось бы с фактическим таймером.
+    /// </summary>
+    private static string DurationLabel(Game.Config.GameConfig config)
+    {
+        var turnSeconds = config.PhaseTiming.SettlementPhaseSeconds + config.PhaseTiming.DecisionPhaseSeconds;
+        var minHours = config.Duration.MinTurns * turnSeconds / 3600.0;
+        var maxHours = config.Duration.MaxTurns * turnSeconds / 3600.0;
+        return $"{config.Duration.MinTurns}-{config.Duration.MaxTurns} ходов по {turnSeconds / 60.0:0.#} мин " +
+               $"— ориентировочно {minHours:0.#}-{maxHours:0.#} ч";
     }
 
     private void ApplyProductionModelAndSession()
@@ -423,17 +429,7 @@ else
         }
     }
 
-    private void StartSession()
-    {
-        var preset = Host.DraftConfig.Raw.SessionPresets.FirstOrDefault(p => p.Id == _selectedPresetId);
-        if (preset is null)
-        {
-            _errorMessage = "Выберите пресет длительности.";
-            return;
-        }
-
-        RunAction(() => Host.StartSessionFromDraft(preset));
-    }
+    private void StartSession() => RunAction(() => Host.StartSessionFromDraft());
 
     private void AdvancePhaseNow() => RunAction(() => Host.Session!.AdvancePhase(PhaseTransitionTrigger.Facilitator));
 
@@ -451,17 +447,7 @@ else
 
     private void ExtendPhase() => RunAction(() => Host.Session!.ExtendCurrentPhase(TimeSpan.FromSeconds(_extendSeconds)));
 
-    private void ResetSession()
-    {
-        var preset = Host.DefaultConfig.Raw.SessionPresets.FirstOrDefault(p => p.Id == _resetPresetId);
-        if (preset is null)
-        {
-            _errorMessage = "Выберите пресет для новой сессии.";
-            return;
-        }
-
-        RunAction(() => Host.ResetSession(preset));
-    }
+    private void ResetSession() => RunAction(() => Host.ResetSession());
 
     private void RunAction(Action action)
     {

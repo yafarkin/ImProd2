@@ -8,20 +8,20 @@ public class GameConfigDeserializationTests
 {
     private static GameConfig LoadSampleConfig()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
+        var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "legacy-combined-gameconfig.json");
         var json = File.ReadAllText(path);
 
         return JsonSerializer.Deserialize<GameConfig>(json)
                ?? throw new InvalidOperationException("Sample config deserialized to null.");
     }
 
-    private static SessionConfig LoadDebugSessionConfig()
+    private static SessionConfig LoadSessionConfig()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "debug.json");
+        var path = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json");
         var json = File.ReadAllText(path);
 
         return JsonSerializer.Deserialize<SessionConfig>(json)
-               ?? throw new InvalidOperationException("Debug session config deserialized to null.");
+               ?? throw new InvalidOperationException("Session config deserialized to null.");
     }
 
     [Fact]
@@ -58,34 +58,34 @@ public class GameConfigDeserializationTests
     }
 
     [Fact]
-    public void Sample_Config_Deserializes_Starting_Conditions_And_Session_Presets_Without_Loss()
+    public void Sample_Config_Deserializes_Starting_Conditions_And_Duration_Without_Loss()
     {
         var config = LoadSampleConfig();
 
         Assert.Equal(10000m, config.StartingConditions.MaxInitialBuildBudget);
 
-        Assert.Equal(3, config.SessionPresets.Count);
-        var shortPreset = Assert.Single(config.SessionPresets, preset => preset.Id == "short");
-        Assert.Equal(15, shortPreset.MinTurns);
-        Assert.Equal(20, shortPreset.MaxTurns);
+        Assert.Equal(15, config.Duration.MinTurns);
+        Assert.Equal(20, config.Duration.MaxTurns);
 
         Assert.Equal(20, config.PhaseTiming.SettlementPhaseSeconds);
         Assert.Equal(300, config.PhaseTiming.DecisionPhaseSeconds);
     }
 
-    /// <summary>Отладочные сессионные параметры (кнопка «Отладочный конфиг» на /admin) — 30-секундный ход и 300 ходов подряд, чтобы наблюдать динамику без ожидания реальной игры; сочетаются с любой производственной моделью.</summary>
+    /// <summary>
+    /// Единственный сессионный файл: длительность одна на всю игру (пресетов больше нет, решение
+    /// пользователя 2026-09-07), диапазон жеребьёвки лежит целиком выше горизонта окупаемости
+    /// цепочек — иначе партия могла бы кончиться до того, как последний уровень вышел в плюс.
+    /// </summary>
     [Fact]
-    public void Debug_Session_Config_Has_A_Thirty_Second_Turn_Cycle_And_Three_Hundred_Turns()
+    public void Session_Config_Declares_A_Single_Duration_Whose_Draw_Range_Sits_Above_The_Payback_Horizon()
     {
-        var session = LoadDebugSessionConfig();
+        var session = LoadSessionConfig();
 
-        Assert.Equal(5, session.PhaseTiming.SettlementPhaseSeconds);
-        Assert.Equal(25, session.PhaseTiming.DecisionPhaseSeconds);
-
-        var preset = Assert.Single(session.SessionPresets);
-        Assert.Equal("debug", preset.Id);
-        Assert.Equal(300, preset.MinTurns);
-        Assert.Equal(300, preset.MaxTurns);
+        Assert.Equal(86, session.Duration.MinTurns);
+        Assert.Equal(98, session.Duration.MaxTurns);
+        Assert.True(
+            session.Duration.MinTurns >= session.Duration.MaxTurns - 15,
+            "Самая ранняя возможная концовка должна лежать не раньше горизонта окупаемости (MaxTurns − 15).");
     }
 
     [Fact]
@@ -93,8 +93,7 @@ public class GameConfigDeserializationTests
     {
         var config = LoadSampleConfig();
 
-        Assert.Equal(1.5m, config.Economy.EmergencyPurchaseBaseMultiplier);
-        Assert.Equal(9, config.Economy.MarginMultiplierByProcessingLevel.Count);
+        Assert.Equal(1.4m, config.Economy.EmergencyPurchaseBaseMultiplier);
         Assert.Equal(0.5m, config.Economy.MarketCapacityOverflowDiscount);
         Assert.Equal(0.5m, config.Economy.WarehouseLiquidationRate);
 

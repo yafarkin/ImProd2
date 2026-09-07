@@ -5,7 +5,7 @@ using Game.Engine;
 namespace Game.Bots.Llm.Tests;
 
 /// <summary>
-/// Сквозная проверка на РЕАЛЬНОМ <c>metallurgy.json</c> (не игрушечном <c>gameconfig.pilot.json</c>,
+/// Сквозная проверка на РЕАЛЬНОМ <c>metallurgy.json</c> (не игрушечном <c>legacy-combined-gameconfig.json</c>,
 /// см. <see cref="TestSession"/>) для <c>flex-reprocessing-shop</c> — единственной многорецептной
 /// фабрики стадии 1 (запрос пользователя, docs/TODO.md #20, 2026-08-17: доработать стадию 1 под выбор
 /// рецепта). Ловит опечатки в id рецепта/материала, которых юнит-тесты на игрушечных фикстурах не
@@ -19,13 +19,13 @@ public sealed class FlexReprocessingShopTests
 
     private static (GameSession Session, Ulid TeamId) StartSession()
     {
-        var productionModelPath = Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", "metallurgy.json");
-        var sessionPath = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
+        var productionModelPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "mirrored-sectors-deep-chain.json");
+        var sessionPath = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json");
         var config = GameConfigLoader.LoadFromFiles(productionModelPath, sessionPath);
 
         var teamId = Ulid.NewUlid();
         var teams = new List<TeamSpec> { new() { Id = teamId, Name = "Команда", SectorId = "A" } };
-        var session = GameSession.StartWithEndTurn(config, "full", 90, teams);
+        var session = GameSession.StartWithEndTurn(config, 90, teams);
         session.AdvancePhase(PhaseTransitionTrigger.Facilitator); // Settlement(1) -> Decision(1)
         return (session, teamId);
     }

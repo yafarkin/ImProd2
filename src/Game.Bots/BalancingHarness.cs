@@ -26,6 +26,10 @@ public static class BalancingHarness
         ArgumentNullException.ThrowIfNull(bots);
         ArgumentNullException.ThrowIfNull(random);
 
+        // Себестоимость не зависит от хода/рынка (см. doc-comment MaterialCostCalculator) — считаем
+        // один раз на всю партию, не на каждый ход внутри колбэка.
+        var materialCosts = MaterialCostCalculator.CalculateAll(session.State.Config);
+
         var turns = new List<TurnMetrics>();
         BotSessionRunner.RunToCompletion(session, bots, random, onTurnCompleted: appended =>
         {
@@ -45,15 +49,14 @@ public static class BalancingHarness
                 AverageFactoryCondition = averageFactoryCondition,
                 FactoriesUnderRepairCount = factoriesUnderRepair,
                 ForcedRepairEventsCount = forcedRepairEvents,
-                AverageConvergence = ComputeAverageConvergence(session, bots, idealHall, session.State.CurrentTurn),
+                AverageConvergence = ComputeAverageConvergence(session, bots, materialCosts, idealHall, session.State.CurrentTurn),
             });
         });
 
         var finalScores = bots
             .Select(bot => FinalScoreCalculator.Calculate(
                 session.State.Teams[bot.TeamId],
-                session.State.Market,
-                session.State.Config.Raw.Economy,
+                materialCosts,
                 session.State.Config.Raw.FactoryDefinitions))
             .ToList();
 
@@ -95,7 +98,8 @@ public static class BalancingHarness
 
     /// <summary>Score(t)/X(t) усреднённый по всем ботам партии на этот ход; <c>null</c>, если идеального зала нет или ни для одного бота нет данных (сектор отсутствует в X(t) или ход вышел за пределы просчитанного).</summary>
     private static decimal? ComputeAverageConvergence(
-        GameSession session, IReadOnlyList<SimpleBot> bots, IdealHallResult? idealHall, int turn)
+        GameSession session, IReadOnlyList<SimpleBot> bots, IReadOnlyDictionary<string, decimal> materialCosts,
+        IdealHallResult? idealHall, int turn)
     {
         if (idealHall is null)
         {
@@ -117,7 +121,7 @@ public static class BalancingHarness
             }
 
             var score = FinalScoreCalculator.Calculate(
-                team, session.State.Market, session.State.Config.Raw.Economy, session.State.Config.Raw.FactoryDefinitions).Score;
+                team, materialCosts, session.State.Config.Raw.FactoryDefinitions).Score;
             ratios.Add(score / value);
         }
 
@@ -160,7 +164,7 @@ public static class BalancingHarness
         return bySector.ToDictionary(entry => entry.Key, entry => entry.Value.Average());
     }
 
-    /// <summary>X(turn) сектора <paramref name="sectorId"/> из <paramref name="idealHall"/>; <c>null</c>, если сектора нет в X(t) или ход вне просчитанного диапазона (например, конфиг звал сессию длиннее MaxTurns пресета, на котором строился идеальный зал).</summary>
+    /// <summary>X(turn) сектора <paramref name="sectorId"/> из <paramref name="idealHall"/>; <c>null</c>, если сектора нет в X(t) или ход вне просчитанного диапазона (например, конфиг звал сессию длиннее MaxTurns, на котором строился идеальный зал).</summary>
     private static decimal? TryGetIdealValue(IdealHallResult idealHall, string sectorId, int turn)
     {
         var branch = idealHall.Branches.FirstOrDefault(b => b.SectorId == sectorId);

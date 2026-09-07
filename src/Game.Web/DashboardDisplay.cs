@@ -146,30 +146,19 @@ public static class DashboardDisplay
     }
 
     /// <summary>
-    /// Пытается посчитать себестоимость единицы материала (<see cref="CostCalculator.CalculateUnitCost"/>),
-    /// используя текущие рыночные котировки сырья как базовую цену. Возвращает <c>false</c>, если
-    /// котировки для какого-то из видов сырья в цепочке ещё нет (например, самый первый ход до
-    /// первого <see cref="MarketUpdated"/>) — дашборд в этом случае просто не показывает число, а не падает.
+    /// Пытается посчитать себестоимость единицы материала (<see cref="MaterialCostCalculator"/> — не
+    /// рыночная котировка, запрос пользователя, rebalance/2-sector-stepwise, 2026-08-21: «НЕТ НИКАКОЙ
+    /// РЫНОЧНОЙ ЦЕНЫ! Есть себестоимость материала, которую мы прекрасно можем посчитать»). Возвращает
+    /// <c>false</c>, если материал не производится ни одной фабрикой конфига (не должно случаться на
+    /// валидном конфиге, запасной путь, чтобы дашборд не падал).
     /// </summary>
     public static bool TryCalculateUnitCost(Material product, GameSessionState state, out decimal unitCost)
     {
         ArgumentNullException.ThrowIfNull(product);
         ArgumentNullException.ThrowIfNull(state);
 
-        var rawMaterialCosts = state.Config.Materials.Values
-            .Where(m => m.IsRawMaterial && state.Market.HasQuote(m.Id))
-            .ToDictionary(m => m, m => state.Market.QuoteOf(m.Id).Price);
-
-        try
-        {
-            unitCost = CostCalculator.CalculateUnitCost(product, state.Config.RecipeBook, rawMaterialCosts);
-            return true;
-        }
-        catch (ArgumentException)
-        {
-            unitCost = 0m;
-            return false;
-        }
+        var materialCosts = MaterialCostCalculator.CalculateAll(state.Config);
+        return materialCosts.TryGetValue(product.Id, out unitCost);
     }
 
     /// <summary>Один уровень пирамиды входов — материал, количество и глубина от корня (0 — сам продукт).</summary>

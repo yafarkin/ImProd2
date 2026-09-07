@@ -20,10 +20,12 @@ namespace Game.Engine;
 public static class SystemSaleStep
 {
     public static IReadOnlyList<Change<GameSessionState>> Run(
-        Team team, Market market, EconomyConfig economy, IReadOnlyDictionary<string, Material> materials)
+        Team team, Market market, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy,
+        IReadOnlyDictionary<string, Material> materials)
     {
         ArgumentNullException.ThrowIfNull(team);
         ArgumentNullException.ThrowIfNull(market);
+        ArgumentNullException.ThrowIfNull(materialCosts);
         ArgumentNullException.ThrowIfNull(economy);
         ArgumentNullException.ThrowIfNull(materials);
 
@@ -53,7 +55,7 @@ public static class SystemSaleStep
                 continue;
             }
 
-            var sale = MarketSaleCalculator.Calculate(market, economy, material, volume);
+            var sale = MarketSaleCalculator.Calculate(market, materialCosts, economy, material, volume);
 
             changes.Add(new MaterialSoldToSystem
             {

@@ -1,11 +1,15 @@
 using Game.Config.Loading;
+using Game.Engine;
 
 namespace Game.Balancing;
 
 /// <summary>
 /// Статическая проверка «фронт-лоадинга стартового поколения» (<c>docs/TODO.md</c> №2, находка сессии
 /// 2026-08-15) — не бот, не идеальный зал, мгновенный подсчёт по одному конфигу: суммарная «ценность»
-/// (<c>BaseCapacity × BasePrice × маржа уровня</c>) материалов уровня 1..<see
+/// (<c>BaseCapacity × себестоимость × <see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/></c>,
+/// себестоимость через <see cref="MaterialCostCalculator"/> — до 2026-08-22 здесь была
+/// <c>BasePrice × маржа уровня</c>, но с rebalance/2-sector-stepwise <c>BasePrice</c> ни на что не
+/// влияет, реальная системная цена — только себестоимость) материалов уровня 1..<see
 /// cref="Game.Config.Economy.GenerationResearchConfig.StartingGeneration"/> в каждом секторе — то есть
 /// то, что команда может продавать, вообще не вкладываясь в исследование поколений.
 ///
@@ -28,8 +32,7 @@ public static class GenerationParityCheck
 
     public static IReadOnlyList<SectorGenerationValue> Calculate(ResolvedGameConfig config)
     {
-        var marginByLevel = config.Raw.Economy.MarginMultiplierByProcessingLevel
-            .ToDictionary(m => m.Level, m => m.MarginMultiplier);
+        var materialCosts = MaterialCostCalculator.CalculateAll(config);
         var marketByMaterialId = config.Raw.Economy.BaseMarketPerMaterial
             .ToDictionary(m => m.MaterialId, m => m);
         var startingGeneration = config.Raw.GenerationResearch.StartingGeneration;
@@ -40,8 +43,8 @@ public static class GenerationParityCheck
                 .Where(m => m.Sector == sector && m.Level >= 1 && m.Level <= startingGeneration)
                 .ToList();
 
-            var value = startingMaterials.Sum(m => marketByMaterialId.TryGetValue(m.Id, out var market)
-                ? market.BaseCapacity * market.BasePrice * marginByLevel.GetValueOrDefault(m.Level, 1m)
+            var value = startingMaterials.Sum(m => marketByMaterialId.TryGetValue(m.Id, out var market) && materialCosts.TryGetValue(m.Id, out var cost)
+                ? market.BaseCapacity * cost * MarketSaleCalculator.SystemSaleMarginMultiplier
                 : 0m);
 
             return new SectorGenerationValue
