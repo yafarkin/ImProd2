@@ -83,26 +83,51 @@ public sealed class SimpleBot
     private const decimal OwnUseBufferCycles = 1m;
 
     /// <summary>
-    /// Надбавка сверх расчётной себестоимости, которую бот готов заплатить на закупке (Блок 7.3.1) —
-    /// потолок цены заявки на покупку. Публичный (не <c>private</c>) — на него сверяется статическая
-    /// проверка «бутерброда наценок» в <c>Game.Balancing --mode diagnose</c>. Было 20% (ниже системной
-    /// наценки продажи, 30%) — из-за этого P2P-сделки были заведомо невыгоднее прямой продажи
-    /// системе, механика контрактов не могла обгонять маркетмейкер ни при каких условиях (найдено
-    /// 2026-08-23, DiagnoseRun). Поднято до 50% — строго между <see
-    /// cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/> (30%, пол продавца) и
-    /// <c>EconomyConfig.EmergencyPurchaseBaseMultiplier</c> (55%, потолок покупателя), чтобы сделка в
-    /// диапазоне [<see cref="MinSellMarginRate"/>; этого потолка] была выгоднее ОБОИХ внешних
-    /// вариантов сразу.
+    /// Где внутри «окна маркетмейкера» стоит МИНИМАЛЬНАЯ цена, за которую бот согласен продать в
+    /// P2P: <c>0</c> — ровно столько же, сколько заплатит система, <c>1</c> — столько же, сколько
+    /// стоила бы аварийная закупка. Публичная — на неё сверяется §2 диагностики.
+    ///
+    /// <para><b>Почему позиция в окне, а не наценка над себестоимостью</b> (блок 11.7). Раньше здесь
+    /// было <c>MinSellMarginRate = 0.35</c> — «себестоимость + 35%», и корректность зависела от
+    /// того, что человек вручную удержит это число строго между наценкой системной продажи (+30%) и
+    /// аварийной закупки (+55%). Дважды не удерживал (найдено 2026-08-23: потолок покупателя стоял
+    /// НИЖЕ пола продавца, из-за чего P2P-сделки были невыгодны в принципе и механика контрактов
+    /// молча не работала). Под экзогенной ценой стало ещё хуже: единой наценки над себестоимостью
+    /// больше нет вовсе, она своя у каждого материала. Позиция в окне снимает проблему
+    /// структурно — любые значения из <c>[0; 1]</c> с <see cref="SellPositionInWindow"/> ниже
+    /// <see cref="BuyPositionInWindow"/> дают корректный бутерброд по построению, на любом
+    /// материале и в любой модели ценообразования.</para>
+    ///
+    /// <para>Значение 0.20 выбрано не заново: при cost-plus окно равно
+    /// <c>[себестоимость × 1.30; себестоимость × 1.55]</c>, и позиция 0.20 даёт ровно
+    /// <c>себестоимость × 1.35</c> — прежний <c>MinSellMarginRate = 0.35</c>, копейка в копейку.
+    /// Переформулировка не меняет поведение бота, она меняет способ гарантировать его
+    /// корректность.</para>
     /// </summary>
-    public const decimal MaxBuyPremiumRate = 0.50m;
+    public const decimal SellPositionInWindow = 0.20m;
 
     /// <summary>
-    /// Минимальная маржа сверх расчётной себестоимости, ниже которой бот не продаёт (Блок 7.3.1) —
-    /// пол цены заявки на продажу. Было 5%, поднято до 35% — та же причина, что у <see
-    /// cref="MaxBuyPremiumRate"/> (выше 2026-08-23), продавец-бот больше не соглашается на P2P-сделку
-    /// хуже, чем дала бы прямая продажа системе (30%).
+    /// Где внутри окна маркетмейкера стоит МАКСИМАЛЬНАЯ цена, которую бот согласен заплатить в P2P —
+    /// зеркало <see cref="SellPositionInWindow"/>. Значение 0.80 при cost-plus даёт ровно
+    /// <c>себестоимость × 1.50</c>, прежний <c>MaxBuyPremiumRate = 0.50</c>.
     /// </summary>
-    public const decimal MinSellMarginRate = 0.35m;
+    public const decimal BuyPositionInWindow = 0.80m;
+
+    /// <summary>
+    /// Доля неиспорченной цены, ниже которой бот не станет продавать системе прямо сейчас (блок
+    /// 11.7): если залив уже просадил среднюю цену сделки ниже этого порога, остаток придерживается
+    /// до следующих ходов, где давление предложения успеет затухнуть.
+    ///
+    /// <para>Это то самое новое решение, которого у бота не было при cost-plus: там цена не зависела
+    /// от объёма вовсе, и «продать всё сразу» было строго оптимально. Под экзогенной ценой у склада
+    /// появляется временная стоимость, и придерживание становится осмысленным ходом, а не
+    /// нерешительностью.</para>
+    ///
+    /// <para>Порог применяется через <see cref="MarketSaleCalculator"/>, то есть одинаково работает
+    /// в обеих моделях: при cost-plus с выключенным штрафом за превышение ёмкости цена от объёма не
+    /// зависит, порог никогда не срабатывает, и поведение бота остаётся прежним.</para>
+    /// </summary>
+    public const decimal MinAcceptableSellPriceRate = 0.85m;
 
     /// <summary>Заявки мельче этого объёма не подаются вовсе — не засорять стакан пылью (Блок 7.3.1).</summary>
     private const decimal MinOrderVolume = 0.5m;
@@ -523,12 +548,46 @@ public sealed class SimpleBot
         foreach (var material in team.Factories.Select(f => f.SelectedRecipe.Output).Distinct())
         {
             var sellable = ComputeSurplus(session, team, material);
-            if (sellable > 0)
+            if (sellable <= 0)
             {
-                session.SellToSystem(TeamId, material.Id, sellable);
-                _trace?.Invoke($"[{Sector.Id}] продаю системе {material.Id} объём={sellable:F1}");
+                continue;
             }
+
+            var volume = ThrottleToAcceptablePrice(session, material, sellable);
+            if (volume <= 0)
+            {
+                _trace?.Invoke($"[{Sector.Id}] придерживаю {material.Id}: рынок насыщен, цена ниже {MinAcceptableSellPriceRate:P0} от неиспорченной");
+                continue;
+            }
+
+            session.SellToSystem(TeamId, material.Id, volume);
+            _trace?.Invoke(volume < sellable
+                ? $"[{Sector.Id}] продаю системе {material.Id} объём={volume:F1} из {sellable:F1} (остальное придержано — рынок насыщен)"
+                : $"[{Sector.Id}] продаю системе {material.Id} объём={sellable:F1}");
         }
+    }
+
+    /// <summary>
+    /// Сколько из <paramref name="desiredVolume"/> бот согласен продать системе прямо сейчас —
+    /// общий с идеальным залом дроссель <see cref="MarketSaleCalculator.LargestVolumeAbovePriceFloor"/>
+    /// (блок 11.7). Объём мельче <see cref="MinOrderVolume"/> не подаётся вовсе.
+    /// </summary>
+    private decimal ThrottleToAcceptablePrice(GameSession session, Material material, decimal desiredVolume)
+    {
+        var economy = session.State.Config.Raw.Economy;
+        var market = session.State.Market;
+        if (!market.HasQuote(material.Id))
+        {
+            return desiredVolume;
+        }
+
+        var supplyPressure = Engine.MarketSupplyPressureCalculator.CalculateRecentVolume(
+            session.Entries, material.Id, session.State.CurrentTurn, economy);
+
+        var volume = MarketSaleCalculator.LargestVolumeAbovePriceFloor(
+            market, MaterialCosts(session), economy, material, desiredVolume, supplyPressure, MinAcceptableSellPriceRate);
+
+        return volume >= MinOrderVolume ? volume : 0m;
     }
 
     /// <summary>
@@ -595,7 +654,7 @@ public sealed class SimpleBot
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var materialCosts = MaterialCosts(session);
+        var (windowFloor, windowCeiling) = MarketMakerWindow(session);
 
         var orders = new List<TradeOrder>();
         foreach (var material in team.Factories.Select(f => f.SelectedRecipe.Output).Distinct())
@@ -606,14 +665,14 @@ public sealed class SimpleBot
                 _trace?.Invoke($"[{Sector.Id}] не продаю {material.Id}: излишек {sellable:F1} < минимального объёма {MinOrderVolume:F1}");
                 continue;
             }
-            if (!materialCosts.TryGetValue(material.Id, out var unitCost))
+            if (!windowFloor.TryGetValue(material.Id, out var floor) || !windowCeiling.TryGetValue(material.Id, out var ceiling))
             {
-                _trace?.Invoke($"[{Sector.Id}] не продаю {material.Id}: себестоимость не посчиталась");
+                _trace?.Invoke($"[{Sector.Id}] не продаю {material.Id}: окно маркетмейкера не посчиталось");
                 continue;
             }
 
-            var limitPrice = unitCost * (1m + MinSellMarginRate);
-            _trace?.Invoke($"[{Sector.Id}] sellOrder {material.Id} объём={sellable:F1} себестоимость={unitCost:F4} лимит={limitPrice:F4}");
+            var limitPrice = PriceAtWindowPosition(floor, ceiling, SellPositionInWindow);
+            _trace?.Invoke($"[{Sector.Id}] sellOrder {material.Id} объём={sellable:F1} окно=[{floor:F4};{ceiling:F4}] лимит={limitPrice:F4}");
             orders.Add(new TradeOrder
             {
                 TeamId = TeamId,
@@ -633,15 +692,15 @@ public sealed class SimpleBot
     /// строительством всей цепочки сектора, см. <see cref="BuildNewlyUnlockedFactories"/>). Целится в
     /// буфер на <see cref="BuyBufferCycles"/> ходов настоящей потребности (<see
     /// cref="ComputeDesiredInputQuantity"/>, не плоское количество входа одной варки); заявка —
-    /// только на нехватку до этого буфера. Цена — себестоимость плюс потолок надбавки (<see
-    /// cref="MaxBuyPremiumRate"/>).
+    /// только на нехватку до этого буфера. Цена — <see cref="BuyPositionInWindow"/> внутри окна
+    /// маркетмейкера.
     /// </summary>
     public IReadOnlyList<TradeOrder> ComputeBuyOrders(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var materialCosts = MaterialCosts(session);
+        var (windowFloor, windowCeiling) = MarketMakerWindow(session);
         var ownProducedMaterials = team.Factories.Select(f => f.SelectedRecipe.Output).ToHashSet();
 
         var neededMaterials = team.Factories
@@ -660,14 +719,14 @@ public sealed class SimpleBot
                 _trace?.Invoke($"[{Sector.Id}] не покупаю {material.Id}: буфер {targetBuffer:F1} - склад {team.Warehouse.QuantityOf(material):F1} = {deficit:F1} < минимального объёма {MinOrderVolume:F1}");
                 continue;
             }
-            if (!materialCosts.TryGetValue(material.Id, out var unitCost))
+            if (!windowFloor.TryGetValue(material.Id, out var floor) || !windowCeiling.TryGetValue(material.Id, out var ceiling))
             {
-                _trace?.Invoke($"[{Sector.Id}] не покупаю {material.Id}: себестоимость не посчиталась");
+                _trace?.Invoke($"[{Sector.Id}] не покупаю {material.Id}: окно маркетмейкера не посчиталось");
                 continue;
             }
 
-            var limitPrice = unitCost * (1m + MaxBuyPremiumRate);
-            _trace?.Invoke($"[{Sector.Id}] buyOrder {material.Id} объём={deficit:F1} себестоимость={unitCost:F4} лимит={limitPrice:F4}");
+            var limitPrice = PriceAtWindowPosition(floor, ceiling, BuyPositionInWindow);
+            _trace?.Invoke($"[{Sector.Id}] buyOrder {material.Id} объём={deficit:F1} окно=[{floor:F4};{ceiling:F4}] лимит={limitPrice:F4}");
             orders.Add(new TradeOrder
             {
                 TeamId = TeamId,
@@ -745,4 +804,24 @@ public sealed class SimpleBot
     /// </summary>
     private static IReadOnlyDictionary<string, decimal> MaterialCosts(GameSession session) =>
         Engine.MaterialCostCalculator.CalculateAll(session.State.Config);
+
+    /// <summary>
+    /// Границы «окна маркетмейкера» по каждому материалу: сколько за единицу заплатит система
+    /// (нижняя) и сколько запросит за неё при аварийной закупке (верхняя). Всё, что между ними, —
+    /// пространство, где P2P-сделка выгоднее обоих внешних вариантов сразу ОБЕИМ сторонам.
+    /// <see cref="Engine.SystemSaleReferencePriceCalculator"/> знает про модель ценообразования, бот —
+    /// нет: он видит только две границы (блок 11.7).
+    /// </summary>
+    private static (IReadOnlyDictionary<string, decimal> Floor, IReadOnlyDictionary<string, decimal> Ceiling)
+        MarketMakerWindow(GameSession session)
+    {
+        var costs = MaterialCosts(session);
+        return (
+            Engine.SystemSaleReferencePriceCalculator.CalculateAll(session.State.Config, costs),
+            Engine.SystemSaleReferencePriceCalculator.CalculateEmergencyAll(session.State.Config, costs));
+    }
+
+    /// <summary>Цена в заданной позиции окна: <c>пол + позиция × (потолок − пол)</c>.</summary>
+    private static decimal PriceAtWindowPosition(decimal floor, decimal ceiling, decimal position) =>
+        floor + position * (ceiling - floor);
 }

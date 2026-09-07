@@ -68,6 +68,16 @@ public static class IdealHallCalculator
     /// </summary>
     public static Action<string>? Trace;
 
+    /// <summary>
+    /// Доля неиспорченной цены, ниже которой идеальный зал не продаёт системе, а придерживает
+    /// остаток до затухания давления (блок 11.7). Совпадает с
+    /// <c>SimpleBot.MinAcceptableSellPriceRate</c> намеренно: зал обязан играть не хуже бота, иначе
+    /// он перестаёт быть верхней границей. Продублировано числом, а не ссылкой, потому что
+    /// <c>Game.Engine</c> не знает про <c>Game.Bots</c> (направление зависимостей) —
+    /// расхождение ловится <c>IdealHallUpperBoundTests</c>.
+    /// </summary>
+    private const decimal MinAcceptableSellPriceRate = 0.85m;
+
     /// <summary>Печатает склад и кассу ветки в лог трассировки (см. <see cref="Trace"/>) — сырьё для сравнения с трассировкой реального бота построчно.</summary>
     private static void TraceWarehouse(BranchState branch, string phase)
     {
@@ -551,8 +561,21 @@ public static class IdealHallCalculator
         }
 
         var pressureBefore = supplyPressure.GetValueOrDefault(material.Id);
+
+        // Идеальная игра не топит собственную цену: как и бот (SimpleBot.MinAcceptableSellPriceRate),
+        // зал придерживает объём, который ушёл бы в насыщенный рынок дешевле порога. Порог обязан
+        // быть НЕ ХУЖЕ ботовского, иначе зал перестаёт быть верхней границей X(t) — реальная команда
+        // обыгрывала бы «идеальную» просто за счёт того, что не заливает рынок (блок 11.7).
+        var sellableNow = MarketSaleCalculator.LargestVolumeAbovePriceFloor(
+            market, materialCosts, config.Raw.Economy, material, remainingSurplus, pressureBefore,
+            MinAcceptableSellPriceRate);
+        if (sellableNow <= 0m)
+        {
+            return;
+        }
+
         var sale = MarketSaleCalculator.Calculate(
-            market, materialCosts, config.Raw.Economy, material, remainingSurplus, pressureBefore);
+            market, materialCosts, config.Raw.Economy, material, sellableNow, pressureBefore);
         var soldVolume = sale.WithinCapacityVolume + sale.OverflowVolume;
         if (soldVolume <= 0m)
         {

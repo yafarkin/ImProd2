@@ -341,10 +341,13 @@ else
     }
 
     <div class="alert @(_sandwichHealthy ? "alert-success" : "alert-warning") mb-2">
-        <div>Пол продавца (системная продажа): +@_systemMargin.ToString("P0")</div>
-        <div>Жадность бота в P2P: [+@_botFloor.ToString("P0"); +@_botCeiling.ToString("P0")]</div>
-        <div>Потолок покупателя (аварийная закупка): +@_emergencyMargin.ToString("P0")</div>
-        <div>@(_sandwichHealthy ? "✅ Бутерброд корректен." : "⚠ Бутерброд наценок нарушен — P2P невыгоден одной из сторон.")</div>
+        <div>Ширина окна маркетмейкера (аварийная закупка над системной продажей): +@_windowWidth.ToString("P0")</div>
+        <div>Позиция бота в окне: продажа @_botSellPosition.ToString("P0"), покупка @_botBuyPosition.ToString("P0")</div>
+        <div>
+            @(_sandwichHealthy
+                ? "✅ Бутерброд корректен по построению: бот назначает цены как долю окна."
+                : "⚠ Окно маркетмейкера схлопнуто — система продаёт не дороже, чем покупает, договариваться не о чем.")
+        </div>
     </div>
 
     <h4>Идеальный зал X(t) по секторам</h4>
@@ -522,7 +525,7 @@ else
     private IReadOnlyList<string> _badPayback = Array.Empty<string>();
     private decimal _paybackWarningTurns;
     private bool _sandwichHealthy;
-    private decimal _systemMargin, _botFloor, _botCeiling, _emergencyMargin;
+    private decimal _windowWidth, _botSellPosition, _botBuyPosition;
     private IReadOnlyList<string> _teamNames = Array.Empty<string>();
     private string _selectedTeamFilter = "";
     private string _selectedColumn = "Баланс";
@@ -629,11 +632,20 @@ else
             _paybackWarningTurns = Math.Max(0m, _endTurn - ProductionCostLevelReportWriter.DefaultPaybackBufferTurns);
             _badPayback = DiagnoseRun.FindBadPaybackLevels(_costRows, _paybackWarningTurns);
 
-            _systemMargin = MarketSaleCalculator.SystemSaleMarginMultiplier - 1m;
-            _emergencyMargin = config.Raw.Economy.EmergencyPurchaseBaseMultiplier - 1m;
-            _botFloor = SimpleBot.MinSellMarginRate;
-            _botCeiling = SimpleBot.MaxBuyPremiumRate;
-            _sandwichHealthy = _botFloor >= _systemMargin && _botCeiling <= _emergencyMargin && _botFloor <= _botCeiling;
+            // Бот назначает цены как долю окна маркетмейкера (блок 11.7), поэтому проверять надо не
+            // согласованность вручную подобранных наценок, а существование самого окна.
+            var costs = MaterialCostCalculator.CalculateAll(config);
+            var sellPrices = SystemSaleReferencePriceCalculator.CalculateAll(config, costs);
+            var emergencyPrices = SystemSaleReferencePriceCalculator.CalculateEmergencyAll(config, costs);
+            var windowWidths = sellPrices
+                .Where(pair => emergencyPrices.ContainsKey(pair.Key) && pair.Value > 0m)
+                .Select(pair => emergencyPrices[pair.Key] / pair.Value - 1m)
+                .ToList();
+
+            _windowWidth = windowWidths.Count > 0 ? windowWidths.Min() : 0m;
+            _botSellPosition = SimpleBot.SellPositionInWindow;
+            _botBuyPosition = SimpleBot.BuyPositionInWindow;
+            _sandwichHealthy = _windowWidth > 0m && _botSellPosition < _botBuyPosition;
 
             _result = DetailedSessionRunner.Run(config, _endTurn, _teamsPerSector, _maintainFactories, _leverage, _profile);
             _teamNames = _result.Snapshots.Select(s => s.TeamName).Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList();

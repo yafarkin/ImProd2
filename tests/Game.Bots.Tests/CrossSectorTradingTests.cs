@@ -252,7 +252,12 @@ public class CrossSectorTradingTests
     ///    b-widget физически не производится, а значит и не продаётся — сходится только если стакан
     ///    свёл продавца-А с покупателем-Б.
     /// </summary>
-    private static ResolvedGameConfig BuildTwoSectorConfig()
+    /// <summary>
+    /// Двухсекторная цепочка с настоящей кросс-секторной зависимостью. Открыта (internal), потому
+    /// что её переиспользует <see cref="ExternalPricingBotTests"/>: тот же стенд под другой моделью
+    /// ценообразования — копировать конфиг во второй раз значило бы завести две расходящиеся копии.
+    /// </summary>
+    internal static ResolvedGameConfig BuildTwoSectorConfig()
     {
         var config = new GameConfig
         {

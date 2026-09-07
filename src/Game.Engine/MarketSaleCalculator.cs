@@ -57,6 +57,70 @@ public static class MarketSaleCalculator
             : CalculateCostPlus(market, materialCosts, economy, material, volume);
     }
 
+    /// <summary>
+    /// Наибольшая доля <paramref name="desiredVolume"/>, при которой средняя цена сделки ещё не
+    /// падает ниже <paramref name="minAcceptablePriceRate"/> от цены ненасыщенного рынка. Остальное
+    /// продавцу выгоднее придержать до ходов, где давление предложения успеет затухнуть (блок 11.7).
+    ///
+    /// <para>Живёт здесь, а не у продавца, чтобы <b>бот и идеальный зал дросселировали одинаково</b>.
+    /// Если бы придерживал только бот, зал перестал бы быть верхней границей X(t): реальная команда
+    /// обыгрывала бы «идеальную» просто за счёт того, что не топит собственную цену.</para>
+    ///
+    /// <para>Считается бисекцией по этому же классу, поэтому не держит копии формулы цены и
+    /// одинаково работает в обеих моделях. Число итераций фиксировано — результат детерминирован
+    /// (AGENTS §2, правило 6). Если цена от объёма не зависит вовсе (cost-plus с выключенным штрафом
+    /// за превышение ёмкости), проверка проходит на полном объёме и бисекция не запускается.</para>
+    /// </summary>
+    public static decimal LargestVolumeAbovePriceFloor(
+        Market market, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy,
+        Material material, decimal desiredVolume, decimal supplyPressure, decimal minAcceptablePriceRate)
+    {
+        ArgumentNullException.ThrowIfNull(material);
+        if (desiredVolume <= 0m)
+        {
+            return 0m;
+        }
+
+        decimal AverageUnitPrice(decimal volume) =>
+            Calculate(market, materialCosts, economy, material, volume, supplyPressure).UnitPrice;
+
+        // Эталон — цена бесконечно малой продажи: неиспорченная цена этого хода с учётом уже
+        // накопленного чужого залива, но без вклада самой этой сделки.
+        var pristinePrice = AverageUnitPrice(Math.Min(desiredVolume, 0.0001m));
+        if (pristinePrice <= 0m)
+        {
+            return desiredVolume;
+        }
+
+        var priceFloor = pristinePrice * minAcceptablePriceRate;
+        if (AverageUnitPrice(desiredVolume) >= priceFloor)
+        {
+            return desiredVolume;
+        }
+
+        var low = 0m;
+        var high = desiredVolume;
+        for (var iteration = 0; iteration < 24; iteration++)
+        {
+            var middle = (low + high) / 2m;
+            if (middle <= 0m)
+            {
+                break;
+            }
+
+            if (AverageUnitPrice(middle) >= priceFloor)
+            {
+                low = middle;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+
+        return low;
+    }
+
     private static MarketSaleResult CalculateExternal(
         Market market, EconomyConfig economy, Material material, decimal volume, decimal supplyPressure)
     {

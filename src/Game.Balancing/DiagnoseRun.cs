@@ -35,11 +35,11 @@ namespace Game.Balancing;
 /// а недокормленный уровень платит содержание и зарплату полностью, выпуская долю от мощности.</item>
 /// <item><b>«Бутерброд наценок» (<see cref="CheckMarginSandwich"/>)</b> — статическая сверка чисел, не
 /// расчёт: чтобы P2P-контракт был выгоднее рынка ОБЕИМ сторонам разом, жадность бота
-/// (<see cref="SimpleBot.MinSellMarginRate"/>/<see cref="SimpleBot.MaxBuyPremiumRate"/>) должна лежать
-/// строго между полом продавца (наценка системной продажи) и потолком покупателя (наценка аварийной
-/// закупки) — иначе один из внешних вариантов (продать системе / закупить аварийно) всегда выгоднее
-/// любой сделки с другой командой, и механика контрактов не работает не потому что её кто-то не
-/// использует, а потому что числа не дают ей быть выгодной.</item>
+/// (<see cref="SimpleBot.SellPositionInWindow"/>/<see cref="SimpleBot.BuyPositionInWindow"/>) задана
+/// как доля «окна маркетмейкера» между ценой системной продажи и ценой аварийной закупки, поэтому
+/// с блока 11.7 бутерброд корректен ПО ПОСТРОЕНИЮ. Секция осталась не как проверка ручных чисел, а
+/// как проверка того, что окно вообще существует: если система продаёт не дороже, чем покупает,
+/// договариваться не о чем ни при каких позициях бота.</item>
 /// <item><b>Идеальный зал (`IdealHallCalculator`)</b> — X(t) без поведения бота вообще. Если тут
 /// минус или монотонное падение — дело в самих числах/рецептах, чинить бота бесполезно (см.
 /// <c>docs/production-chain-calibration-lessons.md</c> §2).</item>
@@ -274,67 +274,75 @@ internal static class DiagnoseRun
     /// </summary>
     internal static MarginSandwichResult CheckMarginSandwich(ResolvedGameConfig config)
     {
-        // Пол продавца — насколько выгоднее себестоимости продать системе. При CostPlus это одно
-        // число на всю игру; при External цена задана конфигом отдельно по каждому материалу,
-        // поэтому пол СВОЙ у каждого уровня, и проверять надо худший случай, а не среднее: контракт
-        // мёртв уже тогда, когда невыгоден хотя бы на одном материале (блок 11.6).
+        // Окно маркетмейкера по каждому материалу: сколько за единицу заплатит система и сколько
+        // запросит за неё аварийно. Всё между границами — пространство P2P. При cost-plus окно
+        // пропорционально себестоимости и потому одинаково по всей цепочке; при экзогенной цене оно
+        // своё у каждого материала, поэтому проверять надо КАЖДЫЙ, а не одно общее число
+        // (блок 11.6).
         var materialCosts = MaterialCostCalculator.CalculateAll(config);
-        var referencePrices = SystemSaleReferencePriceCalculator.CalculateAll(config, materialCosts);
-        var marginByMaterial = materialCosts
-            .Where(pair => pair.Value > 0m && referencePrices.ContainsKey(pair.Key))
-            .ToDictionary(pair => pair.Key, pair => referencePrices[pair.Key] / pair.Value - 1m);
+        var sellPrices = SystemSaleReferencePriceCalculator.CalculateAll(config, materialCosts);
+        var emergencyPrices = SystemSaleReferencePriceCalculator.CalculateEmergencyAll(config, materialCosts);
 
-        var systemMargin = marginByMaterial.Count > 0 ? marginByMaterial.Values.Max() : 0m;
-        var emergencyMargin = config.Raw.Economy.EmergencyPurchaseBaseMultiplier - 1m;
-        var botFloor = SimpleBot.MinSellMarginRate;
-        var botCeiling = SimpleBot.MaxBuyPremiumRate;
-
-        // Разброс меньше половины процентного пункта — это не разброс, а шум последнего знака:
-        // под CostPlus наценка одинакова по построению, но price/cost − 1 по каждому материалу
-        // считается делением и совпадает не побитово. Диапазон печатается, только когда он реальный.
-        var lowestMargin = marginByMaterial.Count > 0 ? marginByMaterial.Values.Min() : 0m;
-        var systemMarginLabel = systemMargin - lowestMargin > 0.005m
-            ? $"+{lowestMargin:P0}..+{systemMargin:P0} (худший — {marginByMaterial.MaxBy(pair => pair.Value).Key})"
-            : $"+{systemMargin:P0}";
+        var sellPosition = SimpleBot.SellPositionInWindow;
+        var buyPosition = SimpleBot.BuyPositionInWindow;
 
         var lines = new List<string>
         {
-            $"  Пол продавца (системная продажа): {systemMarginLabel}",
-            $"  Жадность бота в P2P: [+{botFloor:P0}; +{botCeiling:P0}]",
-            $"  Потолок покупателя (аварийная закупка): +{emergencyMargin:P0}",
+            $"  Позиция бота в окне маркетмейкера: продажа {sellPosition:P0}, покупка {buyPosition:P0}",
         };
 
         var problems = new List<string>();
-        if (botFloor < systemMargin)
+
+        // Бот назначает цены как долю окна (блок 11.7), поэтому «пол выше потолка» больше не может
+        // возникнуть от рассинхрона чисел — только если позиции перепутаны местами.
+        if (sellPosition >= buyPosition)
         {
             problems.Add(
-                $"пол жадности бота (+{botFloor:P0}) ниже системной наценки (+{systemMargin:P0}) — продавец-бот " +
-                "соглашается на P2P-сделку хуже, чем дала бы прямая продажа системе хотя бы по одному материалу; " +
-                "сделки P2P для него систематически невыгодны. " +
-                $"→ Поднять SimpleBot.MinSellMarginRate с {botFloor:P0} до значения строго выше +{systemMargin:P0} " +
-                $"(и строго ниже потолка +{botCeiling:P0}).");
+                $"позиция продажи ({sellPosition:P0}) не ниже позиции покупки ({buyPosition:P0}) — у бота нет диапазона, " +
+                "в котором он готов и продавать, и покупать. → Развести SimpleBot.SellPositionInWindow и BuyPositionInWindow.");
         }
 
-        if (botCeiling > emergencyMargin)
+        if (sellPosition < 0m || buyPosition > 1m)
         {
             problems.Add(
-                $"потолок жадности бота (+{botCeiling:P0}) выше аварийной наценки (+{emergencyMargin:P0}) — покупатель-бот " +
-                "готов переплатить в P2P больше, чем стоила бы аварийная закупка; проще закупиться у системы, не договариваться. " +
-                $"→ Либо опустить SimpleBot.MaxBuyPremiumRate до значения ниже +{emergencyMargin:P0}, либо поднять " +
-                $"Economy.EmergencyPurchaseBaseMultiplier с {config.Raw.Economy.EmergencyPurchaseBaseMultiplier:F2} " +
-                $"до >{1m + botCeiling:F2} — второе честнее, если аварийная закупка задумана как дорогая крайняя мера.");
+                $"позиции бота выходят за окно [0%; 100%] — сделка вне окна всегда проигрывает внешнему варианту " +
+                "(продаже системе или аварийной закупке). → Вернуть SellPositionInWindow/BuyPositionInWindow внутрь [0; 1].");
         }
 
-        if (botFloor > botCeiling)
+        // Вырожденное окно: система покупает не дешевле, чем продаёт. Договариваться тогда не о чем
+        // ни при каких позициях бота.
+        var degenerate = sellPrices
+            .Where(pair => emergencyPrices.TryGetValue(pair.Key, out var ceiling) && ceiling <= pair.Value)
+            .Select(pair => pair.Key)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+
+        if (degenerate.Count > 0)
         {
             problems.Add(
-                $"пол жадности (+{botFloor:P0}) выше потолка (+{botCeiling:P0}) — у бота вообще нет диапазона цены, в котором он готов и продавать, и покупать. " +
-                $"→ Развести MinSellMarginRate и MaxBuyPremiumRate так, чтобы весь диапазон лежал внутри [+{systemMargin:P0}; +{emergencyMargin:P0}].");
+                $"окно маркетмейкера схлопнуто на материалах: {string.Join(", ", degenerate.Take(5))}" +
+                (degenerate.Count > 5 ? $" и ещё {degenerate.Count - 5}" : string.Empty) +
+                " — система продаёт не дороже, чем покупает, P2P-торговля бессмысленна в принципе. " +
+                $"→ Поднять Economy.EmergencyPurchaseBaseMultiplier (сейчас {config.Raw.Economy.EmergencyPurchaseBaseMultiplier:F2}).");
+        }
+
+        var widths = sellPrices
+            .Where(pair => emergencyPrices.ContainsKey(pair.Key) && pair.Value > 0m)
+            .Select(pair => emergencyPrices[pair.Key] / pair.Value - 1m)
+            .ToList();
+
+        if (widths.Count > 0)
+        {
+            lines.Insert(0, widths.Max() - widths.Min() > 0.005m
+                ? $"  Ширина окна (аварийная закупка над системной продажей): +{widths.Min():P0}..+{widths.Max():P0}"
+                : $"  Ширина окна (аварийная закупка над системной продажей): +{widths.Min():P0}");
         }
 
         if (problems.Count == 0)
         {
-            lines.Add("  ✅ Бутерброд корректен: любая сделка внутри диапазона жадности бота выгоднее ОБОИХ внешних вариантов сразу.");
+            lines.Add(
+                "  ✅ Бутерброд корректен по построению: бот назначает цены как долю окна, поэтому любая его сделка " +
+                "выгоднее ОБОИХ внешних вариантов сразу — на каждом материале и в любой модели ценообразования.");
         }
         else
         {

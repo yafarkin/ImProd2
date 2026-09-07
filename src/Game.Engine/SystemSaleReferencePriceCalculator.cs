@@ -38,6 +38,32 @@ public static class SystemSaleReferencePriceCalculator
             pair => pair.Value * MarketSaleCalculator.SystemSaleMarginMultiplier);
     }
 
+    /// <summary>
+    /// Опорная цена аварийной закупки — сколько система запросит за единицу материала при базовом
+    /// множителе, без надбавки за личное давление закупок команды.
+    ///
+    /// <para>Вместе с <see cref="CalculateAll"/> задаёт <b>окно маркетмейкера</b>: система покупает по
+    /// нижней цене, продаёт по верхней, и всё, что между ними, — пространство P2P-торговли между
+    /// командами. Именно от этих двух границ, а не от себестоимости, боты назначают свои лимитные
+    /// цены (блок 11.7).</para>
+    /// </summary>
+    public static IReadOnlyDictionary<string, decimal> CalculateEmergencyAll(
+        ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> unitCostByMaterialId)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(unitCostByMaterialId);
+
+        var multiplier = config.Raw.Economy.EmergencyPurchaseBaseMultiplier;
+
+        if (config.Raw.Economy.PricingModel == PricingModel.External)
+        {
+            return config.Raw.Economy.BaseMarketPerMaterial.ToDictionary(
+                m => m.MaterialId, m => m.BaseSellPrice * multiplier);
+        }
+
+        return unitCostByMaterialId.ToDictionary(pair => pair.Key, pair => pair.Value * multiplier);
+    }
+
     /// <summary>Опорная цена одного материала; 0, если материал не торгуется системой (нет записи в конфиге рынка).</summary>
     public static decimal PriceOf(IReadOnlyDictionary<string, decimal> referencePrices, string materialId)
     {
