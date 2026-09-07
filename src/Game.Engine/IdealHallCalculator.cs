@@ -104,7 +104,7 @@ public static class IdealHallCalculator
         {
             Trace?.Invoke($"=== TURN {turn} ===");
             var marketUpdate = MarketCalculator.Calculate(turn, config.Raw.Economy);
-            market.ReplaceQuotes(marketUpdate.Quotes, marketUpdate.ElectricityPrice);
+            market.ReplaceQuotes(marketUpdate.Quotes, marketUpdate.ElectricityPrice, EconomyIndexCalculator.Calculate(turn, config.Raw.Economy));
 
             foreach (var branch in branches)
             {

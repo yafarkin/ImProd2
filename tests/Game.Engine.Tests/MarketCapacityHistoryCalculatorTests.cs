@@ -103,7 +103,7 @@ public class MarketCapacityHistoryCalculatorTests
             Id = Ulid.NewUlid(), TeamId = buyer.Id, MaterialId = "ore", Volume = 20m,
             WithinCapacityVolume = 20m, OverflowVolume = 0m, UnitPrice = 10m, TotalRevenue = 200m,
         });
-        log.Append(new MarketUpdated { Id = Ulid.NewUlid(), Quotes = TestGameConfig.Resolved.Raw.Economy.BaseMarketPerMaterial.ToDictionary(m => m.MaterialId, m => new MaterialQuote(m.BasePrice, m.BaseCapacity)), ElectricityPrice = 1m });
+        log.Append(new MarketUpdated { Id = Ulid.NewUlid(), Quotes = TestGameConfig.Resolved.Raw.Economy.BaseMarketPerMaterial.ToDictionary(m => m.MaterialId, m => new MaterialQuote(m.BasePrice, m.BaseCapacity)), ElectricityPrice = 1m, Turn = 1, EconomyIndex = 1m });
 
         var points = MarketCapacityHistoryCalculator.SummarizeCurrentTurn(log.Entries, TestGameConfig.Resolved)[TestGameConfig.Ore.Id];
         Assert.Equal((0, 100m), Assert.Single(points));

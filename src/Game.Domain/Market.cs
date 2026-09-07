@@ -15,6 +15,14 @@ public sealed class Market
     /// <summary>Цена электричества на текущий ход.</summary>
     public decimal ElectricityPrice { get; private set; }
 
+    /// <summary>
+    /// Индекс деловой активности на текущий ход (блок 11.3, <c>docs/external-economy.md</c> §2.1) —
+    /// состояние внешней экономики одним числом. 1.0 — нейтральное состояние, выше — подъём, ниже —
+    /// спад. Публикуется вместе с котировками (одним событием, одним ходом), потому что описывает то
+    /// же самое состояние рынка, что и они.
+    /// </summary>
+    public decimal EconomyIndex { get; private set; } = 1m;
+
     /// <summary>Есть ли котировка материала (заполняется только после первого обновления рынка).</summary>
     public bool HasQuote(string materialId) => _quotes.ContainsKey(materialId);
 
@@ -39,9 +47,13 @@ public sealed class Market
     /// Заменяет котировки на новый ход и обнуляет счётчик проданного объёма — вызывается только из
     /// события обновления рынка движка (для первого хода — из события начала сессии).
     /// </summary>
-    public void ReplaceQuotes(IReadOnlyDictionary<string, MaterialQuote> quotes, decimal electricityPrice)
+    public void ReplaceQuotes(IReadOnlyDictionary<string, MaterialQuote> quotes, decimal electricityPrice, decimal economyIndex)
     {
         ArgumentNullException.ThrowIfNull(quotes);
+        if (economyIndex <= 0m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(economyIndex), economyIndex, "Economy index must be positive.");
+        }
 
         _quotes.Clear();
         foreach (var (materialId, quote) in quotes)
@@ -51,6 +63,7 @@ public sealed class Market
 
         _soldThisTurn.Clear();
         ElectricityPrice = electricityPrice;
+        EconomyIndex = economyIndex;
     }
 
     /// <summary>

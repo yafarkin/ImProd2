@@ -57,6 +57,7 @@ public sealed record SessionStarted : Change<GameSessionState>
         // ещё дойдёт очередь (расчёт — отдельный, не автоматический шаг, см. GameSession.RunTick),
         // а решения (в т.ч. аварийная закупка) уже разрешены с фазы расчёта первого хода.
         var marketUpdate = MarketCalculator.Calculate(state.CurrentTurn, state.Config.Raw.Economy);
-        state.Market.ReplaceQuotes(marketUpdate.Quotes, marketUpdate.ElectricityPrice);
+        var economyIndex = EconomyIndexCalculator.Calculate(state.CurrentTurn, state.Config.Raw.Economy);
+        state.Market.ReplaceQuotes(marketUpdate.Quotes, marketUpdate.ElectricityPrice, economyIndex);
     }
 }

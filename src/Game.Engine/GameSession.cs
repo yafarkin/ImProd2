@@ -1204,6 +1204,8 @@ public sealed class GameSession
             Id = Ulid.NewUlid(),
             Quotes = marketUpdate.Quotes,
             ElectricityPrice = marketUpdate.ElectricityPrice,
+            Turn = State.CurrentTurn,
+            EconomyIndex = EconomyIndexCalculator.Calculate(State.CurrentTurn, config.Raw.Economy),
         }));
 
         var currentTrend = NewsCalculator.CurrentTrend(State.CurrentTurn, config.Raw.Economy.TrendScenario);

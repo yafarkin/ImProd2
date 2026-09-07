@@ -30,7 +30,7 @@ public class MarketSaleCalculatorTests
     private static Market BuildMarket(string materialId, decimal capacity)
     {
         var market = new Market();
-        market.ReplaceQuotes(new Dictionary<string, MaterialQuote> { [materialId] = new(price: 0m, capacity) }, electricityPrice: 0m);
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote> { [materialId] = new(price: 0m, capacity) }, electricityPrice: 0m, economyIndex: 1m);
         return market;
     }
 

@@ -69,7 +69,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         var found = FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -98,7 +98,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(4m, 1000m), // ниже входов+зарплаты
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -118,7 +118,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -150,7 +150,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -197,7 +197,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 3m);
+        }, electricityPrice: 3m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -222,7 +222,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 3m);
+        }, electricityPrice: 3m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -248,7 +248,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 3m);
+        }, electricityPrice: 3m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -272,7 +272,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
         var teamFactories = new[] { factoryA, factoryB };
 
         FactoryProfitabilityCalculator.TryCalculate(
@@ -304,7 +304,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(50m, 1000m), // рыночная цена руды — 50/ед., но это не то, что реально заплачено
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -325,7 +325,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         var found = FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -348,7 +348,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             // Coal сознательно без котировки
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         var found = FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -374,7 +374,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
