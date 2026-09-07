@@ -10,8 +10,9 @@ namespace Game.Engine;
 /// текущей рыночной цене (<see cref="Market"/>), но вход — по его реальной средней себестоимости на
 /// складе (<see cref="Warehouse.AverageCostOf"/>: зарплата и накладные, если материал добыт своей же
 /// фабрикой, или реально уплаченная цена, если куплен) — не по рыночной цене, кроме единственного
-/// случая, когда материал ещё вообще ни разу не приобретался (тогда рыночная цена — единственная
-/// доступная оценка). Раньше вход всегда оценивался по рынку, как будто фабрика — отдельный торгующий
+/// случая, когда материал ещё вообще ни разу не приобретался (тогда берётся расчётная себестоимость
+/// по пирамиде сырья, а если и её нет — рыночная котировка, см. <c>unitCostByMaterialId</c> в
+/// <see cref="TryCalculate"/>). Раньше вход всегда оценивался по рынку, как будто фабрика — отдельный торгующий
 /// узел, покупающий сырьё заново каждый тик; это давало дикие ложные убытки для фабрик, кормящихся
 /// от собственной цепочки, если рыночная цена сырья взлетала выше его реальной себестоимости
 /// (запрос пользователя: «оно то поставляется мне на склад — почему себестоимость берётся не из
@@ -84,13 +85,25 @@ public static class FactoryProfitabilityCalculator
     /// <paramref name="electricityConsumptionPerOutputUnit"/> по умолчанию 0 — тогда виджет считает
     /// как раньше, без капитальных затрат (это не заглушка «выключено по умолчанию», а обязанность
     /// вызывающей стороны передать значения из конфига, см. <see cref="FactoryHistoryCalculator"/>).
+    ///
+    /// <para><paramref name="unitCostByMaterialId"/> — расчётная себестоимость материалов по пирамиде
+    /// сырья (<see cref="MaterialCostCalculator.CalculateAll"/>), запасной вариант оценки входа,
+    /// которого ещё ни разу не было на складе (блок 11.10). До неё запасным вариантом была рыночная
+    /// котировка, а под экзогенной ценой котировка — это <b>цена сбыта с наценкой</b>
+    /// (<c>BaseSellPrice</c> уже содержит базовую маржу и надбавку за глубину), то есть заведомо
+    /// дороже, чем материал реально обходится: чем глубже передел, тем сильнее виджет привирал бы в
+    /// минус. Расчётная себестоимость честнее для входа, который команда производит сама, и
+    /// оптимистична для входа, который придётся купить, — но это ошибка в разы меньшая и в понятную
+    /// сторону. Не передана или не содержит материала — остаётся прежний запасной вариант,
+    /// котировка.</para>
     /// </summary>
     public static bool TryCalculate(
         Factory factory, IReadOnlyList<Factory> teamFactories, Warehouse warehouse, Market market,
         WorkerProductivityConfig productivity, RndConfig rnd,
         out FactoryProfitabilityEstimate estimate,
         decimal fixedCostPerTurn = 0m,
-        decimal electricityConsumptionPerOutputUnit = 0m)
+        decimal electricityConsumptionPerOutputUnit = 0m,
+        IReadOnlyDictionary<string, decimal>? unitCostByMaterialId = null)
     {
         ArgumentNullException.ThrowIfNull(factory);
         ArgumentNullException.ThrowIfNull(teamFactories);
@@ -109,11 +122,21 @@ public static class FactoryProfitabilityCalculator
 
         // Котировка на выход нужна всегда (для выручки). На каждый вход рецепта (не только фактически
         // потреблённые — MaxInputCost ниже считается по полному рецепту, а не по факту) нужна ЛИБО
-        // реальная себестоимость уже накопленного остатка на складе, ЛИБО рыночная котировка как
-        // запасной вариант для материала, который ещё ни разу реально не приобретался (см. doc-comment
-        // класса) — без ни того, ни другого оценить нечем вообще.
+        // реальная себестоимость уже накопленного остатка на складе, ЛИБО запасная оценка материала,
+        // который ещё ни разу реально не приобретался (см. doc-comment класса) — без ни того, ни
+        // другого оценить нечем вообще.
+        decimal FallbackUnitCostOf(Material material)
+        {
+            if (unitCostByMaterialId is not null && unitCostByMaterialId.TryGetValue(material.Id, out var calculated) && calculated > 0m)
+            {
+                return calculated;
+            }
+
+            return market.HasQuote(material.Id) ? market.QuoteOf(material.Id).Price : 0m;
+        }
+
         if (!market.HasQuote(recipe.Output.Id)
-            || recipe.Inputs.Any(input => warehouse.AverageCostOf(input.Material) <= 0m && !market.HasQuote(input.Material.Id)))
+            || recipe.Inputs.Any(input => warehouse.AverageCostOf(input.Material) <= 0m && FallbackUnitCostOf(input.Material) <= 0m))
         {
             estimate = NoPriceSignalEstimate(result);
             return false;
@@ -122,7 +145,7 @@ public static class FactoryProfitabilityCalculator
         decimal UnitCostOf(Material material)
         {
             var realCost = warehouse.AverageCostOf(material);
-            return realCost > 0m ? realCost : market.QuoteOf(material.Id).Price;
+            return realCost > 0m ? realCost : FallbackUnitCostOf(material);
         }
 
         var inputBreakdown = new List<InputCostLine>();

@@ -326,6 +326,70 @@ public class ExternalPricingModelTests
         Assert.Equal(10m * 1.55m, purchased.UnitPrice);
     }
 
+    // --- Цена до заявки (блок 11.10) ---
+
+    /// <summary>
+    /// <see cref="MarketSaleCalculator.MarginalUnitPrice"/> — предел средней цены сделки при объёме,
+    /// стремящемся к нулю. Это та величина, которую видит игрок как «цена без вашей заявки», и тот
+    /// же эталон, от которого считается порог придерживания у бота и идеального зала.
+    /// </summary>
+    [Fact]
+    public void The_Marginal_Price_Is_The_Limit_Of_The_Deal_Price_As_The_Volume_Goes_To_Zero()
+    {
+        var economy = External();
+        var market = MarketAt(economy, turn: 1);
+
+        var marginal = MarketSaleCalculator.MarginalUnitPrice(
+            market, TestGameConfig.MaterialCosts, economy, OreMaterial, supplyPressure: 40m);
+        var tinySale = MarketSaleCalculator.Calculate(
+            market, TestGameConfig.MaterialCosts, economy, OreMaterial, volume: 0.0001m, supplyPressure: 40m);
+
+        // Не тождество, а предел: продажа на 0.0001 единицы — уже усреднение по кривой, поэтому
+        // совпадение ожидается с точностью порядка размера этого объёма, а не до последнего знака.
+        Assert.Equal((double)marginal, (double)tinySale.UnitPrice, precision: 5);
+        Assert.True(tinySale.UnitPrice < marginal); // и всегда чуть ниже — цена падает уже на первой единице
+    }
+
+    /// <summary>
+    /// Средняя цена сделки всегда строго ниже цены до заявки — сама заявка и есть то, что просаживает
+    /// цену. Именно эту разницу показывает предпросмотр продажи на /team.
+    /// </summary>
+    [Fact]
+    public void A_Real_Order_Always_Sells_Below_The_Price_That_Preceded_It()
+    {
+        var economy = External();
+        var market = MarketAt(economy, turn: 1);
+        var capacity = market.QuoteOf(Ore).Capacity;
+
+        var marginal = MarketSaleCalculator.MarginalUnitPrice(
+            market, TestGameConfig.MaterialCosts, economy, OreMaterial, supplyPressure: 0m);
+        var small = MarketSaleCalculator.Calculate(
+            market, TestGameConfig.MaterialCosts, economy, OreMaterial, capacity * 0.1m, supplyPressure: 0m);
+        var large = MarketSaleCalculator.Calculate(
+            market, TestGameConfig.MaterialCosts, economy, OreMaterial, capacity * 2m, supplyPressure: 0m);
+
+        Assert.True(small.UnitPrice < marginal);
+        Assert.True(large.UnitPrice < small.UnitPrice); // чем крупнее залив, тем сильнее сам себе портит цену
+    }
+
+    /// <summary>
+    /// Под cost-plus цена от объёма не зависит вовсе, поэтому «цена до заявки» совпадает с ценой
+    /// сделки — предпросмотр в этом режиме просадки не показывает, и показывать нечего.
+    /// </summary>
+    [Fact]
+    public void Under_Cost_Plus_The_Marginal_Price_Equals_The_Deal_Price()
+    {
+        var economy = TestGameConfig.Resolved.Raw.Economy;
+        var market = MarketAt(economy, turn: 1);
+
+        var marginal = MarketSaleCalculator.MarginalUnitPrice(
+            market, TestGameConfig.MaterialCosts, economy, OreMaterial, supplyPressure: 999m);
+        var sale = MarketSaleCalculator.Calculate(
+            market, TestGameConfig.MaterialCosts, economy, OreMaterial, volume: 500m, supplyPressure: 999m);
+
+        Assert.Equal(sale.UnitPrice, marginal);
+    }
+
     // --- Режим по умолчанию ---
 
     /// <summary>

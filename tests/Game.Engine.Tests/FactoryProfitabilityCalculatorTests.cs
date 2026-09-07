@@ -337,6 +337,62 @@ public class FactoryProfitabilityCalculatorTests
         Assert.Equal(25m, estimate.MaxInputCost); // теоретический потолок (10 руды*2 + 5 угля*1) — по рыночной цене, раз реальной истории закупок ещё нет
     }
 
+    /// <summary>
+    /// Блок 11.10: если вызывающая сторона передала расчётную себестоимость по пирамиде сырья, она
+    /// и есть запасной вариант для никогда не приобретавшегося входа — а не котировка. Под
+    /// экзогенной ценой котировка это цена сбыта с наценкой, и оценка входа по ней делала бы
+    /// глубокие фабрики тем убыточнее, чем глубже передел.
+    /// </summary>
+    [Fact]
+    public void TryCalculate_Prefers_The_Calculated_Unit_Cost_Over_The_Quote_For_An_Input_Never_Acquired()
+    {
+        var factory = NewFactory(workers: 5);
+        var warehouse = new Warehouse(); // ни руды, ни угля ещё не завозили
+        var market = new Market();
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
+        {
+            [Ore.Id] = new(2m, 1000m), // котировка руды 2 — это цена СБЫТА, с наценкой
+            [Coal.Id] = new(1m, 1000m),
+            [Sheet.Id] = new(10m, 1000m),
+        }, electricityPrice: 0m, economyIndex: 1m);
+
+        var unitCosts = new Dictionary<string, decimal> { [Ore.Id] = 1.5m, [Coal.Id] = 0.5m };
+
+        var found = FactoryProfitabilityCalculator.TryCalculate(
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
+            out var estimate, unitCostByMaterialId: unitCosts);
+
+        Assert.True(found);
+        Assert.Equal(10m * 1.5m + 5m * 0.5m, estimate.MaxInputCost); // по себестоимости (17.5), не по котировке (25)
+    }
+
+    /// <summary>
+    /// Материал, которого нет ни на складе, ни в переданной таблице себестоимостей, по-прежнему
+    /// оценивается котировкой — запасной вариант к запасному варианту, иначе виджет замолчал бы там,
+    /// где раньше отвечал.
+    /// </summary>
+    [Fact]
+    public void TryCalculate_Still_Falls_Back_To_The_Quote_For_A_Material_Missing_From_The_Cost_Table()
+    {
+        var factory = NewFactory(workers: 5);
+        var warehouse = new Warehouse();
+        var market = new Market();
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
+        {
+            [Ore.Id] = new(2m, 1000m),
+            [Coal.Id] = new(1m, 1000m),
+            [Sheet.Id] = new(10m, 1000m),
+        }, electricityPrice: 0m, economyIndex: 1m);
+
+        var found = FactoryProfitabilityCalculator.TryCalculate(
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
+            out var estimate,
+            unitCostByMaterialId: new Dictionary<string, decimal> { [Ore.Id] = 1.5m }); // угля в таблице нет
+
+        Assert.True(found);
+        Assert.Equal(10m * 1.5m + 5m * 1m, estimate.MaxInputCost); // руда — по себестоимости, уголь — по котировке
+    }
+
     [Fact]
     public void TryCalculate_Returns_False_When_An_Input_Has_Neither_Real_Cost_History_Nor_A_Market_Quote()
     {

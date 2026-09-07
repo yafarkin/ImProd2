@@ -1,5 +1,7 @@
 @page "/admin/price-ladder"
-@attribute [Authorize(Roles = "Administrator")]
+@* Ведущий — не только администратор: лестницу цен зовут с /session, а туда пускают обе роли
+   (блок 11.10, docs/external-economy.md §9 — «экран лестницы цен у ведущего»). *@
+@attribute [Authorize(Roles = "Administrator,Facilitator")]
 @rendermode InteractiveServer
 @inject GameSessionHost Host
 @using Game.Config.Economy
@@ -101,8 +103,15 @@ else
 
 @code {
     private bool _sessionStarted;
+
+    /// <summary>
+    /// Значения поставки (блок 11.8): именно с ними откалиброваны обе боевые цепочки. Форма по
+    /// умолчанию обязана воспроизводить поставку, а не обнулять надбавку за глубину — иначе
+    /// «пересчитать и применить» без правки полей тихо сплющило бы лестницу обратно в плоскую
+    /// наценку, ту самую, которую снимала Фаза 11.
+    /// </summary>
     private decimal _baseMargin = 0.30m;
-    private decimal _depthBonusPerLevel;
+    private decimal _depthBonusPerLevel = 0.05m;
     private string? _error;
     private IReadOnlyList<SystemSalePriceLadderCalculator.MaterialLadderRow>? _preview;
 

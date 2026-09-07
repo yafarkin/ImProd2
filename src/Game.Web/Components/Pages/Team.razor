@@ -118,6 +118,22 @@ else
         </li>
     </ul>
 
+    @if (_showEconomyIndex && _economyIndex.HasData)
+    {
+        <h4 class="h6 mt-4">Внешняя экономика</h4>
+        <p class="mb-1">
+            Индекс деловой активности:
+            <strong class="@_economyIndex.CssClass">@_economyIndex.ValueText @_economyIndex.Arrow</strong>
+            <span class="text-muted small">— @_economyIndex.LevelText</span>
+        </p>
+        <p class="text-muted small">
+            Индекс двигает сторону спроса: чем он выше, тем дороже система покупает вашу продукцию и
+            тем больше готова принять, не роняя цену. Куда он пойдёт дальше — график не показывает,
+            об этом предупреждает новостная лента.
+        </p>
+        @ChartRenderer.Render(_economyIndexChart)
+    }
+
     @if (_history is null)
     {
         <p><em>Графики по ходам появятся после первого хода сессии.</em></p>
@@ -715,10 +731,14 @@ else
                 <p class="text-muted small mb-2">
                     @if (preview.HasQuote)
                     {
-                        <text>Цена за единицу: @DashboardDisplay.FormatMoney(preview.UnitPrice)</text>
+                        <text>Цена за единицу: @DashboardDisplay.FormatUnitCost(preview.UnitPrice)</text>
+                        @if (preview.PriceImpactRate >= MarketSalePreview.NoticeablePriceImpactRate)
+                        {
+                            <text> (без вашей заявки — @DashboardDisplay.FormatUnitCost(preview.MarginalUnitPrice); этот объём просаживает цену на @preview.PriceImpactRate.ToString("P0"))</text>
+                        }
                         @if (preview.OverflowVolume > 0)
                         {
-                            <text> (из них @preview.OverflowVolume.ToString("0.##") сверх дневного лимита ёмкости — по @DashboardDisplay.FormatMoney(preview.OverflowUnitPrice))</text>
+                            <text> · из них @preview.OverflowVolume.ToString("0.##") сверх ёмкости рынка — рынок по этому материалу уже насыщен</text>
                         }
                         <text> · доход: @DashboardDisplay.FormatMoney(preview.Revenue)</text>
                         <text> · прибыль: </text>
@@ -974,22 +994,6 @@ else
 
     private sealed record StockRow(string MaterialId, string MaterialName, Material Material, decimal Quantity);
 
-    /// <summary>
-    /// Предпросмотр продажи материала системе (запрос пользователя: «сразу видеть ставку, доход и
-    /// прибыль») — пересчитывается на лету из уже закешированных <see cref="_market"/>/
-    /// <see cref="_economyConfig"/>/<see cref="_realUnitCostByMaterialId"/> при каждом изменении
-    /// объёма, той же чистой функцией <see cref="MarketSaleCalculator.Calculate"/>, что и реальная
-    /// продажа — предпросмотр не может разойтись с фактом. <see cref="Profit"/> считается по
-    /// реальной себестоимости остатка на складе (взвешенное среднее фактических трат — зарплата,
-    /// закупки, поставки по контрактам, см. <see cref="Warehouse.AverageCostOf"/>), а не по
-    /// рыночной цене — та отвечает на другой вопрос (см. doc-comment <see
-    /// cref="FactoryProfitabilityCalculator"/>) и тут не годится. Известна всегда, пока материал
-    /// вообще есть на складе.
-    /// </summary>
-    private sealed record SellPreviewResult(
-        bool HasQuote, decimal UnitPrice, decimal OverflowVolume, decimal OverflowUnitPrice,
-        decimal Revenue, decimal Profit);
-
     private sealed record MaterialOption(string Id, string Name);
 
     /// <summary>
@@ -1046,6 +1050,9 @@ else
     private int _unlockedGeneration = 1;
     private FactoryHistoryCalculator.TeamFactoryHistory? _history;
     private int _historyEntryCount = -1;
+    private bool _showEconomyIndex;
+    private EconomyIndexDisplay.IndexSummary _economyIndex = EconomyIndexDisplay.Describe([]);
+    private LineChartDiagram.ChartLayout _economyIndexChart = new([], [], [], 900, 240);
     private Ulid? _selectedFactoryId;
     /// <summary>Отображаемое имя фабрики по Id — для истории операций (какая фабрика вызвала расход/доход), см. её построение в <see cref="RefreshDashboard"/>.</summary>
     private IReadOnlyDictionary<Ulid, string> _factoryDisplayNamesById = new Dictionary<Ulid, string>();
@@ -1159,8 +1166,12 @@ else
             {
                 _history = FactoryHistoryCalculator.Summarize(Host.Session!.Entries, state.Config, _teamId);
                 _financeHistory = FinanceHistoryCalculator.Summarize(Host.Session!.Entries, state.Config, _teamId);
+                var indexHistory = EconomyIndexHistoryCalculator.Summarize(Host.Session!.Entries, state.Config);
+                _economyIndex = EconomyIndexDisplay.Describe(indexHistory);
+                _economyIndexChart = EconomyIndexDisplay.BuildChart(indexHistory, 900, 240);
                 _historyEntryCount = entryCount;
             }
+            _showEconomyIndex = EconomyIndexDisplay.IsVisible(state.Config.Raw.Economy);
             _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
             _phaseExplanation = PhaseDisplay.PhaseExplanation(state.CurrentPhase);
             _isDecisionPhase = state.CurrentPhase == TurnPhase.Decision;
@@ -1230,7 +1241,8 @@ else
                 if (FactoryProfitabilityCalculator.TryCalculate(
                     factory, team.Factories, team.Warehouse, state.Market,
                     state.Config.Raw.WorkerProductivity, state.Config.Raw.Rnd, out var estimate,
-                    fixedCostPerTurn, state.Config.Raw.Economy.ElectricityConsumptionPerOutputUnit))
+                    fixedCostPerTurn, state.Config.Raw.Economy.ElectricityConsumptionPerOutputUnit,
+                    _materialCosts))
                 {
                     profitabilityByFactoryId[factory.Id] = estimate;
                 }
@@ -1644,34 +1656,25 @@ else
         RunAction(() => Host.Session!.SellToSystem(_teamId, materialId, 0m));
     }
 
-    private SellPreviewResult SellPreview(StockRow row)
+    /// <summary>
+    /// Предпросмотр продажи материала системе (запрос пользователя: «сразу видеть ставку, доход и
+    /// прибыль»; с блока 11.10 — ещё и собственную просадку цены) — пересчитывается на лету из уже
+    /// закешированных <see cref="_market"/>/<see cref="_economyConfig"/>/
+    /// <see cref="_realUnitCostByMaterialId"/> при каждом изменении объёма, см.
+    /// <see cref="MarketSalePreview"/>.
+    /// </summary>
+    private MarketSalePreview.Result SellPreview(StockRow row)
     {
         var volume = _sellVolumes.GetValueOrDefault(row.MaterialId, 1m);
-        if (_market is null || _economyConfig is null || volume <= 0 || !_market.HasQuote(row.MaterialId))
+        if (_market is null || _economyConfig is null)
         {
-            return new SellPreviewResult(HasQuote: false, 0m, 0m, 0m, 0m, 0m);
+            return new MarketSalePreview.Result(HasQuote: false, 0m, 0m, 0m, 0m, 0m, 0m);
         }
 
-        // Давление предложения — то же, что увидит расчёт: считается по журналу на текущий ход.
-        // Предпросмотр обязан показывать ту же цену, что реально получится, включая просадку от уже
-        // состоявшихся продаж зала (в том числе чужих) — иначе игрок узнаёт о насыщении рынка только
-        // постфактум, и механизм конкуренции за сбыт становится необъяснимым.
-        var supplyPressure = _economyConfig.PricingModel == PricingModel.External
-            ? MarketSupplyPressureCalculator.CalculateRecentVolume(
-                Host.Session!.Entries, row.MaterialId, Host.Session!.State.CurrentTurn, _economyConfig)
-            : 0m;
-        var result = MarketSaleCalculator.Calculate(
-            _market, _materialCosts, _economyConfig, row.Material, volume, supplyPressure);
-
-        // Под внешней моделью цена непрерывна: отдельного «тарифа сверх лимита» нет, UnitPrice уже
-        // усреднён по всему объёму. Показывать вторую цену нечего — показывается та же.
-        var overflowUnitPrice = _economyConfig.PricingModel == PricingModel.External
-            ? result.UnitPrice
-            : result.UnitPrice * _economyConfig.MarketCapacityOverflowDiscount;
-        var realUnitCost = _realUnitCostByMaterialId.GetValueOrDefault(row.MaterialId);
-        var profit = result.TotalRevenue - realUnitCost * volume;
-
-        return new SellPreviewResult(HasQuote: true, result.UnitPrice, result.OverflowVolume, overflowUnitPrice, result.TotalRevenue, profit);
+        return MarketSalePreview.Calculate(
+            _market, _materialCosts, _economyConfig, row.Material, volume,
+            _realUnitCostByMaterialId.GetValueOrDefault(row.MaterialId),
+            Host.Session!.Entries, Host.Session!.State.CurrentTurn);
     }
 
     private void ConfirmContract(Ulid contractId) =>

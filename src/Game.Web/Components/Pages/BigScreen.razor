@@ -34,6 +34,16 @@ else
     }
 </div>
 
+@if (_showEconomyIndex && _economyIndex.HasData)
+{
+    <h2 class="mt-4">
+        Индекс деловой активности:
+        <span class="@_economyIndex.CssClass">@_economyIndex.ValueText @_economyIndex.Arrow</span>
+        <small class="text-muted">— @_economyIndex.LevelText</small>
+    </h2>
+    @ChartRenderer.Render(_economyIndexChart)
+}
+
 <h2 class="mt-4">Рейтинг команд</h2>
 <table class="table table-striped">
     <thead>
@@ -87,6 +97,9 @@ else
     private BigScreenDisplay.NeedsSummary _needsSummary = new(0, Array.Empty<string>());
     private LineChartDiagram.ChartLayout _balanceHistoryChart = new([], [], [], 900, 320);
     private int _balanceHistoryEntryCount = -1;
+    private bool _showEconomyIndex;
+    private EconomyIndexDisplay.IndexSummary _economyIndex = EconomyIndexDisplay.Describe([]);
+    private LineChartDiagram.ChartLayout _economyIndexChart = new([], [], [], 900, 240);
     private bool _sessionNotStarted;
     private Timer? _tickTimer;
 
@@ -129,8 +142,12 @@ else
             if (_balanceHistoryEntryCount != entryCount)
             {
                 _balanceHistoryChart = BigScreenDisplay.BuildBalanceHistoryChart(Host.Session);
+                var indexHistory = EconomyIndexHistoryCalculator.Summarize(Host.Session.Entries, state.Config);
+                _economyIndex = EconomyIndexDisplay.Describe(indexHistory);
+                _economyIndexChart = EconomyIndexDisplay.BuildChart(indexHistory, 900, 240);
                 _balanceHistoryEntryCount = entryCount;
             }
+            _showEconomyIndex = EconomyIndexDisplay.IsVisible(state.Config.Raw.Economy);
         }
     }
 

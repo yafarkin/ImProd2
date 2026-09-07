@@ -58,6 +58,36 @@ public static class MarketSaleCalculator
     }
 
     /// <summary>
+    /// Цена «до вашей заявки»: предельная цена материала при уже накопленном давлении
+    /// <paramref name="supplyPressure"/>, без вклада самой продажи. Это предел средней цены сделки
+    /// при объёме, стремящемся к нулю — и та величина, относительно которой считается, насколько
+    /// заявка просаживает цену сама себе (предпросмотр продажи на /team, блок 11.10) и до какого
+    /// объёма продавцу вообще имеет смысл продавать (<see cref="LargestVolumeAbovePriceFloor"/>).
+    ///
+    /// <para>В <see cref="PricingModel.CostPlus"/> от объёма не зависит вовсе: цена там —
+    /// себестоимость × наценка, а штраф за превышение ёмкости сидит не в цене единицы, а в
+    /// <see cref="MarketSaleResult.TotalRevenue"/>.</para>
+    /// </summary>
+    public static decimal MarginalUnitPrice(
+        Market market, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy,
+        Material material, decimal supplyPressure)
+    {
+        ArgumentNullException.ThrowIfNull(market);
+        ArgumentNullException.ThrowIfNull(materialCosts);
+        ArgumentNullException.ThrowIfNull(economy);
+        ArgumentNullException.ThrowIfNull(material);
+
+        if (economy.PricingModel != PricingModel.External)
+        {
+            return (materialCosts.TryGetValue(material.Id, out var cost) ? cost : 0m) * SystemSaleMarginMultiplier;
+        }
+
+        var quote = market.QuoteOf(material.Id);
+        return quote.Price
+               * ExternalPriceCalculator.ElasticityMultiplier(quote.Capacity, supplyPressure, economy.MarketPriceFloorRate);
+    }
+
+    /// <summary>
     /// Наибольшая доля <paramref name="desiredVolume"/>, при которой средняя цена сделки ещё не
     /// падает ниже <paramref name="minAcceptablePriceRate"/> от цены ненасыщенного рынка. Остальное
     /// продавцу выгоднее придержать до ходов, где давление предложения успеет затухнуть (блок 11.7).
@@ -84,9 +114,9 @@ public static class MarketSaleCalculator
         decimal AverageUnitPrice(decimal volume) =>
             Calculate(market, materialCosts, economy, material, volume, supplyPressure).UnitPrice;
 
-        // Эталон — цена бесконечно малой продажи: неиспорченная цена этого хода с учётом уже
-        // накопленного чужого залива, но без вклада самой этой сделки.
-        var pristinePrice = AverageUnitPrice(Math.Min(desiredVolume, 0.0001m));
+        // Эталон — неиспорченная цена этого хода с учётом уже накопленного чужого залива, но без
+        // вклада самой этой сделки (та же величина, что показывает предпросмотр продажи игроку).
+        var pristinePrice = MarginalUnitPrice(market, materialCosts, economy, material, supplyPressure);
         if (pristinePrice <= 0m)
         {
             return desiredVolume;
