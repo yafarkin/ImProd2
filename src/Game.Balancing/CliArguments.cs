@@ -46,6 +46,17 @@ internal sealed record CliArguments
     public RunMode Mode { get; init; } = RunMode.Grid;
 
     /// <summary>
+    /// Переопределение <see cref="Game.Config.Session.SessionConfig.DifficultyLevel"/> сессионного
+    /// файла (0.0–5.0) — чтобы прогнать одну и ту же цепочку на всех целых уровнях бегунка сложности
+    /// одной серией вызовов, не редактируя JSON между ними (пересчёт анкеров <see
+    /// cref="Game.Config.Economy.DifficultyScaler"/>, docs/TODO.md №30). <c>null</c> — брать значение
+    /// из сессионного файла как есть. Применимо только к паре модель+сессия; с уже собранным целиком
+    /// <c>GameConfig</c> (<see cref="ConfigSelector"/>) флаг — ошибка: слайдер сложности такой файл не
+    /// трогает вовсе (<see cref="Game.Config.Loading.GameConfigComposer"/>).
+    /// </summary>
+    public double? DifficultyLevel { get; init; }
+
+    /// <summary>
     /// Число рабочих, которое ставится на КАЖДУЮ фабрику при <see cref="RunMode.CostLevels"/> — единая
     /// «линейка» рабочих для сравнения себестоимости между отраслями (запрос пользователя: «10 рабочих
     /// на фабрике 1 уровня и 10 рабочих на фабрике 8 уровня — это некий коэффициент мощности выпуска»),
@@ -149,6 +160,7 @@ internal sealed record CliArguments
                 "--maintain-factories" => result with { MaintainFactories = bool.Parse(NextValue()) },
                 "--out" => result with { OutPath = NextValue() },
                 "--mode" => result with { Mode = ParseMode(NextValue()) },
+                "--difficulty" => result with { DifficultyLevel = double.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--workers" => result with { Workers = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--leverage" => result with { Leverage = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--profile" => result with { Profile = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
@@ -170,7 +182,7 @@ internal sealed record CliArguments
                 "--sweep-workers" => result with { SweepWorkers = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 _ => throw new ArgumentException(
                     $"Unknown argument '{flag}'. Known flags: --config, --session, --sessions-per-cell, --grid-steps, " +
-                    "--teams-per-sector, --maintain-factories, --out, --mode, --workers, --leverage, --profile, --calibrate-lever, " +
+                    "--teams-per-sector, --maintain-factories, --out, --mode, --difficulty, --workers, --leverage, --profile, --calibrate-lever, " +
                     "--calibrate-metric, --calibrate-target, --calibrate-min, --calibrate-max, --calibrate-tolerance, --calibrate-max-iterations, " +
                     "--sweep-levels, --sweep-base-build-cost, --sweep-base-fixed-cost, --sweep-base-production-rate, --sweep-input-quantity, " +
                     "--sweep-growth-steps, --sweep-decay-steps, --sweep-payback-target, --sweep-workers."),

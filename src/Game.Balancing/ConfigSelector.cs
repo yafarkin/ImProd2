@@ -35,12 +35,33 @@ internal static class ConfigSelector
             throw new FileNotFoundException($"Config file not found: '{configPath}'.", configPath);
         }
 
+        var isFullGameConfig = args.SessionPath is null && IsFullGameConfig(configPath);
+
+        // --difficulty переопределяет DifficultyLevel сессионного файла до сборки: грузим модель и
+        // сессию по отдельности, подменяем уровень, собираем сами. Так одну цепочку можно прогнать
+        // по всем целым уровням бегунка одной серией вызовов (docs/TODO.md №30).
+        if (args.DifficultyLevel is { } difficultyOverride)
+        {
+            if (isFullGameConfig)
+            {
+                throw new ArgumentException(
+                    $"'--difficulty' is not applicable to a fully-composed GameConfig ('{configPath}'): the difficulty " +
+                    "slider only runs while composing a production model with session parameters (GameConfigComposer), " +
+                    "not on a file that already went through it. Pass a production-model file (optionally with --session).");
+            }
+
+            var sessionPath = args.SessionPath ?? DefaultSessionPath;
+            var productionModel = GameConfigLoader.LoadProductionModelFromFile(configPath);
+            var session = GameConfigLoader.LoadSessionFromFile(sessionPath) with { DifficultyLevel = difficultyOverride };
+            return GameConfigLoader.Load(productionModel, session);
+        }
+
         if (args.SessionPath is { } explicitSessionPath)
         {
             return GameConfigLoader.LoadFromFiles(configPath, explicitSessionPath);
         }
 
-        if (IsFullGameConfig(configPath))
+        if (isFullGameConfig)
         {
             return GameConfigLoader.LoadFromFile(configPath);
         }

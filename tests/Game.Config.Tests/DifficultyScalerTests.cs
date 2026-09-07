@@ -65,10 +65,11 @@ public class DifficultyScalerTests
     {
         var config = BuildConfig();
 
-        // BuildCost-анкеры уровней 4/5 — 1.3/1.7, на уровне 4.7 (вес 0.7 к пятому) — 1.3 + 0.4*0.7 = 1.58.
+        // BuildCost-анкеры уровней 4/5 — 1.08/1.15 (пересчёт 2026-09-07, docs/difficulty.md §8),
+        // на уровне 4.7 (вес 0.7 к пятому) — 1.08 + 0.07*0.7 = 1.129.
         var scaled = DifficultyScaler.Apply(config, 4.7);
 
-        Assert.Equal(1580m, scaled.FactoryDefinitions.Single().BuildCost, precision: 3);
+        Assert.Equal(1129m, scaled.FactoryDefinitions.Single().BuildCost, precision: 3);
     }
 
     [Fact]
@@ -93,8 +94,16 @@ public class DifficultyScalerTests
         Assert.Equal(atFive.FactoryDefinitions.Single().BuildCost, atSeven.FactoryDefinitions.Single().BuildCost);
     }
 
+    /// <summary>
+    /// На лёгкой стороне двигаются только ПЯТЬ рычагов из шести: наценка аварийной закупки
+    /// (<see cref="EmergencyPurchaseBaseMultiplierAnchors"/> в коде) приколочена к 1.0 на уровнях 0–3
+    /// намеренно (пересчёт 2026-09-07, docs/difficulty.md §8) — опустить её ниже потолка жадности бота
+    /// (+50%) значит сломать «бутерброд наценок» §2 диагностики, а дефолт +55% уже почти вплотную к
+    /// этому потолку. Это не мёртвый рычаг, как когда-то `BasePrice`, а рычаг с занятой инвариантом
+    /// лёгкой стороной: тяжёлая сторона (уровни 4–5) по-прежнему работает, см. тест ниже.
+    /// </summary>
     [Fact]
-    public void Apply_At_Level_Zero_Moves_All_Six_Levers_In_The_Easier_Direction()
+    public void Apply_At_Level_Zero_Moves_The_Five_Unpinned_Levers_In_The_Easier_Direction()
     {
         var config = BuildConfig();
 
@@ -105,8 +114,10 @@ public class DifficultyScalerTests
         Assert.True(scaled.Rnd.ResearchPointThresholdsByLevel[0] < config.Rnd.ResearchPointThresholdsByLevel[0]);
         Assert.True(scaled.GenerationResearch.ResearchPointThresholdsByGeneration[0] < config.GenerationResearch.ResearchPointThresholdsByGeneration[0]);
         Assert.True(scaled.FactoryDefinitions.Single().FixedCostPerTurn > config.FactoryDefinitions.Single().FixedCostPerTurn);
-        Assert.True(scaled.Economy.EmergencyPurchaseBaseMultiplier < config.Economy.EmergencyPurchaseBaseMultiplier);
         Assert.True(scaled.Wear.AccelerationFactorPerTurn < config.Wear.AccelerationFactorPerTurn);
+
+        // Приколочена — не двигается на лёгкой стороне вовсе.
+        Assert.Equal(config.Economy.EmergencyPurchaseBaseMultiplier, scaled.Economy.EmergencyPurchaseBaseMultiplier);
     }
 
     [Fact]
