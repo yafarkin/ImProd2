@@ -97,7 +97,7 @@ Console.CancelKeyPress += (_, _) => Log(
 try
 {
     var productionModelPath = Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", settings.ProductionModel);
-    var sessionPath = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
+    var sessionPath = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json");
     var config = GameConfigLoader.LoadFromFiles(productionModelPath, sessionPath);
 
     // Три разные персоны на выбор — не число в формуле, а текст, который модель сама интерпретирует

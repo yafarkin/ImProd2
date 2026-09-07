@@ -12,8 +12,8 @@ namespace Game.Bots.Tests;
 /// </summary>
 public class DetailedSessionRunnerTests
 {
-    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "debug-minimal.json");
-    private static string SessionPath => Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
+    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "tiny-3-sectors.json");
+    private static string SessionPath => Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json");
 
     [Fact]
     public void Run_Produces_One_Snapshot_Per_Team_Per_Turn_With_Nonempty_Trace()

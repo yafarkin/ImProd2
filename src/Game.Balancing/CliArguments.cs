@@ -6,12 +6,12 @@ namespace Game.Balancing;
 /// Разбор аргументов командной строки утилиты (Блок 7.3.3, BUILD_PLAN «Фаза 7») — именованные флаги
 /// вместо позиционных аргументов прежних блоков (7.3.1-7.3.2): их стало слишком много, чтобы держать
 /// порядок в голове, а часть (<see cref="ConfigPath"/>/<see cref="SessionPath"/>) — новая, для выбора
-/// одной production-model цепочки за вызов вместо жёстко зашитого <c>gameconfig.pilot.json</c>.
+/// одной production-model цепочки за вызов вместо жёстко зашитого <c>legacy-combined-gameconfig.json</c>.
 /// </summary>
 internal sealed record CliArguments
 {
     /// <summary>
-    /// Путь к конфигу — либо уже собранный <c>GameConfig</c> целиком (как <c>gameconfig.pilot.json</c>),
+    /// Путь к конфигу — либо уже собранный <c>GameConfig</c> целиком (как <c>legacy-combined-gameconfig.json</c>),
     /// либо файл одной production-model цепочки без сессионных параметров (<c>Samples/production-models/*.json</c>,
     /// см. <c>docs/production-staging.md</c>) — какой из двух перед нами, определяется по содержимому
     /// файла (<see cref="ConfigSelector"/>), не по этому флагу. <c>null</c> — не указан, вызывающий код
@@ -22,7 +22,7 @@ internal sealed record CliArguments
     /// <summary>
     /// Путь к файлу сессионных параметров (<c>Samples/sessions/*.json</c>) для пары с production-model
     /// цепочкой (<see cref="ConfigPath"/>). <c>null</c> — не указан явно: если <see cref="ConfigPath"/>
-    /// сам по себе не полный <c>GameConfig</c>, берётся <c>Samples/sessions/pilot.json</c> по умолчанию
+    /// сам по себе не полный <c>GameConfig</c>, берётся <c>Samples/sessions/main.json</c> по умолчанию
     /// (<see cref="ConfigSelector"/>).
     /// </summary>
     public string? SessionPath { get; init; }

@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\Game.Config\Samples\gameconfig.pilot.json" Link="Samples\gameconfig.pilot.json">
+    <None Include="..\..\tests\Fixtures\legacy-combined-gameconfig.json" Link="Fixtures\legacy-combined-gameconfig.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

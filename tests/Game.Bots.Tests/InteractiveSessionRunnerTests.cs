@@ -13,8 +13,8 @@ namespace Game.Bots.Tests;
 /// </summary>
 public class InteractiveSessionRunnerTests
 {
-    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "control-twin-metallurgy.json");
-    private static string SessionPath => Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
+    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "mirrored-sectors-deep-chain.json");
+    private static string SessionPath => Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json");
 
     private static ResolvedGameConfig LoadConfig() => GameConfigLoader.LoadFromFiles(ConfigPath, SessionPath);
 

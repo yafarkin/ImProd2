@@ -129,7 +129,7 @@ public sealed class BotStateSnapshotBuilderTests
     [Fact]
     public void Build_OnlyOneSectorOccupied_OmitsCrossSectorDemandSection()
     {
-        // gameconfig.pilot.json объявляет сектор Б в справочнике, но StartSingleTeamSession сажает
+        // legacy-combined-gameconfig.json объявляет сектор Б в справочнике, но StartSingleTeamSession сажает
         // ВСЕ команды в А — секция должна судить по реально занятым секторам, не по каталогу конфига
         // (см. doc-comment BotStateSnapshotBuilder.AppendCrossSectorDemand).
         var (session, teamId) = TestSession.StartSingleTeamSession();

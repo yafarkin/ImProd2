@@ -304,8 +304,8 @@ public sealed class GameSessionHost
         SessionConfigs = Directory.EnumerateFiles(sessionsDirectory, "*.json")
             .ToDictionary(path => Path.GetFileNameWithoutExtension(path)!, GameConfigLoader.LoadSessionFromFile);
 
-        DefaultConfig = GameConfigLoader.Load(ProductionModels["metallurgy-petrochemistry-forestry-6"], SessionConfigs["pilot"]);
-        TrainingConfig = GameConfigLoader.Load(ProductionModels["metallurgy-7"], SessionConfigs["pilot"]);
+        DefaultConfig = GameConfigLoader.Load(ProductionModels["main-3-sectors"], SessionConfigs["main"]);
+        TrainingConfig = GameConfigLoader.Load(ProductionModels["training-1-sector"], SessionConfigs["main"]);
 
         _sessionDirectory = Path.Combine(AppContext.BaseDirectory, "App_Data", "session");
         Directory.CreateDirectory(_sessionDirectory);

@@ -42,7 +42,7 @@ export LLM_BOT_MODEL="openai/gpt-oss-20b"
 
 # Game production model (metallurgy A + petrochemistry B + forestry V,
 # see docs/production-staging.md) and one bot per sector, round-robin.
-export LLM_BOT_PRODUCTION_MODEL="metallurgy-petrochemistry-forestry-6.json"
+export LLM_BOT_PRODUCTION_MODEL="main-3-sectors.json"
 export LLM_BOT_SECTORS="A,B,V"
 export LLM_BOT_COUNT=3
 export LLM_BOT_TURNS=98

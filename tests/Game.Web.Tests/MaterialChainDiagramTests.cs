@@ -15,7 +15,7 @@ public class MaterialChainDiagramTests
     /// прибивать проверки вёрстки к живой цепочке значит ронять их при каждой правке баланса.
     /// </summary>
     private static ResolvedGameConfig LayoutFixture() => GameConfigLoader.LoadFromFiles(
-        FixturePath("standard.json"), SessionPath);
+        FixturePath("tiny-2-sectors.json"), SessionPath);
 
     /// <summary>
     /// Боевая трёхсекторная модель — на ней проверяем ровно то, что без реального контента проверить
@@ -29,20 +29,20 @@ public class MaterialChainDiagramTests
     }
 
     /// <summary>
-    /// <c>control-twin-metallurgy.json</c> — фикстура с сознательным сквозным ребром громадного
+    /// <c>mirrored-sectors-deep-chain.json</c> — фикстура с сознательным сквозным ребром громадного
     /// пролёта (крепёж уровня 2 как прямой вход сборки коробки передач уровня 8). Живым моделям такой
     /// глубины больше нет (обе сокращены до 6-7 уровней 2026-09-07), а проверять верхнюю границу
     /// <see cref="MaterialChainDiagram.Edge.LevelSpan"/> на чём-то надо — поэтому файл и оставлен
     /// среди тестовых фикстур, хотя как играбельная цепочка он замещён.
     /// </summary>
     private static ResolvedGameConfig DeepChainFixture() => GameConfigLoader.LoadFromFiles(
-        FixturePath("control-twin-metallurgy.json"), SessionPath);
+        FixturePath("mirrored-sectors-deep-chain.json"), SessionPath);
 
     private static string FixturePath(string fileName) =>
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", fileName);
 
     private static string SessionPath =>
-        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
+        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json");
 
     [Fact]
     public void Build_Places_Every_Material_As_A_Node_And_Every_Recipe_Input_As_An_Edge()
@@ -198,7 +198,7 @@ public class MaterialChainDiagramTests
     /// Тот же запрос пользователя, дальше: <see cref="MaterialChainDiagram.Edge.LevelSpan"/> должен
     /// отличать «сквозные» рёбра от обычных «соседних» — на нём страница решает, приглушать ли ребро
     /// по умолчанию. Проверяем на реальном сквозном ребре (крепёж уровня 2 — прямой вход сборки
-    /// коробки передач уровня 8 в control-twin-metallurgy.json, минуя все промежуточные переделы).
+    /// коробки передач уровня 8 в mirrored-sectors-deep-chain.json, минуя все промежуточные переделы).
     /// </summary>
     [Fact]
     public void Build_Marks_Skip_Level_Edges_With_A_LevelSpan_Greater_Than_One()

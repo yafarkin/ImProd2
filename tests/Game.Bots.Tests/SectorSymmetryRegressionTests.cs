@@ -6,7 +6,7 @@ namespace Game.Bots.Tests;
 
 /// <summary>
 /// Регрессионный контроль «инструмент/движок сам по себе не вносит асимметрию между секторами» —
-/// сессия 2026-08-15, `docs/TODO.md` №2. `control-twin-metallurgy.json` — два ЗЕРКАЛЬНО одинаковых
+/// сессия 2026-08-15, `docs/TODO.md` №2. `mirrored-sectors-deep-chain.json` — два ЗЕРКАЛЬНО одинаковых
 /// сектора (полная копия `metallurgy.json` под id `-2`), с тремя симметричными межсекторными связями
 /// (одинаковое количество, одинаковый уровень передела, в обе стороны разом — не тронуть только одну
 /// сторону). Если когда-нибудь `SimpleBot`/`IdealHallCalculator`/`StrategyGridRunner` неявно начнут
@@ -17,8 +17,8 @@ namespace Game.Bots.Tests;
 /// </summary>
 public class SectorSymmetryRegressionTests
 {
-    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "control-twin-metallurgy.json");
-    private static string SessionPath => Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
+    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "mirrored-sectors-deep-chain.json");
+    private static string SessionPath => Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json");
 
     [Fact]
     public void IdealHall_Gives_Byte_For_Byte_Identical_Trajectories_For_Both_Mirror_Sectors()

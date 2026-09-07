@@ -7,7 +7,7 @@ namespace Game.Bots.Llm.Tests;
 /// <summary>Общий вход в реальный пилотный конфиг для тестов LLM-слоя — тот же приём, что и <c>PilotBotSession</c> в Game.Bots.Tests, но без ботов: один <see cref="GameSession"/> с одной командой.</summary>
 internal static class TestSession
 {
-    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
+    private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "legacy-combined-gameconfig.json");
 
     /// <summary>Одна команда в секторе А, достаточно долгая сессия, чтобы фаза решений точно была открыта.</summary>
     public static (GameSession Session, Ulid TeamId) StartSingleTeamSession(int endTurn = 20)

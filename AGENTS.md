@@ -51,7 +51,7 @@ tests/
   Game.Engine.Tests/
   ...
 config/
-  gameconfig.pilot.json
+  legacy-combined-gameconfig.json
 docs/
   SPEC.md  CONCEPT.md  BUILD_PLAN.md  production-chains.md
 ```

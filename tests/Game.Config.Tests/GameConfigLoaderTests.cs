@@ -6,7 +6,7 @@ namespace Game.Config.Tests;
 public class GameConfigLoaderTests
 {
     private static string SampleConfigPath =>
-        Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "legacy-combined-gameconfig.json");
 
     private static string ProductionModelPath(string fileName) =>
         Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", fileName);

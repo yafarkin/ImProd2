@@ -8,7 +8,7 @@ public class GameConfigDeserializationTests
 {
     private static GameConfig LoadSampleConfig()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
+        var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "legacy-combined-gameconfig.json");
         var json = File.ReadAllText(path);
 
         return JsonSerializer.Deserialize<GameConfig>(json)
@@ -17,7 +17,7 @@ public class GameConfigDeserializationTests
 
     private static SessionConfig LoadSessionConfig()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
+        var path = Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json");
         var json = File.ReadAllText(path);
 
         return JsonSerializer.Deserialize<SessionConfig>(json)

@@ -30,8 +30,8 @@ public class TeamPageFactoryOverviewTests
     /// к содержанию цепочки отношения не имеют.
     /// </summary>
     private static ResolvedGameConfig FixtureConfig() => GameConfigLoader.LoadFromFiles(
-        Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "standard.json"),
-        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json"));
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "tiny-2-sectors.json"),
+        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json"));
 
     [Fact]
     public async Task Team_Page_Renders_Built_And_Unbuilt_Factory_Nodes()

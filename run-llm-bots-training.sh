@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ==================================================================
 #  LLM bots for im_prod - training model (single sector,
-#  metallurgy-7.json), unattended run. See run-llm-bots-game.sh for
+#  training-1-sector.json), unattended run. See run-llm-bots-game.sh for
 #  the three-sector counterpart, once a single-bot run here checks
 #  out clean. Put this file in the repository root (next to
 #  ImProd.sln) and run it:

@@ -36,9 +36,9 @@ internal sealed record RunSettings(
             // Имя файла под Samples/production-models (не полный путь — тот же приём, что и у
             // остальных настроек здесь: .sh подставляет только то, что меняется между прогонами).
             // Моделей ровно две (2026-09-07): обучающая односекторная по умолчанию и боевая
-            // трёхсекторная "metallurgy-petrochemistry-forestry-6.json" — её и подставляет
+            // трёхсекторная "main-3-sectors.json" — её и подставляет
             // run-llm-bots-3-sectors.sh вместе с LLM_BOT_SECTORS="A,B,V".
-            ProductionModel: GetString("LLM_BOT_PRODUCTION_MODEL", "metallurgy-7.json"),
+            ProductionModel: GetString("LLM_BOT_PRODUCTION_MODEL", "training-1-sector.json"),
             // Список секторов через запятую, по одному на бота (по кругу, как персоны ниже) —
             // на обучающей модели один сектор на всех ("A"), на боевой — "A,B,V", чтобы боты реально
             // оказались в разных отраслях и было что возить друг другу по доске публичных заявок.

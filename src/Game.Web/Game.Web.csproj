@@ -24,9 +24,6 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Game.Config\Samples\gameconfig.pilot.json" Link="Samples\gameconfig.pilot.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Include="..\Game.Config\Samples\production-models\**\*.json" Link="Samples\production-models\%(RecursiveDir)%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

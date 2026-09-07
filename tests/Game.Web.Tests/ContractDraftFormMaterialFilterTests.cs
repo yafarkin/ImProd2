@@ -117,7 +117,7 @@ public class ContractDraftFormMaterialFilterTests
     /// </summary>
     private static ResolvedGameConfig CrossSectorFixture() => GameConfigLoader.LoadFromFiles(
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "cross-sector-minimal.json"),
-        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json"));
+        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json"));
 
     /// <summary>Тип фабрики сектора <paramref name="sectorId"/>, у рецепта которого есть вход из сектора <paramref name="importFromSectorId"/>.</summary>
     private static FactoryDefinition CrossSectorImporterOf(ResolvedGameConfig config, string sectorId, string importFromSectorId) =>

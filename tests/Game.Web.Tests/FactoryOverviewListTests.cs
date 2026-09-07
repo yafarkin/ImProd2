@@ -25,8 +25,8 @@ public class FactoryOverviewListTests
     /// к содержанию цепочки отношения не имеют.
     /// </summary>
     private static ResolvedGameConfig FixtureConfig() => GameConfigLoader.LoadFromFiles(
-        Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "standard.json"),
-        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json"));
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "tiny-2-sectors.json"),
+        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json"));
 
     private static (FactoryDefinition Mine, FactoryDefinition Mill, Sector Sector) SectorAMineAndMill()
     {

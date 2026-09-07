@@ -7,7 +7,7 @@ namespace Game.Bots.Tests;
 /// <summary>Общий вход в реальный пилотный конфиг для тестов ботов и харнесса балансировки (Блоки 7.1-7.2).</summary>
 internal static class PilotBotSession
 {
-    public static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
+    public static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "legacy-combined-gameconfig.json");
 
     public static ResolvedGameConfig LoadConfig() => GameConfigLoader.LoadFromFile(ConfigPath);
 

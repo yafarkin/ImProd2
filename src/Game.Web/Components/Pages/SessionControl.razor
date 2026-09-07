@@ -245,7 +245,7 @@ else
         _isAdministrator = authState.User.IsInRole("Administrator");
 
         _selectedProductionModelId = Host.ProductionModels.Keys.FirstOrDefault();
-        _selectedSessionConfigId = Host.SessionConfigs.ContainsKey("pilot") ? "pilot" : Host.SessionConfigs.Keys.FirstOrDefault();
+        _selectedSessionConfigId = Host.SessionConfigs.Keys.FirstOrDefault();
         SyncPhaseTimingFields();
 
         Refresh();
@@ -313,13 +313,13 @@ else
     // ещё не описанный здесь) просто показывается как есть, ничего не ломает.
     private static readonly IReadOnlyDictionary<string, string> ProductionModelNames = new Dictionary<string, string>
     {
-        ["metallurgy-7"] = "Обучающая — металлургия, один сектор",
-        ["metallurgy-petrochemistry-forestry-6"] = "Боевая — металлургия, нефтехимия, лес",
+        ["training-1-sector"] = "Обучающая — металлургия, один сектор",
+        ["main-3-sectors"] = "Боевая — металлургия, нефтехимия, лес",
     };
 
     private static readonly IReadOnlyDictionary<string, string> SessionConfigNames = new Dictionary<string, string>
     {
-        ["pilot"] = "Основная",
+        ["main"] = "Основная",
     };
 
     private static string ProductionModelLabel(string id, ProductionModelConfig model)

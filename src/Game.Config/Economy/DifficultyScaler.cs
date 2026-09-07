@@ -22,7 +22,7 @@ namespace Game.Config.Economy;
 public static class DifficultyScaler
 {
     // Каждая таблица — 6 множителей на уровни 0..5, индекс 3 = 1.0 (нейтральный уровень). Выведены
-    // из анкерных значений docs/difficulty.md §3 делением на дефолт pilot.json/standard.json на этом
+    // из анкерных значений docs/difficulty.md §3 делением на дефолт сессионного файла на этом
     // рычаге — поэтому применяются как множитель к уже существующему значению конфига, не как
     // абсолютные числа, и одинаково работают поверх разных production-model файлов (§5 плана).
     private static readonly double[] BuildCostAnchors = { 0.5, 0.7, 0.85, 1.0, 1.3, 1.7 };

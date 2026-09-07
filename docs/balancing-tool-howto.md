@@ -74,8 +74,8 @@ dotnet run --project src/Game.Balancing --
 
 | Флаг | По умолчанию | Смысл |
 |---|---|---|
-| `--config <путь>` | нет (интерактивный список) | Файл цепочки — либо голая production-model (`Samples/production-models/*.json`), либо уже собранный целиком `GameConfig` (например `Samples/gameconfig.pilot.json`). Тип определяется автоматически по содержимому файла. |
-| `--session <путь>` | `Samples/sessions/pilot.json`, только если `--config` — голая production-model | Файл сессионных параметров (экономика, пороги R&D, длительность и т.д.) в паре с `--config`. Не нужен, если `--config` уже полный `GameConfig`. Сессионный файл в поставке один, поэтому флаг нужен только чтобы подсунуть свой вариант — например, прогнать цепочку на самой ранней возможной концовке (`MinTurns`) вместо `MaxTurns`. |
+| `--config <путь>` | нет (интерактивный список) | Файл цепочки — либо голая production-model (`Samples/production-models/*.json`), либо уже собранный целиком `GameConfig` (например `Samples/legacy-combined-gameconfig.json`). Тип определяется автоматически по содержимому файла. |
+| `--session <путь>` | `Samples/sessions/main.json`, только если `--config` — голая production-model | Файл сессионных параметров (экономика, пороги R&D, длительность и т.д.) в паре с `--config`. Не нужен, если `--config` уже полный `GameConfig`. Сессионный файл в поставке один, поэтому флаг нужен только чтобы подсунуть свой вариант — например, прогнать цепочку на самой ранней возможной концовке (`MinTurns`) вместо `MaxTurns`. |
 | `--mode <grid\|ideal-hall\|cost-levels\|trace>` | `grid` | Режим — см. выше. |
 | `--grid-steps <n>` | `5` | Сетка `n×n` по `leverage`/`profile` (равномерно от 0 до 1). Только для `--mode grid`. |
 | `--sessions-per-cell <n>` | `5` | Партий на одну ячейку сетки. Только для `--mode grid`. |

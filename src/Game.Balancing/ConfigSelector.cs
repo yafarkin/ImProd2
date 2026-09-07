@@ -16,11 +16,11 @@ internal static class ConfigSelector
         Path.Combine(AppContext.BaseDirectory, "Samples", "production-models");
 
     private static string DefaultSessionPath =>
-        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
+        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json");
 
     /// <summary>
     /// Грузит конфиг по <paramref name="args"/>: путь либо на уже полный <c>GameConfig</c> (собран
-    /// целиком, как <c>gameconfig.pilot.json</c>), либо на файл одной production-model цепочки без
+    /// целиком, как <c>legacy-combined-gameconfig.json</c>), либо на файл одной production-model цепочки без
     /// сессионных параметров — какой из двух перед нами, определяется по содержимому файла (наличие
     /// поля <c>Duration</c> верхнего уровня), не по флагу, так что один и тот же <c>--config</c>
     /// работает для обоих видов файлов без дополнительных подсказок.

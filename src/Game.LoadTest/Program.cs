@@ -34,7 +34,7 @@ internal static class LoadTestRunner
     {
         Console.WriteLine("=== Фаза A: бенчмарк тика движка (Game.Engine, in-process) ===");
 
-        var configPath = Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
+        var configPath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "legacy-combined-gameconfig.json");
         var config = GameConfigLoader.LoadFromFile(configPath);
         var sectorA = config.Sectors.Single(s => s.Id == "A");
         var sectorB = config.Sectors.Single(s => s.Id == "B");
