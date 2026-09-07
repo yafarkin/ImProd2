@@ -1,155 +1,138 @@
 using Game.Config.Loading;
-using Game.Domain;
 
 namespace Game.Config.Economy;
 
 /// <summary>
-/// Пересчитывает <see cref="MaterialMarketConfig.BasePrice"/> по цепочке переделов так, чтобы доход
-/// от продажи системе строго рос вниз по каждой цепочке (запрос пользователя, Блок 9.4: обнаружили,
-/// что в отладочном конфиге доход от «осесть на сырье/железе и не перерабатывать дальше» выше, чем
-/// от честной переработки до конца цепочки — <see cref="MaterialMarketConfig.BaseCapacity"/> падает
-/// ровно в 10 раз на каждом переделе (задано рецептами), а <see cref="BasePrice"/> подбирался
-/// вручную и растёт неравномерно, местами меньше этих 10 раз). Не трогает
-/// <see cref="MaterialMarketConfig.BaseCapacity"/> — только <see cref="MaterialMarketConfig.BasePrice"/>,
-/// и только у материалов, чья цепочка
-/// начинается с явно заданного <paramref name="rootAnchorPrices"/> (см. <see cref="Calculate"/>) —
-/// материалы вне выбранных цепочек (например, другой сектор) остаются как есть.
+/// Считает лестницу экзогенных цен сбыта — <see cref="MaterialMarketConfig.BasePrice"/> по каждому
+/// материалу конфига (блок 11.2, <c>docs/external-economy.md</c> §4):
 ///
-/// Это первый, узкий кирпичик к будущему «общему ползунку сложности сессии» (запрос пользователя):
-/// <c>growthPerLevel</c> — именно такая именованная, воспроизводимая «ручка», а не подобранные один
-/// раз вручную числа. Сам общий ползунок (стоимость построек, скорость R&amp;D и т.д. — тоже под одну
-/// сложность) — отдельная, более крупная задача, не эта.
+/// <code>
+/// BaseSellPrice(M) = себестоимость(M) × (1 + BaseMargin + DepthBonus × уровень(M))
+/// </code>
 ///
-/// <para><b>Открытый вопрос с 2026-08-21 (rebalance/2-sector-stepwise), не решён в этом шаге:</b>
-/// реальная системная цена продажи теперь — себестоимость (<c>Game.Engine.MaterialCostCalculator</c>)
-/// × фиксированная наценка, <see cref="MaterialMarketConfig.BasePrice"/> в цене больше не участвует
-/// вообще, только в этом инструменте предпросмотра. Инструмент не сломан (продолжает считать то, что
-/// считал), но его практическая польза для реального ценообразования сейчас нулевая — решение, что с
-/// ним делать (переписать на себестоимость или убрать), не принято, не в рамках сегодняшнего
-/// запроса.</para>
+/// <para><b>Себестоимость участвует ровно один раз — здесь, при калибровке.</b> Результат
+/// замораживается в конфиг обычными числами, и во время партии движок себестоимость для цены больше
+/// не спрашивает (<c>Game.Engine.ExternalPriceCalculator</c>). Именно это делает цену настоящим
+/// внешним якорем: команда, снизившая свою реальную себестоимость через R&amp;D, забирает разницу
+/// себе, а не отдаёт её обратно в цену, как было при cost-plus.</para>
+///
+/// <para><b>Зачем такая форма.</b> <c>DepthBonus</c> — единственная ручка, отвечающая на вопрос
+/// «насколько сильнее вознаграждается глубина передела»: при нуле цена всюду равна
+/// <c>себестоимость × (1 + BaseMargin)</c>, то есть в точности воспроизводит прежнее правило
+/// cost-plus, а с ростом — маржа глубоких уровней расходится с мелкими. Отсюда главное практическое
+/// свойство инструмента: калибровка (блок 11.8) начинается не с нуля, а из точки, про которую уже
+/// известно, что она проходима, и сводится к подъёму одной именованной ручки, а не к поиску вслепую
+/// по двум цепочкам.</para>
+///
+/// <para><b>Что здесь было раньше.</b> До 2026-09-07 лестница считалась не от себестоимости, а от
+/// <see cref="MaterialMarketConfig.BaseCapacity"/> — «подобрать цену так, чтобы доход при полной
+/// выборке ёмкости рос ровно в <c>growthPerLevel</c> раз за передел», с якорями по корневым
+/// материалам. Тот инструмент решал реальную задачу своего времени (осесть на сырье было выгоднее,
+/// чем перерабатывать), но после перехода на cost-plus его выход перестал влиять на цену вообще, и
+/// он тихо разошёлся с движком: держал собственную копию наценки со значением <c>1.05</c> против
+/// <c>1.30</c> в <c>MarketSaleCalculator</c>. Дублированная константа удалена вместе со старой
+/// формулой — наценка теперь приходит аргументом, дублировать нечего.</para>
+///
+/// <para>Чистая функция: себестоимость приходит готовым словарём (её считает
+/// <c>Game.Engine.MaterialCostCalculator</c>, а <c>Game.Config</c> не может ссылаться на
+/// <c>Game.Engine</c> — направление зависимостей обратное), конфиг не мутируется, запись —
+/// отдельным <see cref="Apply"/>, как и у <see cref="DifficultyScaler"/>.</para>
 /// </summary>
 public static class SystemSalePriceLadderCalculator
 {
-    /// <summary>
-    /// Наценка системной продажи — дублирует <c>Game.Engine.MarketSaleCalculator.SystemSaleMarginMultiplier</c>
-    /// (Game.Config не может ссылаться на Game.Engine — обратное направление зависимостей), должна
-    /// оставаться синхронной с ней вручную. С 2026-08-22 фиксированная и одна на все уровни передела —
-    /// раньше здесь была настраиваемая таблица по уровню.
-    /// </summary>
-    private const decimal SystemSaleMarginMultiplier = 1.05m;
-
-    /// <summary>Одна строка предпросмотра — материал цепочки, было/станет, для отображения администратору до применения.</summary>
+    /// <summary>Одна строка лестницы — материал, его себестоимость и посчитанная от неё цена сбыта; было/станет для предпросмотра до применения.</summary>
     public sealed record MaterialLadderRow(
         string MaterialId,
         string MaterialName,
+        string SectorId,
         int Level,
-        string? PredecessorMaterialId,
-        bool IsRepriced,
-        decimal Capacity,
-        decimal MarginMultiplier,
+        decimal UnitCost,
         decimal OldPrice,
-        decimal NewPrice,
-        decimal OldFullCapacityRevenue,
-        decimal NewFullCapacityRevenue);
+        decimal NewPrice)
+    {
+        /// <summary>Наценка над себестоимостью, долей (0.30 = +30%). У бесплатного материала — 0.</summary>
+        public decimal MarginRate => UnitCost > 0m ? NewPrice / UnitCost - 1m : 0m;
+
+        /// <summary>
+        /// Прибыль с единицы при продаже системе на нетронутом рынке — <c>цена − себестоимость</c>.
+        /// Под экзогенной ценой это и есть настоящая прибыль уровня (при cost-plus она была
+        /// <c>0.30 × собственный передел</c> и от глубины не зависела вовсе).
+        /// </summary>
+        public decimal ProfitPerUnit => NewPrice - UnitCost;
+    }
 
     /// <summary>
-    /// Считает предпросмотр новой лестницы цен. <paramref name="rootAnchorPrices"/> — цена сырья
-    /// (материалов уровня 0), с которых начинается пересчёт каждой выбранной цепочки; материал
-    /// уровня 0, которого нет в этом словаре, и всё, что от него зависит, в пересчёт не попадает и
-    /// остаётся с прежней ценой (<see cref="MaterialLadderRow.IsRepriced"/> = <see langword="false"/>) —
-    /// так можно пересчитать одну цепочку (например, металлургию), не трогая параллельную (нефть).
-    /// Для каждого следующего материала цепочки цена подбирается так, чтобы «доход при полной
-    /// выборке ёмкости рынка» (<c>Capacity × Price × MarginMultiplier</c>) был ровно в
-    /// <paramref name="growthPerLevel"/> раз больше, чем у материала-предшественника (единственный
-    /// прямой вход рецепта, производящего этот материал, — если входов несколько, берётся первый по
-    /// порядку в конфиге, остальные на форму цепочки не влияют).
+    /// Считает лестницу по всем материалам, у которых есть запись в
+    /// <see cref="EconomyConfig.BaseMarketPerMaterial"/>. Порядок строк канонический (сектор →
+    /// уровень → код материала), не порядок словаря — AGENTS §2, правило 6.
     /// </summary>
+    /// <param name="config">Конфиг, чьи цены пересчитываются.</param>
+    /// <param name="unitCostByMaterialId">Себестоимость единицы каждого материала (<c>Game.Engine.MaterialCostCalculator.CalculateAll</c>).</param>
+    /// <param name="baseMargin">Базовая наценка над себестоимостью, долей — общая для всех уровней (0.30 = +30%).</param>
+    /// <param name="depthBonusPerLevel">Прибавка к наценке за каждый уровень передела, долей; 0 воспроизводит прежнее правило cost-plus.</param>
     public static IReadOnlyList<MaterialLadderRow> Calculate(
-        ResolvedGameConfig config, decimal growthPerLevel, IReadOnlyDictionary<string, decimal> rootAnchorPrices)
+        ResolvedGameConfig config,
+        IReadOnlyDictionary<string, decimal> unitCostByMaterialId,
+        decimal baseMargin,
+        decimal depthBonusPerLevel)
     {
         ArgumentNullException.ThrowIfNull(config);
-        ArgumentNullException.ThrowIfNull(rootAnchorPrices);
-        if (growthPerLevel <= 0)
+        ArgumentNullException.ThrowIfNull(unitCostByMaterialId);
+        if (baseMargin < 0m)
         {
-            throw new ArgumentOutOfRangeException(nameof(growthPerLevel), growthPerLevel, "Growth per level must be positive.");
+            throw new ArgumentOutOfRangeException(
+                nameof(baseMargin), baseMargin, "Base margin must not be negative: the system may not buy below cost.");
+        }
+        if (depthBonusPerLevel < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(depthBonusPerLevel), depthBonusPerLevel,
+                "Depth bonus must not be negative: deeper processing may not be rewarded less than shallower.");
         }
 
         var marketByMaterialId = config.Raw.Economy.BaseMarketPerMaterial.ToDictionary(m => m.MaterialId);
-
-        var newPriceByMaterialId = new Dictionary<string, decimal>();
-        var repriced = new HashSet<string>();
         var rows = new List<MaterialLadderRow>();
 
-        // Уровень 0 гарантированно не зависит ни от кого (Recipe запрещает входы у сырья) — простой
-        // проход по возрастанию Level гарантированно видит предшественника раньше потомка.
         foreach (var material in config.Materials.Values
                      .Where(m => marketByMaterialId.ContainsKey(m.Id))
-                     .OrderBy(m => m.Level))
+                     .OrderBy(m => m.Sector.Id, StringComparer.Ordinal)
+                     .ThenBy(m => m.Level)
+                     .ThenBy(m => m.Id, StringComparer.Ordinal))
         {
-            var market = marketByMaterialId[material.Id];
-            string? predecessorId = null;
-            decimal newPrice;
-
-            if (material.IsRawMaterial)
+            if (!unitCostByMaterialId.TryGetValue(material.Id, out var unitCost))
             {
-                if (rootAnchorPrices.TryGetValue(material.Id, out var anchor))
-                {
-                    newPrice = anchor;
-                    repriced.Add(material.Id);
-                }
-                else
-                {
-                    newPrice = market.BasePrice;
-                }
-            }
-            else
-            {
-                // Непервичный материал без рецепта — не валидный конфиг (см. проверку ссылочной
-                // целостности в GameConfigLoader), но защищаемся: тихо не пересчитываем эту ветку,
-                // а не роняем экран администратора обскурным KeyNotFoundException.
-                var recipe = config.RecipeBook.TryGetRecipe(material);
-                var predecessor = recipe?.Inputs.FirstOrDefault()?.Material;
-                predecessorId = predecessor?.Id;
-
-                if (predecessor is not null && repriced.Contains(predecessor.Id) && marketByMaterialId.TryGetValue(predecessor.Id, out var predecessorMarket))
-                {
-                    var predecessorNewPrice = newPriceByMaterialId[predecessor.Id];
-                    newPrice = predecessorNewPrice * predecessorMarket.BaseCapacity * SystemSaleMarginMultiplier * growthPerLevel
-                               / (market.BaseCapacity * SystemSaleMarginMultiplier);
-                    repriced.Add(material.Id);
-                }
-                else
-                {
-                    newPrice = market.BasePrice;
-                }
+                throw new InvalidOperationException(
+                    $"No unit cost supplied for material '{material.Id}': the price ladder is computed from cost, " +
+                    "so every material with a market entry must have one (see MaterialCostCalculator.CalculateAll).");
             }
 
-            newPriceByMaterialId[material.Id] = newPrice;
-            var thisMarginMultiplier = SystemSaleMarginMultiplier;
+            var margin = baseMargin + depthBonusPerLevel * material.Level;
             rows.Add(new MaterialLadderRow(
-                material.Id, material.Name, material.Level, predecessorId, repriced.Contains(material.Id),
-                market.BaseCapacity, thisMarginMultiplier, market.BasePrice, newPrice,
-                market.BaseCapacity * market.BasePrice * thisMarginMultiplier,
-                market.BaseCapacity * newPrice * thisMarginMultiplier));
+                material.Id,
+                material.Name,
+                material.Sector.Id,
+                material.Level,
+                unitCost,
+                marketByMaterialId[material.Id].BasePrice,
+                unitCost * (1m + margin)));
         }
 
         return rows;
     }
 
     /// <summary>
-    /// Применяет предпросмотр из <see cref="Calculate"/> к конфигу: возвращает новый
-    /// <see cref="GameConfig"/> с обновлённым <see cref="EconomyConfig.BaseMarketPerMaterial"/> —
-    /// у материалов вне пересчитанных цепочек (<see cref="MaterialLadderRow.IsRepriced"/> = false)
-    /// цена не меняется. Не валидирует и не пересобирает <see cref="ResolvedGameConfig"/> — это
-    /// обязанность вызывающего кода (см. <see cref="GameConfigLoader.Load"/>), симметрично тому, как
-    /// <see cref="GameConfigWriter"/> тоже только сериализует, не проверяя.
+    /// Применяет посчитанную лестницу к конфигу: возвращает новый <see cref="GameConfig"/> с
+    /// обновлённым <see cref="EconomyConfig.BaseMarketPerMaterial"/>. Ёмкость не трогает — это
+    /// отдельный, не связанный с ценой параметр. Не валидирует и не пересобирает
+    /// <see cref="ResolvedGameConfig"/> — обязанность вызывающего кода, симметрично
+    /// <see cref="DifficultyScaler.Apply"/>.
     /// </summary>
     public static GameConfig Apply(GameConfig config, IReadOnlyList<MaterialLadderRow> rows)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(rows);
 
-        var newPriceByMaterialId = rows.Where(r => r.IsRepriced).ToDictionary(r => r.MaterialId, r => r.NewPrice);
+        var newPriceByMaterialId = rows.ToDictionary(r => r.MaterialId, r => r.NewPrice);
         var newMarket = config.Economy.BaseMarketPerMaterial
             .Select(m => newPriceByMaterialId.TryGetValue(m.MaterialId, out var newPrice) ? m with { BasePrice = newPrice } : m)
             .ToList();

@@ -5,13 +5,16 @@ using Game.Config.Loading;
 namespace Game.Config.Tests;
 
 /// <summary>
-/// Пересчёт лестницы <see cref="MaterialMarketConfig.BasePrice"/> по цепочке переделов — фикс
-/// «обнаружили, что доход от сырья/железа выше, чем от честной переработки» (Блок 9.4).
+/// Лестница экзогенных цен сбыта (блок 11.2, <c>docs/external-economy.md</c> §4):
+/// <c>цена = себестоимость × (1 + BaseMargin + DepthBonus × уровень)</c>.
+///
+/// <para>Себестоимость подаётся тестами готовым словарём, а не считается
+/// <c>MaterialCostCalculator</c>: лестница обязана быть чистой функцией от (конфиг, себестоимость,
+/// две ручки), и проверять её надо в отрыве от того, кто именно посчитал себестоимость.</para>
 /// </summary>
 public class SystemSalePriceLadderCalculatorTests
 {
-    // rock (level0) --10--> iron (level1) --10--> iron-sheet (level2); отдельно oil (level0) --2--> plastic (level1),
-    // не связанная с металлургией цепочка — проверяет, что пересчёт не трогает то, что не выбрали.
+    // rock (A, ур.0) → iron (A, ур.1) → iron-sheet (A, ур.2); отдельно oil (B, ур.0) → plastic (B, ур.1).
     private static ResolvedGameConfig BuildConfig()
     {
         var raw = GameConfigTestBuilder.Build(
@@ -55,85 +58,170 @@ public class SystemSalePriceLadderCalculatorTests
         return GameConfigLoader.Load(GameConfigWriter.Save(raw));
     }
 
-    [Fact]
-    public void Calculate_Grows_FullCapacityRevenue_By_GrowthPerLevel_Along_The_Chosen_Chain()
+    private static Dictionary<string, decimal> Costs() => new()
     {
-        var config = BuildConfig();
+        ["rock"] = 1m,
+        ["iron"] = 10m,
+        ["iron-sheet"] = 100m,
+        ["oil"] = 2m,
+        ["plastic"] = 20m,
+    };
 
-        var rows = SystemSalePriceLadderCalculator.Calculate(config, growthPerLevel: 1.5m, new Dictionary<string, decimal> { ["rock"] = 0.02m });
+    /// <summary>
+    /// Опорное свойство всего перехода на экзогенную цену: при нулевой надбавке за глубину лестница
+    /// в точности воспроизводит прежнее правило cost-plus (одна наценка на все уровни). Благодаря
+    /// этому перекалибровка (блок 11.8) стартует не с нуля, а из заведомо проходимой точки, и
+    /// сводится к подъёму одной ручки.
+    /// </summary>
+    [Fact]
+    public void With_No_Depth_Bonus_The_Ladder_Reproduces_Plain_Cost_Plus_Pricing()
+    {
+        var rows = SystemSalePriceLadderCalculator.Calculate(BuildConfig(), Costs(), baseMargin: 0.30m, depthBonusPerLevel: 0m);
 
-        var rock = rows.Single(r => r.MaterialId == "rock");
-        var iron = rows.Single(r => r.MaterialId == "iron");
-        var ironSheet = rows.Single(r => r.MaterialId == "iron-sheet");
-
-        Assert.True(rock.IsRepriced);
-        Assert.True(iron.IsRepriced);
-        Assert.True(ironSheet.IsRepriced);
-        Assert.Equal(0.02m, rock.NewPrice);
-        // Revenue(N) = Capacity x Price x Margin — должно расти ровно в growthPerLevel раз на каждом шаге.
-        Assert.Equal(rock.NewFullCapacityRevenue * 1.5m, iron.NewFullCapacityRevenue, precision: 6);
-        Assert.Equal(iron.NewFullCapacityRevenue * 1.5m, ironSheet.NewFullCapacityRevenue, precision: 6);
-        // Раньше (до фикса) доход на iron был в разы больше, чем на iron-sheet — обратный эффект;
-        // после фикса это больше не так ни при каком growthPerLevel > 0.
-        Assert.True(ironSheet.NewFullCapacityRevenue > iron.NewFullCapacityRevenue);
+        Assert.All(rows, row => Assert.Equal(row.UnitCost * 1.30m, row.NewPrice));
+        Assert.All(rows, row => Assert.Equal(0.30m, row.MarginRate, precision: 10));
     }
 
+    /// <summary>Надбавка за глубину добавляется к наценке ровно по одному разу на каждый уровень передела.</summary>
     [Fact]
-    public void Calculate_Leaves_Chains_Without_An_Explicit_Root_Anchor_Untouched()
+    public void The_Depth_Bonus_Adds_One_Step_Of_Margin_Per_Processing_Level()
     {
-        var config = BuildConfig();
+        var rows = SystemSalePriceLadderCalculator.Calculate(BuildConfig(), Costs(), baseMargin: 0.30m, depthBonusPerLevel: 0.10m);
 
-        var rows = SystemSalePriceLadderCalculator.Calculate(config, growthPerLevel: 1.5m, new Dictionary<string, decimal> { ["rock"] = 0.02m });
-
-        var oil = rows.Single(r => r.MaterialId == "oil");
-        var plastic = rows.Single(r => r.MaterialId == "plastic");
-
-        Assert.False(oil.IsRepriced);
-        Assert.False(plastic.IsRepriced);
-        Assert.Equal(12m, oil.NewPrice);
-        Assert.Equal(28m, plastic.NewPrice);
+        Assert.Equal(1m * 1.30m, Row(rows, "rock").NewPrice);
+        Assert.Equal(10m * 1.40m, Row(rows, "iron").NewPrice);
+        Assert.Equal(100m * 1.50m, Row(rows, "iron-sheet").NewPrice);
     }
 
+    /// <summary>
+    /// Главное содержательное свойство: с положительной надбавкой маржа строго растёт вниз по
+    /// цепочке. Именно этого не мог дать cost-plus, где автозавод зарабатывал те же 30% от своих
+    /// издержек, что и рудник, а строился в 50 раз дороже.
+    /// </summary>
     [Fact]
-    public void Calculate_Reproduces_The_Reported_Debug_Config_Numbers()
+    public void Deeper_Processing_Earns_A_Strictly_Higher_Margin()
     {
-        // Числа, которыми диагностировали баг-репорт пользователя (Блок 9.4) — если формула когда-то
-        // случайно сломается, этот тест первым перестанет совпадать с уже согласованными цифрами.
-        var config = BuildConfig();
+        var rows = SystemSalePriceLadderCalculator.Calculate(BuildConfig(), Costs(), baseMargin: 0.20m, depthBonusPerLevel: 0.05m);
 
-        var rows = SystemSalePriceLadderCalculator.Calculate(config, growthPerLevel: 1.5m, new Dictionary<string, decimal> { ["rock"] = 0.02m });
+        var chain = rows.Where(r => r.SectorId == "A").OrderBy(r => r.Level).ToList();
 
-        var iron = rows.Single(r => r.MaterialId == "iron");
-        var ironSheet = rows.Single(r => r.MaterialId == "iron-sheet");
-        Assert.Equal(0.3m, iron.NewPrice, precision: 3);
-        // Наценка теперь фиксированная (1.05×, одна на все уровни, см. doc-comment класса) — числитель
-        // и знаменатель формулы сокращаются, значение отличается от старого (3.913, когда уровни 1 и 2
-        // были настроены на разные множители 1.0/1.15).
-        Assert.Equal(4.5m, ironSheet.NewPrice, precision: 3);
+        Assert.Equal(3, chain.Count);
+        for (var i = 1; i < chain.Count; i++)
+        {
+            Assert.True(
+                chain[i].MarginRate > chain[i - 1].MarginRate,
+                $"уровень {chain[i].Level} должен иметь маржу выше уровня {chain[i - 1].Level}");
+        }
     }
 
+    /// <summary>Прибыль с единицы — это цена минус себестоимость, без скрытых слагаемых.</summary>
     [Fact]
-    public void Calculate_Throws_For_A_Non_Positive_GrowthPerLevel()
+    public void Profit_Per_Unit_Is_Simply_Price_Minus_Cost()
     {
-        var config = BuildConfig();
+        var rows = SystemSalePriceLadderCalculator.Calculate(BuildConfig(), Costs(), baseMargin: 0.30m, depthBonusPerLevel: 0.05m);
 
+        Assert.All(rows, row => Assert.Equal(row.NewPrice - row.UnitCost, row.ProfitPerUnit));
+    }
+
+    /// <summary>Бесплатный материал не роняет расчёт делением на ноль — маржа у него по определению нулевая.</summary>
+    [Fact]
+    public void A_Zero_Cost_Material_Yields_A_Zero_Margin_Instead_Of_A_Division_By_Zero()
+    {
+        var costs = Costs();
+        costs["rock"] = 0m;
+
+        var rows = SystemSalePriceLadderCalculator.Calculate(BuildConfig(), costs, baseMargin: 0.30m, depthBonusPerLevel: 0m);
+
+        Assert.Equal(0m, Row(rows, "rock").NewPrice);
+        Assert.Equal(0m, Row(rows, "rock").MarginRate);
+    }
+
+    /// <summary>Порядок строк канонический (сектор → уровень → код), не порядок словаря — AGENTS §2, правило 6.</summary>
+    [Fact]
+    public void Rows_Come_Back_In_A_Canonical_Deterministic_Order()
+    {
+        var rows = SystemSalePriceLadderCalculator.Calculate(BuildConfig(), Costs(), baseMargin: 0.30m, depthBonusPerLevel: 0m);
+
+        Assert.Equal(
+            new[] { "rock", "iron", "iron-sheet", "oil", "plastic" },
+            rows.Select(r => r.MaterialId).ToArray());
+    }
+
+    /// <summary>Старая цена показывается рядом с новой — предпросмотр «было/станет» до применения.</summary>
+    [Fact]
+    public void Each_Row_Carries_The_Previous_Price_For_Side_By_Side_Preview()
+    {
+        var rows = SystemSalePriceLadderCalculator.Calculate(BuildConfig(), Costs(), baseMargin: 0.30m, depthBonusPerLevel: 0m);
+
+        Assert.Equal(0.02m, Row(rows, "rock").OldPrice);
+        Assert.Equal(40m, Row(rows, "iron-sheet").OldPrice);
+    }
+
+    /// <summary>
+    /// Материал с рыночной записью, но без поданной себестоимости — ошибка, а не тихо пропущенная
+    /// строка: цена считается ИЗ себестоимости, и молчаливый пропуск оставил бы в боевом конфиге
+    /// старое, ничем не обоснованное число.
+    /// </summary>
+    [Fact]
+    public void A_Material_Without_A_Supplied_Cost_Is_Reported_Rather_Than_Silently_Skipped()
+    {
+        var costs = Costs();
+        costs.Remove("plastic");
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => SystemSalePriceLadderCalculator.Calculate(BuildConfig(), costs, baseMargin: 0.30m, depthBonusPerLevel: 0m));
+
+        Assert.Contains("plastic", exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>Отрицательная наценка означала бы, что система скупает ниже себестоимости — отсекается на входе.</summary>
+    [Fact]
+    public void A_Negative_Base_Margin_Is_Rejected()
+    {
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => SystemSalePriceLadderCalculator.Calculate(config, growthPerLevel: 0m, new Dictionary<string, decimal>()));
+            () => SystemSalePriceLadderCalculator.Calculate(BuildConfig(), Costs(), baseMargin: -0.1m, depthBonusPerLevel: 0m));
     }
 
+    /// <summary>Отрицательная надбавка за глубину наказывала бы переработку — ровно то, что этот блок и чинит.</summary>
     [Fact]
-    public void Apply_Updates_Only_Repriced_Materials_And_Produces_A_Config_That_Still_Loads()
+    public void A_Negative_Depth_Bonus_Is_Rejected()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => SystemSalePriceLadderCalculator.Calculate(BuildConfig(), Costs(), baseMargin: 0.30m, depthBonusPerLevel: -0.01m));
+    }
+
+    /// <summary>Применение переносит новые цены в конфиг и переживает полный круг сериализации/загрузки.</summary>
+    [Fact]
+    public void Apply_Writes_The_New_Prices_Into_A_Config_That_Still_Loads()
     {
         var config = BuildConfig();
-        var rows = SystemSalePriceLadderCalculator.Calculate(config, growthPerLevel: 1.5m, new Dictionary<string, decimal> { ["rock"] = 0.02m });
+        var rows = SystemSalePriceLadderCalculator.Calculate(config, Costs(), baseMargin: 0.30m, depthBonusPerLevel: 0.10m);
 
         var updated = SystemSalePriceLadderCalculator.Apply(config.Raw, rows);
         var reloaded = GameConfigLoader.Load(GameConfigWriter.Save(updated));
 
-        Assert.Equal(0.3m, reloaded.Raw.Economy.BaseMarketPerMaterial.Single(m => m.MaterialId == "iron").BasePrice, precision: 3);
-        // Цепочка нефти цену не поменяла — её не выбрали корнем.
-        Assert.Equal(12m, reloaded.Raw.Economy.BaseMarketPerMaterial.Single(m => m.MaterialId == "oil").BasePrice);
-        // Ёмкость и маржа не тронуты — фикс только про цену.
-        Assert.Equal(500m, reloaded.Raw.Economy.BaseMarketPerMaterial.Single(m => m.MaterialId == "iron").BaseCapacity);
+        Assert.Equal(14m, reloaded.Raw.Economy.BaseMarketPerMaterial.Single(m => m.MaterialId == "iron").BasePrice);
+        Assert.Equal(150m, reloaded.Raw.Economy.BaseMarketPerMaterial.Single(m => m.MaterialId == "iron-sheet").BasePrice);
     }
+
+    /// <summary>
+    /// Ёмкость рынка — отдельный от цены параметр, лестница её не трогает (регрессия: прежняя
+    /// версия инструмента считала цену ИЗ ёмкости, и легко было унаследовать эту связь обратно).
+    /// </summary>
+    [Fact]
+    public void Apply_Leaves_Market_Capacity_Untouched()
+    {
+        var config = BuildConfig();
+        var rows = SystemSalePriceLadderCalculator.Calculate(config, Costs(), baseMargin: 0.30m, depthBonusPerLevel: 0.10m);
+
+        var updated = SystemSalePriceLadderCalculator.Apply(config.Raw, rows);
+
+        Assert.Equal(
+            config.Raw.Economy.BaseMarketPerMaterial.Select(m => (m.MaterialId, m.BaseCapacity)).ToArray(),
+            updated.Economy.BaseMarketPerMaterial.Select(m => (m.MaterialId, m.BaseCapacity)).ToArray());
+    }
+
+    private static SystemSalePriceLadderCalculator.MaterialLadderRow Row(
+        IReadOnlyList<SystemSalePriceLadderCalculator.MaterialLadderRow> rows, string materialId) =>
+        rows.Single(r => r.MaterialId == materialId);
 }

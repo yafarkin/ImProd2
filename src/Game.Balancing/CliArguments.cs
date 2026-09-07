@@ -130,6 +130,28 @@ internal sealed record CliArguments
     /// <summary>Рабочих на каждой синтетической фабрике при <see cref="RunMode.Sweep"/> — тот же смысл, что <see cref="Workers"/>.</summary>
     public int SweepWorkers { get; init; } = 10;
 
+    /// <summary>
+    /// Базовая наценка над себестоимостью при <see cref="RunMode.PriceLadder"/>, долей — общая для
+    /// всех уровней передела. По умолчанию 0.30: ровно та наценка, что действовала при cost-plus,
+    /// поэтому лестница с параметрами по умолчанию воспроизводит нынешнюю экономику один в один.
+    /// </summary>
+    public decimal BaseMargin { get; init; } = 0.30m;
+
+    /// <summary>
+    /// Прибавка к наценке за каждый уровень передела при <see cref="RunMode.PriceLadder"/>, долей —
+    /// та самая единственная ручка «насколько сильнее вознаграждается глубина»
+    /// (<c>docs/external-economy.md</c> §4). По умолчанию 0 — сознательно: калибровка (блок 11.8)
+    /// начинается с точки, тождественной прежней экономике, и поднимает эту ручку от неё.
+    /// </summary>
+    public decimal DepthBonusPerLevel { get; init; }
+
+    /// <summary>
+    /// Записать посчитанную лестницу обратно в файл конфига (<see cref="RunMode.PriceLadder"/>).
+    /// Без этого флага режим только печатает предпросмотр и ничего не трогает — правка боевого
+    /// конфига обязана быть явным намерением, а не побочным эффектом просмотра отчёта.
+    /// </summary>
+    public bool Apply { get; init; }
+
     /// <summary>Разбирает пары <c>--флаг значение</c>; неизвестный флаг или флаг без значения — <see cref="ArgumentException"/> (лучше упасть сразу, чем молча проигнорировать опечатку в многочасовом прогоне).</summary>
     public static CliArguments Parse(IReadOnlyList<string> args)
     {
@@ -180,12 +202,16 @@ internal sealed record CliArguments
                 "--sweep-decay-steps" => result with { SweepDecaySteps = ParseDecimalList(NextValue()) },
                 "--sweep-payback-target" => result with { SweepPaybackWarningTurns = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
                 "--sweep-workers" => result with { SweepWorkers = int.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--base-margin" => result with { BaseMargin = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--depth-bonus" => result with { DepthBonusPerLevel = decimal.Parse(NextValue(), CultureInfo.InvariantCulture) },
+                "--apply" => result with { Apply = true },
                 _ => throw new ArgumentException(
                     $"Unknown argument '{flag}'. Known flags: --config, --session, --sessions-per-cell, --grid-steps, " +
                     "--teams-per-sector, --maintain-factories, --out, --mode, --difficulty, --workers, --leverage, --profile, --calibrate-lever, " +
                     "--calibrate-metric, --calibrate-target, --calibrate-min, --calibrate-max, --calibrate-tolerance, --calibrate-max-iterations, " +
                     "--sweep-levels, --sweep-base-build-cost, --sweep-base-fixed-cost, --sweep-base-production-rate, --sweep-input-quantity, " +
-                    "--sweep-growth-steps, --sweep-decay-steps, --sweep-payback-target, --sweep-workers."),
+                    "--sweep-growth-steps, --sweep-decay-steps, --sweep-payback-target, --sweep-workers, " +
+                    "--base-margin, --depth-bonus, --apply."),
             };
         }
 
@@ -201,8 +227,9 @@ internal sealed record CliArguments
         "calibrate" => RunMode.Calibrate,
         "diagnose" => RunMode.Diagnose,
         "sweep" => RunMode.Sweep,
+        "price-ladder" => RunMode.PriceLadder,
         _ => throw new ArgumentException(
-            $"Unknown '--mode' value '{value}'. Expected 'grid', 'ideal-hall', 'cost-levels', 'trace', 'calibrate', 'diagnose' or 'sweep'."),
+            $"Unknown '--mode' value '{value}'. Expected 'grid', 'ideal-hall', 'cost-levels', 'trace', 'calibrate', 'diagnose', 'sweep' or 'price-ladder'."),
     };
 
     /// <summary>Разбирает список чисел через запятую (<c>"1.0,1.5,2.0"</c>) для осей сетки направления C.</summary>
@@ -268,4 +295,12 @@ internal enum RunMode
     /// из <c>--sweep-*</c> флагов.
     /// </summary>
     Sweep,
+
+    /// <summary>
+    /// Лестница экзогенных цен сбыта (блок 11.2, <c>docs/external-economy.md</c> §4) — считает
+    /// <c>BaseSellPrice</c> каждого материала от его себестоимости и печатает отчёт «уровень /
+    /// себестоимость / цена / маржа / прибыль с единицы»; с <c>--apply</c> записывает результат
+    /// обратно в файл конфига. Ни хода, ни рынка, ни ботов: статический инструмент калибровки.
+    /// </summary>
+    PriceLadder,
 }

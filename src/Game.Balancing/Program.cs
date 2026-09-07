@@ -50,6 +50,14 @@ if (cliArguments.Mode == RunMode.CostLevels)
     return;
 }
 
+// Блок 11.2 «лестница цен» (docs/external-economy.md §4) — статический расчёт цен от себестоимости,
+// без хода/рынка/ботов, как и cost-levels выше; с --apply правит файл конфига на месте.
+if (cliArguments.Mode == RunMode.PriceLadder)
+{
+    PriceLadderRun.Run(config, cliArguments);
+    return;
+}
+
 // Блок «трассировка ботов» (rebalance/2-sector-stepwise) — одна партия с построчным логом решений,
 // не JSON-отчёт по сетке, поэтому тоже выходит раньше остальной инфраструктуры грида.
 if (cliArguments.Mode == RunMode.Trace)
