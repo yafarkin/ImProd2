@@ -40,7 +40,11 @@ namespace Game.Balancing.Tests;
 /// </summary>
 public class IdealHallEngineReconciliationTests
 {
-    private const int HallTurns = 8;
+    // Прогон должен быть длиннее, чем окупаемость разового найма самого мелкого уровня цепочки
+    // (≈29 ходов при этих числах) — иначе гейт «успеет ли отбить наём» (docs/TODO.md №29,
+    // IdealHallCalculator.BuildNewlyUnlockedFactories) законно не даст залу построить фабрику, и
+    // сверять расходы будет не с чем. До добавления гейта (2026-09-07) здесь стояло 8.
+    private const int HallTurns = 40;
 
     /// <summary>
     /// Здоровая цепочка (предложение каждого уровня с запасом покрывает спрос следующего), поэтому

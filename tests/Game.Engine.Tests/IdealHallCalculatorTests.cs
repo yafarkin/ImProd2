@@ -58,9 +58,12 @@ public class IdealHallCalculatorTests
         // на 100%-ную инвестиционную интенсивность идеального зала и дают убыточную ветку — само по
         // себе честный результат (Блок 7.3.4 для того и существует, чтобы такое ловить), но не то,
         // что проверяет этот тест.
+        // 50 ходов, а не 30: этот фикстур тонкомаржинальный (FixedCostPerTurn=0, наём 250 ¤/фабрику
+        // при прибыли ~7.5 ¤/ход), и гейт «успеет ли отбить наём» (docs/TODO.md №29) законно не даёт
+        // построить фабрику, если ходов до конца партии меньше ~34.
         var config = BuildTwoSectorConfig();
 
-        var result = IdealHallCalculator.Calculate(config, 30);
+        var result = IdealHallCalculator.Calculate(config, 50);
 
         // Первые ходы — не показательны: эталонная политика вкладывает в R&D и командное
         // исследование поколений на потолок сразу у всех фабрик разом (doc-comment IdealHallCalculator)
@@ -80,7 +83,7 @@ public class IdealHallCalculatorTests
         // внутри своего сектора.
         var config = BuildTwoSectorConfig();
 
-        var result = IdealHallCalculator.Calculate(config, 30);
+        var result = IdealHallCalculator.Calculate(config, 50);
 
         var branchB = result.Branches.Single(b => b.SectorId == "B");
         Assert.True(branchB.ValueByTurn[^1] > 0m, "X(T) сектора Б должен быть положительным — материал от А должен был дойти.");

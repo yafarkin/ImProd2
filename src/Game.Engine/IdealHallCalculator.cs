@@ -111,7 +111,7 @@ public static class IdealHallCalculator
                 AdvanceGeneration(branch, config, turn);
                 ChargeGenerationResearch(branch, config);
                 ChargeWarehouseFee(branch, config);
-                BuildNewlyUnlockedFactories(branch, config, turn, capacityPlan);
+                BuildNewlyUnlockedFactories(branch, config, turn, maxTurns, capacityPlan);
                 AdvanceFactoryLevelsAndChargeRnd(branch, config, turn);
                 RunProduction(branch, config);
                 ChargeOperatingCosts(branch, config);
@@ -221,11 +221,31 @@ public static class IdealHallCalculator
     /// «одна с базовой численностью» (2026-09-07): эталон обязан уметь расшивать узкое место теми же
     /// рычагами, что и живая команда, иначе он перестаёт быть верхней границей для бота, который это
     /// теперь умеет.
+    ///
+    /// <para>
+    /// <b>Гейт «успеет ли отбить хотя бы наём» (2026-09-07, docs/TODO.md №29).</b> Раньше зал строил
+    /// каждую пару в тот же ход, когда её разблокировало поколение, безусловно — «раньше не может быть
+    /// хуже, чем позже». После починки учёта (docs/economy-accounting-audit.md, дефект 2) зал платит
+    /// за наём при постройке; фабрика, разблокированная за один-два хода до конца партии, этот
+    /// разовый расход уже не отобьёт своим переделом и тянет итог вниз. Такая пара теперь не строится.
+    /// </para>
+    /// <para>
+    /// Порог намеренно узкий — <i>только</i> наём, не полный <c>BuildCost</c>. Сам <c>BuildCost</c>
+    /// возвращается в итог остаточной стоимостью фабрики при <c>Condition=1</c>
+    /// (<see cref="FinalScoreCalculator"/>), поэтому построить фед-фабрику на любое число ходов &gt; ~2
+    /// строго улучшает счёт на <c>передел×0.30×ходы − наём</c> — гейт по «окупаемости всего BuildCost»
+    /// (первый вариант из №29) отсекал бы фабрики, которые реальному боту всё равно выгодно строить, и
+    /// сам ломал бы верхнюю границу. Остаточное превышение бота над залом на короткой синтетической
+    /// цепочке (<c>IdealHallUpperBoundTests</c>, ~102%) этот гейт не закрывает — оно от фронт-загрузки
+    /// капзатрат и темпа вложений на 1-м ходу, а это уже «полноценный решатель по ходам», второй
+    /// вариант №29, отложенный.
+    /// </para>
     /// </summary>
     private static void BuildNewlyUnlockedFactories(
-        BranchState branch, ResolvedGameConfig config, int turn,
+        BranchState branch, ResolvedGameConfig config, int turn, int maxTurns,
         IReadOnlyDictionary<(string FactoryDefinitionId, string RecipeId), ChainCapacityPlanner.RecipePlan> capacityPlan)
     {
+        var turnsRemaining = maxTurns - turn + 1;
         var builtCountByPair = branch.Team.Factories
             .GroupBy(f => (f.Definition.Id, f.SelectedRecipe.Id))
             .ToDictionary(group => group.Key, group => group.Count());
@@ -240,7 +260,17 @@ public static class IdealHallCalculator
 
                 var plan = capacityPlan[(definition.Id, recipe.Id)];
                 var alreadyBuilt = builtCountByPair.GetValueOrDefault((definition.Id, recipe.Id));
-                var buildCost = config.Raw.FactoryDefinitions.First(d => d.Id == definition.Id).BuildCost;
+                var rawDefinition = config.Raw.FactoryDefinitions.First(d => d.Id == definition.Id);
+                var buildCost = rawDefinition.BuildCost;
+
+                if (alreadyBuilt == 0
+                    && !WouldRecoverHireCostBeforeGameEnds(
+                        definition, recipe, plan.WorkersPerFactory, rawDefinition.FixedCostPerTurn, config, turnsRemaining))
+                {
+                    // Даже разовый наём не отобьёт — пропускаем навсегда: с ростом turn окно только сужается.
+                    continue;
+                }
+
                 for (var i = alreadyBuilt; i < plan.FactoryCount; i++)
                 {
                     var factory = branch.Team.BuildFactory(Ulid.NewUlid(), definition, recipe, builtAtTurn: turn);
@@ -256,6 +286,42 @@ public static class IdealHallCalculator
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Отобьёт ли пара (тип, рецепт), построенная сейчас, хотя бы свой разовый наём за оставшиеся
+    /// <paramref name="turnsRemaining"/> ходов. Прибыль за ход — <c>0.30 × собственный передел</c>,
+    /// где передел = <c>FixedCostPerTurn + электричество + зарплата</c> на свежепостроенной фабрике
+    /// первого уровня при <paramref name="workersPerFactory"/> рабочих (та же формула и те же
+    /// допущения, что <c>ProductionCostLevelCalculator</c> в Game.Balancing — 100% выпуска системе по
+    /// <see cref="MarketSaleCalculator.SystemSaleMarginMultiplier"/>, без кросс-торговли и без роста
+    /// выпуска от R&amp;D, то есть заведомо не оптимистичная). Возвращает <c>false</c>, если маржа с
+    /// продажи не положительна или <c>прибыль × turnsRemaining</c> меньше разового
+    /// <c>HireCostPerWorker × workersPerFactory</c>.
+    /// </summary>
+    private static bool WouldRecoverHireCostBeforeGameEnds(
+        FactoryDefinition definition, Recipe recipe, int workersPerFactory,
+        decimal fixedCostPerTurn, ResolvedGameConfig config, int turnsRemaining)
+    {
+        var probe = new Factory(Ulid.NewUlid(), definition.Sector, definition, recipe);
+        probe.Hire(workersPerFactory);
+        var output = ProductionCalculator
+            .CalculateCapacityBreakdown(probe, config.Raw.WorkerProductivity, config.Raw.Rnd)
+            .TheoreticalMaxOutput;
+
+        var electricityCost = output
+            * config.Raw.Economy.ElectricityConsumptionPerOutputUnit
+            * config.Raw.Economy.ElectricityBasePrice;
+        var salaryCost = workersPerFactory * config.Raw.WorkerProductivity.SalaryPerWorkerPerTurn;
+        var conversionCost = fixedCostPerTurn + electricityCost + salaryCost;
+        var profitPerTurn = conversionCost * (MarketSaleCalculator.SystemSaleMarginMultiplier - 1m);
+        if (profitPerTurn <= 0m)
+        {
+            return false;
+        }
+
+        var hireCost = workersPerFactory * config.Raw.WorkerProductivity.HireCostPerWorker;
+        return profitPerTurn * turnsRemaining >= hireCost;
     }
 
     /// <summary>Та же закрытая форма, что <see cref="AdvanceGeneration"/>, но на уровне одной фабрики — с момента её постройки.</summary>
