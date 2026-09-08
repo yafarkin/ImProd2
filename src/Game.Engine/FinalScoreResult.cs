@@ -13,7 +13,7 @@ public sealed record FinalScoreResult
     /// <summary>Денежный остаток (может быть отрицательным).</summary>
     public required decimal Cash { get; init; }
 
-    /// <summary>Оценка склада (сумма по материалам: остаток × текущая рыночная цена × <c>EconomyConfig.WarehouseLiquidationRate</c>).</summary>
+    /// <summary>Оценка склада: сумма по материалам «остаток × себестоимость» (<see cref="MaterialCostCalculator"/>), без скидки на ликвидацию — см. doc-comment <see cref="FinalScoreCalculator"/>, <c>WarehouseLiquidationRate</c> в этой формуле больше не участвует.</summary>
     public required decimal WarehouseValue { get; init; }
 
     /// <summary>Оценка фабрик (сумма по фабрикам: <c>BuildCost × LiquidationValueCoefficient</c> её типа; R&amp;D не учитывается, SPEC §5.11).</summary>

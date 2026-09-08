@@ -1,0 +1,177 @@
+@page "/results"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@implements IDisposable
+@inject GameSessionHost Host
+@using System.Security.Claims
+
+<PageTitle>Итоги игры</PageTitle>
+
+@if (_sessionNotStarted)
+{
+    <h1>Итогов пока нет</h1>
+    <p>Сессия ещё не началась.</p>
+}
+else
+{
+    <h1>Итоги игры</h1>
+
+    @if (!_isFinished)
+    {
+        <div class="alert alert-warning">
+            <strong>Партия ещё идёт</strong> — это предварительный счёт на конец хода @_currentTurn, а
+            не итог. Сколько ходов осталось, не знает никто: конец разыгран заранее и не объявляется.
+        </div>
+    }
+    else
+    {
+        <p class="lead">Партия завершена на ходу @_currentTurn.</p>
+    }
+
+    <h2>Кто сколько стоит</h2>
+    @* Разъяснение свёрнуто в <details> — тот же приём и по той же причине, что и на вкладке
+       «Требует внимания»: на телефоне развёрнутый абзац занимал полэкрана и отодвигал саму таблицу
+       за сгиб, то есть мешал ровно тому, ради чего экран сделан (проверено на 390px, docs/TODO.md №7). *@
+    <p class="text-muted mb-2">Счёт — это ликвидационная стоимость команды: сколько она стоит, если прямо сейчас всё распродать.</p>
+    <details class="mb-3">
+        <summary class="text-muted small">Из чего он складывается</summary>
+        <p class="text-muted small mt-2">
+            Деньги на счету плюс склад по себестоимости плюс фабрики по остаточной стоимости
+            (изношенная фабрика стоит меньше новой). Поэтому команда с пустым счётом, но тремя
+            работающими фабриками может обойти команду, которая просто копила деньги.
+        </p>
+    </details>
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Команда</th>
+                    <th class="d-none d-md-table-cell">Сектор</th>
+                    <th class="text-end">Счёт</th>
+                    <th class="text-end d-none d-sm-table-cell">Деньги</th>
+                    <th class="text-end d-none d-sm-table-cell">Склад</th>
+                    <th class="text-end d-none d-sm-table-cell">Фабрики</th>
+                    <th class="text-end d-none d-md-table-cell">Репутация</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _rows)
+                {
+                    <tr class="@(row.TeamId == _teamId ? "table-primary" : null)">
+                        <td>@row.Place</td>
+                        <td>
+                            <strong>@row.Name</strong>
+                            @if (row.TeamId == _teamId)
+                            {
+                                <span class="badge bg-primary ms-1">вы</span>
+                            }
+                        </td>
+                        <td class="d-none d-md-table-cell">@row.SectorName</td>
+                        <td class="text-end"><strong class="@(row.Score < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(row.Score)</strong></td>
+                        <td class="text-end d-none d-sm-table-cell">@DashboardDisplay.FormatMoney(row.Cash)</td>
+                        <td class="text-end d-none d-sm-table-cell">@DashboardDisplay.FormatMoney(row.WarehouseValue)</td>
+                        <td class="text-end d-none d-sm-table-cell">@DashboardDisplay.FormatMoney(row.FactoriesValue)</td>
+                        @* В скобках — размер выборки, а не проценты: 100% по нулю фактов и 100% по
+                           двадцати — совершенно разные утверждения, и на разборе это первое, что
+                           надо знать, прежде чем обсуждать репутацию команды. *@
+                        <td class="text-end d-none d-md-table-cell">@row.ReputationPercentage.ToString("F0")% (@row.ReputationSampleCount)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* Сноска про репутацию не нужна там, где сама колонка репутации скрыта по ширине экрана. *@
+    <p class="text-muted small d-none d-md-block">В скобках у репутации — на скольких выполненных и сорванных поставках построена оценка.</p>
+
+    <h2 class="mt-4">Счёт по ходам</h2>
+    @if (_hasHistory)
+    {
+        <p class="text-muted">
+            Где линии разошлись — там и была решающая развилка партии. Счёт может расти, когда денег
+            на счету становится меньше: это значит, что деньги ушли в фабрики и склад, а не пропали.
+        </p>
+        @ChartRenderer.Render(_scoreChart)
+    }
+    else
+    {
+        <p><em>График появится после первого завершённого хода.</em></p>
+    }
+
+    @if (_isFacilitator)
+    {
+        <h2 class="mt-4">Для разбора</h2>
+        <ul>
+            <li><a href="/export/scores.csv">Итоговые счета команд (CSV)</a></li>
+            <li><a href="/export/turns.csv">История по ходам (CSV)</a></li>
+        </ul>
+    }
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private IReadOnlyList<ResultsDisplay.ResultRow> _rows = Array.Empty<ResultsDisplay.ResultRow>();
+    private LineChartDiagram.ChartLayout _scoreChart = new([], [], [], 900, 320);
+    private int _scoreChartEntryCount = -1;
+    private bool _hasHistory;
+    private bool _sessionNotStarted;
+    private bool _isFinished;
+    private bool _isFacilitator;
+    private int _currentTurn;
+    private Ulid _teamId;
+    private Timer? _tickTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthenticationStateTask!).User;
+        var role = user.FindFirst(ClaimTypes.Role)?.Value;
+        _isFacilitator = role is nameof(ParticipantRole.Facilitator) or nameof(ParticipantRole.Administrator);
+        if (user.FindFirst("teamId")?.Value is { } teamIdClaim && Ulid.TryParse(teamIdClaim, out var teamId))
+        {
+            _teamId = teamId;
+        }
+
+        Refresh();
+
+        // Экран живой, а не снимок: пока партия не кончилась, он показывает предварительный счёт, и
+        // сам же переключится на итоговый, когда прозвенит последний ход, — на большом экране в зале
+        // нажать «обновить» некому.
+        _tickTimer = new Timer(_ =>
+        {
+            Refresh();
+            InvokeAsync(StateHasChanged);
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    private void Refresh()
+    {
+        using (Host.EnterSyncRootTimed(nameof(Results) + "." + nameof(Refresh)))
+        {
+            if (Host.Session is null)
+            {
+                _sessionNotStarted = true;
+                return;
+            }
+
+            _sessionNotStarted = false;
+            _isFinished = Host.Session.State.IsFinished;
+            _currentTurn = Host.Session.State.CurrentTurn;
+            _rows = ResultsDisplay.Rank(Host.Session);
+
+            // Полный реплей журнала на каждую команду — не бесплатная операция (см. тот же приём на
+            // большом экране и на /team): пересчитываем только когда в журнале появились новые записи.
+            var entryCount = Host.Session.Entries.Count;
+            if (_scoreChartEntryCount != entryCount)
+            {
+                _scoreChart = ResultsDisplay.BuildScoreHistoryChart(Host.Session);
+                _hasHistory = _scoreChart.Series.Count > 0;
+                _scoreChartEntryCount = entryCount;
+            }
+        }
+    }
+
+    public void Dispose() => _tickTimer?.Dispose();
+}

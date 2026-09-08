@@ -38,6 +38,17 @@
         вручную не нужно).
     </div>
 }
+else if (_isFinished)
+{
+    @* Партия кончилась — а раньше страница просто застывала в последнем ходе, и игроки расходились,
+       так и не узнав результат (docs/TODO.md №10). Редиректа нет намеренно: остальные вкладки после
+       конца партии никуда не деваются и нужны как раз на разборе — «покажи, что у тебя было на
+       складе». Кнопки решений при этом уже не работают, движок их не принимает. *@
+    <div class="alert alert-success mb-3">
+        <p class="mb-1"><strong>Партия завершена на ходу @_currentTurn.</strong> Решения больше не принимаются.</p>
+        <p class="mb-0"><a href="/results" class="alert-link">Посмотреть итоги игры →</a></p>
+    </div>
+}
 else
 {
     <div class="alert @(_isDecisionPhase ? "alert-info" : "alert-warning") mb-3">
@@ -74,7 +85,7 @@ else
     <li class="nav-item">
         <button type="button" class="nav-link @PageTabClass("attention")" @onclick='() => _activePageTab = "attention"'>
             Внимание
-            @if (_attention.Count > 0)
+            @if (_attention.Count > 0 && !_isFinished)
             {
                 <span class="badge rounded-pill bg-danger ms-1">@_attention.Count</span>
             }
@@ -98,20 +109,34 @@ else
        отодвигал сами поводы ниже сгиба — то есть мешал ровно тому, ради чего вкладка сделана
        (проверено живым прогоном в браузере 2026-09-08). Одной строки достаточно, чтобы стало
        понятно, чего тут ждать, остальное — по клику для тех, кому интересно. *@
-    <p class="text-muted mb-2">
-        Только факты: что уже идёт не так и что сломается в ближайшие
-        @DashboardDisplay.Turns(TeamAttentionCalculator.SoonHorizonTurns). Что делать — решаете вы.
-    </p>
-    <details class="mb-3">
-        <summary class="text-muted small">Как это считается</summary>
-        <p class="text-muted small mt-2">
-            Подсказок по стратегии здесь нет и не будет: панель показывает, что происходит и почему,
-            но не советует, что строить, покупать или продавать. Прогнозы считаются по самой
-            оптимистичной оценке собственного выпуска — как если бы сырья всегда хватало, — поэтому
-            если предупреждение появилось, беда наступит даже при идеальной загрузке фабрик.
+    @if (!_isFinished)
+    {
+        <p class="text-muted mb-2">
+            Только факты: что уже идёт не так и что сломается в ближайшие
+            @DashboardDisplay.Turns(TeamAttentionCalculator.SoonHorizonTurns). Что делать — решаете вы.
         </p>
-    </details>
-    @if (_attention.Count == 0)
+        <details class="mb-3">
+            <summary class="text-muted small">Как это считается</summary>
+            <p class="text-muted small mt-2">
+                Подсказок по стратегии здесь нет и не будет: панель показывает, что происходит и почему,
+                но не советует, что строить, покупать или продавать. Прогнозы считаются по самой
+                оптимистичной оценке собственного выпуска — как если бы сырья всегда хватало, — поэтому
+                если предупреждение появилось, беда наступит даже при идеальной загрузке фабрик.
+            </p>
+        </details>
+    }
+    @if (_isFinished)
+    {
+        @* Панель говорит только про будущее — «списывается каждый ход», «сломается через 2 хода».
+           После последнего хода такого будущего нет, и те же слова из полезного предупреждения
+           превращаются в неверное утверждение. Поэтому здесь она замолкает целиком, а не показывает
+           устаревший список (замечено живым прогоном 2026-09-08, docs/TODO.md №10). *@
+        <div class="alert alert-secondary">
+            Партия закончилась — предупреждать больше не о чем. Что происходило с фабриками и
+            складом по ходам, осталось на вкладках «Фабрики», «Склад» и «Финансы».
+        </div>
+    }
+    else if (_attention.Count == 0)
     {
         <div class="alert alert-success">Ничего срочного. Ни одна фабрика не простаивает, поставки обеспечены, склад в пределах лимита.</div>
     }
@@ -177,6 +202,21 @@ else
     <h2>Что у меня плохо</h2>
     <ul class="list-unstyled">
         <li>Баланс: <strong class="@(_balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_balance)</strong></li>
+        @* Тот же счёт, по которому в конце партии считаются места (FinalScoreCalculator). Показан по
+           ходу игры, а не только на итогах: без него команда, вложившая всё в производство, видит
+           падающий баланс и не понимает, что стала богаче (docs/TODO.md №10). Чужие счета до конца
+           партии не показываются нигде — публична только сумма на счету (SPEC §7). *@
+        @if (_score is not null)
+        {
+            <li>
+                Сколько стоит команда: <strong class="@(_score.Score < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_score.Score)</strong>
+                <span class="text-muted small">
+                    — деньги @DashboardDisplay.FormatMoney(_score.Cash)
+                    + склад @DashboardDisplay.FormatMoney(_score.WarehouseValue)
+                    + фабрики @DashboardDisplay.FormatMoney(_score.FactoriesValue)
+                </span>
+            </li>
+        }
         <li>
             Репутация: @_reputationPercentage.ToString("F0")%
             (@_reputationSampleCount @(_reputationSampleCount == 1 ? "факт" : "фактов"))
@@ -211,6 +251,9 @@ else
     {
         <h4 class="h6 mt-4">Баланс по ходам</h4>
         @ChartRenderer.Render(BuildBalanceChartLayout())
+        <h4 class="h6 mt-4">Сколько стоит команда по ходам</h4>
+        <p class="text-muted small">Может расти, когда баланс падает: значит, деньги ушли в фабрики и склад, а не пропали.</p>
+        @ChartRenderer.Render(BuildScoreChartLayout())
         <h4 class="h6 mt-4">Денежный поток по ходам</h4>
         <p class="text-muted small">Разница баланса с прошлым ходом — не накопленный итог: выше нуля — заработали за этот ход, ниже — потратили больше, чем заработали.</p>
         @ChartRenderer.Render(BuildCashFlowChartLayout())
@@ -1114,6 +1157,8 @@ else
     private Timer? _tickTimer;
 
     private decimal _balance;
+    private FinalScoreResult? _score;
+    private bool _isFinished;
     private decimal _reputationPercentage;
     private int _reputationSampleCount;
 
@@ -1232,6 +1277,7 @@ else
             var state = Host.Session.State;
 
             _currentTurn = state.CurrentTurn;
+            _isFinished = state.IsFinished;
             // Полный реплей журнала — не бесплатная операция, а страница обновляется раз в секунду:
             // пересчитываем только когда в журнале появились новые записи, а не на каждый тик
             // таймера. Раньше ключом кеша был текущий ход — но решения (продать, построить фабрику)
@@ -1279,6 +1325,7 @@ else
                 .ToList();
 
             _balance = team.Balance;
+            _score = FinalScoreCalculator.Calculate(team, MaterialCostCalculator.CalculateAll(state.Config), state.Config.Raw.FactoryDefinitions);
             _pendingSaleVolumeByMaterial = team.PendingSaleVolumeByMaterial;
             _pendingEmergencyPurchaseVolumeByMaterial = team.PendingEmergencyPurchaseVolumeByMaterial;
 
@@ -1707,6 +1754,18 @@ else
     private LineChartDiagram.ChartLayout BuildBalanceChartLayout()
     {
         var series = new[] { new LineChartDiagram.ChartSeries("Баланс", SectorColors.Palette[0], _history!.NetWorthByTurn) };
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
+    }
+
+    /// <summary>
+    /// Отдельным графиком, а не вторым рядом на графике баланса: это две разные величины, и правило
+    /// проекта — одна шкала на график (см. doc-comment <see cref="LineChartDiagram"/>). Разойтись
+    /// они могут на порядок, если команда вложилась в фабрики.
+    /// </summary>
+    private LineChartDiagram.ChartLayout BuildScoreChartLayout()
+    {
+        var series = new[] { new LineChartDiagram.ChartSeries("Стоимость команды", SectorColors.Palette[1], _history!.ScoreByTurn) };
 
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
     }
