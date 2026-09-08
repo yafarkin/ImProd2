@@ -53,6 +53,15 @@ public static class FinanceHistoryCalculator
         /// <summary>Переменные затраты на работу фабрики за ход — энергия, растёт с объёмом выпуска (<see cref="FactoryProduced.OverheadCost"/>).</summary>
         FactoryOverhead,
 
+        /// <summary>
+        /// Разовая плата за капремонт — доля <c>BuildCost</c> по сработавшей ступени (<see
+        /// cref="FactoryOverhaulStarted.Cost"/>). Заведена 2026-09-08 вместе с износом в идеальном
+        /// зале (docs/TODO.md №18): до этого стоимость капремонта списывалась с команды
+        /// (<see cref="FactoryOverhaulStarted.Apply"/>), но не попадала в историю финансов вообще —
+        /// разбивка по статьям не сходилась с движением кассы на любой партии, где кто-то чинился.
+        /// </summary>
+        FactoryOverhaul,
+
         /// <summary>Исполнение поставки по контракту — оплата (мы покупатель) или поступление (мы продавец) (<see cref="ContractDelivered"/>).</summary>
         ContractDelivery,
 
@@ -140,6 +149,26 @@ public static class FinanceHistoryCalculator
                     break;
                 case FactoryProduced change when change.TeamId == teamId && change.OverheadCost > 0:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryOverhead, MoneyDirection.Expense, change.OverheadCost, Rate: null, change.FactoryId));
+                    break;
+                case FactoryOverhaulStarted change when change.TeamId == teamId && change.Cost > 0:
+                    operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryOverhaul, MoneyDirection.Expense, change.Cost, Rate: null, change.FactoryId));
+                    break;
+                // Зарплата и содержание на ходу простоя (льготные тарифы, см. FactoryRepairTurnPassed)
+                // идут в те же статьи, что и обычные: это те же самые зарплата и содержание, просто по
+                // другой ставке, — отдельная статья дробила бы историю без пользы. Два события за один
+                // Change: сумма списывается одним Debit, а в разбивке обязана делиться, иначе
+                // Expense_Breakdown_Fully_Explains_The_Engine_Cash_Movement перестанет сходиться.
+                case FactoryRepairTurnPassed change when change.TeamId == teamId:
+                    if (change.SalaryPaid > 0)
+                    {
+                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.SalariesPaid, MoneyDirection.Expense, change.SalaryPaid, Rate: null, change.FactoryId));
+                    }
+
+                    if (change.UpkeepPaid > 0)
+                    {
+                        operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.FactoryUpkeep, MoneyDirection.Expense, change.UpkeepPaid, Rate: null, change.FactoryId));
+                    }
+
                     break;
                 case GrantIssued change when change.TeamId == teamId:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.GrantReceived, MoneyDirection.Income, change.Amount, Rate: null));

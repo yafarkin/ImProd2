@@ -85,6 +85,7 @@ public static class DashboardDisplay
         FinanceHistoryCalculator.OperationType.WarehouseFee => "Плата за склад сверх лимита",
         FinanceHistoryCalculator.OperationType.FactoryUpkeep => "Содержание фабрик (капитальные затраты)",
         FinanceHistoryCalculator.OperationType.FactoryOverhead => "Затраты на работу фабрики (энергия)",
+        FinanceHistoryCalculator.OperationType.FactoryOverhaul => "Капремонт фабрики",
         FinanceHistoryCalculator.OperationType.ContractDelivery => "Поставка по контракту",
         FinanceHistoryCalculator.OperationType.DeliveryMissPenalty => "Штраф за срыв поставки",
         FinanceHistoryCalculator.OperationType.ContractTerminationFee => "Плата за расторжение контракта",

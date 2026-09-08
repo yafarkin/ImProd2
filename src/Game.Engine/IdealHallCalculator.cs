@@ -28,13 +28,16 @@ namespace Game.Engine;
 /// заметная доля выпуска не находит покупателя среди соседних веток и должна уходить в реальный
 /// рыночный доход, а не лежать на складе по неполной цене (см. <c>docs/TODO.md</c> №2, находка сессии
 /// 2026-08-15).</item>
-/// <item>Полная информация, ноль ошибок: капремонт не нужен вовсе — состояние фабрики держится на 1.0
-/// (не моделируем износ), эквивалент «капремонт всегда точно вовремя». Это ЕДИНСТВЕННАЯ статья
-/// реальных расходов, которой здесь нет: зарплата, содержание, электричество, наём и плата за
-/// превышение склада списываются теми же формулами, что в реальном тике. До 2026-09-06 не списывались
-/// также электричество, наём и склад — из-за чего X(t) был не верхней границей, а фикцией (на боевом
-/// `metallurgy.json` неучтённым оставалось 73% реальных расходов, из них электричество —
-/// крупнейшая статья вообще; см. `docs/economy-accounting-audit.md`, дефект 2).</item>
+/// <item>Износ и капремонт моделируются полностью (с 2026-09-08, <c>docs/TODO.md</c> №18) — теми же
+/// функциями <see cref="WearCalculator"/> и тем же порядком внутри хода, что и <see cref="WearStep"/>
+/// в реальном тике. Эталонная политика обслуживания — <see cref="RunWearAndOverhaul"/>: чинить на
+/// самой дешёвой ступени при первом же признаке износа, ровно как <c>SimpleBot.MaintainFactories</c>
+/// с <c>IgnoredCheapestTierCount = 0</c>. Неучтённых статей расходов у зала больше НЕТ: зарплата,
+/// содержание, электричество, наём, склад и капремонт списываются теми же формулами, что в реальном
+/// тике. До 2026-09-06 не списывались также электричество, наём и склад — из-за чего X(t) был не
+/// верхней границей, а фикцией (на боевом `metallurgy.json` неучтённым оставалось 73% реальных
+/// расходов, из них электричество — крупнейшая статья вообще; см.
+/// `docs/economy-accounting-audit.md`, дефект 2).</item>
 /// <item>Темп вложений — эталонная постоянная доля потолка за ход, и для R&amp;D фабрики, и для
 /// командного исследования поколений: 100% <see cref="RndConfig.MaxCommitmentPerTurn"/>/<see
 /// cref="GenerationResearchConfig.MaxCommitmentPerTurn"/> каждый ход, пока не достигнут потолок
@@ -138,8 +141,13 @@ public static class IdealHallCalculator
                 ChargeWarehouseFee(branch, config);
                 BuildNewlyUnlockedFactories(branch, config, turn, maxTurns, capacityPlan, referencePrices);
                 AdvanceFactoryLevelsAndChargeRnd(branch, config, turn);
-                RunProduction(branch, config);
+                // Порядок трёх следующих строк повторяет реальный тик и важен именно в таком виде:
+                // TickFinanceStep списывает зарплату и содержание ДО WearStep (то есть по состоянию на
+                // начало хода, без сегодняшнего декея), а производство идёт уже ПОСЛЕ износа — по
+                // состоянию, в котором фабрика реально работает этот ход.
                 ChargeOperatingCosts(branch, config);
+                RunWearAndOverhaul(branch, config, turn);
+                RunProduction(branch, config);
                 TraceWarehouse(branch, "post-production");
             }
 
@@ -425,22 +433,104 @@ public static class IdealHallCalculator
     }
 
     /// <summary>
-    /// Зарплата и содержание фабрик — те же формулы, что реальный тик (<see cref="FinanceCalculator"/>);
-    /// состояние всех фабрик — 1.0 (см. doc-comment класса), поэтому штрафа за износ в содержании нет.
+    /// Зарплата и содержание фабрик — те же формулы, что реальный тик (<see cref="FinanceCalculator"/>),
+    /// включая штраф к содержанию за износ (<see cref="WearCalculator.CalculateUpkeepPenaltyMultiplier"/>
+    /// внутри <see cref="FinanceCalculator.CalculateFactoryUpkeep"/>). Фабрики на простое исключены из
+    /// обеих статей — им и зарплату, и содержание списывает <see cref="RunWearAndOverhaul"/> по
+    /// льготным тарифам ступени, ровно как <see cref="TickFinanceStep"/>/<see cref="WearStep"/> в
+    /// реальном тике; посчитать их здесь означало бы заплатить дважды.
     /// Электричество списывает <see cref="RunProduction"/> (там известен выпуск), наём —
-    /// <see cref="BuildNewlyUnlockedFactories"/>, плату за склад — <see cref="ChargeWarehouseFee"/>.
-    /// Единственная статья реальных расходов, которой у идеального зала нет вовсе, — капремонт
-    /// (следствие допущения «износа нет», <c>docs/TODO.md</c> №18).
+    /// <see cref="BuildNewlyUnlockedFactories"/>, плату за склад — <see cref="ChargeWarehouseFee"/>,
+    /// капремонт — <see cref="RunWearAndOverhaul"/>. Неучтённых статей расходов у зала не осталось.
     /// </summary>
     private static void ChargeOperatingCosts(BranchState branch, ResolvedGameConfig config)
     {
-        var totalWorkers = branch.Team.Factories.Sum(f => f.Workers);
+        var totalWorkers = branch.Team.Factories.Where(f => !f.IsUnderRepair).Sum(f => f.Workers);
         branch.Spend(
             FinanceHistoryCalculator.OperationType.SalariesPaid,
             FinanceCalculator.CalculateSalaries(totalWorkers, config.Raw.WorkerProductivity));
         branch.Spend(
             FinanceHistoryCalculator.OperationType.FactoryUpkeep,
             FinanceCalculator.CalculateFactoryUpkeep(branch.Team.Factories, config.Raw.FactoryDefinitions, config.Raw.Wear));
+    }
+
+    /// <summary>
+    /// Износ и капремонт за ход (SPEC §5.6, <c>docs/TODO.md</c> №18) — те же три взаимоисключающих
+    /// случая и в том же порядке, что у <see cref="WearStep"/> в реальном тике, теми же функциями
+    /// <see cref="WearCalculator"/>: (1) фабрика уже на простое — списываются льготные зарплата и
+    /// содержание ступени, ход простоя засчитывается, на последнем состояние восстанавливается;
+    /// (2) фабрика изношена — эталонная политика заказывает капремонт (см. ниже); (3) иначе —
+    /// рутинный декей состояния.
+    ///
+    /// <para>
+    /// <b>Эталонная политика обслуживания: чинить сразу, на самой дешёвой ступени.</b> Как только
+    /// состояние отходит от 1.0, зал заказывает капремонт — то есть всегда попадает в первую ступень
+    /// <see cref="WearConfig.OverhaulTiers"/> (самую дешёвую и самую короткую). Это ровно то, что
+    /// делает реальный бот (<c>SimpleBot.MaintainFactories</c> при <c>IgnoredCheapestTierCount = 0</c>,
+    /// решение пользователя от 2026-08-22 «ремонт на самой оптимальной стадии»), и совпадение здесь
+    /// обязательно, а не желательно: зал, обслуживающий фабрики хуже бота, перестаёт быть верхней
+    /// границей X(t). Зал при этом строго не медленнее — у него нет задержки «решение в ход N,
+    /// эффект в ход N+1», решение применяется тем же ходом.
+    /// </para>
+    /// <para>
+    /// Следствие политики: вынужденный простой (<see cref="WearConfig.CriticalConditionThreshold"/>)
+    /// в идеальном зале не наступает никогда — состояние физически не успевает туда упасть. Это не
+    /// упрощение модели, а прямое свойство эталонной игры: довести фабрику до принудительной
+    /// остановки — ошибка, а зал ошибок не делает.
+    /// </para>
+    /// <para>
+    /// Рассматривалась и отвергнута более скупая политика «тянуть до нижней границы самой дешёвой
+    /// ступени» (реже платить за ремонт, дольше работать изношенным): она экономит долю
+    /// <c>BuildCost</c>, но платит за это просадкой выпуска и растущим штрафом к содержанию каждый
+    /// ход — и, главное, разошлась бы с ботом, а расхождение здесь стоит дороже любой экономии.
+    /// </para>
+    /// </summary>
+    private static void RunWearAndOverhaul(BranchState branch, ResolvedGameConfig config, int turn)
+    {
+        var wearConfig = config.Raw.Wear;
+        foreach (var factory in branch.Team.Factories)
+        {
+            var definition = config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id);
+
+            if (factory.IsUnderRepair)
+            {
+                // Плоский тариф от базовой ставки, не через FinanceCalculator.CalculateSalaries — тот
+                // же приём и то же обоснование, что в WearStep.RunRepairTurn.
+                branch.Spend(
+                    FinanceHistoryCalculator.OperationType.SalariesPaid,
+                    factory.Workers * config.Raw.WorkerProductivity.SalaryPerWorkerPerTurn * factory.RepairSalaryRate);
+                branch.Spend(
+                    FinanceHistoryCalculator.OperationType.FactoryUpkeep,
+                    definition.FixedCostPerTurn * factory.RepairUpkeepRate);
+
+                factory.AdvanceRepairTurn();
+                if (factory.RepairTurnsRemaining <= 0)
+                {
+                    factory.CompleteRepair(turn);
+                }
+
+                continue;
+            }
+
+            if (!WearCalculator.IsFullyRestored(factory.Condition))
+            {
+                var tier = WearCalculator.SelectTier(factory.Condition, wearConfig.OverhaulTiers)
+                           ?? throw new InvalidOperationException(
+                               $"Ideal hall reached condition {factory.Condition} on factory definition '{definition.Id}', " +
+                               "but no configured tier covers it — WearConfig.OverhaulTiers must cover the whole range " +
+                               "down to CriticalConditionThreshold.");
+
+                branch.Spend(FinanceHistoryCalculator.OperationType.FactoryOverhaul, definition.BuildCost * tier.CostFraction);
+                factory.StartRepair(
+                    factory.Condition, tier.DurationTurns, tier.OutputMultiplier, tier.SalaryRate, tier.UpkeepRate,
+                    targetCondition: 1m);
+                continue;
+            }
+
+            var ageBeyondGrace = WearCalculator.CalculateAgeBeyondGrace(factory.LastResetTurn, turn, wearConfig.GracePeriodTurns);
+            var decayRate = WearCalculator.CalculateDecayRate(ageBeyondGrace, wearConfig);
+            factory.ApplyConditionChange(WearCalculator.CalculateNextCondition(factory.Condition, decayRate));
+        }
     }
 
     /// <summary>
@@ -646,10 +736,10 @@ public static class IdealHallCalculator
 
     /// <summary>
     /// X(t) на конец хода — тот же состав слагаемых, что <see cref="FinalScoreCalculator"/>: касса +
-    /// остаточная стоимость фабрик (привязана к <see cref="Factory.Condition"/> — у идеального зала
-    /// он всегда 1.0, износ не моделируется, «капремонт всегда точно вовремя», см. doc-comment класса,
-    /// поэтому здесь фабрики всегда стоят полную <see cref="FactoryDefinitionConfig.BuildCost"/>, не
-    /// долю от неё) + остаточная стоимость склада **ровно по себестоимости**, без скидки на ликвидацию
+    /// остаточная стоимость фабрик (привязана к <see cref="Factory.Condition"/>, который с 2026-09-08
+    /// реально гуляет по циклу износ/капремонт, см. <see cref="RunWearAndOverhaul"/>: фабрика на
+    /// момент замера стоит долю <see cref="FactoryDefinitionConfig.BuildCost"/>, а не всегда полную,
+    /// как было при допущении «износа нет») + остаточная стоимость склада **ровно по себестоимости**, без скидки на ликвидацию
     /// (<c>EconomyConfig.WarehouseLiquidationRate</c> здесь больше не участвует — сознательное
     /// упрощение по запросу пользователя, одна и та же формула для идеального зала, реального бота и
     /// будущей реальной игры, см. doc-comment <see cref="FinalScoreCalculator"/>).
