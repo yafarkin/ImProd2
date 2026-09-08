@@ -66,6 +66,17 @@ else
 }
 
 <ul class="nav nav-pills flex-nowrap mb-3" style="overflow-x:auto; white-space:nowrap">
+    @* Первой вкладкой, а не где-то в хвосте: её адресат — тот, кто играет первый раз и ещё не знает,
+       куда смотреть, поэтому она обязана попадаться на глаза сама. Счётчик виден с любой вкладки. *@
+    <li class="nav-item">
+        <button type="button" class="nav-link @PageTabClass("attention")" @onclick='() => _activePageTab = "attention"'>
+            Внимание
+            @if (_attention.Count > 0)
+            {
+                <span class="badge rounded-pill bg-danger ms-1">@_attention.Count</span>
+            }
+        </button>
+    </li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("overview")" @onclick='() => _activePageTab = "overview"'>Обзор</button></li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("factories")" @onclick='() => _activePageTab = "factories"'>Фабрики</button></li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("technology")" @onclick='() => _activePageTab = "technology"'>Технологии</button></li>
@@ -78,6 +89,51 @@ else
    иначе Blazor Server при первом статическом ответе (до подключения клиента по SignalR) вообще не
    строит разметку неактивных вкладок, и любой обычный HTTP-тест страницы (без реального клика по
    вкладке) не увидит их содержимого. *@
+<div style="display:@(_activePageTab == "attention" ? "" : "none")">
+    <h2>Требует внимания</h2>
+    <p class="text-muted">
+        Здесь только факты: что уже идёт не так и что сломается в ближайшие
+        @DashboardDisplay.Turns(TeamAttentionCalculator.SoonHorizonTurns), если ничего не менять.
+        Что с этим делать — решаете вы: подсказок по стратегии тут нет и не будет. Прогнозы считаются
+        по самой оптимистичной оценке собственного выпуска, поэтому если предупреждение появилось —
+        беда наступит даже при идеальной загрузке фабрик.
+    </p>
+    @if (_attention.Count == 0)
+    {
+        <div class="alert alert-success">Ничего срочного. Ни одна фабрика не простаивает, поставки обеспечены, склад в пределах лимита.</div>
+    }
+    else
+    {
+        @foreach (var group in new[]
+        {
+            (Horizon: TeamAttentionCalculator.AttentionHorizon.Now, Title: "Прямо сейчас", Color: "#dc3545"),
+            (Horizon: TeamAttentionCalculator.AttentionHorizon.Soon, Title: "Через несколько ходов", Color: "#fd7e14"),
+        })
+        {
+            var items = _attention.Where(i => i.Horizon == group.Horizon).ToList();
+            @if (items.Count > 0)
+            {
+                <h3 class="h6 text-uppercase text-muted mt-3">@group.Title</h3>
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var item in items)
+                    {
+                        var (headline, detail) = DashboardDisplay.AttentionText(item, _attentionNaming);
+                        <div class="border rounded p-2" style="border-color:@group.Color; border-left-width:4px; background:@(group.Color)14">
+                            <div style="font-weight:600">@headline</div>
+                            <div class="text-muted small">@detail</div>
+                            @if (AttentionTargetFactoryId(item) is { } targetId)
+                            {
+                                <button type="button" class="btn btn-link btn-sm p-0"
+                                        @onclick="() => OpenFactoryFromAttention(targetId)">Открыть фабрику</button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+    }
+</div>
+
 <div style="display:@(_activePageTab == "overview" ? "" : "none")">
     @if (_role == ParticipantRole.Manager)
     {
@@ -1047,6 +1103,9 @@ else
     private IReadOnlyList<FactoryRow> _factories = Array.Empty<FactoryRow>();
     private IReadOnlyList<BuildableDefinition> _buildableDefinitions = Array.Empty<BuildableDefinition>();
     private IReadOnlyList<FactoryOverviewList.Node> _factoryOverviewRows = Array.Empty<FactoryOverviewList.Node>();
+    private IReadOnlyList<TeamAttentionCalculator.AttentionItem> _attention = Array.Empty<TeamAttentionCalculator.AttentionItem>();
+    private DashboardDisplay.AttentionNaming _attentionNaming = new(
+        new Dictionary<Ulid, string>(), new Dictionary<string, string>(), new Dictionary<string, string>());
     private int _unlockedGeneration = 1;
     private FactoryHistoryCalculator.TeamFactoryHistory? _history;
     private int _historyEntryCount = -1;
@@ -1387,6 +1446,14 @@ else
             _factoryOverviewRows = FactoryOverviewList.Build(
                 sectorDefinitions, team.Factories, lastTurnOutputByFactoryId, theoreticalMaxOutputByFactoryId);
 
+            // Панель «Требует внимания» (docs/TODO.md №7). Сам расчёт живёт в движке и оперирует
+            // идентификаторами, здесь к ним добавляются только имена для подписей.
+            _attention = TeamAttentionCalculator.Calculate(Host.Session!.Entries, state, _teamId);
+            _attentionNaming = new DashboardDisplay.AttentionNaming(
+                _factoryDisplayNamesById,
+                state.Config.Materials.ToDictionary(pair => pair.Key, pair => pair.Value.Name),
+                state.Config.Raw.Wear.OverhaulTiers.ToDictionary(tier => tier.Id, tier => tier.Name));
+
             _contracts = state.Contracts.Values
                 .Where(c => c.BuyerTeamId == _teamId || c.SellerTeamId == _teamId)
                 .Select(c =>
@@ -1461,6 +1528,29 @@ else
 
     /// <summary>Клик по узлу на схеме построенных фабрик — открывает карточку деталей этого экземпляра ниже.</summary>
     private void SelectFactory(Ulid factoryId) => _selectedFactoryId = factoryId;
+
+    /// <summary>
+    /// Фабрика, о которой говорит повод, — если он вообще про фабрику: у складского сбора и у
+    /// поставки такой одной фабрики нет. У «материал кончается» их может быть несколько, берём
+    /// первую — переход по ссылке это навигация, а не выбор за игрока, какой именно фабрикой
+    /// заняться.
+    /// </summary>
+    private static Ulid? AttentionTargetFactoryId(TeamAttentionCalculator.AttentionItem item) => item switch
+    {
+        TeamAttentionCalculator.AttentionItem.FactoryStarvedOfInput x => x.FactoryId,
+        TeamAttentionCalculator.AttentionItem.FactoryWithoutWorkers x => x.FactoryId,
+        TeamAttentionCalculator.AttentionItem.FactoryInForcedDowntime x => x.FactoryId,
+        TeamAttentionCalculator.AttentionItem.OverhaulGetsMoreExpensive x => x.FactoryId,
+        TeamAttentionCalculator.AttentionItem.MaterialRunningOut x => x.AffectedFactoryIds.Count > 0 ? x.AffectedFactoryIds[0] : null,
+        _ => null,
+    };
+
+    /// <summary>Переход из панели к самой фабрике: открывает вкладку «Фабрики» с уже выбранной карточкой. Это навигация, не совет — панель показывает, где смотреть, а не что делать.</summary>
+    private void OpenFactoryFromAttention(Ulid factoryId)
+    {
+        _selectedFactoryId = factoryId;
+        _activePageTab = "factories";
+    }
 
     /// <summary>
     /// Прокручивает к элементу с данным id на этой же странице через встроенную в Blazor прокрутку

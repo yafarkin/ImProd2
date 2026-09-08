@@ -37,10 +37,26 @@ public static class ProductionCalculator
     public static CapacityBreakdown CalculateCapacityBreakdown(Factory factory, WorkerProductivityConfig productivity, RndConfig rnd)
     {
         ArgumentNullException.ThrowIfNull(factory);
+
+        return CalculateCapacityBreakdown(factory, factory.Workers, productivity, rnd);
+    }
+
+    /// <summary>
+    /// То же самое, но с явно заданной численностью вместо фактической
+    /// (<see cref="Factory.Workers"/>) — нужно тем, кто смотрит на ход вперёд: наём применяется
+    /// расчётом (<see cref="WorkforceStep"/> внутри <see cref="TickFinanceStep"/>) РАНЬШЕ, чем
+    /// производство того же хода, поэтому мощность ближайшего расчёта определяет уже объявленная
+    /// численность (<see cref="Factory.DesiredWorkers"/>), а не вчерашняя фактическая. По той же
+    /// причине и ровно по тому же полю считает зарплату сам <see cref="TickFinanceStep"/>.
+    /// </summary>
+    public static CapacityBreakdown CalculateCapacityBreakdown(
+        Factory factory, int workers, WorkerProductivityConfig productivity, RndConfig rnd)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
         ArgumentNullException.ThrowIfNull(productivity);
         ArgumentNullException.ThrowIfNull(rnd);
 
-        var effectiveCapacity = CalculateEffectiveCapacity(factory.Workers, productivity);
+        var effectiveCapacity = CalculateEffectiveCapacity(workers, productivity);
         var levelBonus = 1m + (factory.Level - 1) * rnd.ProductionRateBonusPerLevel;
         var recipeRate = factory.SelectedRecipe.ProductionRate;
         // На простое (SPEC §5.6, вынужденном или по капремонту) множитель — RepairOutputMultiplier
@@ -49,7 +65,7 @@ public static class ProductionCalculator
         var theoreticalMaxOutput = recipeRate * levelBonus * effectiveCapacity
                                     * (factory.IsUnderRepair ? factory.RepairOutputMultiplier : factory.Condition);
 
-        return new CapacityBreakdown(factory.Workers, effectiveCapacity, factory.Level, levelBonus, recipeRate, factory.Condition, factory.IsUnderRepair, theoreticalMaxOutput);
+        return new CapacityBreakdown(workers, effectiveCapacity, factory.Level, levelBonus, recipeRate, factory.Condition, factory.IsUnderRepair, theoreticalMaxOutput);
     }
 
     /// <summary>Считает производство одной фабрики без конкуренции за сырьё с другими — тонкая обёртка над <see cref="CalculateGroup"/> для группы из одной фабрики.</summary>

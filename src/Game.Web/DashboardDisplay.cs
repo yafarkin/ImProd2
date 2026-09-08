@@ -187,4 +187,85 @@ public static class DashboardDisplay
             Flatten(input, depth + 1, rows);
         }
     }
+
+    /// <summary>
+    /// Имена, которые нужны, чтобы превратить факты <see cref="TeamAttentionCalculator.AttentionItem"/>
+    /// в человеческий текст: сам расчёт живёт в движке и оперирует идентификаторами, подписи — здесь
+    /// (тот же приём, что у <see cref="FinanceOperationLabel"/>).
+    /// </summary>
+    public sealed record AttentionNaming(
+        IReadOnlyDictionary<Ulid, string> FactoryNames,
+        IReadOnlyDictionary<string, string> MaterialNames,
+        IReadOnlyDictionary<string, string> OverhaulTierNames);
+
+    /// <summary>
+    /// Заголовок и пояснение одного повода обратить внимание. Формулировки намеренно описательные:
+    /// что случилось и почему — без единого «сделайте», см. границу в doc-comment
+    /// <see cref="TeamAttentionCalculator"/>.
+    /// </summary>
+    public static (string Headline, string Detail) AttentionText(
+        TeamAttentionCalculator.AttentionItem item, AttentionNaming naming)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(naming);
+
+        return item switch
+        {
+            TeamAttentionCalculator.AttentionItem.FactoryStarvedOfInput x => (
+                $"{Factory(naming, x.FactoryId)}: {Turns(x.TurnsInARow)} подряд без полной загрузки",
+                $"не хватает «{Material(naming, x.MaterialId)}» — {x.ShortfallPerTurn:0.##} ед. на ход"),
+
+            TeamAttentionCalculator.AttentionItem.FactoryWithoutWorkers x => (
+                $"{Factory(naming, x.FactoryId)}: нет рабочих",
+                "содержание фабрики списывается каждый ход, выпуска нет"),
+
+            TeamAttentionCalculator.AttentionItem.FactoryInForcedDowntime x => (
+                $"{Factory(naming, x.FactoryId)}: вынужденный простой по износу",
+                $"осталось {Turns(x.TurnsRemaining)}"),
+
+            TeamAttentionCalculator.AttentionItem.DeliveryDueAndShort x => (
+                $"Поставка «{Material(naming, x.MaterialId)}» в ближайшем расчёте: не хватает {x.Shortfall:0.##} ед.",
+                $"штраф за срыв — {FormatMoney(x.Penalty)}, плюс просадка репутации"),
+
+            TeamAttentionCalculator.AttentionItem.WarehouseOverFreeCapacity x => (
+                $"Склад сверх бесплатного лимита на {x.OverageQuantity:0.##} ед.",
+                $"за это списывается {FormatMoney(x.FeePerTurn)} каждый ход"),
+
+            TeamAttentionCalculator.AttentionItem.OverhaulGetsMoreExpensive x => (
+                $"{Factory(naming, x.FactoryId)}: капремонт подорожает через {Turns(x.TurnsUntil)}",
+                $"сейчас сработала бы ступень «{Tier(naming, x.CurrentTierId)}», станет «{Tier(naming, x.NextTierId)}»"),
+
+            TeamAttentionCalculator.AttentionItem.DeliveryAheadWillBeShort x => (
+                $"Поставка «{Material(naming, x.MaterialId)}» через {Turns(x.TurnsUntil)}: не хватит {x.ProjectedShortfall:0.##} ед.",
+                "посчитано при полной загрузке своих фабрик — то есть по самой оптимистичной оценке"),
+
+            TeamAttentionCalculator.AttentionItem.MaterialRunningOut x => (
+                $"«{Material(naming, x.MaterialId)}» кончится через {Turns(x.TurnsUntil)}",
+                $"расходуется быстрее, чем производится; встанут: {string.Join(", ", x.AffectedFactoryIds.Select(id => Factory(naming, id)))}"),
+
+            _ => (item.GetType().Name, string.Empty),
+        };
+    }
+
+    /// <summary>«1 ход», «2 хода», «5 ходов» — панель читают на бегу, и падеж здесь заметен сильнее, чем кажется.</summary>
+    public static string Turns(int count)
+    {
+        var lastTwo = Math.Abs(count) % 100;
+        var last = lastTwo % 10;
+        var word = lastTwo is >= 11 and <= 14 ? "ходов"
+            : last == 1 ? "ход"
+            : last is >= 2 and <= 4 ? "хода"
+            : "ходов";
+
+        return $"{count} {word}";
+    }
+
+    private static string Factory(AttentionNaming naming, Ulid factoryId) =>
+        naming.FactoryNames.TryGetValue(factoryId, out var name) ? name : "фабрика";
+
+    private static string Material(AttentionNaming naming, string materialId) =>
+        naming.MaterialNames.TryGetValue(materialId, out var name) ? name : materialId;
+
+    private static string Tier(AttentionNaming naming, string tierId) =>
+        naming.OverhaulTierNames.TryGetValue(tierId, out var name) ? name : tierId;
 }
