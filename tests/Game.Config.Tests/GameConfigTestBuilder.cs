@@ -51,7 +51,7 @@ internal static class GameConfigTestBuilder
             {
                 BaseWorkerCount = 1,
                 DiminishingReturnsFactor = 0.5m,
-                HireCostPerWorker = 1m,
+                HireCostPerWorker = 1m, MaxHiresPerTurn = 1000,
                 FireCostPerWorker = 1m,
                 SalaryPerWorkerPerTurn = 1m,
             },

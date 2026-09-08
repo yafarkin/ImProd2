@@ -87,6 +87,7 @@
     "BaseWorkerCount": 10,
     "DiminishingReturnsFactor": 0.5,
     "HireCostPerWorker": 25.0,
+    "MaxHiresPerTurn": 5,
     "FireCostPerWorker": 30,
     "SalaryPerWorkerPerTurn": 3.33
   },

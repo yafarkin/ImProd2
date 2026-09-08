@@ -145,6 +145,7 @@ public static class IdealHallCalculator
                 // TickFinanceStep списывает зарплату и содержание ДО WearStep (то есть по состоянию на
                 // начало хода, без сегодняшнего декея), а производство идёт уже ПОСЛЕ износа — по
                 // состоянию, в котором фабрика реально работает этот ход.
+                RunHiring(branch, config);
                 ChargeOperatingCosts(branch, config);
                 RunWearAndOverhaul(branch, config, turn);
                 RunProduction(branch, config);
@@ -309,17 +310,52 @@ public static class IdealHallCalculator
                 for (var i = alreadyBuilt; i < plan.FactoryCount; i++)
                 {
                     var factory = branch.Team.BuildFactory(Ulid.NewUlid(), definition, recipe, builtAtTurn: turn);
-                    factory.Hire(plan.WorkersPerFactory);
+                    // Только объявляем штат — сам наём растянут и исполняется RunHiring, тем же
+                    // пределом за ход, что и в движке (docs/TODO.md №25). Раньше здесь стоял
+                    // Hire(plan.WorkersPerFactory): зал укомплектовывал бригаду мгновенно, и после
+                    // введения инерции найма он бы завышал потолок ровно на первые ходы работы
+                    // каждой новой фабрики.
+                    factory.SetDesiredWorkers(plan.WorkersPerFactory);
                     branch.Spend(FinanceHistoryCalculator.OperationType.FactoryBuilt, buildCost);
-                    // Наём тоже стоит денег (docs/economy-accounting-audit.md, дефект 2, шаг 2) — раньше
-                    // идеальный зал набирал бригаду бесплатно, реальная команда платит.
-                    branch.Spend(
-                        FinanceHistoryCalculator.OperationType.WorkersHired,
-                        plan.WorkersPerFactory * config.Raw.WorkerProductivity.HireCostPerWorker);
                     branch.BuiltAtTurn[factory.Id] = turn;
                     branch.PreviousLevel[factory.Id] = 1;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Доводит фактическую численность до объявленной тем же правилом, что и движок
+    /// (<see cref="WorkforceStep"/>): не больше <c>MaxHiresPerTurn</c> человек на фабрику за ход,
+    /// добыча — мгновенно (docs/TODO.md №25). Стоит на том же месте порядка внутри хода, что и
+    /// <see cref="WorkforceStep"/> внутри <see cref="TickFinanceStep"/>, — до зарплат и до
+    /// производства: нанятые в этот ход уже получают зарплату и уже работают.
+    ///
+    /// <para>
+    /// Идеальный зал — верхняя граница, но граница <i>достижимого</i>: инерция найма не обходится
+    /// никакой стратегией, поэтому она обязана быть и в потолке. Если оставить залу мгновенный наём,
+    /// <c>Score/X</c> просядет у всех разом на ровном месте, и вся калибровка поедет — тот же класс
+    /// расхождения, что был с износом (docs/TODO.md №18).
+    /// </para>
+    /// </summary>
+    private static void RunHiring(BranchState branch, ResolvedGameConfig config)
+    {
+        var maxHiresPerTurn = config.Raw.WorkerProductivity.MaxHiresPerTurn;
+        foreach (var factory in branch.Team.Factories)
+        {
+            var gap = factory.DesiredWorkers - factory.Workers;
+            if (gap <= 0)
+            {
+                continue;
+            }
+
+            var hireCount = WorkforceStep.IsInstantHiring(factory) ? gap : Math.Min(gap, maxHiresPerTurn);
+            factory.Hire(hireCount);
+            // Наём стоит денег (docs/economy-accounting-audit.md, дефект 2, шаг 2) — раньше
+            // идеальный зал набирал бригаду бесплатно, реальная команда платит.
+            branch.Spend(
+                FinanceHistoryCalculator.OperationType.WorkersHired,
+                hireCount * config.Raw.WorkerProductivity.HireCostPerWorker);
         }
     }
 
@@ -440,7 +476,7 @@ public static class IdealHallCalculator
     /// льготным тарифам ступени, ровно как <see cref="TickFinanceStep"/>/<see cref="WearStep"/> в
     /// реальном тике; посчитать их здесь означало бы заплатить дважды.
     /// Электричество списывает <see cref="RunProduction"/> (там известен выпуск), наём —
-    /// <see cref="BuildNewlyUnlockedFactories"/>, плату за склад — <see cref="ChargeWarehouseFee"/>,
+    /// <see cref="RunHiring"/>, плату за склад — <see cref="ChargeWarehouseFee"/>,
     /// капремонт — <see cref="RunWearAndOverhaul"/>. Неучтённых статей расходов у зала не осталось.
     /// </summary>
     private static void ChargeOperatingCosts(BranchState branch, ResolvedGameConfig config)

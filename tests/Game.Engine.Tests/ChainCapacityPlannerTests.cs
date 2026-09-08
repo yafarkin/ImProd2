@@ -64,7 +64,7 @@ public class ChainCapacityPlannerTests
             WorkerProductivity = new WorkerProductivityConfig
             {
                 BaseWorkerCount = 10, DiminishingReturnsFactor = 0.5m,
-                HireCostPerWorker = 25m, FireCostPerWorker = 30m, SalaryPerWorkerPerTurn = 3.33m,
+                HireCostPerWorker = 25m, MaxHiresPerTurn = 1000, FireCostPerWorker = 30m, SalaryPerWorkerPerTurn = 3.33m,
             },
             Rnd = new RndConfig { ResearchPointThresholdsByLevel = [], DiminishingReturnsExponent = 0.5m, ProductionRateBonusPerLevel = 0.1m, MaxCommitmentPerTurn = 0m },
             Wear = new WearConfig

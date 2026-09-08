@@ -8,7 +8,7 @@ public class FinanceCalculatorTests
     {
         BaseWorkerCount = 5,
         DiminishingReturnsFactor = 0.5m,
-        HireCostPerWorker = 50m,
+        HireCostPerWorker = 50m, MaxHiresPerTurn = 1000,
         FireCostPerWorker = 30m,
         SalaryPerWorkerPerTurn = 5m,
     };

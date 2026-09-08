@@ -22,7 +22,7 @@ public class FactoryProfitabilityCalculatorTests
     {
         BaseWorkerCount = 5,
         DiminishingReturnsFactor = 0.5m,
-        HireCostPerWorker = 100m,
+        HireCostPerWorker = 100m, MaxHiresPerTurn = 1000,
         FireCostPerWorker = 50m,
         SalaryPerWorkerPerTurn = 5m,
     };

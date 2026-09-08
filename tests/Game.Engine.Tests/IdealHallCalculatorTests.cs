@@ -166,7 +166,7 @@ public class IdealHallCalculatorTests
                 // (docs/economy-accounting-audit.md, дефект 2), а тонкая маржа этого конфига
                 // (FixedCostPerTurn=0) единовременные 250-750 ¤ не перекрывает за 5-10 ходов — тест
                 // же не про наём, а про то, что излишек продаётся/что фабрика строится на каждый рецепт.
-                HireCostPerWorker = 0m,
+                HireCostPerWorker = 0m, MaxHiresPerTurn = 1000,
                 FireCostPerWorker = 30m,
                 SalaryPerWorkerPerTurn = 5m,
             },
@@ -319,7 +319,7 @@ public class IdealHallCalculatorTests
             {
                 BaseWorkerCount = 5,
                 DiminishingReturnsFactor = 0.5m,
-                HireCostPerWorker = 50m,
+                HireCostPerWorker = 50m, MaxHiresPerTurn = 1000,
                 FireCostPerWorker = 30m,
                 SalaryPerWorkerPerTurn = 5m,
             },

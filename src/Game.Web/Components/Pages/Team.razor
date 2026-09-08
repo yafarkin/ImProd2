@@ -424,18 +424,49 @@ else
                                 }
                             </div>
                             var (workerDelta, workerCost) = WorkerCountChange(factory);
+                            @* Наём растянут (docs/TODO.md №25), и без этой строки объявленные 20 против
+                               нанятых 5 выглядят как сбой: игрок обязан заранее видеть, сколько выйдет
+                               на смену уже в этот ход, а сколько — потом. *@
                             @if (workerDelta > 0)
                             {
-                                <p class="text-muted small">При расчёте наймёт ещё @workerDelta — стоимость @DashboardDisplay.FormatMoney(workerCost).</p>
+                                var hiredNow = HiresThisTurn(factory, workerDelta);
+                                <p class="text-muted small">
+                                    При расчёте наймёт
+                                    @if (hiredNow < workerDelta)
+                                    {
+                                        <strong>@hiredNow из @workerDelta</strong>
+                                        <text> — стоимость @DashboardDisplay.FormatMoney(hiredNow * _hireCostPerWorker).
+                                        Остальные @(workerDelta - hiredNow) выйдут на смену в следующие ходы, не больше
+                                        @_maxHiresPerTurn за ход; объявлять заново не нужно, платить — тоже, каждый ход
+                                        списывается только за тех, кто реально вышел.</text>
+                                    }
+                                    else
+                                    {
+                                        <text>ещё @workerDelta — стоимость @DashboardDisplay.FormatMoney(workerCost).</text>
+                                    }
+                                </p>
                             }
                             else if (workerDelta < 0)
                             {
-                                <p class="text-muted small">При расчёте уволит @(-workerDelta) — стоимость @DashboardDisplay.FormatMoney(workerCost).</p>
+                                <p class="text-muted small">При расчёте уволит @(-workerDelta) — стоимость @DashboardDisplay.FormatMoney(workerCost). Увольнение исполняется целиком за один ход.</p>
                             }
                             <p class="text-muted small mb-2">
                                 Объявление бесплатно и можно менять сколько угодно раз — спишется один раз, при
                                 расчёте хода, по итоговой разнице. Нанять одного: @DashboardDisplay.FormatMoney(_hireCostPerWorker) ·
                                 уволить одного: @DashboardDisplay.FormatMoney(_fireCostPerWorker)
+                            </p>
+                            <p class="text-muted small mb-2">
+                                @if (factory.InstantHiring)
+                                {
+                                    <text>Это добыча — здесь бригада выходит на смену сразу, сколько ни объяви.</text>
+                                }
+                                else
+                                {
+                                    <text>
+                                        Людей на передел набирают постепенно: не больше @_maxHiresPerTurn человек за ход.
+                                        Уволить можно всех сразу и в тот же ход — но каждый уволенный дороже нанятого.
+                                    </text>
+                                }
                             </p>
                             <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
                                 <label class="small text-muted mb-0">Доля при дефиците общего сырья:</label>
@@ -1092,7 +1123,8 @@ else
         FactoryProfitabilityCalculator.FactoryProfitabilityEstimate? Profitability,
         ProductionCalculator.CapacityBreakdown CapacityBreakdown,
         IReadOnlyList<FactoryActivityRow> ActivityHistory,
-        decimal LiquidationValue);
+        decimal LiquidationValue,
+        bool InstantHiring);
 
     /// <summary>Одна строка таблицы «История по ходам» — что фабрика потребила со склада и сколько произвела за тот же ход (оба значения из одного и того же события <see cref="FactoryProduced"/>).</summary>
     private sealed record FactoryActivityRow(int Turn, string ConsumedSummary, decimal OutputQuantity);
@@ -1181,6 +1213,7 @@ else
     private string _activeFactoryTab = "workers";
     private decimal _hireCostPerWorker;
     private decimal _fireCostPerWorker;
+    private int _maxHiresPerTurn = int.MaxValue;
     private int _baseWorkerCount;
     private readonly Dictionary<string, decimal> _teamWarehouseByMaterialId = new();
     private readonly Dictionary<string, decimal> _buildCosts = new();
@@ -1392,6 +1425,7 @@ else
 
             _hireCostPerWorker = state.Config.Raw.WorkerProductivity.HireCostPerWorker;
             _fireCostPerWorker = state.Config.Raw.WorkerProductivity.FireCostPerWorker;
+            _maxHiresPerTurn = state.Config.Raw.WorkerProductivity.MaxHiresPerTurn;
             _baseWorkerCount = state.Config.Raw.WorkerProductivity.BaseWorkerCount;
 
             // Фабрики не хранят собственное имя — только тип (Definition.Name) и Id. При нескольких
@@ -1470,7 +1504,7 @@ else
                     upkeepPenaltyMultiplier, overhaulTier?.Name ?? string.Empty, overhaulTierCost,
                     overhaulTier?.DurationTurns ?? 0, overhaulTier?.OutputMultiplier ?? 0m,
                     consumingFactoryNames, profitabilityByFactoryId.GetValueOrDefault(factory.Id),
-                    capacityBreakdown, activityHistory, liquidationValue);
+                    capacityBreakdown, activityHistory, liquidationValue, WorkforceStep.IsInstantHiring(factory));
             }).ToList();
             if (_selectedFactoryId is null || _factories.All(f => f.FactoryId != _selectedFactoryId))
             {
@@ -1645,6 +1679,15 @@ else
     /// списывать за каждое промежуточное значение, если команда меняла его несколько раз за ход — см.
     /// doc-comment <see cref="GameSession.SetWorkerCount"/>). Положительная разница — наём, отрицательная — увольнение.
     /// </summary>
+    /// <summary>
+    /// Сколько из объявленного прироста реально выйдет на смену уже на ближайшем расчёте — то же
+    /// правило, что применит <see cref="WorkforceStep"/> (docs/TODO.md №25). Считаем здесь, а не
+    /// зовём сам шаг: ему нужна доменная <c>Factory</c>, а у строки экрана её нет — правило же
+    /// состоит из одного <c>Math.Min</c>, и оно сторожится тестом.
+    /// </summary>
+    private int HiresThisTurn(FactoryRow factory, int delta) =>
+        factory.InstantHiring ? delta : Math.Min(delta, _maxHiresPerTurn);
+
     private (int Delta, decimal Cost) WorkerCountChange(FactoryRow factory)
     {
         var target = Math.Max(0, _targetWorkerCounts.GetValueOrDefault(factory.FactoryId, factory.DesiredWorkers));
