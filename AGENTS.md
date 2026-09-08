@@ -42,19 +42,24 @@
 src/
   Game.Domain/         — сущности, value objects, правила, интерфейсы. Без зависимостей на инфраструктуру.
   Game.Engine/         — тактовый движок (расчёт тика), event sourcing, применение событий.
-  Game.Config/         — модели GameConfig, загрузка и валидация JSON.
+  Game.Config/         — модели GameConfig, загрузка и валидация JSON, авторские файлы Samples/.
   Game.Persistence/    — durable журнал, снапшоты, восстановление.
-  Game.Bots/           — боты для симуляции (появляется после базового UI).
+  Game.Bots/           — формульные боты для симуляции партий (сделаны в фазе 7, до UI).
+  Game.Bots.Llm/       — боты на локальной LLM для качественного плейтеста (не замена формульным).
+  Game.Bots.Llm.Console/ — консольный автономный прогон LLM-ботов.
+  Game.Balancing/      — консольный инструмент калибровки (главный вход — `--mode diagnose`).
+  Game.LoadTest/       — консольная нагрузочная проверка.
   Game.Web/            — Blazor Server: страницы игрока, оператора, ведущего, админа, большого экрана.
 tests/
-  Game.Domain.Tests/
-  Game.Engine.Tests/
-  ...
-config/
-  legacy-combined-gameconfig.json
+  Fixtures/            — общие тестовые конфиги (в т.ч. production-models/tiny-2-sectors.json).
+  Game.Domain.Tests/ Game.Engine.Tests/ Game.Config.Tests/ Game.Persistence.Tests/
+  Game.Bots.Tests/ Game.Bots.Llm.Tests/ Game.Balancing.Tests/ Game.Web.Tests/
 docs/
-  SPEC.md  CONCEPT.md  BUILD_PLAN.md  production-chains.md
+  SPEC.md  CONCEPT.md  BUILD_PLAN.md  TODO.md  и тематические документы по балансу/экономике
 ```
+
+Тестовых проектов нет только у `Game.LoadTest` и `Game.Bots.Llm.Console` — это тонкие консольные
+обёртки над уже покрытой логикой.
 
 `AGENTS.md` остаётся в корне репозитория (конвенция для авто-обнаружения агентами).
 
@@ -67,8 +72,13 @@ docs/
 Используй эти термины консистентно в коде и комментариях:
 
 - **Session (GameSession)** — один прогон игры (тренировочный или основной). Держит всё состояние.
-- **Tick / Day** — игровой ход. Состоит из трёх фаз: расчёт (calculation) → решения (decision) → завершение (closing, с read-only окном).
-- **Sector** — отрасль (металлургия / нефтегазохимия / лес-агротекстиль / электроника).
+- **Tick / Day** — игровой ход. Состоит из **двух** фаз: расчёт+завершение (`Settlement`, расчёт
+  атомарен и мгновенен при входе, дальше read-only буфер) → решения (`Decision`). Раньше фаз было
+  три (Calculation/Decision/Closing) — расчёт и завершение объединены, см. SPEC §4 и doc-comment
+  `TurnPhase`.
+- **Sector** — отрасль. В поставке сейчас три: металлургия, нефтехимия, лесная промышленность
+  (`main-3-sectors.json`); обучающая модель — только металлургия. Электроника из исходного замысла
+  (SPEC §2) в поставленные модели не вошла.
 - **Team (Customer в старом коде)** — команда игроков. В новом коде предпочитай **Team**.
 - **Factory / FactoryDefinition** — фабрика команды / её описание-тип.
 - **Material** — единица продукции (хранится, продаётся, поставляется).
