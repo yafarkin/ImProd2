@@ -61,29 +61,36 @@ public class StrategyGridRunnerTests
             progressCalls.Select(p => p.SessionIndex));
     }
 
-    [Fact(Skip = "legacy-combined-gameconfig.json требует перекалибровки после перехода на себестоимость вместо рыночной котировки, docs/TODO.md #26")]
+    /// <summary>
+    /// Сходимость к идеальному залу считается на поставочной паре конфигов
+    /// (<see cref="ShippedBotSession"/>) — X(t) осмыслен только относительно конкретной цепочки.
+    /// Тест был выключен с 2026-08-21 (<c>docs/TODO.md</c> №26) и переведён сюда 2026-09-08;
+    /// проверка выше (обход всех ячеек сетки) осталась на маленьком детерминированном каталоге —
+    /// там содержание цепочки роли не играет, а прогон вчетверо короче.
+    /// </summary>
+    [Fact]
     public void Run_Threads_The_Ideal_Hall_Into_Every_Cells_Convergence_Metrics()
     {
         // Один и тот же идеальный зал (Блок 7.3.5) на все ячейки сетки — X(t) зависит только от
         // конфига, не от leverage/profile (doc-comment StrategyGridRunner.Run).
-        var config = PilotBotSession.LoadConfig();
-        var sectorA = config.Sectors.Single(s => s.Id == "A");
-        var sectorB = config.Sectors.Single(s => s.Id == "B");
-        var idealHall = IdealHallCalculator.Calculate(config, maxTurns: 20);
+        // Партия идёт целиком: сходимость определена только там, где X(t) уже положителен, а боевая
+        // цепочка выходит в плюс ближе к 75-му ходу (см. BalancingHarness и BalancingHarnessConvergenceTests).
+        var config = ShippedBotSession.LoadConfig();
+        var maxTurns = config.Raw.Duration.MaxTurns;
+        var idealHall = IdealHallCalculator.Calculate(config, maxTurns);
 
         var results = StrategyGridRunner.Run(new[] { 0m, 1m }, new[] { 0m }, sessionsPerCell: 1, (leverage, profile, sessionIndex) =>
         {
             var teams = new List<TeamSpec>();
             var bots = new List<SimpleBot>();
-            for (var t = 0; t < 4; t++)
+            foreach (var sector in config.Sectors)
             {
-                var sector = t % 2 == 0 ? sectorA : sectorB;
                 var teamId = Ulid.NewUlid();
-                teams.Add(new TeamSpec { Id = teamId, Name = $"Бот {t}", SectorId = sector.Id });
+                teams.Add(new TeamSpec { Id = teamId, Name = $"Бот {sector.Id}", SectorId = sector.Id });
                 bots.Add(new SimpleBot(teamId, sector, config, leverage: leverage, profile: profile));
             }
 
-            var session = GameSession.StartWithEndTurn(config, endTurn: 15, teams);
+            var session = GameSession.StartWithEndTurn(config, maxTurns, teams);
             return (session, (IReadOnlyList<SimpleBot>)bots, new Random(sessionIndex + 1));
         }, idealHall: idealHall);
 
