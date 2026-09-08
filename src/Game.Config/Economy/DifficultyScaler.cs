@@ -19,14 +19,18 @@ namespace Game.Config.Economy;
 /// исходнике и перезапускает <c>Game.Balancing</c>, отдельного UI для них не нужно, только вход
 /// сложности.
 ///
-/// Анкеры пересчитаны 2026-09-07 (docs/TODO.md №30, docs/difficulty.md §8): весь диапазон 0–5 теперь
-/// проходит <c>--mode diagnose</c> чисто на обеих боевых цепочках (<c>--difficulty</c> — прогон по
-/// всем шести целым уровням одной серией). Тяжёлая сторона трёх рычагов (<see cref="BuildCostAnchors"/>,
-/// <see cref="FixedCostPerTurnAnchors"/>, <see cref="ResearchPointThresholdAnchors"/>) намеренно
-/// пологая: сделать её резче — значит увести крайние уровни в непроходимость (окупаемость за 83+
-/// ходов, §1c-минус, разблокировка флагмана позже четверти партии). Основной «тяжёлый» вклад несут
-/// <see cref="AccelerationFactorPerTurnAnchors"/> (износ ×3.0) и <see cref="ProductionRateBonusPerLevelAnchors"/>
-/// (бонус R&amp;D ×0.5) — они ничем не ограничены и остались агрессивными.
+/// <para><b>Два рычага из шести зависят от модели ценообразования</b> (блок 11.11,
+/// <c>docs/difficulty.md</c> §9): доходность и капитальные затраты. Задатчик прибыли под
+/// <see cref="PricingModel.External"/> — цена (<see cref="BaseSellPriceAnchors"/>), под
+/// <see cref="PricingModel.CostPlus"/> — содержание фабрики (<see cref="FixedCostPerTurnAnchors"/>);
+/// применяется всегда ровно один из них. Остальные четыре рычага общие.</para>
+///
+/// Анкеры пересчитаны 2026-09-07 (docs/TODO.md №30, docs/difficulty.md §8) и 2026-09-08 под
+/// экзогенную цену (docs/difficulty.md §9): весь диапазон 0–5 проходит <c>--mode diagnose</c> чисто
+/// на обеих боевых цепочках (<c>--difficulty</c> — прогон уровня за уровнем без правки JSON).
+/// Тяжёлая сторона у всех рычагов упирается в один общий бюджет — запас окупаемости §1b; резче
+/// сделать её нельзя, не уведя крайние уровни в непроходимость (окупаемость за 83+ ходов, §1c-минус,
+/// разблокировка флагмана позже четверти партии).
 /// </summary>
 public static class DifficultyScaler
 {
@@ -36,10 +40,16 @@ public static class DifficultyScaler
     // §8, docs/TODO.md №30); критерий приёмки — все шесть целых уровней дают ✅ в `--mode diagnose` на
     // обеих боевых цепочках (флаг `--difficulty` прогоняет уровень за уровнем).
 
-    // Тяжёлая сторона пологая (×1.15 на уровне 5, не ×1.7): окупаемость = BuildCost / (0.30 × передел),
-    // самый медленный уровень окупается за ~71 ход при пороге 83 — запас всего ×1.17, дальше §1b
-    // краснеет разом на всех глубоких уровнях.
-    private static readonly double[] BuildCostAnchors = { 0.5, 0.7, 0.85, 1.0, 1.08, 1.15 };
+    // Капитальные затраты. Лёгкая сторона общая для обеих моделей; тяжёлая — разная, и вот почему.
+    // Запас окупаемости (§1b: BuildCost / прибыль за ход ≤ 83 хода при пороге в 15 ходов до конца
+    // партии) — это ОДИН общий бюджет на всю тяжёлую сторону бегунка: и подорожание стройки, и
+    // урезание доходности тратят его. Под cost-plus доходность двигается слабым рычагом
+    // (FixedCostPerTurn), поэтому бюджет выгоднее отдать стройке — таблица 2026-09-07 сохранена
+    // без изменений. Под экзогенной ценой рычаг доходности вчетверо сильнее (см. BaseSellPriceAnchors),
+    // и тот же бюджет выгоднее отдать целиком ему: ×1.15 к стройке съедал бы почти весь запас,
+    // отдавая взамен несколько процентов сложности.
+    private static readonly double[] BuildCostAnchorsCostPlus = { 0.5, 0.7, 0.85, 1.0, 1.08, 1.15 };
+    private static readonly double[] BuildCostAnchorsExternal = { 0.5, 0.7, 0.85, 1.0, 1.0, 1.0 };
     // Ничем не ограничен — несёт основной «тяжёлый» вклад бегунка вместе с износом.
     private static readonly double[] ProductionRateBonusPerLevelAnchors = { 2.0, 1.5, 1.2, 1.0, 0.7, 0.5 };
     // Множит пороги И поколений, И R&D фабрик. Тяжёлая сторона почти плоская (×1.09): очки поколения ~
@@ -47,15 +57,23 @@ public static class DifficultyScaler
     // (ChainDesignRules) требует, чтобы флагман открывался не позже четверти партии — на обучающей
     // цепочке он открывается на 21-м ходу из 98, до стены (ход 25) остаётся ×1.09 по множителю.
     private static readonly double[] ResearchPointThresholdAnchors = { 0.4, 0.6, 0.8, 1.0, 1.05, 1.09 };
-    // Рычаг «доходность передела». До 2026-09-07 здесь был BaseSellPrice по материалам — но под
-    // ценообразованием «себестоимость + фиксированная наценка» базовая цена не участвует ни в одной
-    // денежной операции (и системная продажа, и аварийная закупка берут цену из
-    // MaterialCostCalculator), то есть рычаг был мёртвым: бегунок двигал пять параметров из шести.
-    // FixedCostPerTurn — его честная замена, потому что под cost-plus именно содержание фабрики и
-    // есть задатчик прибыли: прибыль за ход = 0.30 × (содержание + электричество + зарплата).
-    // Направление то же, что было у цены: сложнее — доходность ниже. Тяжёлая сторона пологая (×0.93):
-    // ниже устойчивая экономика сектора B (§1c) уходит в минус — зарплата плюс вложения в поколение/
-    // R&D по потолку начинают превышать суммарную прибыль. См. docs/levers.md §0.
+    // Рычаг №4 «доходность передела» задан ДВУМЯ таблицами, по одной на модель ценообразования —
+    // потому что задатчик прибыли в них разный, и таблица одной модели в другой не просто слабее, а
+    // работает в обратную сторону (docs/difficulty.md §9).
+    //
+    // Под PricingModel.External прибыль = цена − себестоимость, и задатчик — цена. Рычаг сильный:
+    // при базовой марже 30% множитель цены m даёт прибыль (1.30·m − 1), то есть m = 0.90 срезает
+    // маржу сырья почти вдвое. Тяжёлая сторона ограничена самым мелким переделом: добыча идёт с
+    // наименьшей маржой (надбавка за глубину её не касается), и она обязана оставаться прибыльной —
+    // цепочка без сырья не работает вовсе. Лёгкая сторона ничем не ограничена: дороже продавать
+    // можно сколько угодно. «Бутерброд наценок» (§2 диагностики) этот рычаг не ломает ни на одном
+    // краю — цена аварийной закупки считается от той же котировки и масштабируется вместе с ней.
+    private static readonly double[] BaseSellPriceAnchors = { 1.14, 1.09, 1.045, 1.0, 0.978, 0.96 };
+    // Под PricingModel.CostPlus цена не участвует ни в одной денежной операции (и системная продажа,
+    // и аварийная закупка берут её из MaterialCostCalculator), зато прибыль за ход тождественно
+    // равна 0.30 × (содержание + электричество + зарплата) — то есть задатчик прибыли там
+    // содержание фабрики. Эта таблица откалибрована 2026-09-07 под cost-plus и оставлена как есть:
+    // режим сохранён как калибровочно-регрессионный, менять его поведение блоком 11.11 незачем.
     private static readonly double[] FixedCostPerTurnAnchors = { 1.5, 1.25, 1.1, 1.0, 0.96, 0.93 };
     // Лёгкая сторона приколочена к 1.0: опустить наценку аварийной закупки ниже потолка жадности бота
     // (+50%, SimpleBot.MaxBuyPremiumRate) — значит сломать «бутерброд наценок» (§2 диагностики),
@@ -75,12 +93,19 @@ public static class DifficultyScaler
     {
         ArgumentNullException.ThrowIfNull(config);
 
-        var buildCostMultiplier = MultiplierAt(BuildCostAnchors, difficultyLevel);
         var productionBonusMultiplier = MultiplierAt(ProductionRateBonusPerLevelAnchors, difficultyLevel);
         var researchThresholdMultiplier = MultiplierAt(ResearchPointThresholdAnchors, difficultyLevel);
-        var fixedCostMultiplier = MultiplierAt(FixedCostPerTurnAnchors, difficultyLevel);
         var emergencyMultiplier = MultiplierAt(EmergencyPurchaseBaseMultiplierAnchors, difficultyLevel);
         var wearAccelerationMultiplier = MultiplierAt(AccelerationFactorPerTurnAnchors, difficultyLevel);
+
+        // Рычаг доходности — ровно один из двух, никогда оба сразу: иначе бегунок дважды двигал бы
+        // одну и ту же величину, а в неродной модели ещё и в обратную сторону (под экзогенной ценой
+        // рост FixedCostPerTurn — чистый убыток, тогда как под cost-plus он поднимает и цену тоже).
+        var external = config.Economy.PricingModel == PricingModel.External;
+        var sellPriceMultiplier = external ? MultiplierAt(BaseSellPriceAnchors, difficultyLevel) : 1m;
+        var fixedCostMultiplier = external ? 1m : MultiplierAt(FixedCostPerTurnAnchors, difficultyLevel);
+        var buildCostMultiplier = MultiplierAt(
+            external ? BuildCostAnchorsExternal : BuildCostAnchorsCostPlus, difficultyLevel);
 
         return config with
         {
@@ -107,6 +132,9 @@ public static class DifficultyScaler
             Economy = config.Economy with
             {
                 EmergencyPurchaseBaseMultiplier = config.Economy.EmergencyPurchaseBaseMultiplier * emergencyMultiplier,
+                BaseMarketPerMaterial = config.Economy.BaseMarketPerMaterial
+                    .Select(m => m with { BaseSellPrice = m.BaseSellPrice * sellPriceMultiplier })
+                    .ToList(),
             },
             Wear = config.Wear with
             {

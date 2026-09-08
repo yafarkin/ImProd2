@@ -38,10 +38,22 @@ public class DifficultyScalerTests
         };
     }
 
-    [Fact]
-    public void Apply_At_Level_Three_Leaves_The_Config_Unchanged()
+    /// <summary>
+    /// Тот же конфиг, но на экзогенной цене — с блока 11.11 половина рычагов зависит от модели
+    /// ценообразования (<c>docs/difficulty.md</c> §9), поэтому обе ветки проверяются отдельно.
+    /// </summary>
+    private static GameConfig BuildExternalConfig()
     {
         var config = BuildConfig();
+        return config with { Economy = config.Economy with { PricingModel = PricingModel.External } };
+    }
+
+    [Theory]
+    [InlineData(PricingModel.CostPlus)]
+    [InlineData(PricingModel.External)]
+    public void Apply_At_Level_Three_Leaves_The_Config_Unchanged(PricingModel pricingModel)
+    {
+        var config = pricingModel == PricingModel.External ? BuildExternalConfig() : BuildConfig();
 
         var scaled = DifficultyScaler.Apply(config, 3.0);
 
@@ -65,8 +77,9 @@ public class DifficultyScalerTests
     {
         var config = BuildConfig();
 
-        // BuildCost-анкеры уровней 4/5 — 1.08/1.15 (пересчёт 2026-09-07, docs/difficulty.md §8),
-        // на уровне 4.7 (вес 0.7 к пятому) — 1.08 + 0.07*0.7 = 1.129.
+        // BuildCost-анкеры уровней 4/5 под cost-plus — 1.08/1.15 (пересчёт 2026-09-07,
+        // docs/difficulty.md §8), на уровне 4.7 (вес 0.7 к пятому) — 1.08 + 0.07*0.7 = 1.129.
+        // Под экзогенной ценой тяжёлая сторона этого рычага плоская, см. отдельный тест ниже.
         var scaled = DifficultyScaler.Apply(config, 4.7);
 
         Assert.Equal(1129m, scaled.FactoryDefinitions.Single().BuildCost, precision: 3);
@@ -137,22 +150,30 @@ public class DifficultyScalerTests
     }
 
     /// <summary>
-    /// Регрессия на замену мёртвого рычага (2026-09-07, <c>docs/levers.md</c> §1.6): под
-    /// <see cref="PricingModel.CostPlus"/> <c>BaseSellPrice</c> не участвует ни в одной денежной
-    /// операции — и системная продажа, и аварийная закупка берут цену из
-    /// <c>MaterialCostCalculator</c>. Пока сессия в этом режиме, бегунок сложности не имеет права её
-    /// трогать: иначе один из шести рычагов снова окажется холостым, а измерения сложности —
-    /// завышенными на несуществующий эффект.
-    ///
-    /// <para>Под <see cref="PricingModel.External"/> всё наоборот: цена становится главным задатчиком
-    /// доходности, и <c>BaseSellPrice</c> возвращается как рычаг — это блок 11.11
-    /// (<c>docs/external-economy.md</c> §9). Тогда этот тест обязан быть переписан, а не удалён:
-    /// проверка должна стать «рычаг работает в External и молчит в CostPlus».</para>
+    /// Рычаг доходности берётся по модели ценообразования (блок 11.11, <c>docs/difficulty.md</c> §9):
+    /// под <see cref="PricingModel.External"/> задатчик прибыли — цена, и бегунок двигает
+    /// <c>BaseSellPrice</c>; под <see cref="PricingModel.CostPlus"/> цена не участвует ни в одной
+    /// денежной операции (и системная продажа, и аварийная закупка берут её из
+    /// <c>MaterialCostCalculator</c>), и трогать её значило бы завысить измеренную сложность на
+    /// несуществующий эффект.
     /// </summary>
+    [Fact]
+    public void The_Profitability_Lever_Is_The_Sell_Price_Under_External_Pricing()
+    {
+        var config = BuildExternalConfig();
+        var basePrice = config.Economy.BaseMarketPerMaterial.Single().BaseSellPrice;
+
+        var easy = DifficultyScaler.Apply(config, 0.0);
+        var hard = DifficultyScaler.Apply(config, 5.0);
+
+        Assert.True(easy.Economy.BaseMarketPerMaterial.Single().BaseSellPrice > basePrice);
+        Assert.True(hard.Economy.BaseMarketPerMaterial.Single().BaseSellPrice < basePrice);
+    }
+
     [Theory]
     [InlineData(0.0)]
     [InlineData(5.0)]
-    public void Apply_Does_Not_Touch_BaseSellPrice_Because_It_Drives_No_Money_Under_Cost_Plus(double difficultyLevel)
+    public void The_Sell_Price_Lever_Stays_Silent_Under_Cost_Plus(double difficultyLevel)
     {
         var config = BuildConfig();
 
@@ -161,5 +182,66 @@ public class DifficultyScalerTests
         Assert.Equal(
             config.Economy.BaseMarketPerMaterial.Single().BaseSellPrice,
             scaled.Economy.BaseMarketPerMaterial.Single().BaseSellPrice);
+    }
+
+    /// <summary>
+    /// Зеркальная половина того же правила: содержание фабрики — задатчик прибыли только под
+    /// cost-plus. Под экзогенной ценой его рост был бы чистым убытком, то есть двигал бы сложность в
+    /// ту же сторону, что и цена, — рычаг применялся бы дважды.
+    /// </summary>
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(5.0)]
+    public void The_Upkeep_Lever_Stays_Silent_Under_External_Pricing(double difficultyLevel)
+    {
+        var config = BuildExternalConfig();
+
+        var scaled = DifficultyScaler.Apply(config, difficultyLevel);
+
+        Assert.Equal(
+            config.FactoryDefinitions.Single().FixedCostPerTurn,
+            scaled.FactoryDefinitions.Single().FixedCostPerTurn);
+    }
+
+    /// <summary>
+    /// Под экзогенной ценой тяжёлая сторона капитальных затрат приколочена к 1.0: запас окупаемости
+    /// §1b — общий бюджет тяжёлой стороны, и он весь отдан рычагу цены, который вчетверо сильнее.
+    /// Лёгкая сторона у обеих моделей общая.
+    /// </summary>
+    [Fact]
+    public void Build_Cost_Rises_With_Difficulty_Only_Under_Cost_Plus()
+    {
+        var costPlus = BuildConfig();
+        var external = BuildExternalConfig();
+
+        Assert.True(DifficultyScaler.Apply(costPlus, 5.0).FactoryDefinitions.Single().BuildCost
+                    > costPlus.FactoryDefinitions.Single().BuildCost);
+        Assert.Equal(
+            external.FactoryDefinitions.Single().BuildCost,
+            DifficultyScaler.Apply(external, 5.0).FactoryDefinitions.Single().BuildCost);
+        Assert.Equal(
+            DifficultyScaler.Apply(costPlus, 0.0).FactoryDefinitions.Single().BuildCost,
+            DifficultyScaler.Apply(external, 0.0).FactoryDefinitions.Single().BuildCost);
+    }
+
+    /// <summary>
+    /// Бегунок обязан оставаться монотонным по итоговой доходности в обеих моделях — это то
+    /// свойство, ради которого рычаг вообще выбирается по модели: таблица cost-plus под экзогенной
+    /// ценой работала бы В ОБРАТНУЮ сторону (рост содержания на лёгком краю — чистый убыток).
+    /// </summary>
+    [Fact]
+    public void The_Profitability_Lever_Is_Monotone_Across_All_Six_Levels_In_Both_Models()
+    {
+        var external = Enumerable.Range(0, 6)
+            .Select(level => DifficultyScaler.Apply(BuildExternalConfig(), level).Economy.BaseMarketPerMaterial.Single().BaseSellPrice)
+            .ToList();
+        var costPlus = Enumerable.Range(0, 6)
+            .Select(level => DifficultyScaler.Apply(BuildConfig(), level).FactoryDefinitions.Single().FixedCostPerTurn)
+            .ToList();
+
+        // Дороже продавать = легче; дороже содержать фабрику под cost-plus = тоже легче (прибыль там
+        // равна 0.30 × издержки), поэтому обе последовательности убывают с ростом сложности.
+        Assert.Equal(external.OrderByDescending(price => price), external);
+        Assert.Equal(costPlus.OrderByDescending(cost => cost), costPlus);
     }
 }
