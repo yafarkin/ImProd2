@@ -65,7 +65,10 @@ else
     <div class="alert alert-danger">@_errorMessage</div>
 }
 
-<ul class="nav nav-pills flex-nowrap mb-3" style="overflow-x:auto; white-space:nowrap">
+@* flex-wrap, а не горизонтальная прокрутка: вкладок семь, и на телефоне при nowrap было видно
+   четыре, без единого намёка, что есть ещё три — включая ту, где лежат контракты (проверено на
+   390px, docs/TODO.md №7). Перенос на вторую строку стоит одной строки высоты и показывает всё. *@
+<ul class="nav nav-pills flex-wrap gap-1 mb-3">
     @* Первой вкладкой, а не где-то в хвосте: её адресат — тот, кто играет первый раз и ещё не знает,
        куда смотреть, поэтому она обязана попадаться на глаза сама. Счётчик виден с любой вкладки. *@
     <li class="nav-item">
@@ -353,7 +356,8 @@ else
                         }
                     </div>
 
-                    <ul class="nav nav-pills flex-nowrap mb-3" style="overflow-x:auto; white-space:nowrap">
+                    @* Тот же перенос и по той же причине, что у вкладок страницы выше. *@
+                    <ul class="nav nav-pills flex-wrap gap-1 mb-3">
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("workers")" @onclick='() => _activeFactoryTab = "workers"'>Люди</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("recipe")" @onclick='() => _activeFactoryTab = "recipe"'>Рецепт и склад</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("rnd")" @onclick='() => _activeFactoryTab = "rnd"'>R&amp;D</button></li>
@@ -891,12 +895,15 @@ else
             <table class="table table-striped table-sm align-middle">
                 <thead>
                     <tr>
-                        <th>Время</th>
+                        @* Точное время и ставка на телефоне только выдавливают таблицу за экран:
+                           ход и сумма отвечают на вопрос «что и почём», а секунды операции нужны
+                           разве что при разборе после игры — на большом экране они и остаются. *@
+                        <th class="d-none d-md-table-cell">Время</th>
                         <th>Ход</th>
                         <th>Операция</th>
                         <th>Фабрика</th>
                         <th>Сумма</th>
-                        <th>Ставка</th>
+                        <th class="d-none d-md-table-cell">Ставка</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -904,7 +911,7 @@ else
                     {
                         var isIncome = operation.Direction == FinanceHistoryCalculator.MoneyDirection.Income;
                         <tr>
-                            <td>@operation.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
+                            <td class="d-none d-md-table-cell">@operation.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
                             <td>@operation.Turn</td>
                             <td>
                                 @DashboardDisplay.FinanceOperationLabel(operation.Type)
@@ -915,7 +922,7 @@ else
                             </td>
                             <td>@(operation.FactoryId is { } factoryId ? _factoryDisplayNamesById.GetValueOrDefault(factoryId, "—") : "—")</td>
                             <td class="@(isIncome ? "text-success" : "text-danger")">@(isIncome ? "+" : "−")@DashboardDisplay.FormatMoney(operation.Amount)</td>
-                            <td>@(operation.Rate is { } rate ? DashboardDisplay.FormatRate(rate) : "—")</td>
+                            <td class="d-none d-md-table-cell">@(operation.Rate is { } rate ? DashboardDisplay.FormatRate(rate) : "—")</td>
                         </tr>
                     }
                 </tbody>
