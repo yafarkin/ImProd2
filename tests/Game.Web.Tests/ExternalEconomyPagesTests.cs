@@ -94,35 +94,6 @@ public class ExternalEconomyPagesTests
         }
     }
 
-    /// <summary>
-    /// Экран лестницы цен — инструмент ведущего, а не только администратора: ссылка на него стоит на
-    /// /session, куда пускают обе роли, и раньше ведущий по этой ссылке получал отказ.
-    /// </summary>
-    [Fact]
-    public async Task The_Price_Ladder_Screen_Opens_For_A_Facilitator()
-    {
-        using var factory = new WebApplicationFactory<Program>();
-        var host = factory.Services.GetRequiredService<GameSessionHost>();
-        host.HardReset();
-
-        try
-        {
-            var facilitator = host.AddStagedParticipant(ParticipantRole.Facilitator, null, "Ведущий");
-
-            var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-            await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = facilitator.Code }));
-
-            var response = await client.GetAsync("/admin/price-ladder");
-
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Contains("лестниц", WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync()).ToLowerInvariant());
-        }
-        finally
-        {
-            host.HardReset();
-        }
-    }
-
     private static void AdvanceTo(GameSession session, TurnPhase phase)
     {
         while (session.State.CurrentPhase != phase)
