@@ -169,11 +169,9 @@ public class MultiRecipeIdealHallTests
                 VoluntaryTerminationFee = 100m,
                 MaxActiveContractsPerTeam = null,
             },
-            Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
             News = Array.Empty<NewsItemConfig>(),
             FeatureFlags = new FeatureFlagsConfig
             {
-                TaxesEnabled = false,
                 EmergencyPurchaseEnabled = true,
             },
         };

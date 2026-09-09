@@ -401,11 +401,9 @@ internal static class TestGameConfig
                 VoluntaryTerminationFee = 100m,
                 MaxActiveContractsPerTeam = null,
             },
-            Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
             News = news ?? Array.Empty<NewsItemConfig>(),
             FeatureFlags = new FeatureFlagsConfig
             {
-                TaxesEnabled = false,
                 EmergencyPurchaseEnabled = true,
             },
         };

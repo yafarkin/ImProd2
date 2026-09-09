@@ -131,11 +131,9 @@ internal static class CrossSectorConfigBuilder
                 VoluntaryTerminationFee = 100m,
                 MaxActiveContractsPerTeam = null,
             },
-            Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
             News = [],
             FeatureFlags = new FeatureFlagsConfig
             {
-                TaxesEnabled = false,
                 EmergencyPurchaseEnabled = true,
             },
         };

@@ -115,9 +115,8 @@ public static class SyntheticChainConfigBuilder
             Warehouse = new WarehouseConfig { FreeCapacity = 1_000_000m, OverageFeePerUnit = 0.1m },
             Reputation = new ReputationConfig { HalfLifeTurns = 10, WarmupTurns = 3, TerminationSeverityMultiplier = 3m },
             Contracts = new ContractsConfig { DeliveryMissPenaltyRate = 0.1m, TerminationPenaltyRate = 0.5m, VoluntaryTerminationFee = 100m, MaxActiveContractsPerTeam = null },
-            Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
             News = [],
-            FeatureFlags = new FeatureFlagsConfig { TaxesEnabled = false, EmergencyPurchaseEnabled = true },
+            FeatureFlags = new FeatureFlagsConfig { EmergencyPurchaseEnabled = true },
         };
 
         return GameConfigLoader.Load(config);

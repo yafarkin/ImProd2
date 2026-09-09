@@ -98,9 +98,8 @@ public class GameConfigComposerTests
             VoluntaryTerminationFee = 100m,
             MaxActiveContractsPerTeam = null,
         },
-        Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
         News = Array.Empty<Config.News.NewsItemConfig>(),
-        FeatureFlags = new FeatureFlagsConfig { TaxesEnabled = false, EmergencyPurchaseEnabled = true },
+        FeatureFlags = new FeatureFlagsConfig { EmergencyPurchaseEnabled = true },
     };
 
     [Fact]

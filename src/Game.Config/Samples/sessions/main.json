@@ -179,10 +179,6 @@
     "VoluntaryTerminationFee": 1000,
     "MaxActiveContractsPerTeam": null
   },
-  "Taxes": {
-    "PropertyTaxRatePerTurn": 0.01,
-    "SalesTaxRate": 0.05
-  },
   "News": [
     {
       "Id": "news-up-01",
@@ -687,7 +683,6 @@
   ],
   "NewsLookaheadTurns": 3,
   "FeatureFlags": {
-    "TaxesEnabled": false,
     "EmergencyPurchaseEnabled": true
   }
 }

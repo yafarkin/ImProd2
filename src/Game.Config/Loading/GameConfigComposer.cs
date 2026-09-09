@@ -56,7 +56,6 @@ public static class GameConfigComposer
             Warehouse = session.Warehouse,
             Reputation = session.Reputation,
             Contracts = session.Contracts,
-            Taxes = session.Taxes,
             News = session.News,
             NewsLookaheadTurns = session.NewsLookaheadTurns,
             FeatureFlags = session.FeatureFlags,
