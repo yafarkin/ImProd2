@@ -1010,9 +1010,72 @@ else
 
     @if (_isDecisionPhase)
     {
-        <ContractDraftForm TeamId="_teamId" OnChanged="RefreshDashboard" />
+        <ContractDraftForm TeamId="_teamId" Role="_role" OnChanged="RefreshDashboard" />
     }
 
+    <h3 class="mt-4">Заявки на сделку</h3>
+    @if (_proposals.Count == 0)
+    {
+        <p><em>Открытых заявок нет.</em></p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Направление</th>
+                        <th>Контрагент</th>
+                        <th>Материал</th>
+                        <th>Условия</th>
+                        <th>Подана</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var proposal in _proposals)
+                    {
+                        <tr>
+                            <td>@(proposal.Incoming ? "Нам" : "От нас")</td>
+                            <td>@proposal.CounterpartyName</td>
+                            <td>@proposal.MaterialName</td>
+                            <td>
+                                @if (proposal.Incoming)
+                                {
+                                    <em class="text-body-secondary">Скрыты — узнайте у контрагента лично</em>
+                                }
+                                else
+                                {
+                                    @($"{proposal.Volume!.Value.ToString("0.##")} ед. × {DashboardDisplay.FormatMoney(proposal.UnitPrice!.Value)}")
+                                }
+                            </td>
+                            <td>ход @proposal.SubmittedOnTurn</td>
+                            <td>
+                                @if (_isDecisionPhase && Role == "Manager")
+                                {
+                                    @if (proposal.Incoming)
+                                    {
+                                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => RejectProposal(proposal.ProposalId)">Отклонить</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => WithdrawProposal(proposal.ProposalId)">Отозвать</button>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="form-text">
+            Входящая заявка означает только, что контрагент хочет сделку по этому материалу. Объём,
+            цену, штраф и сроки он назовёт лично — введите их в черновике выше, и если совпадут,
+            сделка заключится сама.
+        </p>
+    }
+
+    <h3 class="mt-4">Контракты</h3>
     @if (_contracts.Count == 0)
     {
         <p><em>Контрактов нет.</em></p>
@@ -1140,6 +1203,15 @@ else
         decimal? PendingVolume, decimal? PendingUnitPrice, decimal? PendingPenaltyRate, int? PendingRecurringEndTurn,
         bool WeAreTheProposer);
 
+    /// <summary>
+    /// Строка таблицы заявок на сделку (docs/TODO.md №16). У входящей заявки <see cref="Volume"/> и
+    /// <see cref="UnitPrice"/> намеренно <c>null</c> — чужие условия на экран не попадают вовсе, а не
+    /// прячутся разметкой: узнать их можно только у человека, в этом и смысл механики.
+    /// </summary>
+    private sealed record ProposalRow(
+        Ulid ProposalId, bool Incoming, string CounterpartyName, string MaterialName,
+        decimal? Volume, decimal? UnitPrice, int SubmittedOnTurn);
+
     private sealed record StockRow(string MaterialId, string MaterialName, Material Material, decimal Quantity);
 
     private sealed record MaterialOption(string Id, string Name);
@@ -1226,6 +1298,7 @@ else
     /// <summary>Реальная себестоимость остатка (взвешенное среднее фактических трат, <see cref="Warehouse.AverageCostOf"/>) — для превью продажи, в отличие от рыночной <see cref="_unitCostByMaterialId"/> (для карточки фабрики).</summary>
     private readonly Dictionary<string, decimal> _realUnitCostByMaterialId = new();
     private IReadOnlyList<ContractRow> _contracts = Array.Empty<ContractRow>();
+    private IReadOnlyList<ProposalRow> _proposals = Array.Empty<ProposalRow>();
     private IReadOnlyList<StockRow> _stock = Array.Empty<StockRow>();
     private IReadOnlyList<MaterialOption> _emergencyPurchaseMaterials = Array.Empty<MaterialOption>();
 
@@ -1551,6 +1624,25 @@ else
                 _factoryDisplayNamesById,
                 state.Config.Materials.ToDictionary(pair => pair.Key, pair => pair.Value.Name),
                 state.Config.Raw.Wear.OverhaulTiers.ToDictionary(tier => tier.Id, tier => tier.Name));
+
+            _proposals = state.ContractProposals.Values
+                .Where(p => p.Status == ContractProposalStatus.Open
+                    && (p.SubmittedByTeamId == _teamId || p.CounterpartyTeamId == _teamId))
+                .OrderBy(p => p.SubmittedOnTurn)
+                .ThenBy(p => p.Id.ToString(), StringComparer.Ordinal)
+                .Select(p =>
+                {
+                    var incoming = p.SubmittedByTeamId != _teamId;
+                    var counterpartyId = incoming ? p.SubmittedByTeamId : p.CounterpartyTeamId;
+                    var counterpartyName = state.Teams.TryGetValue(counterpartyId, out var counterparty) ? counterparty.Name : "?";
+
+                    return new ProposalRow(
+                        p.Id, incoming, counterpartyName, p.Proposal.Terms.Material.Name,
+                        incoming ? null : p.Proposal.Terms.Volume,
+                        incoming ? null : p.Proposal.Terms.UnitPrice,
+                        p.SubmittedOnTurn);
+                })
+                .ToList();
 
             _contracts = state.Contracts.Values
                 .Where(c => c.BuyerTeamId == _teamId || c.SellerTeamId == _teamId)
@@ -1900,6 +1992,12 @@ else
 
     private void ConfirmContract(Ulid contractId) =>
         RunAction(() => Host.Session!.ConfirmContract(contractId, TeamRole.Manager, _teamId));
+
+    private void WithdrawProposal(Ulid proposalId) =>
+        RunAction(() => Host.Session!.WithdrawContractProposal(proposalId, _teamId));
+
+    private void RejectProposal(Ulid proposalId) =>
+        RunAction(() => Host.Session!.RejectContractProposal(proposalId, _teamId));
 
     private void TerminateMutual(Ulid contractId) =>
         RunAction(() => Host.Session!.TerminateContract(contractId, ContractTerminationReason.Mutual, terminatingTeamId: null));

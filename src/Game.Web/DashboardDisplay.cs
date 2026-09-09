@@ -109,7 +109,12 @@ public static class DashboardDisplay
     {
         ContractMismatchReason.CounterpartiesDiffer => "Не совпадают покупатель/продавец",
         ContractMismatchReason.SubmittedByTheSameTeam => "Обе стороны сделки поданы одной командой",
-        ContractMismatchReason.TermsDiffer => "Не совпадают условия сделки",
+        ContractMismatchReason.MaterialDiffers => "Не совпадает материал",
+        ContractMismatchReason.TypeDiffers => "Не совпадает тип сделки (разовая/регулярная)",
+        ContractMismatchReason.VolumeDiffers => "Не совпадает объём",
+        ContractMismatchReason.UnitPriceDiffers => "Не совпадает цена за единицу",
+        ContractMismatchReason.PenaltyRateDiffers => "Не совпадает штраф за срыв",
+        ContractMismatchReason.DeliveryScheduleDiffers => "Не совпадают сроки поставки",
         _ => reason.ToString()
     };
 

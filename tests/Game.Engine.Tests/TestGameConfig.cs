@@ -123,11 +123,12 @@ internal static class TestGameConfig
     }
 
     /// <summary>Полноценная сессия с двумя командами сектора А (для сквозных сценариев через GameSession); про <paramref name="startingCash"/> — см. <see cref="StartGameSessionWithOneTeam"/>.</summary>
-    public static (GameSession Session, Ulid BuyerId, Ulid SellerId) StartGameSessionWithTwoTeams(decimal startingCash = 100_000m)
+    public static (GameSession Session, Ulid BuyerId, Ulid SellerId) StartGameSessionWithTwoTeams(
+        decimal startingCash = 100_000m, ResolvedGameConfig? config = null)
     {
         var buyerId = Ulid.NewUlid();
         var sellerId = Ulid.NewUlid();
-        var log = new EventLog<GameSessionState>(new GameSessionState(Resolved));
+        var log = new EventLog<GameSessionState>(new GameSessionState(config ?? Resolved));
         var session = GameSession.StartWithEndTurn(
             log,
             endTurn: 999,
@@ -217,6 +218,14 @@ internal static class TestGameConfig
     public static ResolvedGameConfig BuildWithEmergencyPurchasePressure(decimal pressureMultiplierPerUnit) =>
         Build(emergencyPurchasePressureMultiplierPerUnit: pressureMultiplierPerUnit);
 
+    /// <summary>
+    /// Собирает вариант базового конфига с включённым лимитом сделок на команду
+    /// (<see cref="ContractsConfig.MaxActiveContractsPerTeam"/>, SPEC §16, <c>docs/TODO.md</c> №16) —
+    /// у <see cref="Resolved"/> он <c>null</c>, то есть лимита нет вовсе.
+    /// </summary>
+    public static ResolvedGameConfig BuildWithContractLimit(int maxActiveContractsPerTeam) =>
+        Build(maxActiveContractsPerTeam: maxActiveContractsPerTeam);
+
     private static ResolvedGameConfig Build(
         IReadOnlyList<NewsItemConfig>? news = null,
         IReadOnlyList<EconomyTrendPhaseConfig>? trendScenario = null,
@@ -227,7 +236,8 @@ internal static class TestGameConfig
         decimal electricityConsumptionPerOutputUnit = 0m,
         bool addThirdLevelFactory = false,
         GenerationResearchConfig? generationResearch = null,
-        decimal emergencyPurchasePressureMultiplierPerUnit = 0m)
+        decimal emergencyPurchasePressureMultiplierPerUnit = 0m,
+        int? maxActiveContractsPerTeam = null)
     {
         // Третий передел («катанка» из «листов», уровень 2) — только для BuildWithGenerationResearch,
         // остальные тесты этого файла его не видят вообще (Concat с пустым массивом — no-op).
@@ -399,7 +409,7 @@ internal static class TestGameConfig
                 DeliveryMissPenaltyRate = 0.1m,
                 TerminationPenaltyRate = 0.5m,
                 VoluntaryTerminationFee = 100m,
-                MaxActiveContractsPerTeam = null,
+                MaxActiveContractsPerTeam = maxActiveContractsPerTeam,
             },
             News = news ?? Array.Empty<NewsItemConfig>(),
             FeatureFlags = new FeatureFlagsConfig

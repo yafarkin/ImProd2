@@ -38,7 +38,7 @@ public class GameSessionContractsTests
         var result = session.SubmitContractProposals(buyerProposal, sellerProposal, new Random(1));
 
         Assert.False(result.IsMatched);
-        Assert.Contains(ContractMismatchReason.TermsDiffer, result.Mismatches);
+        Assert.Contains(ContractMismatchReason.VolumeDiffers, result.Mismatches);
         Assert.Equal(entriesBefore, session.Entries.Count); // конфликт не пишется в журнал
         Assert.Empty(session.State.Contracts);
     }

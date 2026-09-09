@@ -173,6 +173,12 @@ public sealed class GameSession
     /// Сводит две независимо поданные заявки в контракт (SPEC §6). При совпадении — записывает
     /// подписанный контракт (статус «ждёт подтверждения») в журнал; при конфликте ничего не пишет и
     /// возвращает список того, что разошлось. Заключать сделки можно только в фазе решений.
+    /// <para>
+    /// Обе половины разом подаёт только автоматика — <c>Game.Bots.OrderBook</c> и
+    /// <c>Game.Bots.Llm.BotCommandExecutor</c>: боты не ведут переговоров и по залу не ходят, для
+    /// них «встреча сторон» смысла не имеет. Живой путь людей — <see cref="SubmitContractProposal"/>,
+    /// по одной заявке от команды; см. <c>docs/TODO.md</c> №16.
+    /// </para>
     /// </summary>
     public ContractFormationResult SubmitContractProposals(
         ContractProposal proposalA, ContractProposal proposalB, Random confirmationCodeRandom)
@@ -186,6 +192,180 @@ public sealed class GameSession
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Подаёт половину условий сделки от имени одной команды (SPEC §6: «обе команды вводят условия
+    /// независимо») — живой путь заключения сделки людьми, в отличие от парного <see
+    /// cref="SubmitContractProposals"/>, которым пользуются боты. Если у контрагента уже лежит
+    /// открытая встречная заявка и условия сошлись — контракт заключается сразу, обе заявки
+    /// помечаются сведёнными; если встречной нет или условия разошлись — заявка сохраняется и ждёт,
+    /// а вызывающему возвращается разбор расхождения по полям (но не чужие числа — см. <see
+    /// cref="ContractMismatchReason"/>). Отправлять может только управляющий: переговорщик готовит
+    /// черновик, но не подаёт его (SPEC §3). Только в фазе решений.
+    /// </summary>
+    public ContractProposalSubmissionResult SubmitContractProposal(
+        ContractProposal proposal, TeamRole submittingRole, Random confirmationCodeRandom)
+    {
+        EnsureDecisionsAllowed();
+        ArgumentNullException.ThrowIfNull(proposal);
+
+        if (submittingRole != TeamRole.Manager)
+        {
+            throw new InvalidOperationException("Only a team manager can submit a contract proposal.");
+        }
+
+        EnsureContractLoadAllows(proposal.SubmittedByTeamId);
+
+        var counterpartyId = proposal.SubmittedByTeamId == proposal.BuyerTeamId
+            ? proposal.SellerTeamId
+            : proposal.BuyerTeamId;
+
+        // Кандидаты — только открытые заявки контрагента по этой же паре сторон. Своих заявок здесь
+        // быть не может: заявка команды с самой собой не создаётся (ContractProposal), а две заявки
+        // одной команды ContractFormation всё равно не сведёт.
+        var candidates = State.ContractProposals.Values
+            .Where(p => p.Status == ContractProposalStatus.Open
+                && p.SubmittedByTeamId == counterpartyId
+                && p.Proposal.BuyerTeamId == proposal.BuyerTeamId
+                && p.Proposal.SellerTeamId == proposal.SellerTeamId)
+            .OrderBy(p => p.Id.ToString(), StringComparer.Ordinal)
+            .ToList();
+
+        ContractFormationResult? closestConflict = null;
+        foreach (var candidate in candidates)
+        {
+            // Инициатором контракта остаётся тот, кто подал заявку первым: финальное подтверждение
+            // даёт вторая сторона (Contract.Confirm), а первой здесь всегда является candidate.
+            var attempt = ContractFormation.TryMatch(candidate.Proposal, proposal, Ulid.NewUlid(), confirmationCodeRandom);
+            if (attempt.IsMatched)
+            {
+                var proposalId = Ulid.NewUlid();
+                _log.Append(ToSubmittedEvent(proposalId, proposal));
+                _log.Append(new ContractSigned
+                {
+                    Id = Ulid.NewUlid(),
+                    Contract = ContractSpec.From(attempt.Contract!),
+                    MatchedProposalIds = new[] { candidate.Id, proposalId },
+                });
+
+                return ContractProposalSubmissionResult.Matched(proposalId, attempt.Contract!);
+            }
+
+            closestConflict ??= attempt;
+            if (attempt.Mismatches.Count < closestConflict.Mismatches.Count)
+            {
+                closestConflict = attempt;
+            }
+        }
+
+        var storedId = Ulid.NewUlid();
+        _log.Append(ToSubmittedEvent(storedId, proposal));
+
+        return ContractProposalSubmissionResult.Pending(
+            storedId, closestConflict?.Mismatches ?? Array.Empty<ContractMismatchReason>());
+    }
+
+    /// <summary>
+    /// Автор отзывает свою ещё не сведённую заявку (SPEC §6). Только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> WithdrawContractProposal(Ulid proposalId, Ulid withdrawingTeamId)
+    {
+        EnsureDecisionsAllowed();
+
+        var proposal = GetOpenContractProposal(proposalId);
+        if (proposal.SubmittedByTeamId != withdrawingTeamId)
+        {
+            throw new ArgumentException(
+                "Only the team that submitted a proposal can withdraw it.", nameof(withdrawingTeamId));
+        }
+
+        return _log.Append(new ContractProposalWithdrawn { Id = Ulid.NewUlid(), ProposalId = proposalId });
+    }
+
+    /// <summary>
+    /// Контрагент отказывается вести сделку по поданной ему заявке (SPEC §6) — своя кнопка «отклонить»
+    /// у получателя, а не только у оператора (<see cref="RejectContract"/>). Только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> RejectContractProposal(Ulid proposalId, Ulid rejectingTeamId)
+    {
+        EnsureDecisionsAllowed();
+
+        var proposal = GetOpenContractProposal(proposalId);
+        if (proposal.CounterpartyTeamId != rejectingTeamId)
+        {
+            throw new ArgumentException(
+                "Only the counterparty of a proposal can reject it.", nameof(rejectingTeamId));
+        }
+
+        return _log.Append(new ContractProposalRejected
+        {
+            Id = Ulid.NewUlid(),
+            ProposalId = proposalId,
+            RejectedByTeamId = rejectingTeamId,
+        });
+    }
+
+    private PendingContractProposal GetOpenContractProposal(Ulid proposalId)
+    {
+        if (!State.ContractProposals.TryGetValue(proposalId, out var proposal))
+        {
+            throw new ArgumentException($"Contract proposal '{proposalId}' is not known to this session.", nameof(proposalId));
+        }
+        if (proposal.Status != ContractProposalStatus.Open)
+        {
+            throw new InvalidOperationException($"Cannot act on a contract proposal in status '{proposal.Status}'.");
+        }
+
+        return proposal;
+    }
+
+    /// <summary>
+    /// Лимит сделок на команду (<see cref="Game.Config.Contracts.ContractsConfig.MaxActiveContractsPerTeam"/>,
+    /// открытый вопрос SPEC §16, закрыт вместе с <c>docs/TODO.md</c> №16). Считаются вместе
+    /// действующие контракты и собственные открытые заявки: без учёта заявок лимит обходится
+    /// «настрогать офферов и подтверждать по мере надобности», ради чего он и вводится.
+    /// </summary>
+    private void EnsureContractLoadAllows(Ulid teamId)
+    {
+        if (State.Config.Raw.Contracts.MaxActiveContractsPerTeam is not { } limit)
+        {
+            return;
+        }
+
+        var active = State.Contracts.Values.Count(c =>
+            c.Status is ContractStatus.Active or ContractStatus.PendingConfirmation
+            && (c.BuyerTeamId == teamId || c.SellerTeamId == teamId));
+        var pending = State.ContractProposals.Values.Count(p =>
+            p.Status == ContractProposalStatus.Open && p.SubmittedByTeamId == teamId);
+
+        if (active + pending >= limit)
+        {
+            throw new InvalidOperationException(
+                $"Team has reached the limit of {limit} active contracts and open proposals.");
+        }
+    }
+
+    private static ContractProposalSubmitted ToSubmittedEvent(Ulid proposalId, ContractProposal proposal)
+    {
+        var terms = proposal.Terms;
+
+        return new ContractProposalSubmitted
+        {
+            Id = Ulid.NewUlid(),
+            ProposalId = proposalId,
+            BuyerTeamId = proposal.BuyerTeamId,
+            SellerTeamId = proposal.SellerTeamId,
+            SubmittedByTeamId = proposal.SubmittedByTeamId,
+            Type = terms.Type,
+            MaterialId = terms.Material.Id,
+            Volume = terms.Volume,
+            UnitPrice = terms.UnitPrice,
+            PenaltyRate = terms.PenaltyRate,
+            EffectiveTurn = terms.EffectiveTurn,
+            SpotDeliveryTurn = terms.SpotDeliveryTurn,
+            RecurringEndTurn = terms.RecurringEndTurn,
+        };
     }
 
     /// <summary>
