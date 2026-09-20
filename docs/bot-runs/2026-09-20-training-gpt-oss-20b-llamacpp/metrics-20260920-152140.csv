@@ -1,0 +1,74 @@
+bot,turn,action_index,response_time_ms,request_size_bytes,command,balance,factory_count
+Бот 1,1,1,16374,14896,buildFactory(coking-plant),-1680.00,1
+Бот 1,2,1,19778,15352,buildFactory(coal-mine),-3255.00,2
+Бот 1,3,1,13120,15660,"setWorkerCount(01M2Z8T9W2T00E98BPTTV225Q2, 1)",-3300.00,2
+Бот 1,3,2,13120,15660,"setWorkerCount(01M2Z8TX7GVD84AK665GZWW5D8, 1)",-3300.00,2
+Бот 1,4,1,17348,15866,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3407.10,2
+Бот 1,4,2,17348,15866,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3407.10,2
+Бот 1,4,3,17348,15866,(skipped: setGenerationResearchCommitment() — SetGenerationResearchCommitment requires amount.),-3407.10,2
+Бот 1,5,1,33257,16160,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3464.20,2
+Бот 1,6,1,14480,16374,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3521.30,2
+Бот 1,7,1,13582,17198,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3578.40,2
+Бот 1,7,2,13582,17198,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3578.40,2
+Бот 1,8,1,25794,17398,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3635.50,2
+Бот 1,8,2,25794,17398,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3635.50,2
+Бот 1,9,1,15587,17623,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3692.60,2
+Бот 1,9,2,15587,17623,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3692.60,2
+Бот 1,10,1,8281,17852,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3749.67,2
+Бот 1,10,2,8281,17852,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3749.67,2
+Бот 1,11,1,15135,18165,"sellToSystem(coke, 827.22)",-3806.96,2
+Бот 1,11,2,15135,18165,"sellToSystem(coking-coal, 183.55)",-3806.96,2
+Бот 1,12,1,32887,18192,"sellToSystem(coke, 98.38)",-3686.79,2
+Бот 1,13,1,6872,18194,"sellToSystem(coke, 95.68)",-3725.06,2
+Бот 1,13,2,6872,18194,"sellToSystem(coking-coal, 49.86)",-3725.06,2
+Бот 1,14,1,13492,18179,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3761.15,2
+Бот 1,14,2,13492,18179,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3761.15,2
+Бот 1,15,1,29587,18054,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3820.49,2
+Бот 1,15,2,29587,18054,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-3820.49,2
+Бот 1,15,3,29587,18054,"(skipped: setWorkerCount(, ) — SetWorkerCount requires factoryId and count.)",-3820.49,2
+Бот 1,15,4,29587,18054,"(skipped: setWorkerCount(, ) — SetWorkerCount requires factoryId and count.)",-3820.49,2
+Бот 1,16,1,28710,18563,"sellToSystem(coke, 266.66)",-3880.57,2
+Бот 1,16,2,28710,18563,"sellToSystem(coking-coal, 74.57)",-3880.57,2
+Бот 1,16,3,28710,18563,"setWorkerCount(01M2Z8T9W2T00E98BPTTV225Q2, 0)",-3880.57,2
+Бот 1,16,4,28710,18563,"setWorkerCount(01M2Z8TX7GVD84AK665GZWW5D8, 0)",-3880.57,2
+Бот 1,17,1,19411,17973,"setWorkerCount(01M2Z8T9W2T00E98BPTTV225Q2, 1)",-3929.39,2
+Бот 1,17,2,19411,17973,"setWorkerCount(01M2Z8TX7GVD84AK665GZWW5D8, 1)",-3929.39,2
+Бот 1,18,1,28064,17813,"sellToSystem(coke, 75.92)",-4041.22,2
+Бот 1,18,2,28064,17813,"sellToSystem(coking-coal, 24.08)",-4041.22,2
+Бот 1,18,3,28064,17813,"setWorkerCount(01M2Z8T9W2T00E98BPTTV225Q2, 0)",-4041.22,2
+Бот 1,18,4,28064,17813,"setWorkerCount(01M2Z8TX7GVD84AK665GZWW5D8, 0)",-4041.22,2
+Бот 1,19,1,103646,17905,"setWorkerCount(01M2Z8T9W2T00E98BPTTV225Q2, 1)",-4135.60,2
+Бот 1,19,2,103646,17905,"setWorkerCount(01M2Z8TX7GVD84AK665GZWW5D8, 1)",-4135.60,2
+Бот 1,20,1,23979,17762,"sellToSystem(coke, 65.1)",-4249.53,2
+Бот 1,20,2,23979,17762,"sellToSystem(coking-coal, 23.1)",-4249.53,2
+Бот 1,20,3,23979,17762,"(skipped: setWorkerCount(01M2Z8T9W2T00E98BPTTV225Q2, ) — SetWorkerCount requires factoryId and count.)",-4249.53,2
+Бот 1,20,4,23979,17762,"(skipped: setWorkerCount(01M2Z8TX7GVD84AK665GZWW5D8, ) — SetWorkerCount requires factoryId and count.)",-4249.53,2
+Бот 1,21,1,16837,17939,"sellToSystem(coke, 59.08)",-4298.80,2
+Бот 1,21,2,16837,17939,"sellToSystem(coking-coal, 22.47)",-4298.80,2
+Бот 1,21,3,16837,17939,"(skipped: setWorkerCount(01M2Z8T9W2T00E98BPTTV225Q2, ) — SetWorkerCount requires factoryId and count.)",-4298.80,2
+Бот 1,21,4,16837,17939,"(skipped: setWorkerCount(01M2Z8TX7GVD84AK665GZWW5D8, ) — SetWorkerCount requires factoryId and count.)",-4298.80,2
+Бот 1,22,1,23894,18169,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4350.59,2
+Бот 1,22,2,23894,18169,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4350.59,2
+Бот 1,22,3,23894,18169,"(skipped: setWorkerCount(, ) — SetWorkerCount requires factoryId and count.)",-4350.59,2
+Бот 1,22,4,23894,18169,"(skipped: setWorkerCount(, ) — SetWorkerCount requires factoryId and count.)",-4350.59,2
+Бот 1,23,1,20605,18458,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4418.37,2
+Бот 1,23,2,20605,18458,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4418.37,2
+Бот 1,23,3,20605,18458,"(skipped: setWorkerCount(, ) — SetWorkerCount requires factoryId and count.)",-4418.37,2
+Бот 1,23,4,20605,18458,"(skipped: setWorkerCount(, ) — SetWorkerCount requires factoryId and count.)",-4418.37,2
+Бот 1,24,1,15707,18862,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4487.61,2
+Бот 1,24,2,15707,18862,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4487.61,2
+Бот 1,24,3,15707,18862,"(skipped: setOverhaulRequested(, ) — SetOverhaulRequested requires factoryId and enabled.)",-4487.61,2
+Бот 1,25,1,46361,19206,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4558.41,2
+Бот 1,25,2,46361,19206,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4558.41,2
+Бот 1,25,3,46361,19206,"(skipped: setOverhaulRequested(, ) — SetOverhaulRequested requires factoryId and enabled.)",-4558.41,2
+Бот 1,25,4,46361,19206,"(skipped: setOverhaulRequested(, ) — SetOverhaulRequested requires factoryId and enabled.)",-4558.41,2
+Бот 1,25,5,46361,19206,"(skipped: setWorkerCount(, ) — SetWorkerCount requires factoryId and count.)",-4558.41,2
+Бот 1,25,6,46361,19206,"(skipped: setWorkerCount(, ) — SetWorkerCount requires factoryId and count.)",-4558.41,2
+Бот 1,26,1,14496,19290,"(skipped: setOverhaulRequested(, ) — SetOverhaulRequested requires factoryId and enabled.)",-4630.86,2
+Бот 1,27,1,19385,19027,"(skipped: setOverhaulRequested(, ) — SetOverhaulRequested requires factoryId and enabled.)",-4704.76,2
+Бот 1,27,2,19385,19027,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4704.76,2
+Бот 1,27,3,19385,19027,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4704.76,2
+Бот 1,28,1,18814,19177,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4742.67,2
+Бот 1,28,2,18814,19177,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4742.67,2
+Бот 1,29,1,15803,19201,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4769.57,2
+Бот 1,29,2,15803,19201,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4769.57,2

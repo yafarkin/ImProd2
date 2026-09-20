@@ -1,0 +1,231 @@
+bot,turn,action_index,response_time_ms,request_size_bytes,command,balance,factory_count
+Бот 1,1,1,9855,14896,(skipped: buildFactory() — BuildFactory requires factoryDefinitionId.),0.00,0
+Бот 1,2,1,7739,15014,(skipped: buildFactory() — BuildFactory requires factoryDefinitionId.),0.00,0
+Бот 1,3,1,7798,15127,buildFactory(scrap-yard),-1020.00,1
+Бот 1,4,1,9729,15569,"setWorkerCount(01M2ZAHG86AYD8Z193WACKQP6N, 5)",-1026.00,1
+Бот 1,5,1,9228,15691,"sellToSystem(scrap-metal, 300)",-1179.65,1
+Бот 1,6,1,13401,15843,"sellToSystem(scrap-metal, 300)",-2305.21,2
+Бот 1,6,2,13401,15843,buildFactory(limestone-quarry),-2305.21,2
+Бот 1,7,1,12790,16189,"sellToSystem(scrap-metal, 300)",-2309.17,2
+Бот 1,7,2,12790,16189,"setWorkerCount(01M2ZAJFWGQQSTQ8WRAP0M676M, 5)",-2309.17,2
+Бот 1,8,1,16450,16434,"sellToSystem(limestone, 385)",-2462.81,2
+Бот 1,8,2,16450,16434,"sellToSystem(scrap-metal, 300)",-2462.81,2
+Бот 1,9,1,12566,16506,"sellToSystem(limestone, 385)",-2455.14,2
+Бот 1,9,2,12566,16506,"sellToSystem(scrap-metal, 300)",-2455.14,2
+Бот 1,10,1,7772,16613,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-2448.11,2
+Бот 1,11,1,8265,16811,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-2509.11,2
+Бот 1,12,1,20726,16825,"sellToSystem(limestone, 1155)",-2570.02,2
+Бот 1,12,2,20726,16825,"sellToSystem(scrap-metal, 895.8)",-2570.02,2
+Бот 1,13,1,13752,16812,"sellToSystem(limestone, 385)",-2425.29,2
+Бот 1,13,2,13752,16812,"sellToSystem(scrap-metal, 290.4)",-2425.29,2
+Бот 1,14,1,8101,16852,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-2418.84,2
+Бот 1,15,1,8305,16901,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-2479.45,2
+Бот 1,16,1,14445,17052,"sellToSystem(limestone, 372.68)",-2539.92,2
+Бот 1,16,2,14445,17052,"sellToSystem(scrap-metal, 267)",-2539.92,2
+Бот 1,17,1,12267,17118,"sellToSystem(limestone, 1128.82)",-2533.57,2
+Бот 1,17,2,12267,17118,"sellToSystem(scrap-metal, 816.6)",-2533.57,2
+Бот 1,18,1,11840,17062,"sellToSystem(limestone, 354.2)",-2392.39,2
+Бот 1,18,2,11840,17062,"sellToSystem(scrap-metal, 245.4)",-2392.39,2
+Бот 1,19,1,8517,17072,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-2390.37,2
+Бот 1,20,1,12262,17121,"sellToSystem(limestone, 329.56)",-2450.03,2
+Бот 1,20,2,12262,17121,"sellToSystem(scrap-metal, 219)",-2450.03,2
+Бот 1,21,1,11765,17259,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-2450.98,2
+Бот 1,21,2,11765,17259,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-2450.98,2
+Бот 1,22,1,11431,17361,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-2510.13,2
+Бот 1,22,2,11431,17361,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-2510.13,2
+Бот 1,23,1,13048,17527,"sellToSystem(limestone, 1237.39)",-2568.98,2
+Бот 1,23,2,13048,17527,"sellToSystem(scrap-metal, 795)",-2568.98,2
+Бот 1,24,1,12697,17527,"sellToSystem(limestone, 261.8)",-2404.65,2
+Бот 1,24,2,12697,17527,"sellToSystem(scrap-metal, 151.8)",-2404.65,2
+Бот 1,25,1,16405,17477,"sellToSystem(limestone, 241.01)",-3957.72,3
+Бот 1,25,2,16405,17477,"sellToSystem(scrap-metal, 132)",-3957.72,3
+Бот 1,25,3,16405,17477,buildFactory(coal-mine),-3957.72,3
+Бот 1,26,1,19733,17963,"sellToSystem(limestone, 218.68)",-3984.39,3
+Бот 1,26,2,19733,17963,"sellToSystem(scrap-metal, 111)",-3984.39,3
+Бот 1,26,3,19733,17963,"setOverhaulRequested(01M2ZAHG86AYD8Z193WACKQP6N, True)",-3984.39,3
+Бот 1,26,4,19733,17963,"setWorkerCount(01M2ZASKWRSFGWJVDN0TBPXSK8, 5)",-3984.39,3
+Бот 1,27,1,11794,17964,"sellToSystem(limestone, 194.81)",-4431.09,3
+Бот 1,27,2,11794,17964,"sellToSystem(scrap-metal, 180)",-4431.09,3
+Бот 1,28,1,11777,17961,"sellToSystem(limestone, 169.4)",-4480.99,3
+Бот 1,28,2,11777,17961,"sellToSystem(scrap-metal, 180)",-4480.99,3
+Бот 1,29,1,16693,18139,"sellToSystem(limestone, 142.45)",-4533.64,3
+Бот 1,29,2,16693,18139,"sellToSystem(scrap-metal, 180)",-4533.64,3
+Бот 1,29,3,16693,18139,"setOverhaulRequested(01M2ZAJFWGQQSTQ8WRAP0M676M, True)",-4533.64,3
+Бот 1,30,1,12026,18019,"sellToSystem(limestone, 231)",-4876.39,3
+Бот 1,30,2,12026,18019,"sellToSystem(scrap-metal, 300)",-4876.39,3
+Бот 1,31,1,14979,18020,"sellToSystem(coking-coal, 4200)",-4910.08,3
+Бот 1,31,2,14979,18020,"sellToSystem(limestone, 231)",-4910.08,3
+Бот 1,31,3,14979,18020,"sellToSystem(scrap-metal, 300)",-4910.08,3
+Бот 1,32,1,15069,17941,"sellToSystem(coking-coal, 840)",-4684.60,3
+Бот 1,32,2,15069,17941,"sellToSystem(limestone, 231)",-4684.60,3
+Бот 1,32,3,15069,17941,"sellToSystem(scrap-metal, 300)",-4684.60,3
+Бот 1,33,1,14270,17773,"sellToSystem(coking-coal, 840)",-4672.93,3
+Бот 1,33,2,14270,17773,"sellToSystem(limestone, 385)",-4672.93,3
+Бот 1,33,3,14270,17773,"sellToSystem(scrap-metal, 300)",-4672.93,3
+Бот 1,34,1,14747,17809,"sellToSystem(limestone, 385)",-4657.17,3
+Бот 1,34,2,14747,17809,"sellToSystem(scrap-metal, 300)",-4657.17,3
+Бот 1,34,3,14747,17809,"sellToSystem(coking-coal, 828.24)",-4657.17,3
+Бот 1,35,1,16237,17838,"sellToSystem(limestone, 385)",-4643.52,3
+Бот 1,35,2,16237,17838,"sellToSystem(scrap-metal, 300)",-4643.52,3
+Бот 1,35,3,16237,17838,"sellToSystem(coking-coal, 813.12)",-4643.52,3
+Бот 1,36,1,15293,17937,"sellToSystem(limestone, 385)",-4632.07,3
+Бот 1,36,2,15293,17937,"sellToSystem(scrap-metal, 300)",-4632.07,3
+Бот 1,36,3,15293,17937,"sellToSystem(coking-coal, 794.64)",-4632.07,3
+Бот 1,37,1,15159,17862,"sellToSystem(limestone, 385)",-4622.88,3
+Бот 1,37,2,15159,17862,"sellToSystem(scrap-metal, 300)",-4622.88,3
+Бот 1,37,3,15159,17862,"sellToSystem(coking-coal, 772.8)",-4622.88,3
+Бот 1,38,1,13981,17892,"sellToSystem(limestone, 385)",-4616.05,3
+Бот 1,38,2,13981,17892,"sellToSystem(scrap-metal, 300)",-4616.05,3
+Бот 1,38,3,13981,17892,"sellToSystem(coking-coal, 747.6)",-4616.05,3
+Бот 1,39,1,26542,17932,"sellToSystem(limestone, 385)",-4611.58,3
+Бот 1,39,2,26542,17932,"sellToSystem(scrap-metal, 295.8)",-4611.58,3
+Бот 1,39,3,26542,17932,"sellToSystem(coking-coal, 719.04)",-4611.58,3
+Бот 1,40,1,15822,17827,"sellToSystem(coking-coal, 687.12)",-4610.01,3
+Бот 1,40,2,15822,17827,"sellToSystem(limestone, 385)",-4610.01,3
+Бот 1,40,3,15822,17827,"sellToSystem(scrap-metal, 290.4)",-4610.01,3
+Бот 1,41,1,15949,17968,"sellToSystem(coking-coal, 651.84)",-4611.51,3
+Бот 1,41,2,15949,17968,"sellToSystem(limestone, 385)",-4611.51,3
+Бот 1,41,3,15949,17968,"sellToSystem(scrap-metal, 283.8)",-4611.51,3
+Бот 1,42,1,15916,17954,"sellToSystem(coking-coal, 613.2)",-4614.86,3
+Бот 1,42,2,15916,17954,"sellToSystem(limestone, 379.61)",-4614.86,3
+Бот 1,42,3,15916,17954,"sellToSystem(scrap-metal, 276)",-4614.86,3
+Бот 1,43,1,17251,17936,"sellToSystem(coking-coal, 571.2)",-4620.80,3
+Бот 1,43,2,17251,17936,"sellToSystem(limestone, 372.68)",-4620.80,3
+Бот 1,43,3,17251,17936,"sellToSystem(scrap-metal, 267)",-4620.80,3
+Бот 1,44,1,12653,17951,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4629.71,3
+Бот 1,44,2,12653,17951,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4629.71,3
+Бот 1,44,3,12653,17951,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4629.71,3
+Бот 1,45,1,15192,18075,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4728.34,3
+Бот 1,45,2,15192,18075,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4728.34,3
+Бот 1,45,3,15192,18075,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4728.34,3
+Бот 1,46,1,25706,18396,"sellToSystem(coking-coal, 1428)",-4826.08,3
+Бот 1,46,2,25706,18396,"sellToSystem(limestone, 1061.06)",-4826.08,3
+Бот 1,46,3,25706,18396,"sellToSystem(scrap-metal, 735)",-4826.08,3
+Бот 1,47,1,15434,18393,"sellToSystem(coking-coal, 369.6)",-4676.13,3
+Бот 1,47,2,15434,18393,"sellToSystem(limestone, 329.56)",-4676.13,3
+Бот 1,47,3,15434,18393,"sellToSystem(scrap-metal, 219)",-4676.13,3
+Бот 1,48,1,15667,18567,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4700.92,3
+Бот 1,48,2,15667,18567,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4700.92,3
+Бот 1,48,3,15667,18567,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-4700.92,3
+Бот 1,48,4,15667,18567,"(skipped: setOverhaulRequested(, ) — SetOverhaulRequested requires factoryId and enabled.)",-4700.92,3
+Бот 1,49,1,18914,18810,"setOverhaulRequested(01M2ZASKWRSFGWJVDN0TBPXSK8, True)",-4795.62,3
+Бот 1,49,2,18914,18810,"sellToSystem(coking-coal, 559.44)",-4795.62,3
+Бот 1,49,3,18914,18810,"sellToSystem(limestone, 613.69)",-4795.62,3
+Бот 1,49,4,18914,18810,"sellToSystem(scrap-metal, 391.8)",-4795.62,3
+Бот 1,50,1,12899,18738,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-5383.59,3
+Бот 1,50,2,12899,18738,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-5383.59,3
+Бот 1,50,3,12899,18738,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-5383.59,3
+Бот 1,51,1,16436,18976,"sellToSystem(coking-coal, 672)",-5464.84,3
+Бот 1,51,2,16436,18976,"sellToSystem(limestone, 542.85)",-5464.84,3
+Бот 1,51,3,16436,18976,"sellToSystem(scrap-metal, 322.2)",-5464.84,3
+Бот 1,52,1,17977,18985,"sellToSystem(coking-coal, 336)",-5427.66,3
+Бот 1,52,2,17977,18985,"sellToSystem(limestone, 241.01)",-5427.66,3
+Бот 1,52,3,17977,18985,"sellToSystem(scrap-metal, 132)",-5427.66,3
+Бот 1,53,1,20598,19233,"sellToSystem(coking-coal, 336)",-5454.89,3
+Бот 1,53,2,20598,19233,"sellToSystem(limestone, 218.68)",-5454.89,3
+Бот 1,53,3,20598,19233,"sellToSystem(scrap-metal, 111)",-5454.89,3
+Бот 1,53,4,20598,19233,"setOverhaulRequested(01M2ZAHG86AYD8Z193WACKQP6N, True)",-5454.89,3
+Бот 1,54,1,15510,19258,"sellToSystem(coking-coal, 336)",-5743.07,3
+Бот 1,54,2,15510,19258,"sellToSystem(limestone, 194.81)",-5743.07,3
+Бот 1,54,3,15510,19258,"sellToSystem(scrap-metal, 180)",-5743.07,3
+Бот 1,55,1,15764,19016,"sellToSystem(coking-coal, 840)",-5770.61,3
+Бот 1,55,2,15764,19016,"sellToSystem(limestone, 169.4)",-5770.61,3
+Бот 1,55,3,15764,19016,"sellToSystem(scrap-metal, 180)",-5770.61,3
+Бот 1,56,1,18425,19156,"setOverhaulRequested(01M2ZAJFWGQQSTQ8WRAP0M676M, True)",-5784.21,3
+Бот 1,56,2,18425,19156,"sellToSystem(coking-coal, 840)",-5784.21,3
+Бот 1,56,3,18425,19156,"sellToSystem(limestone, 142.45)",-5784.21,3
+Бот 1,56,4,18425,19156,"sellToSystem(scrap-metal, 180)",-5784.21,3
+Бот 1,57,1,16909,19052,"sellToSystem(coking-coal, 840.0)",-6088.22,3
+Бот 1,57,2,16909,19052,"sellToSystem(limestone, 231.0)",-6088.22,3
+Бот 1,57,3,16909,19052,"sellToSystem(scrap-metal, 300.0)",-6088.22,3
+Бот 1,58,1,16984,19053,"sellToSystem(coking-coal, 840)",-6087.52,3
+Бот 1,58,2,16984,19053,"sellToSystem(limestone, 231)",-6087.52,3
+Бот 1,58,3,16984,19053,"sellToSystem(scrap-metal, 300)",-6087.52,3
+Бот 1,59,1,15647,18819,"sellToSystem(coking-coal, 840)",-6088.20,3
+Бот 1,59,2,15647,18819,"sellToSystem(limestone, 231)",-6088.20,3
+Бот 1,59,3,15647,18819,"sellToSystem(scrap-metal, 300)",-6088.20,3
+Бот 1,60,1,14478,18702,"sellToSystem(coking-coal, 840)",-6093.26,3
+Бот 1,60,2,14478,18702,"sellToSystem(limestone, 385)",-6093.26,3
+Бот 1,60,3,14478,18702,"sellToSystem(scrap-metal, 300)",-6093.26,3
+Бот 1,61,1,15924,18656,"sellToSystem(coking-coal, 840)",-6096.80,3
+Бот 1,61,2,15924,18656,"sellToSystem(limestone, 385)",-6096.80,3
+Бот 1,61,3,15924,18656,"sellToSystem(scrap-metal, 300)",-6096.80,3
+Бот 1,62,1,26509,18635,"sellToSystem(coking-coal, 840)",-6101.86,3
+Бот 1,62,2,26509,18635,"sellToSystem(limestone, 385)",-6101.86,3
+Бот 1,62,3,26509,18635,"sellToSystem(scrap-metal, 300)",-6101.86,3
+Бот 1,63,1,16874,18554,"sellToSystem(coking-coal, 840)",-6108.35,3
+Бот 1,63,2,16874,18554,"sellToSystem(limestone, 385)",-6108.35,3
+Бот 1,63,3,16874,18554,"sellToSystem(scrap-metal, 300)",-6108.35,3
+Бот 1,64,1,24259,18463,"sellToSystem(coking-coal, 828.24)",-6116.01,3
+Бот 1,64,2,24259,18463,"sellToSystem(limestone, 385)",-6116.01,3
+Бот 1,64,3,24259,18463,"sellToSystem(scrap-metal, 300)",-6116.01,3
+Бот 1,65,1,16414,18479,"sellToSystem(coking-coal, 813.12)",-6125.34,3
+Бот 1,65,2,16414,18479,"sellToSystem(limestone, 385)",-6125.34,3
+Бот 1,65,3,16414,18479,"sellToSystem(scrap-metal, 300)",-6125.34,3
+Бот 1,66,1,17925,18505,"sellToSystem(coking-coal, 794.64)",-6133.50,3
+Бот 1,66,2,17925,18505,"sellToSystem(limestone, 385)",-6133.50,3
+Бот 1,66,3,17925,18505,"sellToSystem(scrap-metal, 295.8)",-6133.50,3
+Бот 1,67,1,17371,18426,"sellToSystem(coking-coal, 772.8)",-6141.02,3
+Бот 1,67,2,17371,18426,"sellToSystem(limestone, 385)",-6141.02,3
+Бот 1,67,3,17371,18426,"sellToSystem(scrap-metal, 290.4)",-6141.02,3
+Бот 1,68,1,15844,18424,"sellToSystem(coking-coal, 747.6)",-6148.12,3
+Бот 1,68,2,15844,18424,"sellToSystem(limestone, 385)",-6148.12,3
+Бот 1,68,3,15844,18424,"sellToSystem(scrap-metal, 283.8)",-6148.12,3
+Бот 1,69,1,15844,18417,"sellToSystem(coking-coal, 719.04)",-6154.94,3
+Бот 1,69,2,15844,18417,"sellToSystem(limestone, 379.61)",-6154.94,3
+Бот 1,69,3,15844,18417,"sellToSystem(scrap-metal, 276)",-6154.94,3
+Бот 1,70,1,17024,18439,"sellToSystem(coking-coal, 687.12)",-6162.25,3
+Бот 1,70,2,17024,18439,"sellToSystem(limestone, 372.68)",-6162.25,3
+Бот 1,70,3,17024,18439,"sellToSystem(scrap-metal, 267)",-6162.25,3
+Бот 1,71,1,17514,18556,"sellToSystem(coking-coal, 651.84)",-6170.46,3
+Бот 1,71,2,17514,18556,"sellToSystem(limestone, 364.21)",-6170.46,3
+Бот 1,71,3,17514,18556,"sellToSystem(scrap-metal, 256.8)",-6170.46,3
+Бот 1,72,1,15789,18558,"sellToSystem(coking-coal, 613.2)",-6180.01,3
+Бот 1,72,2,15789,18558,"sellToSystem(limestone, 354.2)",-6180.01,3
+Бот 1,72,3,15789,18558,"sellToSystem(scrap-metal, 245.4)",-6180.01,3
+Бот 1,73,1,17966,18567,"sellToSystem(coking-coal, 571.2)",-6191.36,3
+Бот 1,73,2,17966,18567,"sellToSystem(limestone, 342.65)",-6191.36,3
+Бот 1,73,3,17966,18567,"sellToSystem(scrap-metal, 232.8)",-6191.36,3
+Бот 1,74,1,15768,18556,"sellToSystem(coking-coal, 525.84)",-6205.00,3
+Бот 1,74,2,15768,18556,"sellToSystem(limestone, 329.56)",-6205.00,3
+Бот 1,74,3,15768,18556,"sellToSystem(scrap-metal, 219)",-6205.00,3
+Бот 1,75,1,16344,18576,"sellToSystem(coking-coal, 477.12)",-6221.46,3
+Бот 1,75,2,16344,18576,"sellToSystem(limestone, 314.93)",-6221.46,3
+Бот 1,75,3,16344,18576,"sellToSystem(scrap-metal, 204)",-6221.46,3
+Бот 1,76,1,51187,18691,"sellToSystem(coking-coal, 425.04)",-6241.28,3
+Бот 1,76,2,51187,18691,"sellToSystem(limestone, 298.76)",-6241.28,3
+Бот 1,76,3,51187,18691,"sellToSystem(scrap-metal, 187.8)",-6241.28,3
+Бот 1,76,4,51187,18691,"setWorkerCount(01M2ZASKWRSFGWJVDN0TBPXSK8, 0)",-6241.28,3
+Бот 1,76,5,51187,18691,"setWorkerCount(01M2ZAJFWGQQSTQ8WRAP0M676M, 0)",-6241.28,3
+Бот 1,76,6,51187,18691,"setWorkerCount(01M2ZAHG86AYD8Z193WACKQP6N, 0)",-6241.28,3
+Бот 1,77,1,12517,19107,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-6648.65,3
+Бот 1,78,1,12332,19258,"setOverhaulRequested(01M2ZASKWRSFGWJVDN0TBPXSK8, True)",-6679.12,3
+Бот 1,79,1,14856,19086,"setWorkerCount(01M2ZAHG86AYD8Z193WACKQP6N, 10)",-7095.51,3
+Бот 1,79,2,14856,19086,"setWorkerCount(01M2ZAJFWGQQSTQ8WRAP0M676M, 10)",-7095.51,3
+Бот 1,80,1,17677,19142,"sellToSystem(limestone, 437.36)",-7698.27,3
+Бот 1,80,2,17677,19142,"sellToSystem(scrap-metal, 222)",-7698.27,3
+Бот 1,80,3,17677,19142,"setOverhaulRequested(01M2ZAHG86AYD8Z193WACKQP6N, True)",-7698.27,3
+Бот 1,81,1,14240,19138,"sellToSystem(limestone, 389.62)",-7989.08,3
+Бот 1,81,2,14240,19138,"sellToSystem(scrap-metal, 360)",-7989.08,3
+Бот 1,82,1,10409,19081,"sellToSystem(limestone, 338.8)",-7996.78,3
+Бот 1,83,1,18002,19191,"sellToSystem(limestone, 284.9)",-8055.42,3
+Бот 1,83,2,18002,19191,"sellToSystem(scrap-metal, 720)",-8055.42,3
+Бот 1,83,3,18002,19191,"setOverhaulRequested(01M2ZAJFWGQQSTQ8WRAP0M676M, True)",-8055.42,3
+Бот 1,84,1,13172,19062,"sellToSystem(limestone, 462)",-8328.32,3
+Бот 1,84,2,13172,19062,"sellToSystem(scrap-metal, 600)",-8328.32,3
+Бот 1,85,1,18694,19023,"setWorkerCount(01M2ZAJFWGQQSTQ8WRAP0M676M, 0)",-8312.25,3
+Бот 1,85,2,18694,19023,"setWorkerCount(01M2ZAHG86AYD8Z193WACKQP6N, 5)",-8312.25,3
+Бот 1,86,1,13731,19152,"sellToSystem(limestone, 462)",-8826.88,3
+Бот 1,86,2,13731,19152,"sellToSystem(scrap-metal, 300)",-8826.88,3
+Бот 1,87,1,10896,18809,"sellToSystem(scrap-metal, 900)",-8790.22,3
+Бот 1,88,1,10608,18793,"sellToSystem(scrap-metal, 300)",-8736.63,3
+Бот 1,89,1,9696,18731,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-8750.16,3
+Бот 1,90,1,10440,18619,"sellToSystem(scrap-metal, 600)",-8796.81,3
+Бот 1,91,1,10096,18579,"sellToSystem(scrap-metal, 300)",-8776.54,3
+Бот 1,92,1,9321,18545,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-8789.95,3
+Бот 1,93,1,9603,18627,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-8836.71,3
+Бот 1,94,1,9891,18585,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-8883.56,3
+Бот 1,95,1,10770,18628,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-8930.51,3
+Бот 1,96,1,9239,18667,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-8977.57,3
+Бот 1,97,1,10850,18706,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-9024.83,3
+Бот 1,98,1,10266,18776,"(skipped: sellToSystem(, ) — SellToSystem requires materialId and volume.)",-9072.32,3
