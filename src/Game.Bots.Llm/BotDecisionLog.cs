@@ -31,18 +31,16 @@ public sealed class BotDecisionLog : IDisposable
 {
     private readonly List<BotDecisionLogEntry> _entries = new();
     private readonly Func<DateTimeOffset> _clock;
-    private readonly TextWriter? _writer;
-    private readonly bool _ownsWriter;
+    private readonly string? _filePath;
 
     public BotDecisionLog(Func<DateTimeOffset>? clock = null)
     {
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
     }
 
-    private BotDecisionLog(TextWriter writer)
+    private BotDecisionLog(string path)
     {
-        _writer = writer;
-        _ownsWriter = true;
+        _filePath = path;
         _clock = () => DateTimeOffset.UtcNow;
     }
 
@@ -51,8 +49,8 @@ public sealed class BotDecisionLog : IDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        var stream = new StreamWriter(path, append: true) { AutoFlush = true };
-        return new BotDecisionLog(stream);
+        using (new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite)) { }
+        return new BotDecisionLog(path);
     }
 
     /// <summary>Все записи в порядке добавления (в памяти — доступны и при файловом режиме, для тестов и промежуточных отчётов).</summary>
@@ -63,7 +61,12 @@ public sealed class BotDecisionLog : IDisposable
     {
         var entry = new BotDecisionLogEntry(botLabel, turn, actionIndex, attempt, userPrompt, rawResponse, outcome, _clock());
         _entries.Add(entry);
-        _writer?.WriteLine(JsonSerializer.Serialize(entry));
+        if (_filePath != null)
+        {
+            using var stream = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+            using var writer = new StreamWriter(stream);
+            writer.WriteLine(JsonSerializer.Serialize(entry));
+        }
     }
 
     /// <summary>Сериализует накопленные в памяти записи построчно в JSONL — для режима без файла (тесты, разовые прогоны).</summary>
@@ -77,9 +80,5 @@ public sealed class BotDecisionLog : IDisposable
 
     public void Dispose()
     {
-        if (_ownsWriter)
-        {
-            _writer?.Dispose();
-        }
     }
 }
