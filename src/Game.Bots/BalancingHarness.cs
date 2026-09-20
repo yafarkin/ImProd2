@@ -4,8 +4,8 @@ namespace Game.Bots;
 
 /// <summary>
 /// Прогоняет одну или много партий силами простых ботов (Блок 7.2, BUILD_PLAN «Харнесс
-/// балансировки») и собирает метрики: денежная масса и throughput по ходам, доля принудительных
-/// займов, разброс итоговых счётов — для калибровки GameConfig, не для игры вживую. Опционально
+/// балансировки») и собирает метрики: денежная масса и throughput по ходам, разброс итоговых
+/// счётов — для калибровки GameConfig, не для игры вживую. Опционально
 /// сверяет каждую команду с идеальным залом (Блок 7.3.5, <see cref="IdealHallCalculator"/>) —
 /// Score(t)/X(t) той же ветки, посчитанным заранее, один раз на весь конфиг (X(t) не зависит от
 /// стратегии ботов, пересчитывать его на каждую партию незачем).
@@ -26,12 +26,15 @@ public static class BalancingHarness
         ArgumentNullException.ThrowIfNull(bots);
         ArgumentNullException.ThrowIfNull(random);
 
+        // Себестоимость не зависит от хода/рынка (см. doc-comment MaterialCostCalculator) — считаем
+        // один раз на всю партию, не на каждый ход внутри колбэка.
+        var materialCosts = MaterialCostCalculator.CalculateAll(session.State.Config);
+
         var turns = new List<TurnMetrics>();
         BotSessionRunner.RunToCompletion(session, bots, random, onTurnCompleted: appended =>
         {
             var totalCash = session.State.Teams.Values.Sum(team => team.Balance);
             var volumeSold = appended.Sum(entry => entry.Change is MaterialSoldToSystem sale ? sale.Volume : 0m);
-            var forcedLoans = appended.Count(entry => entry.Change is ForcedLoanTaken);
 
             var allFactories = session.State.Teams.Values.SelectMany(team => team.Factories).ToList();
             var averageFactoryCondition = allFactories.Count > 0 ? allFactories.Average(factory => factory.Condition) : 1m;
@@ -43,19 +46,17 @@ public static class BalancingHarness
                 Turn = session.State.CurrentTurn,
                 TotalCash = totalCash,
                 VolumeSoldToSystem = volumeSold,
-                ForcedLoanCount = forcedLoans,
                 AverageFactoryCondition = averageFactoryCondition,
                 FactoriesUnderRepairCount = factoriesUnderRepair,
                 ForcedRepairEventsCount = forcedRepairEvents,
-                AverageConvergence = ComputeAverageConvergence(session, bots, idealHall, session.State.CurrentTurn),
+                AverageConvergence = ComputeAverageConvergence(session, bots, materialCosts, idealHall, session.State.CurrentTurn),
             });
         });
 
         var finalScores = bots
             .Select(bot => FinalScoreCalculator.Calculate(
                 session.State.Teams[bot.TeamId],
-                session.State.Market,
-                session.State.Config.Raw.Economy,
+                materialCosts,
                 session.State.Config.Raw.FactoryDefinitions))
             .ToList();
 
@@ -97,7 +98,8 @@ public static class BalancingHarness
 
     /// <summary>Score(t)/X(t) усреднённый по всем ботам партии на этот ход; <c>null</c>, если идеального зала нет или ни для одного бота нет данных (сектор отсутствует в X(t) или ход вышел за пределы просчитанного).</summary>
     private static decimal? ComputeAverageConvergence(
-        GameSession session, IReadOnlyList<SimpleBot> bots, IdealHallResult? idealHall, int turn)
+        GameSession session, IReadOnlyList<SimpleBot> bots, IReadOnlyDictionary<string, decimal> materialCosts,
+        IdealHallResult? idealHall, int turn)
     {
         if (idealHall is null)
         {
@@ -119,7 +121,7 @@ public static class BalancingHarness
             }
 
             var score = FinalScoreCalculator.Calculate(
-                team, session.State.Market, session.State.Config.Raw.Economy, session.State.Config.Raw.FactoryDefinitions).Score;
+                team, materialCosts, session.State.Config.Raw.FactoryDefinitions).Score;
             ratios.Add(score / value);
         }
 
@@ -162,7 +164,7 @@ public static class BalancingHarness
         return bySector.ToDictionary(entry => entry.Key, entry => entry.Value.Average());
     }
 
-    /// <summary>X(turn) сектора <paramref name="sectorId"/> из <paramref name="idealHall"/>; <c>null</c>, если сектора нет в X(t) или ход вне просчитанного диапазона (например, конфиг звал сессию длиннее MaxTurns пресета, на котором строился идеальный зал).</summary>
+    /// <summary>X(turn) сектора <paramref name="sectorId"/> из <paramref name="idealHall"/>; <c>null</c>, если сектора нет в X(t) или ход вне просчитанного диапазона (например, конфиг звал сессию длиннее MaxTurns, на котором строился идеальный зал).</summary>
     private static decimal? TryGetIdealValue(IdealHallResult idealHall, string sectorId, int turn)
     {
         var branch = idealHall.Branches.FirstOrDefault(b => b.SectorId == sectorId);

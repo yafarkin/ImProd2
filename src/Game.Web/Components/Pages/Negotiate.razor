@@ -65,7 +65,7 @@ else
 
 <div class="card mt-4">
     <div class="card-body">
-        <ContractDraftForm TeamId="_teamId" OnChanged="RefreshPanel" />
+        <ContractDraftForm TeamId="_teamId" Role="_role" OnChanged="RefreshPanel" />
     </div>
 </div>
 
@@ -76,6 +76,7 @@ else
     private string? DisplayName;
     private string? TeamName;
     private Ulid _teamId;
+    private ParticipantRole _role;
     private Timer? _tickTimer;
 
     private decimal _reputationPercentage;
@@ -97,6 +98,7 @@ else
         var authState = await AuthenticationStateTask!;
         var user = authState.User;
         DisplayName = user.Identity?.Name;
+        Enum.TryParse(user.FindFirst(ClaimTypes.Role)?.Value, out _role);
 
         var teamIdClaim = user.FindFirst("teamId")?.Value;
         if (teamIdClaim is not null && Ulid.TryParse(teamIdClaim, out var teamId))

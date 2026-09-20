@@ -2,6 +2,18 @@
 
 <h3>Черновик сделки</h3>
 
+<p class="form-text mb-2">
+    Условия вводит каждая сторона отдельно, и контрагент ваших цифр не видит — договоритесь лично,
+    затем оба введите одно и то же. Совпадут — сделка заключена.
+</p>
+
+@if (!CanSubmit)
+{
+    <div class="alert alert-info">
+        Черновик можно подготовить, но отправляет заявку управляющий команды (SPEC §3).
+    </div>
+}
+
 @if (_errorMessage is not null)
 {
     <div class="alert alert-danger">@_errorMessage</div>
@@ -153,15 +165,21 @@ else
         }
     </div>
 
-    <button type="button" class="btn btn-primary" @onclick="SubmitDraft">Отправить</button>
+    <button type="button" class="btn btn-primary" @onclick="SubmitDraft" disabled="@(!CanSubmit)">Отправить</button>
 }
 
 @code {
     [Parameter, EditorRequired]
     public Ulid TeamId { get; set; }
 
+    /// <summary>Роль вошедшего в команде: переговорщик готовит черновик, отправляет управляющий (SPEC §3).</summary>
+    [Parameter, EditorRequired]
+    public ParticipantRole Role { get; set; }
+
     [Parameter]
     public EventCallback OnChanged { get; set; }
+
+    private bool CanSubmit => Role == ParticipantRole.Manager;
 
     private IReadOnlyList<(Ulid Id, string Name)> _counterparties = Array.Empty<(Ulid, string)>();
     private IReadOnlyList<Factory> _ourFactories = Array.Empty<Factory>();
@@ -338,7 +356,7 @@ else
 
         try
         {
-            ContractFormationResult? result = null;
+            ContractProposalSubmissionResult? result = null;
             lock (Host.SyncRoot)
             {
                 if (Host.Session is null)
@@ -366,19 +384,28 @@ else
                         _type == ContractType.Recurring && !_recurringIndefinite ? effectiveTurnPlaceholder + _recurringDurationTurns - 1 : null);
 
                     var ourProposal = new ContractProposal(buyerId, sellerId, TeamId, terms);
-                    var theirProposal = new ContractProposal(buyerId, sellerId, counterpartyId, terms);
-                    result = Host.Session.SubmitContractProposals(ourProposal, theirProposal, Random.Shared);
+                    result = Host.Session.SubmitContractProposal(ourProposal, TeamRole.Manager, Random.Shared);
                 }
             }
 
             if (result is not null)
             {
-                _successMessage = result.IsMatched
-                    ? "Заявка отправлена, ждёт подтверждения управляющего контрагента."
-                    : null;
-                if (!result.IsMatched)
+                if (result.IsMatched)
                 {
-                    _errorMessage = string.Join("; ", result.Mismatches.Select(DashboardDisplay.ContractMismatchLabel));
+                    _successMessage = "Условия сошлись — сделка заключена, ждёт подтверждения управляющего контрагента.";
+                }
+                else if (result.HasCounterpartyProposal)
+                {
+                    // Встречная заявка есть, но условия разошлись. Называем только поля — чужие
+                    // числа контрагенту не показываем, иначе сверка выродится в копирование (№16).
+                    _errorMessage =
+                        "Заявка от контрагента уже есть, но условия не сошлись: "
+                        + string.Join("; ", result.Mismatches.Select(DashboardDisplay.ContractMismatchLabel))
+                        + ". Заявка сохранена — уточните расхождение лично и подайте заново.";
+                }
+                else
+                {
+                    _successMessage = "Заявка подана и ждёт встречной от контрагента.";
                 }
             }
         }

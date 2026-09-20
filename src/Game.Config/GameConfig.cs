@@ -28,8 +28,8 @@ public sealed record GameConfig
     /// <summary>Стартовые условия команды.</summary>
     public required StartingConditionsConfig StartingConditions { get; init; }
 
-    /// <summary>Доступные пресеты длительности сессии.</summary>
-    public required IReadOnlyList<SessionPresetConfig> SessionPresets { get; init; }
+    /// <summary>Длительность сессии — число ходов (с жеребьёвкой точной концовки) и длина хода.</summary>
+    public required SessionDurationConfig Duration { get; init; }
 
     /// <summary>Длительности фаз хода.</summary>
     public required PhaseTimingConfig PhaseTiming { get; init; }
@@ -58,14 +58,16 @@ public sealed record GameConfig
     /// <summary>Параметры контрактов.</summary>
     public required ContractsConfig Contracts { get; init; }
 
-    /// <summary>Параметры налогов (используются, если включены флагом).</summary>
-    public required TaxesConfig Taxes { get; init; }
-
-    /// <summary>Параметры депозитов (используются, если включены флагом).</summary>
-    public required DepositsConfig Deposits { get; init; }
-
     /// <summary>Библиотека заголовков новостной ленты.</summary>
     public required IReadOnlyList<NewsItemConfig> News { get; init; }
+
+    /// <summary>
+    /// На сколько ходов вперёд смотрит новостная лента: заголовок хода <c>t</c> берётся из пула
+    /// тренда, действующего на ходу <c>t + NewsLookaheadTurns</c> (блок 11.9,
+    /// <c>docs/external-economy.md</c> §5). Ноль превращает ленту обратно в хронику — новость о
+    /// тренде, который к этому ходу уже применился.
+    /// </summary>
+    public int NewsLookaheadTurns { get; init; } = 3;
 
     /// <summary>Флаги включения механик MVP.</summary>
     public required FeatureFlagsConfig FeatureFlags { get; init; }

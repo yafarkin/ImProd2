@@ -30,7 +30,7 @@ public static class GameConfigComposer
             FactoryDefinitions = productionModel.FactoryDefinitions,
             GenerationResearch = productionModel.GenerationResearch,
             StartingConditions = session.StartingConditions,
-            SessionPresets = session.SessionPresets,
+            Duration = session.Duration,
             PhaseTiming = session.PhaseTiming,
             Economy = new EconomyConfig
             {
@@ -38,8 +38,13 @@ public static class GameConfigComposer
                 EmergencyPurchasePressureMultiplierPerUnit = session.Economy.EmergencyPurchasePressureMultiplierPerUnit,
                 EmergencyPurchasePressureHalfLifeTurns = session.Economy.EmergencyPurchasePressureHalfLifeTurns,
                 BaseMarketPerMaterial = productionModel.BaseMarketPerMaterial,
-                MarginMultiplierByProcessingLevel = session.Economy.MarginMultiplierByProcessingLevel,
                 MarketCapacityOverflowDiscount = session.Economy.MarketCapacityOverflowDiscount,
+                PricingModel = session.Economy.PricingModel,
+                MarketPriceFloorRate = session.Economy.MarketPriceFloorRate,
+                MarketCapacityScale = session.Economy.MarketCapacityScale,
+                MarketSupplyPressureHalfLifeTurns = session.Economy.MarketSupplyPressureHalfLifeTurns,
+                EconomyIndexMin = session.Economy.EconomyIndexMin,
+                EconomyIndexMax = session.Economy.EconomyIndexMax,
                 ElectricityBasePrice = session.Economy.ElectricityBasePrice,
                 ElectricityConsumptionPerOutputUnit = session.Economy.ElectricityConsumptionPerOutputUnit,
                 TrendScenario = session.Economy.TrendScenario,
@@ -51,9 +56,8 @@ public static class GameConfigComposer
             Warehouse = session.Warehouse,
             Reputation = session.Reputation,
             Contracts = session.Contracts,
-            Taxes = session.Taxes,
-            Deposits = session.Deposits,
             News = session.News,
+            NewsLookaheadTurns = session.NewsLookaheadTurns,
             FeatureFlags = session.FeatureFlags,
         };
 

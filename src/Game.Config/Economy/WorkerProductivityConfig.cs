@@ -16,23 +16,29 @@ public sealed record WorkerProductivityConfig
     /// <summary>Разовая плата за найм одного рабочего.</summary>
     public required decimal HireCostPerWorker { get; init; }
 
-    /// <summary>Разовая плата за увольнение одного рабочего.</summary>
+    /// <summary>
+    /// Сколько рабочих одна фабрика успевает нанять за один ход (docs/TODO.md №25). Объявить можно
+    /// сколько угодно — <see cref="Game.Domain.Factory.DesiredWorkers"/> не ограничен; растянут не
+    /// замысел, а его исполнение: разница закрывается по <c>MaxHiresPerTurn</c> человек за ход, пока
+    /// не сойдётся. Увольнение под этот предел не подпадает — оно мгновенное (и потому дорогое, см.
+    /// <see cref="FireCostPerWorker"/>): нанимать людей долго, а расстаться можно в один день.
+    ///
+    /// <para>
+    /// Ноль или отрицательное значение запрещено (иначе фабрику нельзя укомплектовать никогда).
+    /// Осмысленный порядок величины — доля <see cref="BaseWorkerCount"/>: при базе 10 и пределе 5
+    /// новая фабрика выходит на штат за два хода, а удвоение штата занимает четыре. Исключение —
+    /// добыча (рецепт с выходом уровня 0): там наём всегда мгновенный, см.
+    /// <c>WorkforceStep.IsInstantHiring</c>.
+    /// </para>
+    /// </summary>
+    public required int MaxHiresPerTurn { get; init; }
+
+    /// <summary>
+    /// Разовая плата за увольнение одного рабочего. Намеренно выше <see cref="HireCostPerWorker"/>:
+    /// увольнение мгновенно, и его цена — плата за эту мгновенность (docs/TODO.md №25).
+    /// </summary>
     public required decimal FireCostPerWorker { get; init; }
 
     /// <summary>Зарплата одного рабочего за ход — списывается на финансовом шаге каждого тика.</summary>
     public required decimal SalaryPerWorkerPerTurn { get; init; }
-
-    /// <summary>
-    /// Порог по ОБЩЕЙ численности рабочих команды (сумма по всем её фабрикам, не одной фабрики),
-    /// после которого зарплата начинает расти быстрее — зеркало <see cref="BaseWorkerCount"/>, но
-    /// для стоимости, а не выработки: раздувать одну фабрику становится дороже само по себе, без
-    /// штрафов за неудачу (запрос пользователя, спираль между областями).
-    /// </summary>
-    public required int TeamSalaryBaseWorkerCount { get; init; }
-
-    /// <summary>
-    /// Множитель ставки зарплаты для рабочих сверх <see cref="TeamSalaryBaseWorkerCount"/> (&gt; 1 —
-    /// дороже базовой ставки). Заглушка, требует калибровки.
-    /// </summary>
-    public required decimal SalaryEscalationFactor { get; init; }
 }

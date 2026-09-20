@@ -13,6 +13,52 @@
         <JoinQrCodes SizePx="480" />
     </div>
 }
+else if (_isFinished)
+{
+    @* Экран итогов зала: партия кончилась, и большой экран обязан это объявить сам — нажать
+       «обновить» на нём некому, а разбор начинается ровно в эту минуту (docs/TODO.md №10). Порядок
+       здесь по полному счёту (ResultsDisplay), а не по балансу, как в рейтинге по ходу игры:
+       скрывать больше нечего, и вложенные в фабрики деньги обязаны быть засчитаны. *@
+    <h1>Партия завершена на ходу @_currentTurn</h1>
+
+    <h2 class="mt-4">Итоговый счёт</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Команда</th>
+                <th>Сектор</th>
+                <th class="text-end">Счёт</th>
+                <th class="text-end">Деньги</th>
+                <th class="text-end">Склад</th>
+                <th class="text-end">Фабрики</th>
+                <th class="text-end">Репутация</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in _results)
+            {
+                <tr>
+                    <td>@row.Place</td>
+                    <td>@row.Name</td>
+                    <td>@row.SectorName</td>
+                    <td class="text-end"><strong>@DashboardDisplay.FormatMoney(row.Score)</strong></td>
+                    <td class="text-end">@DashboardDisplay.FormatMoney(row.Cash)</td>
+                    <td class="text-end">@DashboardDisplay.FormatMoney(row.WarehouseValue)</td>
+                    <td class="text-end">@DashboardDisplay.FormatMoney(row.FactoriesValue)</td>
+                    <td class="text-end">@row.ReputationPercentage.ToString("F0")% (@row.ReputationSampleCount)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p>
+        Счёт — ликвидационная стоимость команды: деньги на счету плюс склад по себестоимости плюс
+        фабрики по остаточной стоимости.
+    </p>
+
+    <h2 class="mt-4">Счёт команд по ходам</h2>
+    @ChartRenderer.Render(_scoreHistoryChart)
+}
 else
 {
     <h1>
@@ -33,6 +79,16 @@ else
         <div class="ticker-track">@string.Join(" • ", _recentNews)</div>
     }
 </div>
+
+@if (_showEconomyIndex && _economyIndex.HasData)
+{
+    <h2 class="mt-4">
+        Индекс деловой активности:
+        <span class="@_economyIndex.CssClass">@_economyIndex.ValueText @_economyIndex.Arrow</span>
+        <small class="text-muted">— @_economyIndex.LevelText</small>
+    </h2>
+    @ChartRenderer.Render(_economyIndexChart)
+}
 
 <h2 class="mt-4">Рейтинг команд</h2>
 <table class="table table-striped">
@@ -60,7 +116,7 @@ else
     </tbody>
 </table>
 
-<h2 class="mt-4">Баланс команд за вычетом долга по ходам</h2>
+<h2 class="mt-4">Баланс команд по ходам</h2>
 @ChartRenderer.Render(_balanceHistoryChart)
 
 <h2 class="mt-4">Доска потребностей</h2>
@@ -86,7 +142,13 @@ else
     private IReadOnlyList<BigScreenDisplay.TeamRatingRow> _ranking = Array.Empty<BigScreenDisplay.TeamRatingRow>();
     private BigScreenDisplay.NeedsSummary _needsSummary = new(0, Array.Empty<string>());
     private LineChartDiagram.ChartLayout _balanceHistoryChart = new([], [], [], 900, 320);
+    private IReadOnlyList<ResultsDisplay.ResultRow> _results = Array.Empty<ResultsDisplay.ResultRow>();
+    private LineChartDiagram.ChartLayout _scoreHistoryChart = new([], [], [], 900, 320);
+    private bool _isFinished;
     private int _balanceHistoryEntryCount = -1;
+    private bool _showEconomyIndex;
+    private EconomyIndexDisplay.IndexSummary _economyIndex = EconomyIndexDisplay.Describe([]);
+    private LineChartDiagram.ChartLayout _economyIndexChart = new([], [], [], 900, 240);
     private bool _sessionNotStarted;
     private Timer? _tickTimer;
 
@@ -114,12 +176,14 @@ else
             _sessionNotStarted = false;
             var state = Host.Session.State;
 
+            _isFinished = state.IsFinished;
             _currentTurn = state.CurrentTurn;
             _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
             _isPaused = state.IsPaused;
             _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session, DateTimeOffset.UtcNow));
             _recentNews = PhaseDisplay.RecentNewsHeadlines(Host.Session, 5);
             _ranking = BigScreenDisplay.RankTeams(Host.Session);
+            _results = ResultsDisplay.Rank(Host.Session);
             _needsSummary = BigScreenDisplay.SummarizeNeeds(state);
 
             // Полный реплей журнала на каждую команду — не бесплатная операция, а страница
@@ -129,8 +193,13 @@ else
             if (_balanceHistoryEntryCount != entryCount)
             {
                 _balanceHistoryChart = BigScreenDisplay.BuildBalanceHistoryChart(Host.Session);
+                _scoreHistoryChart = ResultsDisplay.BuildScoreHistoryChart(Host.Session);
+                var indexHistory = EconomyIndexHistoryCalculator.Summarize(Host.Session.Entries, state.Config);
+                _economyIndex = EconomyIndexDisplay.Describe(indexHistory);
+                _economyIndexChart = EconomyIndexDisplay.BuildChart(indexHistory, 900, 240);
                 _balanceHistoryEntryCount = entryCount;
             }
+            _showEconomyIndex = EconomyIndexDisplay.IsVisible(state.Config.Raw.Economy);
         }
     }
 

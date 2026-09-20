@@ -31,10 +31,7 @@ public static class ContractFormation
         {
             mismatches.Add(ContractMismatchReason.SubmittedByTheSameTeam);
         }
-        if (proposalA.Terms != proposalB.Terms)
-        {
-            mismatches.Add(ContractMismatchReason.TermsDiffer);
-        }
+        mismatches.AddRange(CompareTerms(proposalA.Terms, proposalB.Terms));
 
         if (mismatches.Count > 0)
         {
@@ -47,5 +44,39 @@ public static class ContractFormation
             proposedByTeamId: proposalA.SubmittedByTeamId);
 
         return ContractFormationResult.Matched(contract);
+    }
+
+    /// <summary>
+    /// Пофайловая сверка условий — экран конфликта (SPEC §9.3) подсвечивает именно разошедшееся
+    /// поле, а не сообщает «условия не совпали» целиком. Ход вступления в силу здесь не сверяется
+    /// сознательно: стороны его больше не заявляют, он подставляется при активации (SPEC §6,
+    /// правка Блока 9.4, <see cref="Contract.ResolveTermsForActivation"/>).
+    /// </summary>
+    private static IEnumerable<ContractMismatchReason> CompareTerms(ContractTerms a, ContractTerms b)
+    {
+        if (a.Material != b.Material)
+        {
+            yield return ContractMismatchReason.MaterialDiffers;
+        }
+        if (a.Type != b.Type)
+        {
+            yield return ContractMismatchReason.TypeDiffers;
+        }
+        if (a.Volume != b.Volume)
+        {
+            yield return ContractMismatchReason.VolumeDiffers;
+        }
+        if (a.UnitPrice != b.UnitPrice)
+        {
+            yield return ContractMismatchReason.UnitPriceDiffers;
+        }
+        if (a.PenaltyRate != b.PenaltyRate)
+        {
+            yield return ContractMismatchReason.PenaltyRateDiffers;
+        }
+        if (a.SpotDeliveryTurn != b.SpotDeliveryTurn || a.RecurringEndTurn != b.RecurringEndTurn)
+        {
+            yield return ContractMismatchReason.DeliveryScheduleDiffers;
+        }
     }
 }

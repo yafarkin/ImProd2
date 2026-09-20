@@ -43,9 +43,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
             new TeamSpec { Id = alphaId, Name = "Альфа", SectorId = sectorA.Id },
             new TeamSpec { Id = betaId, Name = "Бета", SectorId = sectorB.Id },
         };
-        var preset = config.Raw.SessionPresets.Single(p => p.Id == "short");
-
-        host.StartNewSession(config, preset, teams);
+        host.StartNewSession(config, teams);
 
         Register(host, ParticipantRole.Manager, alphaId, "Управляющий Альфа");
         Register(host, ParticipantRole.Negotiator, alphaId, "Переговорщик Альфа");
@@ -390,6 +388,30 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.StartsWith("/access-denied", response.Headers.Location!.PathAndQuery);
     }
 
+    /// <summary>Лаборатория баланса (TODO.md №28) — тот же гейт по роли, что и остальные /admin/* страницы; DebugMode в тестовом хосте включён (appsettings), так что здесь проверяется только роль, не отдельно баннер «выключено».</summary>
+    [Fact]
+    public async Task Balance_Lab_Page_Allows_A_Logged_In_Administrator()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Administrator));
+
+        var response = await client.GetAsync("/admin/balance-lab");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Balance_Lab_Page_Denies_Access_To_A_Manager()
+    {
+        var client = CreateClient();
+        await PostLogin(client, SeedCodeFor(ParticipantRole.Manager));
+
+        var response = await client.GetAsync("/admin/balance-lab");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.StartsWith("/access-denied", response.Headers.Location!.PathAndQuery);
+    }
+
     /// <summary>Экран сессии (запрос пользователя «разделить режим администратора») общий на две роли — администратора и ведущего.</summary>
     [Fact]
     public async Task Session_Page_Allows_A_Logged_In_Administrator()
@@ -525,9 +547,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var teamNamesBefore = host.Session!.State.Teams.Values.Select(t => t.Name).OrderBy(n => n, StringComparer.Ordinal).ToList();
         var facilitatorCode = SeedCodeFor(ParticipantRole.Facilitator);
-        var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
-
-        host.ResetSession(preset);
+        host.ResetSession();
 
         var teamNamesAfter = host.Session!.State.Teams.Values.Select(t => t.Name).OrderBy(n => n, StringComparer.Ordinal).ToList();
         Assert.Equal(teamNamesBefore, teamNamesAfter);
@@ -658,9 +678,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         var team = host.StagedTeams.Single();
         var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Гамма");
         var operatorSpec = host.AddStagedParticipant(ParticipantRole.Operator, null, "Оператор Черновик");
-        var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
-
-        host.StartSessionFromDraft(preset);
+        host.StartSessionFromDraft();
 
         Assert.NotNull(host.Session);
         var managerRegistration = host.Session!.TryAuthenticate(manager.Code);
@@ -691,9 +709,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         var host = factory.Services.GetRequiredService<GameSessionHost>();
         host.HardReset();
 
-        var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
-
-        Assert.Throws<ArgumentException>(() => host.StartNewSession(host.DefaultConfig, preset, Array.Empty<TeamSpec>()));
+        Assert.Throws<ArgumentException>(() => host.StartNewSession(host.DefaultConfig, Array.Empty<TeamSpec>()));
         Assert.Null(host.Session);
     }
 
@@ -705,9 +721,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         var host = factory.Services.GetRequiredService<GameSessionHost>();
         host.HardReset();
 
-        var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
-
-        Assert.Throws<ArgumentException>(() => host.StartSessionFromDraft(preset));
+        Assert.Throws<ArgumentException>(() => host.StartSessionFromDraft());
         Assert.Null(host.Session);
     }
 
@@ -726,9 +740,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
 
         var sectorId = host.DefaultConfig.Sectors.First().Id;
         host.AddStagedTeam("Дзета", sectorId);
-        var preset = host.DefaultConfig.Raw.SessionPresets.Single(p => p.Id == "short");
-
-        var ex = Assert.Throws<InvalidOperationException>(() => host.StartSessionFromDraft(preset));
+        var ex = Assert.Throws<InvalidOperationException>(() => host.StartSessionFromDraft());
         Assert.Contains("Дзета", ex.Message);
         Assert.Null(host.Session);
         Assert.Single(host.StagedTeams);
@@ -736,7 +748,7 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
         var team = host.StagedTeams.Single();
         host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Дзета");
 
-        host.StartSessionFromDraft(preset);
+        host.StartSessionFromDraft();
 
         Assert.NotNull(host.Session);
     }

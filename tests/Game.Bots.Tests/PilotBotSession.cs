@@ -7,7 +7,7 @@ namespace Game.Bots.Tests;
 /// <summary>Общий вход в реальный пилотный конфиг для тестов ботов и харнесса балансировки (Блоки 7.1-7.2).</summary>
 internal static class PilotBotSession
 {
-    public static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Samples", "gameconfig.pilot.json");
+    public static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "legacy-combined-gameconfig.json");
 
     public static ResolvedGameConfig LoadConfig() => GameConfigLoader.LoadFromFile(ConfigPath);
 
@@ -27,7 +27,7 @@ internal static class PilotBotSession
             bots.Add(new SimpleBot(teamId, sector, config));
         }
 
-        var session = GameSession.StartWithEndTurn(config, "short", endTurn, teams);
+        var session = GameSession.StartWithEndTurn(config, endTurn, teams);
         return (session, bots);
     }
 }

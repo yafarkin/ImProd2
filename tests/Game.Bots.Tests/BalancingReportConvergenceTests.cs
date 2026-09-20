@@ -18,7 +18,6 @@ public class BalancingReportConvergenceTests
             Turn = index + 1,
             TotalCash = 0m,
             VolumeSoldToSystem = 0m,
-            ForcedLoanCount = 0,
             AverageFactoryCondition = 1m,
             FactoriesUnderRepairCount = 0,
             ForcedRepairEventsCount = 0,
@@ -30,7 +29,7 @@ public class BalancingReportConvergenceTests
             Turns = turns,
             FinalScores = new List<FinalScoreResult>
             {
-                new() { TeamId = Ulid.NewUlid(), Cash = 0m, Debt = 0m, WarehouseValue = 0m, FactoriesValue = 0m, Score = 0m },
+                new() { TeamId = Ulid.NewUlid(), Cash = 0m, WarehouseValue = 0m, FactoriesValue = 0m, Score = 0m },
             },
             TeamCount = 1,
             FinalConvergenceBySector = finalConvergenceBySector,

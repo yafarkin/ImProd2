@@ -16,8 +16,8 @@ public static class BigScreenDisplay
         decimal ReputationPercentage, int ReputationSampleCount);
 
     /// <summary>
-    /// Рейтинг команд по чистой стоимости (баланс минус долг), по убыванию — единственная публичная
-    /// денежная метрика (SPEC §7: «финансовый рейтинг» публичен, конкретные сделки — нет).
+    /// Рейтинг команд по балансу, по убыванию — единственная публичная денежная метрика (SPEC §7:
+    /// «финансовый рейтинг» публичен, конкретные сделки — нет).
     /// </summary>
     public static IReadOnlyList<TeamRatingRow> RankTeams(GameSession session)
     {
@@ -28,7 +28,7 @@ public static class BigScreenDisplay
             {
                 var reputation = session.GetReputation(team.Id);
                 return new TeamRatingRow(
-                    team.Name, team.Sector.Name, team.Balance - team.Debt,
+                    team.Name, team.Sector.Name, team.Balance,
                     reputation.Percentage, reputation.SampleCount);
             })
             .OrderByDescending(row => row.NetWorth)
@@ -36,14 +36,12 @@ public static class BigScreenDisplay
     }
 
     /// <summary>
-    /// График чистой стоимости (баланс минус долг) всех команд по ходам для большого экрана (запрос
-    /// ведущего: «видеть динамику всех команд сразу», а не только свою на /team) — та же <see
-    /// cref="FactoryHistoryCalculator"/>, что уже строит персональный график на /team, просто по
-    /// одному ряду на каждую команду сессии вместо одной; та же величина, что и «Финансовый рейтинг»
-    /// в таблице выше (<see cref="RankTeams"/>) — не сырой баланс, чтобы принудительный кредит не
-    /// прятал реальное ухудшение дел за растущим долгом. Команды упорядочены по имени (не по
-    /// текущему рейтингу — рейтинг меняется от хода к ходу, и перестановка рядов сбивала бы
-    /// закреплённый за командой цвет).
+    /// График баланса всех команд по ходам для большого экрана (запрос ведущего: «видеть динамику
+    /// всех команд сразу», а не только свою на /team) — та же <see cref="FactoryHistoryCalculator"/>,
+    /// что уже строит персональный график на /team, просто по одному ряду на каждую команду сессии
+    /// вместо одной; та же величина, что и «Финансовый рейтинг» в таблице выше (<see
+    /// cref="RankTeams"/>). Команды упорядочены по имени (не по текущему рейтингу — рейтинг меняется
+    /// от хода к ходу, и перестановка рядов сбивала бы закреплённый за командой цвет).
     /// </summary>
     public static LineChartDiagram.ChartLayout BuildBalanceHistoryChart(GameSession session)
     {

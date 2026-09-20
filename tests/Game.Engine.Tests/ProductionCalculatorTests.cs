@@ -37,11 +37,9 @@ public class ProductionCalculatorTests
     {
         BaseWorkerCount = 5,
         DiminishingReturnsFactor = 0.5m,
-        HireCostPerWorker = 100m,
+        HireCostPerWorker = 100m, MaxHiresPerTurn = 1000,
         FireCostPerWorker = 50m,
         SalaryPerWorkerPerTurn = 5m,
-        TeamSalaryBaseWorkerCount = 1000,
-        SalaryEscalationFactor = 1.5m,
     };
 
     // Нулевой бонус — большинство тестов проверяют мощность/сырьё изолированно от R&D;

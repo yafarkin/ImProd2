@@ -17,7 +17,6 @@ public class GameSessionRndProgressionTests
         // TestGameConfig.Resolved.Raw.Rnd: пороги { 100m, 300m } — 1->2, 2->3.
         var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 1
-        session.TakeLoan(teamId, 1000m); // с запасом на все ходы ниже
         var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
         session.SetRndCommitment(teamId, built.FactoryId, 50m); // ниже порога (100) — одного хода не хватит
 
@@ -38,7 +37,6 @@ public class GameSessionRndProgressionTests
     {
         var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam();
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision, ход 1
-        session.TakeLoan(teamId, 1000m);
         var built = (FactoryBuilt)session.BuildFactory(teamId, TestGameConfig.Mine.Id).Change;
         session.SetWorkerCount(teamId, built.FactoryId, TestGameConfig.Resolved.Raw.WorkerProductivity.BaseWorkerCount); // 5, линейная отдача без убывания
         session.SetRndCommitment(teamId, built.FactoryId, 100m); // ровно первый порог — перешагнём за один ход

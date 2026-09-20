@@ -152,7 +152,11 @@ public sealed class Factory
         }
 
         Workers += count;
-        DesiredWorkers = Workers;
+        // Не «= Workers», а «не ниже Workers»: наём может закрывать объявленное расхождение
+        // частично (предел найма за ход, docs/TODO.md №25) — тогда остаток обязан сохраниться в
+        // DesiredWorkers, иначе фабрика молча остановится на половине штата. Для найма целиком
+        // (и для прямых вызовов из идеального зала и тестов) поведение прежнее.
+        DesiredWorkers = Math.Max(DesiredWorkers, Workers);
     }
 
     /// <summary>

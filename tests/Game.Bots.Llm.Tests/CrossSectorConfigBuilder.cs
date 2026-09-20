@@ -65,16 +65,9 @@ internal static class CrossSectorConfigBuilder
             ],
             StartingConditions = new StartingConditionsConfig
             {
-                MaxStartingLoanAmount = 100_000m,
-                BaseLoanInterestRate = 0.05m,
-                LoanInterestRateGrowthPerUnitBorrowed = 0m,
-                ForcedLoanPenaltyRatePerOccurrence = 0.1m,
-                MaxReputationRatePenalty = 0.1m,
-                MandatoryRepaymentRatePerTurn = 0m,
-                MaxTotalDebt = 1_000_000_000m,
-                MaxLoanInterestRate = 1_000_000_000m,
+                MaxInitialBuildBudget = 100_000m,
             },
-            SessionPresets = [new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 15, MaxTurns = 15, TurnDurationMinutes = 1 }],
+            Duration = new SessionDurationConfig { MinTurns = 15, MaxTurns = 15 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {
@@ -83,12 +76,11 @@ internal static class CrossSectorConfigBuilder
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial =
                 [
-                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "a-part", BasePrice = 23m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "oil", BasePrice = 10m, BaseCapacity = 100_000m },
-                    new MaterialMarketConfig { MaterialId = "b-widget", BasePrice = 40m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "a-part", BaseSellPrice = 23m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "oil", BaseSellPrice = 10m, BaseCapacity = 100_000m },
+                    new MaterialMarketConfig { MaterialId = "b-widget", BaseSellPrice = 40m, BaseCapacity = 100_000m },
                 ],
-                MarginMultiplierByProcessingLevel = [new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m }],
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
                 ElectricityConsumptionPerOutputUnit = 0m,
@@ -99,11 +91,9 @@ internal static class CrossSectorConfigBuilder
             {
                 BaseWorkerCount = 5,
                 DiminishingReturnsFactor = 0.5m,
-                HireCostPerWorker = 50m,
+                HireCostPerWorker = 50m, MaxHiresPerTurn = 1000,
                 FireCostPerWorker = 30m,
                 SalaryPerWorkerPerTurn = 5m,
-                TeamSalaryBaseWorkerCount = 1000,
-                SalaryEscalationFactor = 1.5m,
             },
             Rnd = new RndConfig
             {
@@ -141,13 +131,9 @@ internal static class CrossSectorConfigBuilder
                 VoluntaryTerminationFee = 100m,
                 MaxActiveContractsPerTeam = null,
             },
-            Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
-            Deposits = new DepositsConfig { InterestRatePerTurn = 0m },
             News = [],
             FeatureFlags = new FeatureFlagsConfig
             {
-                TaxesEnabled = false,
-                DepositsEnabled = false,
                 EmergencyPurchaseEnabled = true,
             },
         };

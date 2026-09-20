@@ -64,7 +64,6 @@ public static class BotSessionRunner
                         // вложений уже был объявлен, не остался на ход без декларации (Блок 7.3.2).
                         bot.UpdateInvestmentPace(session);
                         bot.MaintainFactories(session);
-                        bot.RepayDebt(session);
                     }
 
                     var sellOrders = bots.SelectMany(bot => bot.ComputeSellOrders(session)).ToList();

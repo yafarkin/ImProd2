@@ -5,15 +5,14 @@ namespace Game.Engine.Tests;
 /// </summary>
 public class GameSessionRunTickTests
 {
-    // Команда сама решает, сколько занять (SPEC §5.1) — здесь заём применяется прямо к объекту
-    // Team (не через TeamSpec/GameSession.TakeLoan), потому что тесты этого файла строят фабрики
-    // прямым team.BuildFactory(...) ещё в фазе расчёта, до какого-либо AdvancePhase.
+    // Стартовые деньги применяются прямо к объекту Team (не через GameSession), потому что тесты
+    // этого файла строят фабрики прямым team.BuildFactory(...) ещё в фазе расчёта, до какого-либо
+    // AdvancePhase.
     private static GameSession StartSessionWithOneFundedTeam(out Ulid teamId)
     {
         teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
             TestGameConfig.Resolved,
-            "test",
             endTurn: 999,
             new[]
             {
@@ -25,7 +24,7 @@ public class GameSessionRunTickTests
                 },
             });
 
-        session.State.Teams[teamId].TakeLoan(1000m);
+        session.State.Teams[teamId].Credit(1000m);
         return session;
     }
 
@@ -46,9 +45,8 @@ public class GameSessionRunTickTests
         Assert.Equal(0m, team.Warehouse.QuantityOf(TestGameConfig.Ore)); // вся добытая руда ушла в переработку
         Assert.Equal(2.5m, team.Warehouse.QuantityOf(TestGameConfig.Sheet)); // 5 руды / 2 = 2.5 листа
 
-        // Финансовый шаг уже отработал в этом же RunTick: проценты (1000 * 0.05 = 50) + зарплата
-        // (10 рабочих * 5 = 50) списаны с баланса, принудительный кредит не понадобился (900 >= 0).
-        Assert.Equal(900m, team.Balance);
+        // Финансовый шаг уже отработал в этом же RunTick: зарплата (10 рабочих * 5 = 50) списана с баланса.
+        Assert.Equal(950m, team.Balance);
         Assert.False(team.Balance < 0);
     }
 
@@ -88,7 +86,7 @@ public class GameSessionRunTickTests
     [Fact]
     public void RunTick_With_No_Teams_Still_Publishes_The_Market_Update()
     {
-        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, "test", endTurn: 999, Array.Empty<TeamSpec>());
+        var session = GameSession.StartWithEndTurn(TestGameConfig.Resolved, endTurn: 999, Array.Empty<TeamSpec>());
 
         var appended = session.RunTick(new Random(1));
 

@@ -77,29 +77,24 @@ public class MultiRecipeIdealHallTests
             },
             FactoryDefinitions = new[]
             {
-                new FactoryDefinitionConfig { Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
+                // BuildCost снижен со 100 до 1 (2026-08-22) — идеальный зал строит ОДНУ фабрику НА
+                // КАЖДЫЙ рецепт flex-mill (см. doc-comment класса), под фиксированной наценкой 1.05×
+                // вторая фабрика добавляет ещё один BuildCost, который тонкая маржа за 10 ходов не
+                // отбивает — тест тогда сравнивал бы не «второй рецепт добавляет ценность», а «вторая
+                // фабрика убыточна из-за капитальных затрат», это другой вопрос.
+                new FactoryDefinitionConfig { Id = "mine", Name = "Рудник", SectorId = "A", RecipeIds = new[] { "ore-mining" }, BuildCost = 1m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m },
                 new FactoryDefinitionConfig
                 {
                     Id = "flex-mill", Name = "Гибкий завод", SectorId = "A",
                     RecipeIds = flexRecipeIds,
-                    BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m,
+                    BuildCost = 1m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m,
                 },
             },
             StartingConditions = new StartingConditionsConfig
             {
-                MaxStartingLoanAmount = 100_000m,
-                BaseLoanInterestRate = 0.05m,
-                LoanInterestRateGrowthPerUnitBorrowed = 0m,
-                ForcedLoanPenaltyRatePerOccurrence = 0.1m,
-                MaxReputationRatePenalty = 0.1m,
-                MandatoryRepaymentRatePerTurn = 0m,
-                MaxTotalDebt = 1_000_000_000m,
-                MaxLoanInterestRate = 1_000_000_000m,
+                MaxInitialBuildBudget = 100_000m,
             },
-            SessionPresets = new[]
-            {
-                new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 10, MaxTurns = 10, TurnDurationMinutes = 1 },
-            },
+            Duration = new SessionDurationConfig { MinTurns = 10, MaxTurns = 10 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {
@@ -108,13 +103,9 @@ public class MultiRecipeIdealHallTests
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial = new[]
                 {
-                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 1_000_000m },
-                    new MaterialMarketConfig { MaterialId = "alloy-x", BasePrice = 50m, BaseCapacity = 1_000_000m },
-                    new MaterialMarketConfig { MaterialId = "alloy-y", BasePrice = 50m, BaseCapacity = 1_000_000m },
-                },
-                MarginMultiplierByProcessingLevel = new[]
-                {
-                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m },
+                    new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "alloy-x", BaseSellPrice = 50m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "alloy-y", BaseSellPrice = 50m, BaseCapacity = 1_000_000m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
@@ -126,15 +117,22 @@ public class MultiRecipeIdealHallTests
             {
                 BaseWorkerCount = 5,
                 DiminishingReturnsFactor = 0.5m,
-                HireCostPerWorker = 50m,
+                // 0, а не 50: с 2026-09-06 идеальный зал платит за наём, как реальная команда
+                // (docs/economy-accounting-audit.md, дефект 2), а тонкая маржа этого конфига
+                // (FixedCostPerTurn=0) единовременные 250-750 ¤ не перекрывает за 5-10 ходов — тест
+                // же не про наём, а про то, что излишек продаётся/что фабрика строится на каждый рецепт.
+                HireCostPerWorker = 0m, MaxHiresPerTurn = 1000,
                 FireCostPerWorker = 30m,
                 SalaryPerWorkerPerTurn = 5m,
-                TeamSalaryBaseWorkerCount = 1000,
-                SalaryEscalationFactor = 1.5m,
             },
             Rnd = new RndConfig
             {
-                ResearchPointThresholdsByLevel = new[] { 100m, 300m },
+                // Пусто -> фабрики стартуют сразу на максимальном уровне (RndCalculator.IsAtMaxLevel),
+                // обязательные 200/ход инвестиций в R&D никогда не списываются — с 2026-08-22
+                // (фиксированная наценка продажи системе 1.05×, себестоимость+5%) тонкая маржа этого
+                // синтетического конфига не покрывает такой расход, а тест не про R&D, а про то, что
+                // idealHall строит фабрику НА КАЖДЫЙ рецепт — R&D-бремя тут посторонний фактор.
+                ResearchPointThresholdsByLevel = Array.Empty<decimal>(),
                 DiminishingReturnsExponent = 1m,
                 ProductionRateBonusPerLevel = 0.1m,
                 MaxCommitmentPerTurn = 200m,
@@ -171,13 +169,9 @@ public class MultiRecipeIdealHallTests
                 VoluntaryTerminationFee = 100m,
                 MaxActiveContractsPerTeam = null,
             },
-            Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
-            Deposits = new DepositsConfig { InterestRatePerTurn = 0m },
             News = Array.Empty<NewsItemConfig>(),
             FeatureFlags = new FeatureFlagsConfig
             {
-                TaxesEnabled = false,
-                DepositsEnabled = false,
                 EmergencyPurchaseEnabled = true,
             },
         };

@@ -7,8 +7,7 @@ namespace Game.Engine;
 /// Разрешение заявок на продажу материала системе, объявленных за прошедшую фазу решений (SPEC §4,
 /// §5.4): по каждому заявленному материалу урезает объём до реального остатка на складе на этот
 /// момент расчёта (заявка могла быть подана по остатку, который с тех пор не изменился, но проверка
-/// всё равно на расчёте, не при заявке — тот же приём, что и у <see cref="VoluntaryLoanStep"/>),
-/// считает разбивку по <see cref="MarketSaleCalculator"/> и порождает <see
+/// всё равно на расчёте, не при заявке), считает разбивку по <see cref="MarketSaleCalculator"/> и порождает <see
 /// cref="MaterialSoldToSystem"/>. Вызывается <see cref="GameSession.RunTick"/> для каждой команды по
 /// очереди, по возрастанию <see cref="Team.Id"/> (как и остальные шаги тика) — именно порядок команд
 /// здесь и решает гонку за общую ёмкость рынка (SPEC §4): раньше в очереди команда получает ёмкость
@@ -20,13 +19,22 @@ namespace Game.Engine;
 /// </summary>
 public static class SystemSaleStep
 {
+    /// <param name="entries">
+    /// Журнал сессии — нужен для давления предложения (<see cref="MarketSupplyPressureCalculator"/>)
+    /// при <see cref="PricingModel.External"/>. Передаётся тем же способом, что и в
+    /// <see cref="EmergencyPurchaseStep"/>: цена зависит от истории, а не только от состояния.
+    /// </param>
     public static IReadOnlyList<Change<GameSessionState>> Run(
-        Team team, Market market, EconomyConfig economy, IReadOnlyDictionary<string, Material> materials)
+        Team team, Market market, IReadOnlyDictionary<string, decimal> materialCosts, EconomyConfig economy,
+        IReadOnlyDictionary<string, Material> materials, int currentTurn,
+        IReadOnlyList<EventLogEntry<GameSessionState>> entries)
     {
         ArgumentNullException.ThrowIfNull(team);
         ArgumentNullException.ThrowIfNull(market);
+        ArgumentNullException.ThrowIfNull(materialCosts);
         ArgumentNullException.ThrowIfNull(economy);
         ArgumentNullException.ThrowIfNull(materials);
+        ArgumentNullException.ThrowIfNull(entries);
 
         var changes = new List<Change<GameSessionState>>();
 
@@ -50,11 +58,19 @@ public static class SystemSaleStep
                     OverflowVolume = 0m,
                     UnitPrice = 0m,
                     TotalRevenue = 0m,
+                    Turn = currentTurn,
                 });
                 continue;
             }
 
-            var sale = MarketSaleCalculator.Calculate(market, economy, material, volume);
+            // Давление берётся заново на каждую продажу — включая уже применённые продажи этого же
+            // хода. Именно так порядок команд (по возрастанию Team.Id) превращается в непрерывное,
+            // мелкое преимущество ранних вместо прежней лотереи «кому досталась последняя единица
+            // ёмкости по полной цене».
+            var supplyPressure = economy.PricingModel == PricingModel.External
+                ? MarketSupplyPressureCalculator.CalculateRecentVolume(entries, materialId, currentTurn, economy)
+                : 0m;
+            var sale = MarketSaleCalculator.Calculate(market, materialCosts, economy, material, volume, supplyPressure);
 
             changes.Add(new MaterialSoldToSystem
             {
@@ -66,6 +82,7 @@ public static class SystemSaleStep
                 OverflowVolume = sale.OverflowVolume,
                 UnitPrice = sale.UnitPrice,
                 TotalRevenue = sale.TotalRevenue,
+                Turn = currentTurn,
             });
         }
 

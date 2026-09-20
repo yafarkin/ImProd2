@@ -17,14 +17,13 @@ public class GameSessionFactoryUpkeepTests
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
             config,
-            "test",
             endTurn: 999,
             new[]
             {
                 new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id },
             });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
-        session.TakeLoan(teamId, 1000m);
+        session.State.Teams[teamId].Credit(1000m);
         var factory = session.State.Teams[teamId].BuildFactory(
             Ulid.NewUlid(), config.FactoryDefinitions.Single(f => f.Id == "iron-mine"));
         factory.Hire(1);

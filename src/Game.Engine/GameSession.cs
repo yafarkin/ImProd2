@@ -34,25 +34,26 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Начинает новую сессию: разыгрывает ход окончания в диапазоне пресета и пишет об этом и о
-    /// составе команд первую запись в журнал. Сессия сразу открывается в фазе расчёта первого хода.
+    /// Начинает новую сессию: разыгрывает ход окончания в диапазоне
+    /// <see cref="Game.Config.GameConfig.Duration"/> и пишет об этом и о составе команд первую запись
+    /// в журнал. Сессия сразу открывается в фазе расчёта первого хода.
     /// </summary>
     public static GameSession Start(
         ResolvedGameConfig config,
-        SessionPresetConfig preset,
         IReadOnlyList<TeamSpec> teams,
         Random endTurnRandom,
         JsonSerializerOptions? serializerOptions = null,
         Func<DateTimeOffset>? clock = null)
     {
-        var endTurn = SessionEndTurnDraw.Draw(preset, endTurnRandom);
-        return StartWithEndTurn(config, preset.Id, endTurn, teams, serializerOptions, clock);
+        ArgumentNullException.ThrowIfNull(config);
+
+        var endTurn = SessionEndTurnDraw.Draw(config.Raw.Duration, endTurnRandom);
+        return StartWithEndTurn(config, endTurn, teams, serializerOptions, clock);
     }
 
     /// <summary>Начинает сессию с уже известным ходом окончания (например, для тестов), заводя собственный in-memory журнал.</summary>
     public static GameSession StartWithEndTurn(
         ResolvedGameConfig config,
-        string presetId,
         int endTurn,
         IReadOnlyList<TeamSpec> teams,
         JsonSerializerOptions? serializerOptions = null,
@@ -61,7 +62,7 @@ public sealed class GameSession
         ArgumentNullException.ThrowIfNull(config);
 
         var log = new EventLog<GameSessionState>(new GameSessionState(config), serializerOptions, clock);
-        return StartWithEndTurn(log, presetId, endTurn, teams);
+        return StartWithEndTurn(log, endTurn, teams);
     }
 
     /// <summary>
@@ -71,7 +72,7 @@ public sealed class GameSession
     /// собственного <see cref="EventLog{TState}"/>.
     /// </summary>
     public static GameSession StartWithEndTurn(
-        IEventLog<GameSessionState> log, string presetId, int endTurn, IReadOnlyList<TeamSpec> teams)
+        IEventLog<GameSessionState> log, int endTurn, IReadOnlyList<TeamSpec> teams)
     {
         ArgumentNullException.ThrowIfNull(log);
         ArgumentNullException.ThrowIfNull(teams);
@@ -80,7 +81,6 @@ public sealed class GameSession
         log.Append(new SessionStarted
         {
             Id = Ulid.NewUlid(),
-            PresetId = presetId,
             EndTurn = endTurn,
             ConfigHash = config.ContentHash,
             Teams = teams,
@@ -173,6 +173,12 @@ public sealed class GameSession
     /// Сводит две независимо поданные заявки в контракт (SPEC §6). При совпадении — записывает
     /// подписанный контракт (статус «ждёт подтверждения») в журнал; при конфликте ничего не пишет и
     /// возвращает список того, что разошлось. Заключать сделки можно только в фазе решений.
+    /// <para>
+    /// Обе половины разом подаёт только автоматика — <c>Game.Bots.OrderBook</c> и
+    /// <c>Game.Bots.Llm.BotCommandExecutor</c>: боты не ведут переговоров и по залу не ходят, для
+    /// них «встреча сторон» смысла не имеет. Живой путь людей — <see cref="SubmitContractProposal"/>,
+    /// по одной заявке от команды; см. <c>docs/TODO.md</c> №16.
+    /// </para>
     /// </summary>
     public ContractFormationResult SubmitContractProposals(
         ContractProposal proposalA, ContractProposal proposalB, Random confirmationCodeRandom)
@@ -186,6 +192,180 @@ public sealed class GameSession
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Подаёт половину условий сделки от имени одной команды (SPEC §6: «обе команды вводят условия
+    /// независимо») — живой путь заключения сделки людьми, в отличие от парного <see
+    /// cref="SubmitContractProposals"/>, которым пользуются боты. Если у контрагента уже лежит
+    /// открытая встречная заявка и условия сошлись — контракт заключается сразу, обе заявки
+    /// помечаются сведёнными; если встречной нет или условия разошлись — заявка сохраняется и ждёт,
+    /// а вызывающему возвращается разбор расхождения по полям (но не чужие числа — см. <see
+    /// cref="ContractMismatchReason"/>). Отправлять может только управляющий: переговорщик готовит
+    /// черновик, но не подаёт его (SPEC §3). Только в фазе решений.
+    /// </summary>
+    public ContractProposalSubmissionResult SubmitContractProposal(
+        ContractProposal proposal, TeamRole submittingRole, Random confirmationCodeRandom)
+    {
+        EnsureDecisionsAllowed();
+        ArgumentNullException.ThrowIfNull(proposal);
+
+        if (submittingRole != TeamRole.Manager)
+        {
+            throw new InvalidOperationException("Only a team manager can submit a contract proposal.");
+        }
+
+        EnsureContractLoadAllows(proposal.SubmittedByTeamId);
+
+        var counterpartyId = proposal.SubmittedByTeamId == proposal.BuyerTeamId
+            ? proposal.SellerTeamId
+            : proposal.BuyerTeamId;
+
+        // Кандидаты — только открытые заявки контрагента по этой же паре сторон. Своих заявок здесь
+        // быть не может: заявка команды с самой собой не создаётся (ContractProposal), а две заявки
+        // одной команды ContractFormation всё равно не сведёт.
+        var candidates = State.ContractProposals.Values
+            .Where(p => p.Status == ContractProposalStatus.Open
+                && p.SubmittedByTeamId == counterpartyId
+                && p.Proposal.BuyerTeamId == proposal.BuyerTeamId
+                && p.Proposal.SellerTeamId == proposal.SellerTeamId)
+            .OrderBy(p => p.Id.ToString(), StringComparer.Ordinal)
+            .ToList();
+
+        ContractFormationResult? closestConflict = null;
+        foreach (var candidate in candidates)
+        {
+            // Инициатором контракта остаётся тот, кто подал заявку первым: финальное подтверждение
+            // даёт вторая сторона (Contract.Confirm), а первой здесь всегда является candidate.
+            var attempt = ContractFormation.TryMatch(candidate.Proposal, proposal, Ulid.NewUlid(), confirmationCodeRandom);
+            if (attempt.IsMatched)
+            {
+                var proposalId = Ulid.NewUlid();
+                _log.Append(ToSubmittedEvent(proposalId, proposal));
+                _log.Append(new ContractSigned
+                {
+                    Id = Ulid.NewUlid(),
+                    Contract = ContractSpec.From(attempt.Contract!),
+                    MatchedProposalIds = new[] { candidate.Id, proposalId },
+                });
+
+                return ContractProposalSubmissionResult.Matched(proposalId, attempt.Contract!);
+            }
+
+            closestConflict ??= attempt;
+            if (attempt.Mismatches.Count < closestConflict.Mismatches.Count)
+            {
+                closestConflict = attempt;
+            }
+        }
+
+        var storedId = Ulid.NewUlid();
+        _log.Append(ToSubmittedEvent(storedId, proposal));
+
+        return ContractProposalSubmissionResult.Pending(
+            storedId, closestConflict?.Mismatches ?? Array.Empty<ContractMismatchReason>());
+    }
+
+    /// <summary>
+    /// Автор отзывает свою ещё не сведённую заявку (SPEC §6). Только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> WithdrawContractProposal(Ulid proposalId, Ulid withdrawingTeamId)
+    {
+        EnsureDecisionsAllowed();
+
+        var proposal = GetOpenContractProposal(proposalId);
+        if (proposal.SubmittedByTeamId != withdrawingTeamId)
+        {
+            throw new ArgumentException(
+                "Only the team that submitted a proposal can withdraw it.", nameof(withdrawingTeamId));
+        }
+
+        return _log.Append(new ContractProposalWithdrawn { Id = Ulid.NewUlid(), ProposalId = proposalId });
+    }
+
+    /// <summary>
+    /// Контрагент отказывается вести сделку по поданной ему заявке (SPEC §6) — своя кнопка «отклонить»
+    /// у получателя, а не только у оператора (<see cref="RejectContract"/>). Только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> RejectContractProposal(Ulid proposalId, Ulid rejectingTeamId)
+    {
+        EnsureDecisionsAllowed();
+
+        var proposal = GetOpenContractProposal(proposalId);
+        if (proposal.CounterpartyTeamId != rejectingTeamId)
+        {
+            throw new ArgumentException(
+                "Only the counterparty of a proposal can reject it.", nameof(rejectingTeamId));
+        }
+
+        return _log.Append(new ContractProposalRejected
+        {
+            Id = Ulid.NewUlid(),
+            ProposalId = proposalId,
+            RejectedByTeamId = rejectingTeamId,
+        });
+    }
+
+    private PendingContractProposal GetOpenContractProposal(Ulid proposalId)
+    {
+        if (!State.ContractProposals.TryGetValue(proposalId, out var proposal))
+        {
+            throw new ArgumentException($"Contract proposal '{proposalId}' is not known to this session.", nameof(proposalId));
+        }
+        if (proposal.Status != ContractProposalStatus.Open)
+        {
+            throw new InvalidOperationException($"Cannot act on a contract proposal in status '{proposal.Status}'.");
+        }
+
+        return proposal;
+    }
+
+    /// <summary>
+    /// Лимит сделок на команду (<see cref="Game.Config.Contracts.ContractsConfig.MaxActiveContractsPerTeam"/>,
+    /// открытый вопрос SPEC §16, закрыт вместе с <c>docs/TODO.md</c> №16). Считаются вместе
+    /// действующие контракты и собственные открытые заявки: без учёта заявок лимит обходится
+    /// «настрогать офферов и подтверждать по мере надобности», ради чего он и вводится.
+    /// </summary>
+    private void EnsureContractLoadAllows(Ulid teamId)
+    {
+        if (State.Config.Raw.Contracts.MaxActiveContractsPerTeam is not { } limit)
+        {
+            return;
+        }
+
+        var active = State.Contracts.Values.Count(c =>
+            c.Status is ContractStatus.Active or ContractStatus.PendingConfirmation
+            && (c.BuyerTeamId == teamId || c.SellerTeamId == teamId));
+        var pending = State.ContractProposals.Values.Count(p =>
+            p.Status == ContractProposalStatus.Open && p.SubmittedByTeamId == teamId);
+
+        if (active + pending >= limit)
+        {
+            throw new InvalidOperationException(
+                $"Team has reached the limit of {limit} active contracts and open proposals.");
+        }
+    }
+
+    private static ContractProposalSubmitted ToSubmittedEvent(Ulid proposalId, ContractProposal proposal)
+    {
+        var terms = proposal.Terms;
+
+        return new ContractProposalSubmitted
+        {
+            Id = Ulid.NewUlid(),
+            ProposalId = proposalId,
+            BuyerTeamId = proposal.BuyerTeamId,
+            SellerTeamId = proposal.SellerTeamId,
+            SubmittedByTeamId = proposal.SubmittedByTeamId,
+            Type = terms.Type,
+            MaterialId = terms.Material.Id,
+            Volume = terms.Volume,
+            UnitPrice = terms.UnitPrice,
+            PenaltyRate = terms.PenaltyRate,
+            EffectiveTurn = terms.EffectiveTurn,
+            SpotDeliveryTurn = terms.SpotDeliveryTurn,
+            RecurringEndTurn = terms.RecurringEndTurn,
+        };
     }
 
     /// <summary>
@@ -519,12 +699,12 @@ public sealed class GameSession
 
     /// <summary>
     /// Объявляет желаемый объём аварийной закупки материала на ближайший расчёт (SPEC §4, §5.3:
-    /// решения не применяются сразу — только на расчёте; цена — текущая рыночная котировка ×
-    /// множитель, служит потолком монопольных цен). Само объявление бесплатно и мгновенно, тем же
-    /// приёмом, что и <see cref="TakeLoan"/>: реальная покупка (склад, деньги) происходит один раз,
-    /// на расчёте (<see cref="EmergencyPurchaseStep"/>), считая цену уже по фактической истории на тот
-    /// момент. Последнее объявление по этому материалу в пределах хода замещает предыдущее; 0 снимает
-    /// заявку. Требует включённого флага и фазы решений.
+    /// решения не применяются сразу — только на расчёте; цена — себестоимость материала (<see
+    /// cref="MaterialCostCalculator"/>) × множитель, намеренно большой, аварийный вариант). Само
+    /// объявление бесплатно и мгновенно, тем же приёмом, что и <see cref="SetWorkerCount"/>: реальная
+    /// покупка (склад, деньги) происходит один раз, на расчёте (<see cref="EmergencyPurchaseStep"/>),
+    /// считая цену уже по фактической истории на тот момент. Последнее объявление по этому материалу
+    /// в пределах хода замещает предыдущее; 0 снимает заявку. Требует включённого флага и фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> EmergencyPurchase(Ulid teamId, string materialId, decimal volume)
     {
@@ -546,8 +726,9 @@ public sealed class GameSession
         {
             throw new ArgumentException($"Unknown material '{materialId}'.", nameof(materialId));
         }
-        // Санити-проверка сейчас (материал вообще когда-либо котировался) — сама цена всё равно
-        // считается заново на расчёте, по котировке на тот момент, см. EmergencyPurchaseStep.
+        // Санити-проверка сейчас (материал вообще существует в конфиге и уже котировался хоть
+        // когда-то) — сама цена считается по себестоимости на расчёте, не по котировке, см.
+        // EmergencyPurchaseStep/MaterialCostCalculator.
         GetQuoteOrThrow(materialId);
 
         return _log.Append(new EmergencyPurchaseRequested
@@ -596,55 +777,6 @@ public sealed class GameSession
             MaterialId = materialId,
             Volume = volume,
         });
-    }
-
-    /// <summary>
-    /// Объявляет желаемую сумму займа на ближайший расчёт (SPEC §4, §5.9: решения не применяются
-    /// сразу — только на расчёте; ставка — кривая из <see cref="FinanceCalculator"/>) — единственный
-    /// способ получить деньги, первый он для команды или очередной: никакого отдельного
-    /// «стартового» кредита с иными правилами больше нет (команда сама решает, сколько и когда
-    /// занять — это её первое финансовое решение в игре, а не предустановка администратора). Само
-    /// объявление бесплатно и мгновенно, тем же приёмом, что и <see cref="SetWorkerCount"/>: реальное
-    /// зачисление денег и рост долга происходят один раз, на расчёте (<see
-    /// cref="VoluntaryLoanStep"/>, самым последним шагом тика перед принудительным займом). Последнее
-    /// объявление в пределах хода замещает предыдущее — сколько раз команда ни передумала бы,
-    /// действует только оно; 0 снимает заявку. Ничем не ограничена по сумме — риск команды
-    /// самонаказывающийся через растущую ставку, а не через жёсткий потолок. Требует фазы решений.
-    /// </summary>
-    public EventLogEntry<GameSessionState> TakeLoan(Ulid teamId, decimal amount)
-    {
-        EnsureDecisionsAllowed();
-
-        if (amount < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Loan amount must not be negative.");
-        }
-        GetTeam(teamId);
-
-        return _log.Append(new LoanTakeRequested { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
-    }
-
-    /// <summary>
-    /// Объявляет желаемую сумму добровольного погашения долга на ближайший расчёт, сверх
-    /// обязательного платежа, который и без того списывается каждый ход (<see
-    /// cref="MandatoryLoanRepaymentCharged"/>) — симметрично <see cref="TakeLoan"/>, тем же приёмом
-    /// «объявление сейчас, применение на расчёте» (SPEC §4). Реальное списание и урезание до
-    /// фактического остатка долга происходят на расчёте (<see cref="VoluntaryLoanStep"/>) — долг на
-    /// тот момент может уже отличаться от того, что видно сейчас (проценты, обязательный платёж),
-    /// поэтому здесь, в отличие от прежней немедленной версии, потолок не проверяется вовсе. Последнее
-    /// объявление в пределах хода замещает предыдущее; 0 снимает заявку. Требует фазы решений.
-    /// </summary>
-    public EventLogEntry<GameSessionState> RepayLoan(Ulid teamId, decimal amount)
-    {
-        EnsureDecisionsAllowed();
-
-        if (amount < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(amount), amount, "Repayment amount must not be negative.");
-        }
-        GetTeam(teamId);
-
-        return _log.Append(new LoanRepaymentRequested { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
     }
 
     /// <summary>
@@ -709,10 +841,13 @@ public sealed class GameSession
 
     /// <summary>
     /// Продаёт (ликвидирует) построенную фабрику команды — мгновенно и необратимо, симметрично <see
-    /// cref="BuildFactory"/> (SPEC §5.6/§5.11, запрос пользователя). Выручка —
-    /// <c>BuildCost * LiquidationValueCoefficient</c> той же конфигурации фабрики, что и итоговый
-    /// счёт в конце игры (<see cref="FinalScoreCalculator"/>) — команда видит эту цену заранее, до
-    /// продажи (UI берёт то же значение). Требует фазы решений.
+    /// cref="BuildFactory"/> (SPEC §5.6/§5.11, запрос пользователя). Выручка — <c>LiquidationValueCoefficient</c>
+    /// той же конфигурации фабрики, но не от полной <c>BuildCost</c>, а от остаточной стоимости с
+    /// учётом реального состояния (<see cref="FactoryResidualValueCalculator"/>, та же формула, что и
+    /// итоговый счёт в конце игры, <see cref="FinalScoreCalculator"/>, доработано 2026-08-23 —
+    /// запрос пользователя: раньше убитая ремонтом фабрика продавалась по той же цене, что и
+    /// свежепостроенная) — команда видит эту цену заранее, до продажи (UI берёт то же значение).
+    /// Требует фазы решений.
     /// </summary>
     public EventLogEntry<GameSessionState> SellFactory(Ulid teamId, Ulid factoryId)
     {
@@ -721,7 +856,8 @@ public sealed class GameSession
         var team = GetTeam(teamId);
         var factory = GetFactory(team, factoryId);
         var definition = State.Config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id);
-        var amount = definition.BuildCost * definition.LiquidationValueCoefficient;
+        var residualValue = FactoryResidualValueCalculator.Calculate(definition, factory.Condition);
+        var amount = residualValue * definition.LiquidationValueCoefficient;
 
         return _log.Append(new FactorySold
         {
@@ -813,8 +949,8 @@ public sealed class GameSession
     /// пользователя: «постоянные затраты», не разовое вложение — см. <see cref="TickFinanceStep"/>).
     /// Требует фазы решений. Бросает <see cref="ArgumentOutOfRangeException"/> на отрицательную сумму
     /// или сумму сверх потолка <see cref="Config.Economy.RndConfig.MaxCommitmentPerTurn"/> (запрос
-    /// пользователя: чтобы даже с любым кредитом нельзя было мгновенно прокачать фабрику на несколько
-    /// уровней за один ход).
+    /// пользователя: чтобы нельзя было мгновенно прокачать фабрику на несколько уровней за один ход,
+    /// даже при сколь угодно большом — в том числе отрицательном — балансе).
     /// </summary>
     public EventLogEntry<GameSessionState> SetRndCommitment(Ulid teamId, Ulid factoryId, decimal amountPerTurn)
     {
@@ -912,10 +1048,12 @@ public sealed class GameSession
 
     /// <summary>
     /// Ручное событие ведущего (SPEC §9.5): публикует конкретный заголовок из библиотеки, минуя
-    /// автоматический подбор по тренду (Блок 6.3) — тем же событием <see cref="NewsPublished"/> и с
-    /// тем же ограничением на повтор, так что использованный вручную заголовок больше никогда не
-    /// прозвучит, включая автоматический подбор следующих ходов. Не привязано к фазе решений — это
-    /// действие ведущего, а не команды.
+    /// автоматический подбор по тренду (Блок 6.3) — тем же событием <see cref="NewsPublished"/> и в
+    /// тот же общий пул, так что автоматический подбор будет считать этот заголовок уже прозвучавшим
+    /// и вернётся к нему в последнюю очередь. Повторная ручная публикация не запрещена: с блока 11.9
+    /// пул при исчерпании переиспользуется (<see cref="NewsCalculator.SelectNext"/>), и запрет
+    /// оставлял бы ведущего без половины библиотеки к концу партии. Не привязано к фазе решений —
+    /// это действие ведущего, а не команды.
     /// </summary>
     public EventLogEntry<GameSessionState> PublishManualNews(string newsItemId)
     {
@@ -923,10 +1061,6 @@ public sealed class GameSession
         if (item is null)
         {
             throw new ArgumentException($"Unknown news item '{newsItemId}'.", nameof(newsItemId));
-        }
-        if (State.NewsFeed.IsPublished(newsItemId))
-        {
-            throw new InvalidOperationException($"News item '{newsItemId}' has already been published this session.");
         }
 
         return _log.Append(new NewsPublished
@@ -941,10 +1075,9 @@ public sealed class GameSession
 
     /// <summary>
     /// Ведущий выдаёт безвозмездный грант отстающей команде (Блок 9.6, SPEC §9.5). Не привязано к
-    /// фазе решений — это действие ведущего, а не команды. <paramref name="repayDebtFirst"/> — см.
-    /// <see cref="GrantIssued.RepayDebtFirst"/>.
+    /// фазе решений — это действие ведущего, а не команды.
     /// </summary>
-    public EventLogEntry<GameSessionState> GrantToTeam(Ulid teamId, decimal amount, bool repayDebtFirst = false)
+    public EventLogEntry<GameSessionState> GrantToTeam(Ulid teamId, decimal amount)
     {
         if (amount <= 0)
         {
@@ -952,7 +1085,7 @@ public sealed class GameSession
         }
         GetTeam(teamId);
 
-        return _log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount, RepayDebtFirst = repayDebtFirst });
+        return _log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = teamId, Amount = amount });
     }
 
     /// <summary>
@@ -1124,19 +1257,12 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Прогоняет расчёт одного тика в фиксированном порядке (SPEC §4): для всех команд финансы (по
-    /// репутации, накопленной за все предыдущие ходы, — Блок 6.2) → производство снизу вверх по
-    /// уровню материала, затем исполнение контрактов, затем для всех команд принудительный заём, если
-    /// баланс всё ещё отрицательный (<see cref="ForcedLoanStep"/>), затем обновление рынка (Блок 6.1),
-    /// затем новости по тренду (Блок 6.3) — оба публикуются даже без единой команды в сессии, они не
-    /// зависят от них. Принудительный заём намеренно в самом конце, а не внутри финансового шага
-    /// (баг-репорт пользователя: раньше решение принималось до переменных затрат на работу фабрики и
-    /// исполнения контрактов — команда могла закрыть дыру займом и тут же снова уйти в минус от того,
-    /// что на тот момент ещё не было посчитано, и это не покрывалось до следующего хода). События
-    /// дописываются в журнал сразу по мере расчёта — не собираются заранее единым списком, — чтобы
-    /// фабрика более высокого уровня видела в складе выход нижней в этом же тике, а последующая
-    /// поставка — склад после предыдущей, и (для финансов) чтобы собственные срывы/расторжения этого
-    /// же хода не успевали ударить по ставке, начисленной в его начале.
+    /// Прогоняет расчёт одного тика в фиксированном порядке (SPEC §4): для всех команд финансы →
+    /// производство снизу вверх по уровню материала, затем исполнение контрактов, затем обновление
+    /// рынка (Блок 6.1), затем новости по тренду (Блок 6.3) — оба публикуются даже без единой команды
+    /// в сессии, они не зависят от них. События дописываются в журнал сразу по мере расчёта — не
+    /// собираются заранее единым списком, — чтобы фабрика более высокого уровня видела в складе выход
+    /// нижней в этом же тике, а последующая поставка — склад после предыдущей.
     /// <paramref name="newsRandom"/> — случайность подбора заголовка (AGENTS §2, правило 6:
     /// никакой случайности без явного, при необходимости засеянного, экземпляра); если пул
     /// заголовков текущего тренда в этой сессии исчерпан, новости в этот ход не будет. Вызывается
@@ -1153,13 +1279,15 @@ public sealed class GameSession
 
         var appended = new List<EventLogEntry<GameSessionState>>();
         var config = State.Config;
+        // Себестоимость каждого материала (не рыночная котировка — см. doc-comment MaterialCostCalculator)
+        // — общий якорь цены для аварийной закупки и продажи системе этого хода, один расчёт на всех.
+        var materialCosts = MaterialCostCalculator.CalculateAll(config);
 
         foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
         {
-            var reputation = GetReputation(team.Id);
             foreach (var change in TickFinanceStep.Run(
-                team, config.Raw.StartingConditions, config.Raw.WorkerProductivity, config.Raw.Warehouse,
-                config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch, reputation.Percentage,
+                team, config.Raw.WorkerProductivity, config.Raw.Warehouse,
+                config.Raw.FactoryDefinitions, config.Raw.Rnd, config.Raw.GenerationResearch,
                 config.Raw.Wear, State.CurrentTurn))
             {
                 appended.Add(_log.Append(change));
@@ -1170,24 +1298,46 @@ public sealed class GameSession
             // производства, а продать можно было только то, что было на складе до него, не свежий
             // выпуск). Порядок команд между собой (внешний foreach, по возрастанию Team.Id) здесь и
             // решает гонку за общую ёмкость рынка между продажами разных команд.
-            foreach (var change in EmergencyPurchaseStep.Run(team, State.Market, config.Raw.Economy, Entries, State.CurrentTurn))
+            foreach (var change in EmergencyPurchaseStep.Run(team, materialCosts, config.Raw.Economy, Entries, State.CurrentTurn, State.Market))
             {
                 appended.Add(_log.Append(change));
             }
 
-            foreach (var change in SystemSaleStep.Run(team, State.Market, config.Raw.Economy, config.Materials))
+            foreach (var change in SystemSaleStep.Run(team, State.Market, materialCosts, config.Raw.Economy, config.Materials, State.CurrentTurn, Entries))
             {
                 appended.Add(_log.Append(change));
             }
+        }
 
-            // Уровни — строго по возрастанию, чтобы более высокий уровень видел в складе выход
-            // более низкого за этот же тик (см. doc-comment выше). Внутри одного уровня фабрики
-            // считаются одной группой (ProductionCalculator.CalculateGroup), а не по одной: если
-            // несколько из них претендуют на один и тот же дефицитный материал, делят его по своей
-            // AllocationShare, а не по тому, кого код обошёл первым.
-            foreach (var levelGroup in team.Factories.GroupBy(f => f.SelectedRecipe.Output.Level).OrderBy(g => g.Key))
+        // Производство и доставка межкомандных контрактов идут по уровням цепочки СРАЗУ ПОСЛЕ
+        // производства каждого уровня, а не по командам целиком с одной глобальной доставкой в конце
+        // (rebalance/2-sector-stepwise, 2026-08-23, запрос пользователя) — раньше контракт,
+        // подписанный на прошлом ходу под поставку этим ходом, доставлялся ПОСЛЕ того, как
+        // производство всех уровней всех команд этого хода уже отработало по старым остаткам, и
+        // реально был доступен только следующему ходу — двухходовой лаг вместо одноходового, из-за
+        // которого фабрики, зависящие от чужого сектора, хронически недобирали сырьё (найдено:
+        // выпуск material2/material3 в 2-секторном кросс-сценарии держался на ~половине от
+        // изолированного сектора, при том что SimpleBot.BuyBufferCycles=1 целится ровно в один ход).
+        // Теперь: все команды считают уровень L → доставляются контракты именно на материалы уровня L
+        // → все команды считают уровень L+1 (и так видят уже доставленное). Порядок команд внутри
+        // уровня — по Team.Id, тот же, что раньше был внешним циклом.
+        var levels = config.Materials.Values.Select(material => material.Level).Distinct().OrderBy(level => level).ToList();
+        foreach (var level in levels)
+        {
+            foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
             {
-                var factoriesAtLevel = levelGroup.OrderBy(f => f.Id).ToList();
+                // Внутри одного уровня фабрики считаются одной группой (ProductionCalculator.CalculateGroup),
+                // а не по одной: если несколько из них претендуют на один и тот же дефицитный материал,
+                // делят его по своей AllocationShare, а не по тому, кого код обошёл первым.
+                var factoriesAtLevel = team.Factories
+                    .Where(factory => factory.SelectedRecipe.Output.Level == level)
+                    .OrderBy(factory => factory.Id)
+                    .ToList();
+                if (factoriesAtLevel.Count == 0)
+                {
+                    continue;
+                }
+
                 var results = ProductionCalculator.CalculateGroup(
                     factoriesAtLevel, team.Warehouse, config.Raw.WorkerProductivity, config.Raw.Rnd);
 
@@ -1198,9 +1348,17 @@ public sealed class GameSession
                     // выпуска, а не с числом рабочих или потреблённым сырьём (запрос пользователя),
                     // и известна только здесь, после расчёта производства (см. doc-comment
                     // TickFinanceStep — фиксированная часть, FactoryUpkeepPaid, списана раньше).
+                    // Цена — БАЗОВАЯ из конфига, не дрейфующая State.Market.ElectricityPrice
+                    // (docs/economy-accounting-audit.md, дефект 1, шаг 1): цену продажи при cost-plus
+                    // считает MaterialCostCalculator по Economy.ElectricityBasePrice, и если списывать
+                    // здесь по живой цене тренда, каждая единица продаётся дешевле, чем обошлась
+                    // (в сессиях проекта дрейф застревает на +2.5 к базе 2.0 — биллинг был в 2.25 раза
+                    // выше цены). Тренд остаётся рычагом рыночных котировок; вернуть его сюда можно
+                    // будет только вместе с настоящей рыночной моделью (docs/TODO.md №27), которая
+                    // пересчитывает и цену продажи.
                     var overheadCost = result.OutputQuantity
                                         * config.Raw.Economy.ElectricityConsumptionPerOutputUnit
-                                        * State.Market.ElectricityPrice;
+                                        * config.Raw.Economy.ElectricityBasePrice;
                     appended.Add(_log.Append(new FactoryProduced
                     {
                         Id = Ulid.NewUlid(),
@@ -1214,28 +1372,8 @@ public sealed class GameSession
                     }));
                 }
             }
-        }
 
-        ExecuteContracts(appended);
-
-        // Добровольные решения по кредиту (SPEC §4, §5.9) — после производства и контрактов, перед
-        // принудительным займом (см. doc-comment VoluntaryLoanStep): последний шанс команды закрыть
-        // дыру в балансе по хорошей ставке до того, как это сделает система по штрафной.
-        // Принудительный заём — самый последний шаг тика (см. doc-comment выше) — только теперь
-        // известны все возможные причины отрицательного баланса: финансы, переменные затраты на
-        // производство, исполнение контрактов и сами добровольные решения по кредиту.
-        foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
-        {
-            foreach (var change in VoluntaryLoanStep.Run(team))
-            {
-                appended.Add(_log.Append(change));
-            }
-
-            var forcedLoan = ForcedLoanStep.Run(team, config.Raw.StartingConditions);
-            if (forcedLoan is not null)
-            {
-                appended.Add(_log.Append(forcedLoan));
-            }
+            ExecuteContracts(appended, level);
         }
 
         var marketUpdate = MarketCalculator.Calculate(State.CurrentTurn, config.Raw.Economy);
@@ -1244,10 +1382,15 @@ public sealed class GameSession
             Id = Ulid.NewUlid(),
             Quotes = marketUpdate.Quotes,
             ElectricityPrice = marketUpdate.ElectricityPrice,
+            Turn = State.CurrentTurn,
+            EconomyIndex = EconomyIndexCalculator.Calculate(State.CurrentTurn, config.Raw.Economy),
         }));
 
-        var currentTrend = NewsCalculator.CurrentTrend(State.CurrentTurn, config.Raw.Economy.TrendScenario);
-        var nextNews = NewsCalculator.SelectNext(config.Raw.News, State.NewsFeed, currentTrend, newsRandom);
+        // Лента предупреждает заранее: заголовок этого хода описывает тренд, который наступит через
+        // NewsLookaheadTurns ходов (блок 11.9, docs/external-economy.md §5).
+        var forecastTrend = NewsCalculator.ForecastTrend(
+            State.CurrentTurn, config.Raw.NewsLookaheadTurns, config.Raw.Economy.TrendScenario);
+        var nextNews = NewsCalculator.SelectNext(config.Raw.News, State.NewsFeed, forecastTrend, newsRandom);
         if (nextNews is not null)
         {
             appended.Add(_log.Append(new NewsPublished
@@ -1264,17 +1407,19 @@ public sealed class GameSession
     }
 
     /// <summary>
-    /// Исполнение контрактов, у которых на текущем ходу положена поставка (SPEC §6). Контракты
-    /// перебираются в детерминированном порядке (по идентификатору, не по порядку словаря — AGENTS
-    /// §2, правило 6); по каждому решается, обеспечена ли поставка складом продавца — успех или
-    /// Delivery Miss, — и событие дописывается сразу, чтобы последующие поставки видели уже
-    /// обновлённые склады.
+    /// Исполнение контрактов уровня <paramref name="level"/>, у которых на текущем ходу положена
+    /// поставка (SPEC §6) — вызывается из <see cref="RunTick"/> сразу после производства этого же
+    /// уровня у всех команд, не одним общим проходом в конце тика (см. doc-comment в <see
+    /// cref="RunTick"/>: иначе доставка отставала бы на лишний ход). Контракты перебираются в
+    /// детерминированном порядке (по идентификатору, не по порядку словаря — AGENTS §2, правило 6);
+    /// по каждому решается, обеспечена ли поставка складом продавца — успех или Delivery Miss, — и
+    /// событие дописывается сразу, чтобы последующие поставки видели уже обновлённые склады.
     /// </summary>
-    private void ExecuteContracts(List<EventLogEntry<GameSessionState>> appended)
+    private void ExecuteContracts(List<EventLogEntry<GameSessionState>> appended, int level)
     {
         var currentTurn = State.CurrentTurn;
         var dueContracts = State.Contracts.Values
-            .Where(contract => ContractExecution.IsDeliveryDue(contract, currentTurn))
+            .Where(contract => contract.Terms.Material.Level == level && ContractExecution.IsDeliveryDue(contract, currentTurn))
             .OrderBy(contract => contract.Id)
             .ToList();
 

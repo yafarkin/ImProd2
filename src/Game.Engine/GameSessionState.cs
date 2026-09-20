@@ -73,6 +73,22 @@ public sealed class GameSessionState
         _contracts.Add(contract.Id, contract);
     }
 
+    private readonly Dictionary<Ulid, PendingContractProposal> _contractProposals = new();
+
+    /// <summary>
+    /// Поданные, но ещё не сведённые заявки на сделку (SPEC §6, <c>docs/TODO.md</c> №16) — наполняется
+    /// событием <see cref="ContractProposalSubmitted"/>. Заявка остаётся здесь и после того, как
+    /// сошлась или была снята: журнал восстанавливается проигрыванием событий, поэтому история
+    /// заявок не вычищается, а меняет статус.
+    /// </summary>
+    public IReadOnlyDictionary<Ulid, PendingContractProposal> ContractProposals => _contractProposals;
+
+    /// <summary>Регистрирует заявку на сделку; вызывается только из <see cref="ContractProposalSubmitted.Apply"/>.</summary>
+    internal void AddContractProposal(PendingContractProposal proposal)
+    {
+        _contractProposals.Add(proposal.Id, proposal);
+    }
+
     private readonly Dictionary<Ulid, NeedPosting> _needs = new();
 
     /// <summary>Записи доски потребностей по идентификатору (Блок 9.4, SPEC §9.2) — наполняется событием <see cref="NeedPosted"/>.</summary>
@@ -100,9 +116,6 @@ public sealed class GameSessionState
     /// самодостаточного экспорта/дебрифа §12) — заполняется событием <see cref="SessionStarted"/>.
     /// </summary>
     public string ConfigHash { get; internal set; } = string.Empty;
-
-    /// <summary>Пресет длительности сессии, по которому был разыгран <see cref="EndTurn"/>.</summary>
-    public string PresetId { get; internal set; } = string.Empty;
 
     /// <summary>
     /// Ход, на котором игра завершится — разыгран жеребьёвкой при старте сессии и неизвестен игрокам

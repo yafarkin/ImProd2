@@ -40,19 +40,16 @@ public class TeamTests
         Assert.Empty(team.Factories);
         Assert.Empty(team.Warehouse.Stock);
         Assert.Equal(0m, team.Balance);
-        Assert.Equal(0m, team.Debt);
-        Assert.Equal(0m, team.PenaltyRateSurcharge);
     }
 
     [Fact]
-    public void Credit_Increases_Balance_Only()
+    public void Credit_Increases_Balance()
     {
         var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
 
         team.Credit(100m);
 
         Assert.Equal(100m, team.Balance);
-        Assert.Equal(0m, team.Debt);
     }
 
     [Fact]
@@ -66,72 +63,15 @@ public class TeamTests
         Assert.Equal(-20m, team.Balance);
     }
 
-    [Fact]
-    public void TakeLoan_Increases_Both_Balance_And_Debt_By_The_Same_Amount()
-    {
-        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
-
-        team.TakeLoan(300m);
-
-        Assert.Equal(300m, team.Balance);
-        Assert.Equal(300m, team.Debt);
-    }
-
-    [Fact]
-    public void RepayLoan_Decreases_Debt_Only_Balance_Is_Untouched()
-    {
-        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
-        team.TakeLoan(300m);
-
-        team.RepayLoan(120m);
-
-        Assert.Equal(180m, team.Debt);
-        Assert.Equal(300m, team.Balance); // погашение само по себе баланс не трогает — списывает вызывающее событие
-    }
-
-    [Fact]
-    public void RepayLoan_Throws_When_Amount_Exceeds_Current_Debt()
-    {
-        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
-        team.TakeLoan(100m);
-
-        Assert.Throws<InvalidOperationException>(() => team.RepayLoan(100.01m));
-    }
-
-    [Fact]
-    public void RepayLoan_Can_Fully_Close_The_Debt()
-    {
-        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
-        team.TakeLoan(100m);
-
-        team.RepayLoan(100m);
-
-        Assert.Equal(0m, team.Debt);
-    }
-
-    [Fact]
-    public void IncreasePenaltyRateSurcharge_Accumulates()
-    {
-        var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
-
-        team.IncreasePenaltyRateSurcharge(0.05m);
-        team.IncreasePenaltyRateSurcharge(0.05m);
-
-        Assert.Equal(0.1m, team.PenaltyRateSurcharge);
-    }
-
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    public void Credit_Debit_TakeLoan_And_Surcharge_Reject_Non_Positive_Amounts(decimal amount)
+    public void Credit_And_Debit_Reject_Non_Positive_Amounts(decimal amount)
     {
         var team = new Team(Ulid.NewUlid(), "Команда А1", SectorA);
 
         Assert.Throws<ArgumentOutOfRangeException>(() => team.Credit(amount));
         Assert.Throws<ArgumentOutOfRangeException>(() => team.Debit(amount));
-        Assert.Throws<ArgumentOutOfRangeException>(() => team.TakeLoan(amount));
-        Assert.Throws<ArgumentOutOfRangeException>(() => team.RepayLoan(amount));
-        Assert.Throws<ArgumentOutOfRangeException>(() => team.IncreasePenaltyRateSurcharge(amount));
     }
 
     [Fact]

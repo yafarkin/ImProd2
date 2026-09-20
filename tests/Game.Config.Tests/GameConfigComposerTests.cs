@@ -32,7 +32,7 @@ public class GameConfigComposerTests
                 BuildCost = 100m, LiquidationValueCoefficient = 0.5m, FixedCostPerTurn = 0m,
             },
         },
-        BaseMarketPerMaterial = new[] { new MaterialMarketConfig { MaterialId = "ore", BasePrice = 3m, BaseCapacity = 500m } },
+        BaseMarketPerMaterial = new[] { new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 3m, BaseCapacity = 500m } },
         GenerationResearch = new GenerationResearchConfig
         {
             StartingGeneration = 1,
@@ -46,23 +46,15 @@ public class GameConfigComposerTests
     {
         StartingConditions = new StartingConditionsConfig
         {
-            MaxStartingLoanAmount = 1000m,
-            BaseLoanInterestRate = 0.05m,
-            LoanInterestRateGrowthPerUnitBorrowed = 0m,
-            ForcedLoanPenaltyRatePerOccurrence = 0.05m,
-            MaxReputationRatePenalty = 0.1m,
-            MandatoryRepaymentRatePerTurn = 0.05m,
-            MaxTotalDebt = 1_000_000m,
-            MaxLoanInterestRate = 1_000_000m,
+            MaxInitialBuildBudget = 1000m,
         },
-        SessionPresets = new[] { new SessionPresetConfig { Id = "short", Name = "Short", MinTurns = 1, MaxTurns = 2, TurnDurationMinutes = 1 } },
+        Duration = new SessionDurationConfig { MinTurns = 1, MaxTurns = 2 },
         PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
         Economy = new SessionEconomyConfig
         {
             EmergencyPurchaseBaseMultiplier = 1.5m,
             EmergencyPurchasePressureMultiplierPerUnit = 0.1m,
             EmergencyPurchasePressureHalfLifeTurns = 5,
-            MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
             MarketCapacityOverflowDiscount = 0.5m,
             ElectricityBasePrice = 0.2m,
             ElectricityConsumptionPerOutputUnit = 0.1m,
@@ -73,11 +65,9 @@ public class GameConfigComposerTests
         {
             BaseWorkerCount = 10,
             DiminishingReturnsFactor = 0.5m,
-            HireCostPerWorker = 50m,
+            HireCostPerWorker = 50m, MaxHiresPerTurn = 1000,
             FireCostPerWorker = 20m,
             SalaryPerWorkerPerTurn = 5m,
-            TeamSalaryBaseWorkerCount = 30,
-            SalaryEscalationFactor = 0.01m,
         },
         Rnd = new RndConfig
         {
@@ -108,10 +98,8 @@ public class GameConfigComposerTests
             VoluntaryTerminationFee = 100m,
             MaxActiveContractsPerTeam = null,
         },
-        Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
-        Deposits = new DepositsConfig { InterestRatePerTurn = 0m },
         News = Array.Empty<Config.News.NewsItemConfig>(),
-        FeatureFlags = new FeatureFlagsConfig { TaxesEnabled = false, DepositsEnabled = false, EmergencyPurchaseEnabled = true },
+        FeatureFlags = new FeatureFlagsConfig { EmergencyPurchaseEnabled = true },
     };
 
     [Fact]
@@ -133,7 +121,7 @@ public class GameConfigComposerTests
 
         var orePrice = Assert.Single(config.Economy.BaseMarketPerMaterial);
         Assert.Equal("ore", orePrice.MaterialId);
-        Assert.Equal(3m, orePrice.BasePrice);
+        Assert.Equal(3m, orePrice.BaseSellPrice);
 
         Assert.Equal(1.5m, config.Economy.EmergencyPurchaseBaseMultiplier);
         Assert.Equal(0.5m, config.Economy.WarehouseLiquidationRate);

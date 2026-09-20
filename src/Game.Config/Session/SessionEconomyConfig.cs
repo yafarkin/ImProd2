@@ -22,11 +22,26 @@ public sealed record SessionEconomyConfig
     /// <summary>См. <see cref="EconomyConfig.EmergencyPurchasePressureHalfLifeTurns"/>.</summary>
     public required int EmergencyPurchasePressureHalfLifeTurns { get; init; }
 
-    /// <summary>См. <see cref="EconomyConfig.MarginMultiplierByProcessingLevel"/>.</summary>
-    public required IReadOnlyList<ProcessingLevelMarginConfig> MarginMultiplierByProcessingLevel { get; init; }
-
     /// <summary>См. <see cref="EconomyConfig.MarketCapacityOverflowDiscount"/>.</summary>
     public required decimal MarketCapacityOverflowDiscount { get; init; }
+
+    /// <summary>См. <see cref="EconomyConfig.PricingModel"/>.</summary>
+    public PricingModel PricingModel { get; init; } = PricingModel.CostPlus;
+
+    /// <summary>См. <see cref="EconomyConfig.MarketPriceFloorRate"/>.</summary>
+    public decimal MarketPriceFloorRate { get; init; } = 0.35m;
+
+    /// <summary>См. <see cref="EconomyConfig.MarketCapacityScale"/>.</summary>
+    public decimal MarketCapacityScale { get; init; } = 1m;
+
+    /// <summary>См. <see cref="EconomyConfig.MarketSupplyPressureHalfLifeTurns"/>.</summary>
+    public int MarketSupplyPressureHalfLifeTurns { get; init; } = 3;
+
+    /// <summary>См. <see cref="EconomyConfig.EconomyIndexMin"/>.</summary>
+    public decimal EconomyIndexMin { get; init; } = 0.85m;
+
+    /// <summary>См. <see cref="EconomyConfig.EconomyIndexMax"/>.</summary>
+    public decimal EconomyIndexMax { get; init; } = 1.15m;
 
     /// <summary>См. <see cref="EconomyConfig.ElectricityBasePrice"/>.</summary>
     public required decimal ElectricityBasePrice { get; init; }

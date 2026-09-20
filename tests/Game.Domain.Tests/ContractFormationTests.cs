@@ -61,7 +61,7 @@ public class ContractFormationTests
     }
 
     [Fact]
-    public void TryMatch_Reports_TermsDiffer_When_Volumes_Disagree()
+    public void TryMatch_Reports_VolumeDiffers_When_Volumes_Disagree()
     {
         var buyerProposal = new ContractProposal(BuyerId, SellerId, BuyerId, Terms(volume: 10m));
         var sellerProposal = new ContractProposal(BuyerId, SellerId, SellerId, Terms(volume: 12m));
@@ -69,7 +69,7 @@ public class ContractFormationTests
         var result = ContractFormation.TryMatch(buyerProposal, sellerProposal, Ulid.NewUlid(), new Random(1));
 
         Assert.False(result.IsMatched);
-        Assert.Contains(ContractMismatchReason.TermsDiffer, result.Mismatches);
+        Assert.Contains(ContractMismatchReason.VolumeDiffers, result.Mismatches);
     }
 
     [Fact]
@@ -85,6 +85,6 @@ public class ContractFormationTests
         Assert.False(result.IsMatched);
         Assert.Contains(ContractMismatchReason.CounterpartiesDiffer, result.Mismatches);
         Assert.Contains(ContractMismatchReason.SubmittedByTheSameTeam, result.Mismatches);
-        Assert.Contains(ContractMismatchReason.TermsDiffer, result.Mismatches);
+        Assert.Contains(ContractMismatchReason.VolumeDiffers, result.Mismatches);
     }
 }

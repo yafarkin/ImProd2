@@ -84,7 +84,7 @@ public sealed class LlmBotTests
         // сразу формировал массив команд на ход" — весь план хода приходит одним ответом.
         var (session, teamId) = TestSession.StartSingleTeamSession();
         var client = new ScriptedLlmClient(
-            """{"actions":[{"kind":"takeLoan","amount":1000,"annotation":"bootstrap capital"},{"kind":"buildFactory","factoryDefinitionId":"iron-mine"}]}""");
+            """{"actions":[{"kind":"setGenerationResearchCommitment","amount":100,"annotation":"bootstrap capital"},{"kind":"buildFactory","factoryDefinitionId":"iron-mine"}]}""");
         var bot = new LlmBot(teamId, "persona", client);
 
         var report = await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
@@ -134,7 +134,7 @@ public sealed class LlmBotTests
         Assert.True(int.Parse(firstAction[3]) >= 0); // response_time_ms
         Assert.True(int.Parse(firstAction[4]) > 0); // request_size_bytes
         Assert.Equal("buildFactory(iron-mine)", firstAction[5]);
-        Assert.Equal("1", firstAction[9]); // factory_count — BuildFactory мгновенный, виден сразу же
+        Assert.Equal("1", firstAction[7]); // factory_count — BuildFactory мгновенный, виден сразу же
     }
 
     [Fact]
@@ -222,13 +222,13 @@ public sealed class LlmBotTests
     [Fact]
     public async Task TakeTurnAsync_OneSuccessOneSkipped_IsNotFullyFailedTurn()
     {
-        // Бот, взявший заём и предложивший вторым действием невалидную команду, всё же продвинулся —
-        // не должен считаться полностью провальным ходом для circuit breaker в LlmBotSessionRunner
-        // (запрос пользователя 2026-08-16: доменная ошибка одного действия в батче больше не рушит
-        // весь ход, просто пропускается — см. doc-comment LlmBotDecisionLoop).
+        // Бот, успешно выполнивший одно действие и предложивший вторым действием невалидную команду,
+        // всё же продвинулся — не должен считаться полностью провальным ходом для circuit breaker в
+        // LlmBotSessionRunner (запрос пользователя 2026-08-16: доменная ошибка одного действия в
+        // батче больше не рушит весь ход, просто пропускается — см. doc-comment LlmBotDecisionLoop).
         var (session, teamId) = TestSession.StartSingleTeamSession();
         var client = new ScriptedLlmClient(
-            """{"actions":[{"kind":"takeLoan","amount":1000},{"kind":"buildFactory","factoryDefinitionId":"unknown"}]}""");
+            """{"actions":[{"kind":"setGenerationResearchCommitment","amount":100},{"kind":"buildFactory","factoryDefinitionId":"unknown"}]}""");
         var bot = new LlmBot(teamId, "persona", client);
 
         var report = await bot.TakeTurnAsync(session, new BotDecisionLog(), new Random(1));
@@ -257,7 +257,7 @@ public sealed class LlmBotTests
     public async Task TakeTurnAsync_OnStatusLine_ReportsRequestThenEachAction()
     {
         var (session, teamId) = TestSession.StartSingleTeamSession();
-        var client = new ScriptedLlmClient("""{"actions":[{"kind":"takeLoan","amount":1000}]}""");
+        var client = new ScriptedLlmClient("""{"actions":[{"kind":"setGenerationResearchCommitment","amount":100}]}""");
         var bot = new LlmBot(teamId, "persona", client);
         var lines = new List<string>();
 

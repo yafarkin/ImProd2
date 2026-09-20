@@ -1,5 +1,4 @@
 using Game.Config.Economy;
-using Game.Config.Session;
 using Game.Domain;
 using Game.Engine;
 
@@ -23,21 +22,8 @@ public static class DashboardDisplay
     /// </summary>
     public static string FormatUnitCost(decimal amount) => $"{amount:0.####} ¤";
 
-    /// <summary>Процентная ставка для отображения на экране (Блок 9.2).</summary>
+    /// <summary>Процентная ставка для отображения на экране — штраф контракта, плата за склад и т.п.</summary>
     public static string FormatRate(decimal rate) => rate.ToString("P1");
-
-    /// <summary>Предпросмотр ставки и платежа за ход для гипотетического займа (Блок 9.2, SPEC §5.9:
-    /// «в UI до подтверждения — расчёт платежа за ход») — до того, как команда его подтвердила.</summary>
-    public static (decimal Rate, decimal Payment) PreviewLoan(
-        decimal currentDebt, decimal penaltyRateSurcharge, decimal reputationPercentage,
-        decimal additionalAmount, StartingConditionsConfig loanConfig)
-    {
-        var projectedDebt = currentDebt + additionalAmount;
-        var rate = FinanceCalculator.CalculateEffectiveLoanRate(
-            projectedDebt, penaltyRateSurcharge, reputationPercentage, loanConfig);
-
-        return (rate, rate * projectedDebt);
-    }
 
     /// <summary>Русская подпись статуса контракта для дашборда («что я обещал другим»).</summary>
     public static string ContractStatusLabel(ContractStatus status) => status switch
@@ -87,11 +73,6 @@ public static class DashboardDisplay
     /// <summary>Русская подпись вида финансовой операции для истории операций «Финансов» (Блок 9.2).</summary>
     public static string FinanceOperationLabel(FinanceHistoryCalculator.OperationType type) => type switch
     {
-        FinanceHistoryCalculator.OperationType.LoanTaken => "Взят кредит",
-        FinanceHistoryCalculator.OperationType.ForcedLoan => "Принудительный заём",
-        FinanceHistoryCalculator.OperationType.InterestCharged => "Начислены проценты",
-        FinanceHistoryCalculator.OperationType.MandatoryRepayment => "Обязательный платёж по телу долга",
-        FinanceHistoryCalculator.OperationType.VoluntaryRepayment => "Досрочное погашение",
         FinanceHistoryCalculator.OperationType.FactoryBuilt => "Постройка фабрики",
         FinanceHistoryCalculator.OperationType.FactorySold => "Продажа фабрики",
         FinanceHistoryCalculator.OperationType.WorkersHired => "Наём рабочих",
@@ -104,6 +85,7 @@ public static class DashboardDisplay
         FinanceHistoryCalculator.OperationType.WarehouseFee => "Плата за склад сверх лимита",
         FinanceHistoryCalculator.OperationType.FactoryUpkeep => "Содержание фабрик (капитальные затраты)",
         FinanceHistoryCalculator.OperationType.FactoryOverhead => "Затраты на работу фабрики (энергия)",
+        FinanceHistoryCalculator.OperationType.FactoryOverhaul => "Капремонт фабрики",
         FinanceHistoryCalculator.OperationType.ContractDelivery => "Поставка по контракту",
         FinanceHistoryCalculator.OperationType.DeliveryMissPenalty => "Штраф за срыв поставки",
         FinanceHistoryCalculator.OperationType.ContractTerminationFee => "Плата за расторжение контракта",
@@ -127,7 +109,12 @@ public static class DashboardDisplay
     {
         ContractMismatchReason.CounterpartiesDiffer => "Не совпадают покупатель/продавец",
         ContractMismatchReason.SubmittedByTheSameTeam => "Обе стороны сделки поданы одной командой",
-        ContractMismatchReason.TermsDiffer => "Не совпадают условия сделки",
+        ContractMismatchReason.MaterialDiffers => "Не совпадает материал",
+        ContractMismatchReason.TypeDiffers => "Не совпадает тип сделки (разовая/регулярная)",
+        ContractMismatchReason.VolumeDiffers => "Не совпадает объём",
+        ContractMismatchReason.UnitPriceDiffers => "Не совпадает цена за единицу",
+        ContractMismatchReason.PenaltyRateDiffers => "Не совпадает штраф за срыв",
+        ContractMismatchReason.DeliveryScheduleDiffers => "Не совпадают сроки поставки",
         _ => reason.ToString()
     };
 
@@ -165,30 +152,19 @@ public static class DashboardDisplay
     }
 
     /// <summary>
-    /// Пытается посчитать себестоимость единицы материала (<see cref="CostCalculator.CalculateUnitCost"/>),
-    /// используя текущие рыночные котировки сырья как базовую цену. Возвращает <c>false</c>, если
-    /// котировки для какого-то из видов сырья в цепочке ещё нет (например, самый первый ход до
-    /// первого <see cref="MarketUpdated"/>) — дашборд в этом случае просто не показывает число, а не падает.
+    /// Пытается посчитать себестоимость единицы материала (<see cref="MaterialCostCalculator"/> — не
+    /// рыночная котировка, запрос пользователя, rebalance/2-sector-stepwise, 2026-08-21: «НЕТ НИКАКОЙ
+    /// РЫНОЧНОЙ ЦЕНЫ! Есть себестоимость материала, которую мы прекрасно можем посчитать»). Возвращает
+    /// <c>false</c>, если материал не производится ни одной фабрикой конфига (не должно случаться на
+    /// валидном конфиге, запасной путь, чтобы дашборд не падал).
     /// </summary>
     public static bool TryCalculateUnitCost(Material product, GameSessionState state, out decimal unitCost)
     {
         ArgumentNullException.ThrowIfNull(product);
         ArgumentNullException.ThrowIfNull(state);
 
-        var rawMaterialCosts = state.Config.Materials.Values
-            .Where(m => m.IsRawMaterial && state.Market.HasQuote(m.Id))
-            .ToDictionary(m => m, m => state.Market.QuoteOf(m.Id).Price);
-
-        try
-        {
-            unitCost = CostCalculator.CalculateUnitCost(product, state.Config.RecipeBook, rawMaterialCosts);
-            return true;
-        }
-        catch (ArgumentException)
-        {
-            unitCost = 0m;
-            return false;
-        }
+        var materialCosts = MaterialCostCalculator.CalculateAll(state.Config);
+        return materialCosts.TryGetValue(product.Id, out unitCost);
     }
 
     /// <summary>Один уровень пирамиды входов — материал, количество и глубина от корня (0 — сам продукт).</summary>
@@ -216,4 +192,85 @@ public static class DashboardDisplay
             Flatten(input, depth + 1, rows);
         }
     }
+
+    /// <summary>
+    /// Имена, которые нужны, чтобы превратить факты <see cref="TeamAttentionCalculator.AttentionItem"/>
+    /// в человеческий текст: сам расчёт живёт в движке и оперирует идентификаторами, подписи — здесь
+    /// (тот же приём, что у <see cref="FinanceOperationLabel"/>).
+    /// </summary>
+    public sealed record AttentionNaming(
+        IReadOnlyDictionary<Ulid, string> FactoryNames,
+        IReadOnlyDictionary<string, string> MaterialNames,
+        IReadOnlyDictionary<string, string> OverhaulTierNames);
+
+    /// <summary>
+    /// Заголовок и пояснение одного повода обратить внимание. Формулировки намеренно описательные:
+    /// что случилось и почему — без единого «сделайте», см. границу в doc-comment
+    /// <see cref="TeamAttentionCalculator"/>.
+    /// </summary>
+    public static (string Headline, string Detail) AttentionText(
+        TeamAttentionCalculator.AttentionItem item, AttentionNaming naming)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(naming);
+
+        return item switch
+        {
+            TeamAttentionCalculator.AttentionItem.FactoryStarvedOfInput x => (
+                $"{Factory(naming, x.FactoryId)}: {Turns(x.TurnsInARow)} подряд без полной загрузки",
+                $"не хватает «{Material(naming, x.MaterialId)}» — {x.ShortfallPerTurn:0.##} ед. на ход"),
+
+            TeamAttentionCalculator.AttentionItem.FactoryWithoutWorkers x => (
+                $"{Factory(naming, x.FactoryId)}: нет рабочих",
+                "содержание фабрики списывается каждый ход, выпуска нет"),
+
+            TeamAttentionCalculator.AttentionItem.FactoryInForcedDowntime x => (
+                $"{Factory(naming, x.FactoryId)}: вынужденный простой по износу",
+                $"осталось {Turns(x.TurnsRemaining)}"),
+
+            TeamAttentionCalculator.AttentionItem.DeliveryDueAndShort x => (
+                $"Поставка «{Material(naming, x.MaterialId)}» в ближайшем расчёте: не хватает {x.Shortfall:0.##} ед.",
+                $"штраф за срыв — {FormatMoney(x.Penalty)}, плюс просадка репутации"),
+
+            TeamAttentionCalculator.AttentionItem.WarehouseOverFreeCapacity x => (
+                $"Склад сверх бесплатного лимита на {x.OverageQuantity:0.##} ед.",
+                $"за это списывается {FormatMoney(x.FeePerTurn)} каждый ход"),
+
+            TeamAttentionCalculator.AttentionItem.OverhaulGetsMoreExpensive x => (
+                $"{Factory(naming, x.FactoryId)}: капремонт подорожает через {Turns(x.TurnsUntil)}",
+                $"сейчас сработала бы ступень «{Tier(naming, x.CurrentTierId)}», станет «{Tier(naming, x.NextTierId)}»"),
+
+            TeamAttentionCalculator.AttentionItem.DeliveryAheadWillBeShort x => (
+                $"Поставка «{Material(naming, x.MaterialId)}» через {Turns(x.TurnsUntil)}: не хватит {x.ProjectedShortfall:0.##} ед.",
+                "посчитано при полной загрузке своих фабрик — то есть по самой оптимистичной оценке"),
+
+            TeamAttentionCalculator.AttentionItem.MaterialRunningOut x => (
+                $"«{Material(naming, x.MaterialId)}» кончится через {Turns(x.TurnsUntil)}",
+                $"расходуется быстрее, чем производится; встанут: {string.Join(", ", x.AffectedFactoryIds.Select(id => Factory(naming, id)))}"),
+
+            _ => (item.GetType().Name, string.Empty),
+        };
+    }
+
+    /// <summary>«1 ход», «2 хода», «5 ходов» — панель читают на бегу, и падеж здесь заметен сильнее, чем кажется.</summary>
+    public static string Turns(int count)
+    {
+        var lastTwo = Math.Abs(count) % 100;
+        var last = lastTwo % 10;
+        var word = lastTwo is >= 11 and <= 14 ? "ходов"
+            : last == 1 ? "ход"
+            : last is >= 2 and <= 4 ? "хода"
+            : "ходов";
+
+        return $"{count} {word}";
+    }
+
+    private static string Factory(AttentionNaming naming, Ulid factoryId) =>
+        naming.FactoryNames.TryGetValue(factoryId, out var name) ? name : "фабрика";
+
+    private static string Material(AttentionNaming naming, string materialId) =>
+        naming.MaterialNames.TryGetValue(materialId, out var name) ? name : materialId;
+
+    private static string Tier(AttentionNaming naming, string tierId) =>
+        naming.OverhaulTierNames.TryGetValue(tierId, out var name) ? name : tierId;
 }

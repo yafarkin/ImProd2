@@ -1,9 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <!-- CS0436: неявный top-level "Program" у Game.Balancing (тоже Exe с top-level statements) стал
+         виден отсюда после InternalsVisibleTo в Game.Balancing.csproj (ради переиспользования логики
+         DiagnoseRun в /admin/balance-lab) — компилятор и так верно берёт свой Program, безобидно. -->
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Game.Domain\Game.Domain.csproj" />
     <ProjectReference Include="..\Game.Config\Game.Config.csproj" />
     <ProjectReference Include="..\Game.Engine\Game.Engine.csproj" />
     <ProjectReference Include="..\Game.Persistence\Game.Persistence.csproj" />
+    <!-- Только для /admin/balance-lab (TODO.md №28, DebugMode-only) — прогон ботов и себестоимости
+         по уровням прямо из UI, без консольного Game.Balancing. -->
+    <ProjectReference Include="..\Game.Bots\Game.Bots.csproj" />
+    <ProjectReference Include="..\Game.Balancing\Game.Balancing.csproj" />
+    <!-- Только для текстового среза состояния команды (BotStateSnapshotBuilder) в интерактивном
+         режиме /admin/balance-lab — ручное управление одной командой поверх InteractiveSessionRunner. -->
+    <ProjectReference Include="..\Game.Bots.Llm\Game.Bots.Llm.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Update="appsettings.Development.json">
@@ -11,9 +24,6 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Game.Config\Samples\gameconfig.pilot.json" Link="Samples\gameconfig.pilot.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Include="..\Game.Config\Samples\production-models\**\*.json" Link="Samples\production-models\%(RecursiveDir)%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

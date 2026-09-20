@@ -11,9 +11,8 @@ public class GameSessionHappyPathTests
     [Fact]
     public void One_Team_Builds_Buys_Produces_And_Sells_Across_Two_Turns()
     {
-        // Небольшой стартовый заём (не MaxStartingLoanAmount), чтобы проценты по кредиту не забивали
-        // остальные числа — здесь интересны именно постройка/наём/закупка/продажа.
-        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(startingLoan: 2000m);
+        // Небольшая стартовая сумма — здесь интересны именно постройка/наём/закупка/продажа.
+        var (session, teamId) = TestGameConfig.StartGameSessionWithOneTeam(startingCash: 2000m);
         var team = session.State.Teams[teamId];
 
         // Ход 1 начинается сразу в фазе расчёта (SessionStarted уже опубликовал котировки хода 1);
@@ -46,8 +45,8 @@ public class GameSessionHappyPathTests
         var tick = session.RunTick(new Random(1));
 
         var purchased = (EmergencyPurchased)tick.Single(e => e.Change is EmergencyPurchased).Change;
-        Assert.Equal(20m, purchased.UnitPrice); // базовая цена руды 10 x множитель аварийной закупки 2
-        Assert.Equal(200m, purchased.TotalCost);
+        Assert.Equal(10m, purchased.UnitPrice); // себестоимость руды 5 x множитель аварийной закупки 2
+        Assert.Equal(100m, purchased.TotalCost);
 
         var mined = (FactoryProduced)tick.Single(e => e.Change is FactoryProduced p && p.FactoryId == mineBuilt.FactoryId).Change;
         var milled = (FactoryProduced)tick.Single(e => e.Change is FactoryProduced p && p.FactoryId == millBuilt.FactoryId).Change;
@@ -56,7 +55,7 @@ public class GameSessionHappyPathTests
         Assert.Equal(5m, team.Warehouse.QuantityOf(TestGameConfig.Ore)); // 15 было - 10 потрачено заводом
         Assert.Equal(5m, team.Warehouse.QuantityOf(TestGameConfig.Sheet));
 
-        var financeCost = 2000m * 0.05m /* проценты */ + 10 /* рабочих */ * 50m /* наём, settled здесь */
+        var financeCost = 10 /* рабочих */ * 50m /* наём, settled здесь */
             + 10 /* рабочих */ * 5m /* зарплаты */ + purchased.TotalCost /* аварийная закупка, тоже settled здесь */;
         Assert.Equal(balanceAfterDecisionPhase - financeCost, team.Balance);
 
@@ -77,8 +76,8 @@ public class GameSessionHappyPathTests
         var tick2 = session.RunTick(new Random(1));
 
         var sale = (MaterialSoldToSystem)tick2.Single(e => e.Change is MaterialSoldToSystem).Change;
-        Assert.Equal(30m, sale.UnitPrice); // базовая цена листа 25 x множитель маржи уровня 1 (1.2)
-        Assert.Equal(150m, sale.TotalRevenue);
+        Assert.Equal(19.5m, sale.UnitPrice); // себестоимость листа 15 x фиксированная наценка 1.30
+        Assert.Equal(97.5m, sale.TotalRevenue);
 
         var minedTurn3 = (FactoryProduced)tick2.Single(e => e.Change is FactoryProduced p && p.FactoryId == mineBuilt.FactoryId).Change;
         var milledTurn3 = (FactoryProduced)tick2.Single(e => e.Change is FactoryProduced p && p.FactoryId == millBuilt.FactoryId).Change;
@@ -87,9 +86,9 @@ public class GameSessionHappyPathTests
         Assert.Equal(0m, team.Warehouse.QuantityOf(TestGameConfig.Ore)); // вся руда ушла в переработку
         Assert.Equal(5m, team.Warehouse.QuantityOf(TestGameConfig.Sheet)); // старые 5 проданы, эти — уже новый выпуск этого хода
 
-        // Ход 3 — те же проценты и зарплаты (наём уже никого не меняет — DesiredWorkers == Workers),
+        // Ход 3 — те же зарплаты (наём уже никого не меняет — DesiredWorkers == Workers),
         // без капитальных затрат (FixedCostPerTurn=0 в TestGameConfig), плюс сама продажа.
-        var turn3FinanceCost = 2000m * 0.05m + 10 * 5m;
+        var turn3FinanceCost = 10 * 5m;
         Assert.Equal(balanceBeforeSaleRequest - turn3FinanceCost + sale.TotalRevenue, team.Balance);
 
         Assert.True(session.VerifyIntegrity());

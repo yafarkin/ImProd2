@@ -11,6 +11,10 @@ public class WorkforceStepTests
 {
     private static readonly Config.Economy.WorkerProductivityConfig WorkerConfig = TestGameConfig.Resolved.Raw.WorkerProductivity;
 
+    /// <summary>Тот же конфиг, но с реалистично узким пределом найма за ход (в поставке — 5, docs/TODO.md №25).</summary>
+    private static Config.Economy.WorkerProductivityConfig WithHireLimit(int maxHiresPerTurn) =>
+        WorkerConfig with { MaxHiresPerTurn = maxHiresPerTurn };
+
     [Fact]
     public void Run_Returns_Null_When_The_Desired_Count_Matches_The_Current_One()
     {
@@ -84,5 +88,90 @@ public class WorkforceStepTests
         Assert.Equal(4, factory.DesiredWorkers);
         Assert.Equal(1000m - 4 * 50m, team.Balance);
         Assert.True(log.VerifyIntegrity());
+    }
+
+    /// <summary>
+    /// Наём инертен: за один ход фабрика берёт не больше предела, остальное остаётся объявленным и
+    /// добирается следующими ходами (docs/TODO.md №25). Платим ровно за фактически нанятых — иначе
+    /// команда платила бы вперёд за людей, которые ещё не вышли.
+    /// </summary>
+    [Fact]
+    public void Run_Hires_No_More_Than_The_Per_Turn_Limit_And_Charges_Only_For_Those_Actually_Hired()
+    {
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mill); // передел, не добыча
+        factory.SetDesiredWorkers(12);
+
+        var hired = Assert.IsType<WorkersHired>(WorkforceStep.Run(team.Id, factory, WithHireLimit(5)));
+
+        Assert.Equal(5, hired.Count);
+        Assert.Equal(5 * 50m, hired.Cost);
+    }
+
+    /// <summary>
+    /// Остаток не теряется и не требует повторного объявления: <see cref="Domain.Factory.DesiredWorkers"/>
+    /// хранит замысел, а не остаток, — за три хода с пределом 5 фабрика доходит ровно до 12 и
+    /// останавливается.
+    /// </summary>
+    [Fact]
+    public void The_Remainder_Is_Carried_Over_Without_Re_Declaring_Until_The_Target_Is_Reached()
+    {
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mill);
+        factory.SetDesiredWorkers(12);
+        var config = WithHireLimit(5);
+
+        var hiredPerTurn = new List<int>();
+        for (var turn = 0; turn < 4; turn++)
+        {
+            if (WorkforceStep.Run(team.Id, factory, config) is not WorkersHired hired)
+            {
+                break;
+            }
+
+            hiredPerTurn.Add(hired.Count);
+            factory.Hire(hired.Count);
+        }
+
+        Assert.Equal(new[] { 5, 5, 2 }, hiredPerTurn);
+        Assert.Equal(12, factory.Workers);
+        Assert.Equal(12, factory.DesiredWorkers);
+        // Четвёртый ход уже ничего не делает — расхождения нет.
+        Assert.Null(WorkforceStep.Run(team.Id, factory, config));
+    }
+
+    /// <summary>
+    /// Добыча (выход рецепта уровня 0) нанимает мгновенно, в обход предела: неквалифицированный труд
+    /// выходит на смену сразу, в отличие от ролей выше по цепочке (docs/TODO.md №25).
+    /// </summary>
+    [Fact]
+    public void Raw_Extraction_Hires_The_Whole_Crew_At_Once_Ignoring_The_Limit()
+    {
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        var mine = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mine);
+        mine.SetDesiredWorkers(12);
+
+        var hired = Assert.IsType<WorkersHired>(WorkforceStep.Run(team.Id, mine, WithHireLimit(5)));
+
+        Assert.Equal(12, hired.Count);
+        Assert.True(WorkforceStep.IsInstantHiring(mine));
+        Assert.False(WorkforceStep.IsInstantHiring(team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mill)));
+    }
+
+    /// <summary>
+    /// Увольнение под предел не подпадает — вся асимметрия механики в этом: нанимать долго,
+    /// расстаться можно в один ход (и потому дороже за человека).
+    /// </summary>
+    [Fact]
+    public void Firing_Is_Never_Throttled_By_The_Hire_Limit()
+    {
+        var (_, team) = TestGameConfig.StartSessionWithOneTeam();
+        var factory = team.BuildFactory(Ulid.NewUlid(), TestGameConfig.Mill);
+        factory.Hire(12);
+        factory.SetDesiredWorkers(0);
+
+        var fired = Assert.IsType<WorkersFired>(WorkforceStep.Run(team.Id, factory, WithHireLimit(5)));
+
+        Assert.Equal(12, fired.Count);
     }
 }

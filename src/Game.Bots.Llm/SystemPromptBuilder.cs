@@ -42,13 +42,6 @@ public static class SystemPromptBuilder
             "of lost production than a self-requested overhaul ever would. Check the 'FACTORY WEAR' " +
             "section below every turn and request an overhaul the moment a factory shows up there — " +
             "don't wait for it to actually break.",
-        [BotCommandKind.TakeLoan] =
-            "takeLoan(amount) — request a loan for the next settlement; interest rate rises with total debt " +
-            "and never goes away on its own. Check 'LOAN COST RIGHT NOW' below first — it names the exact " +
-            "current cost. Fine for a genuine one-off gap; a bad habit if you find yourself using it every turn " +
-            "to cover a recurring cost instead of fixing what's actually causing it.",
-        [BotCommandKind.RepayLoan] =
-            "repayLoan(amount) — voluntarily repay part of your debt at the next settlement.",
         [BotCommandKind.SellToSystem] =
             "sellToSystem(materialId, volume) — sell material from your warehouse to the system at the " +
             "current market price.",
@@ -152,8 +145,8 @@ public static class SystemPromptBuilder
             You are called exactly ONCE per turn (not once per action) — a real player takes several
             actions in one sitting (build, hire, adjust R&D) before ending their turn, and you do the
             same by listing them all in "actions", in the order they should happen. Each earlier action's
-            effect (balance, debt, factory list) applies before the next one runs, so order them
-            sensibly (e.g. takeLoan before a buildFactory that needs the money). Put at most {maxActionsPerTurn}
+            effect (balance, factory list) applies before the next one runs, so order them
+            sensibly (e.g. sellToSystem before a buildFactory that needs the money). Put at most {maxActionsPerTurn}
             actions in the list — anything beyond that is dropped. An empty list
             ("actions": []) means you have nothing useful to do this turn; that's a normal, fine answer,
             not a failure — there is no separate kind="nop" call to make, and nothing calls you back
@@ -170,40 +163,37 @@ public static class SystemPromptBuilder
             submitted got skipped and why.
 
             YOUR OBJECTIVE
-            Grow your team's net worth (balance minus debt) over the course of the session by building
-            and staffing production capacity, investing in R&D and generation research, managing debt
-            responsibly, and trading materials well. An empty actions list is rarely the right move, even
-            with zero balance — a loan is how every team starts. If you find yourself writing a reason
-            that says what you should do, put that action in the list instead — do not just describe the
+            Grow your team's balance over the course of the session by building and staffing production
+            capacity, investing in R&D and generation research, managing cash flow responsibly, and
+            trading materials well. An empty actions list is rarely the right move, even with zero
+            balance — every team starts at zero and builds straight away; balance can go negative with
+            no penalty of any kind (no loan, no interest, no forced anything) while you get established,
+            it is just a number that recovers as you sell. If you find yourself writing a reason that
+            says what you should do, put that action in the list instead — do not just describe the
             right move, make it. Concretely: on a turn where you have zero factories, the list should
-            almost always start with takeLoan, followed in the SAME list by buildFactory, instead of
-            waiting for a future turn to use the loan.
+            almost always start with buildFactory — there is no separate borrowing step to take first.
             Watch for a saturated market: if you keep selling the same material near or above its
             capacity turn after turn and the price has stopped rising (or already crashed and stayed
             flat), building MORE of that same factory type will not help — the market cannot absorb more
             of it. Look at the 'FACTORY TYPES IN YOUR SECTOR' catalog below for a DIFFERENT product to
             diversify into instead of piling up idle cash.
 
-            SELL THE SURPLUS, DON'T BORROW TO COVER IT
+            SELL THE SURPLUS, DON'T JUST LET THE BALANCE DRIFT DOWN
             If the 'WAREHOUSE OVERAGE FEE' below is present or rising, that fee means you are holding
             more material than you're selling — the fix is to sell it (sellToSystem, or postSellOffer
             if another sector wants it) or produce less of it (setWorkerCount down on the factory
-            making it), not to take a loan to pay the fee. A loan does not remove the surplus sitting
-            in your warehouse; the fee keeps charging every turn regardless, now with interest stacked
-            on top. Check 'LOAN COST RIGHT NOW' below before every takeLoan: it names the exact rate
-            and money cost of your current debt, not just a warning — a real number to weigh against
-            what the loan is actually for. Borrowing repeatedly, turn after turn, to cover a RECURRING
-            cost (fees, salaries, routine restocking) is a losing pattern, not a strategy — a loan is
-            for a genuine one-off gap (e.g. funding a build this turn that pays for itself), not a
-            substitute for fixing whatever keeps draining your cash.
+            making it). Letting the balance go negative does not remove the surplus sitting in your
+            warehouse; the fee keeps charging every turn regardless. A negative balance by itself is not
+            a crisis — it is not penalized — but a balance that keeps sliding turn after turn because of
+            a RECURRING cost (fees, salaries, routine restocking) you never actually address is a losing
+            pattern, not a strategy. Fix the underlying cause, don't just watch the number.
             {crossSectorTradeHint}
             The "=== DERIVED METRICS ===" section below is already computed for you: trends over the
-            last several turns compared to the turns before that (loan interest/principal paid, cash
-            flow, warehouse overage fee, idle/underperforming factories with reasons, factory
-            utilization, total R&D spend, runway, market position vs. the leader). Trust these numbers
-            and reason from them directly — don't re-derive your own totals from the raw per-turn
-            history further below, that raw history is there for detail, these numbers are already the
-            answer.
+            last several turns compared to the turns before that (cash flow, warehouse overage fee,
+            idle/underperforming factories with reasons, factory utilization, total R&D spend, runway,
+            market position vs. the leader). Trust these numbers and reason from them directly — don't
+            re-derive your own totals from the raw per-turn history further below, that raw history is
+            there for detail, these numbers are already the answer.
 
             RULES
             - Respond with the JSON object only, matching the schema — no explanation outside it.

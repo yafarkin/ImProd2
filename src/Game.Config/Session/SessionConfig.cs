@@ -26,8 +26,8 @@ public sealed record SessionConfig
     /// </summary>
     public double DifficultyLevel { get; init; } = 3.0;
 
-    /// <summary>Доступные пресеты длительности сессии.</summary>
-    public required IReadOnlyList<SessionPresetConfig> SessionPresets { get; init; }
+    /// <summary>Длительность сессии — число ходов (с жеребьёвкой точной концовки) и длина хода.</summary>
+    public required SessionDurationConfig Duration { get; init; }
 
     /// <summary>Длительности фаз хода.</summary>
     public required PhaseTimingConfig PhaseTiming { get; init; }
@@ -53,14 +53,11 @@ public sealed record SessionConfig
     /// <summary>Параметры контрактов.</summary>
     public required ContractsConfig Contracts { get; init; }
 
-    /// <summary>Параметры налогов (используются, если включены флагом).</summary>
-    public required TaxesConfig Taxes { get; init; }
-
-    /// <summary>Параметры депозитов (используются, если включены флагом).</summary>
-    public required DepositsConfig Deposits { get; init; }
-
     /// <summary>Библиотека заголовков новостной ленты.</summary>
     public required IReadOnlyList<NewsItemConfig> News { get; init; }
+
+    /// <summary>См. <see cref="GameConfig.NewsLookaheadTurns"/>.</summary>
+    public int NewsLookaheadTurns { get; init; } = 3;
 
     /// <summary>Флаги включения механик MVP.</summary>
     public required FeatureFlagsConfig FeatureFlags { get; init; }

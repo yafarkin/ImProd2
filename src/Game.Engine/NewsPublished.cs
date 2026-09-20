@@ -24,5 +24,5 @@ public sealed record NewsPublished : Change<GameSessionState>
     /// <summary>Текст заголовка.</summary>
     public required string Headline { get; init; }
 
-    public override void Apply(GameSessionState state) => state.NewsFeed.Record(NewsItemId);
+    public override void Apply(GameSessionState state) => state.NewsFeed.Record(NewsItemId, Turn);
 }

@@ -38,6 +38,17 @@
         вручную не нужно).
     </div>
 }
+else if (_isFinished)
+{
+    @* Партия кончилась — а раньше страница просто застывала в последнем ходе, и игроки расходились,
+       так и не узнав результат (docs/TODO.md №10). Редиректа нет намеренно: остальные вкладки после
+       конца партии никуда не деваются и нужны как раз на разборе — «покажи, что у тебя было на
+       складе». Кнопки решений при этом уже не работают, движок их не принимает. *@
+    <div class="alert alert-success mb-3">
+        <p class="mb-1"><strong>Партия завершена на ходу @_currentTurn.</strong> Решения больше не принимаются.</p>
+        <p class="mb-0"><a href="/results" class="alert-link">Посмотреть итоги игры →</a></p>
+    </div>
+}
 else
 {
     <div class="alert @(_isDecisionPhase ? "alert-info" : "alert-warning") mb-3">
@@ -48,7 +59,7 @@ else
         @if (!_isDecisionPhase)
         {
             <p class="mb-1">
-                <strong>Решения сейчас недоступны</strong> — постройка, наём, продажи, кредиты и контракты
+                <strong>Решения сейчас недоступны</strong> — постройка, наём, продажи и контракты
                 заблокированы, пока не начнётся фаза «Решения». Дождитесь её.
             </p>
         }
@@ -65,7 +76,21 @@ else
     <div class="alert alert-danger">@_errorMessage</div>
 }
 
-<ul class="nav nav-pills flex-nowrap mb-3" style="overflow-x:auto; white-space:nowrap">
+@* flex-wrap, а не горизонтальная прокрутка: вкладок семь, и на телефоне при nowrap было видно
+   четыре, без единого намёка, что есть ещё три — включая ту, где лежат контракты (проверено на
+   390px, docs/TODO.md №7). Перенос на вторую строку стоит одной строки высоты и показывает всё. *@
+<ul class="nav nav-pills flex-wrap gap-1 mb-3">
+    @* Первой вкладкой, а не где-то в хвосте: её адресат — тот, кто играет первый раз и ещё не знает,
+       куда смотреть, поэтому она обязана попадаться на глаза сама. Счётчик виден с любой вкладки. *@
+    <li class="nav-item">
+        <button type="button" class="nav-link @PageTabClass("attention")" @onclick='() => _activePageTab = "attention"'>
+            Внимание
+            @if (_attention.Count > 0 && !_isFinished)
+            {
+                <span class="badge rounded-pill bg-danger ms-1">@_attention.Count</span>
+            }
+        </button>
+    </li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("overview")" @onclick='() => _activePageTab = "overview"'>Обзор</button></li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("factories")" @onclick='() => _activePageTab = "factories"'>Фабрики</button></li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("technology")" @onclick='() => _activePageTab = "technology"'>Технологии</button></li>
@@ -78,6 +103,75 @@ else
    иначе Blazor Server при первом статическом ответе (до подключения клиента по SignalR) вообще не
    строит разметку неактивных вкладок, и любой обычный HTTP-тест страницы (без реального клика по
    вкладке) не увидит их содержимого. *@
+<div style="display:@(_activePageTab == "attention" ? "" : "none")">
+    <h2>Требует внимания</h2>
+    @* Вводный текст свёрнут в <details>: на телефоне развёрнутый абзац занимал полэкрана и
+       отодвигал сами поводы ниже сгиба — то есть мешал ровно тому, ради чего вкладка сделана
+       (проверено живым прогоном в браузере 2026-09-08). Одной строки достаточно, чтобы стало
+       понятно, чего тут ждать, остальное — по клику для тех, кому интересно. *@
+    @if (!_isFinished)
+    {
+        <p class="text-muted mb-2">
+            Только факты: что уже идёт не так и что сломается в ближайшие
+            @DashboardDisplay.Turns(TeamAttentionCalculator.SoonHorizonTurns). Что делать — решаете вы.
+        </p>
+        <details class="mb-3">
+            <summary class="text-muted small">Как это считается</summary>
+            <p class="text-muted small mt-2">
+                Подсказок по стратегии здесь нет и не будет: панель показывает, что происходит и почему,
+                но не советует, что строить, покупать или продавать. Прогнозы считаются по самой
+                оптимистичной оценке собственного выпуска — как если бы сырья всегда хватало, — поэтому
+                если предупреждение появилось, беда наступит даже при идеальной загрузке фабрик.
+            </p>
+        </details>
+    }
+    @if (_isFinished)
+    {
+        @* Панель говорит только про будущее — «списывается каждый ход», «сломается через 2 хода».
+           После последнего хода такого будущего нет, и те же слова из полезного предупреждения
+           превращаются в неверное утверждение. Поэтому здесь она замолкает целиком, а не показывает
+           устаревший список (замечено живым прогоном 2026-09-08, docs/TODO.md №10). *@
+        <div class="alert alert-secondary">
+            Партия закончилась — предупреждать больше не о чем. Что происходило с фабриками и
+            складом по ходам, осталось на вкладках «Фабрики», «Склад» и «Финансы».
+        </div>
+    }
+    else if (_attention.Count == 0)
+    {
+        <div class="alert alert-success">Ничего срочного. Ни одна фабрика не простаивает, поставки обеспечены, склад в пределах лимита.</div>
+    }
+    else
+    {
+        @foreach (var group in new[]
+        {
+            (Horizon: TeamAttentionCalculator.AttentionHorizon.Now, Title: "Прямо сейчас", Color: "#dc3545"),
+            (Horizon: TeamAttentionCalculator.AttentionHorizon.Soon, Title: "Через несколько ходов", Color: "#fd7e14"),
+        })
+        {
+            var items = _attention.Where(i => i.Horizon == group.Horizon).ToList();
+            @if (items.Count > 0)
+            {
+                <h3 class="h6 text-uppercase text-muted mt-3">@group.Title</h3>
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var item in items)
+                    {
+                        var (headline, detail) = DashboardDisplay.AttentionText(item, _attentionNaming);
+                        <div class="border rounded p-2" style="border-color:@group.Color; border-left-width:4px; background:@(group.Color)14">
+                            <div style="font-weight:600">@headline</div>
+                            <div class="text-muted small">@detail</div>
+                            @if (AttentionTargetFactoryId(item) is { } targetId)
+                            {
+                                <button type="button" class="btn btn-link btn-sm p-0"
+                                        @onclick="() => OpenFactoryFromAttention(targetId)">Открыть фабрику</button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+    }
+</div>
+
 <div style="display:@(_activePageTab == "overview" ? "" : "none")">
     @if (_role == ParticipantRole.Manager)
     {
@@ -108,20 +202,20 @@ else
     <h2>Что у меня плохо</h2>
     <ul class="list-unstyled">
         <li>Баланс: <strong class="@(_balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_balance)</strong></li>
-        <li>
-            Долг: @DashboardDisplay.FormatMoney(_debt)
-            @if (_debt > 0)
-            {
-                <text> · ставка: <strong class="@(IsLoanRateDangerous ? "text-danger" : null)">@DashboardDisplay.FormatRate(_currentLoanRate)</strong></text>
-                @if (IsLoanRateDangerous)
-                {
-                    <text> — опасно высокая, проценты уже съедают значительную часть баланса каждый ход, гасите долг</text>
-                }
-            }
-        </li>
-        @if (_penaltyRateSurcharge > 0)
+        @* Тот же счёт, по которому в конце партии считаются места (FinalScoreCalculator). Показан по
+           ходу игры, а не только на итогах: без него команда, вложившая всё в производство, видит
+           падающий баланс и не понимает, что стала богаче (docs/TODO.md №10). Чужие счета до конца
+           партии не показываются нигде — публична только сумма на счету (SPEC §7). *@
+        @if (_score is not null)
         {
-            <li>Штрафная надбавка к ставке (от принудительных займов): @_penaltyRateSurcharge.ToString("P1")</li>
+            <li>
+                Сколько стоит команда: <strong class="@(_score.Score < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_score.Score)</strong>
+                <span class="text-muted small">
+                    — деньги @DashboardDisplay.FormatMoney(_score.Cash)
+                    + склад @DashboardDisplay.FormatMoney(_score.WarehouseValue)
+                    + фабрики @DashboardDisplay.FormatMoney(_score.FactoriesValue)
+                </span>
+            </li>
         }
         <li>
             Репутация: @_reputationPercentage.ToString("F0")%
@@ -133,14 +227,36 @@ else
         </li>
     </ul>
 
+    @if (_showEconomyIndex && _economyIndex.HasData)
+    {
+        <h4 class="h6 mt-4">Внешняя экономика</h4>
+        <p class="mb-1">
+            Индекс деловой активности:
+            <strong class="@_economyIndex.CssClass">@_economyIndex.ValueText @_economyIndex.Arrow</strong>
+            <span class="text-muted small">— @_economyIndex.LevelText</span>
+        </p>
+        <p class="text-muted small">
+            Индекс двигает сторону спроса: чем он выше, тем дороже система покупает вашу продукцию и
+            тем больше готова принять, не роняя цену. Куда он пойдёт дальше — график не показывает,
+            об этом предупреждает новостная лента.
+        </p>
+        @ChartRenderer.Render(_economyIndexChart)
+    }
+
     @if (_history is null)
     {
         <p><em>Графики по ходам появятся после первого хода сессии.</em></p>
     }
     else
     {
-        <h4 class="h6 mt-4">Баланс за вычетом долга по ходам</h4>
+        <h4 class="h6 mt-4">Баланс по ходам</h4>
         @ChartRenderer.Render(BuildBalanceChartLayout())
+        <h4 class="h6 mt-4">Сколько стоит команда по ходам</h4>
+        <p class="text-muted small">Может расти, когда баланс падает: значит, деньги ушли в фабрики и склад, а не пропали.</p>
+        @ChartRenderer.Render(BuildScoreChartLayout())
+        <h4 class="h6 mt-4">Денежный поток по ходам</h4>
+        <p class="text-muted small">Разница баланса с прошлым ходом — не накопленный итог: выше нуля — заработали за этот ход, ниже — потратили больше, чем заработали.</p>
+        @ChartRenderer.Render(BuildCashFlowChartLayout())
         <h4 class="h6 mt-4">Репутация по ходам</h4>
         @ChartRenderer.Render(BuildReputationChartLayout())
     }
@@ -170,13 +286,12 @@ else
                         <option value="@definition.Id">@definition.Name (постройка @DashboardDisplay.FormatMoney(definition.BuildCost), обслуживание @DashboardDisplay.FormatMoney(definition.FixedCostPerTurn)/ход)</option>
                     }
                 </select>
-                <button type="button" class="btn btn-primary" disabled="@(!CanAffordSelectedBuild)" @onclick="BuildFactory">Построить</button>
+                <button type="button" class="btn btn-primary" @onclick="BuildFactory">Построить</button>
             </div>
             @if (!CanAffordSelectedBuild && SelectedBuildableDefinition is { } selectedForBuild)
             {
-                <p class="text-danger mb-3">
-                    Не хватает @DashboardDisplay.FormatMoney(selectedForBuild.BuildCost - _balance) —
-                    <button type="button" class="btn btn-link p-0 align-baseline" @onclick='() => _activePageTab = "finance"'>возьмите кредит в Финансах</button>.
+                <p class="text-muted mb-3">
+                    Баланс уйдёт в минус на @DashboardDisplay.FormatMoney(selectedForBuild.BuildCost - _balance) — это не проблема, просто число.
                 </p>
             }
         }
@@ -284,7 +399,8 @@ else
                         }
                     </div>
 
-                    <ul class="nav nav-pills flex-nowrap mb-3" style="overflow-x:auto; white-space:nowrap">
+                    @* Тот же перенос и по той же причине, что у вкладок страницы выше. *@
+                    <ul class="nav nav-pills flex-wrap gap-1 mb-3">
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("workers")" @onclick='() => _activeFactoryTab = "workers"'>Люди</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("recipe")" @onclick='() => _activeFactoryTab = "recipe"'>Рецепт и склад</button></li>
                         <li class="nav-item"><button type="button" class="nav-link @TabClass("rnd")" @onclick='() => _activeFactoryTab = "rnd"'>R&amp;D</button></li>
@@ -308,18 +424,49 @@ else
                                 }
                             </div>
                             var (workerDelta, workerCost) = WorkerCountChange(factory);
+                            @* Наём растянут (docs/TODO.md №25), и без этой строки объявленные 20 против
+                               нанятых 5 выглядят как сбой: игрок обязан заранее видеть, сколько выйдет
+                               на смену уже в этот ход, а сколько — потом. *@
                             @if (workerDelta > 0)
                             {
-                                <p class="text-muted small">При расчёте наймёт ещё @workerDelta — стоимость @DashboardDisplay.FormatMoney(workerCost).</p>
+                                var hiredNow = HiresThisTurn(factory, workerDelta);
+                                <p class="text-muted small">
+                                    При расчёте наймёт
+                                    @if (hiredNow < workerDelta)
+                                    {
+                                        <strong>@hiredNow из @workerDelta</strong>
+                                        <text> — стоимость @DashboardDisplay.FormatMoney(hiredNow * _hireCostPerWorker).
+                                        Остальные @(workerDelta - hiredNow) выйдут на смену в следующие ходы, не больше
+                                        @_maxHiresPerTurn за ход; объявлять заново не нужно, платить — тоже, каждый ход
+                                        списывается только за тех, кто реально вышел.</text>
+                                    }
+                                    else
+                                    {
+                                        <text>ещё @workerDelta — стоимость @DashboardDisplay.FormatMoney(workerCost).</text>
+                                    }
+                                </p>
                             }
                             else if (workerDelta < 0)
                             {
-                                <p class="text-muted small">При расчёте уволит @(-workerDelta) — стоимость @DashboardDisplay.FormatMoney(workerCost).</p>
+                                <p class="text-muted small">При расчёте уволит @(-workerDelta) — стоимость @DashboardDisplay.FormatMoney(workerCost). Увольнение исполняется целиком за один ход.</p>
                             }
                             <p class="text-muted small mb-2">
                                 Объявление бесплатно и можно менять сколько угодно раз — спишется один раз, при
                                 расчёте хода, по итоговой разнице. Нанять одного: @DashboardDisplay.FormatMoney(_hireCostPerWorker) ·
                                 уволить одного: @DashboardDisplay.FormatMoney(_fireCostPerWorker)
+                            </p>
+                            <p class="text-muted small mb-2">
+                                @if (factory.InstantHiring)
+                                {
+                                    <text>Это добыча — здесь бригада выходит на смену сразу, сколько ни объяви.</text>
+                                }
+                                else
+                                {
+                                    <text>
+                                        Людей на передел набирают постепенно: не больше @_maxHiresPerTurn человек за ход.
+                                        Уволить можно всех сразу и в тот же ход — но каждый уволенный дороже нанятого.
+                                    </text>
+                                }
                             </p>
                             <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
                                 <label class="small text-muted mb-0">Доля при дефиците общего сырья:</label>
@@ -398,7 +545,7 @@ else
                                 <p class="text-muted small mb-2">
                                     Списывается автоматически каждый ход, до @_maxRndCommitmentPerTurn.ToString("0.##") ¤/ход на одну
                                     фабрику. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
-                                    всё сразу за счёт кредита.
+                                    всё сразу одним крупным платежом.
                                 </p>
                             }
                         }
@@ -684,7 +831,7 @@ else
             <p class="text-muted small">
                 Списывается автоматически каждый ход, до @_maxGenerationResearchCommitmentPerTurn.ToString("0.##") ¤/ход
                 на команду. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
-                всё сразу за счёт кредита.
+                всё сразу одним крупным платежом.
             </p>
         }
     }
@@ -728,10 +875,14 @@ else
                 <p class="text-muted small mb-2">
                     @if (preview.HasQuote)
                     {
-                        <text>Цена за единицу: @DashboardDisplay.FormatMoney(preview.UnitPrice)</text>
+                        <text>Цена за единицу: @DashboardDisplay.FormatUnitCost(preview.UnitPrice)</text>
+                        @if (preview.PriceImpactRate >= MarketSalePreview.NoticeablePriceImpactRate)
+                        {
+                            <text> (без вашей заявки — @DashboardDisplay.FormatUnitCost(preview.MarginalUnitPrice); этот объём просаживает цену на @preview.PriceImpactRate.ToString("P0"))</text>
+                        }
                         @if (preview.OverflowVolume > 0)
                         {
-                            <text> (из них @preview.OverflowVolume.ToString("0.##") сверх дневного лимита ёмкости — по @DashboardDisplay.FormatMoney(preview.OverflowUnitPrice))</text>
+                            <text> · из них @preview.OverflowVolume.ToString("0.##") сверх ёмкости рынка — рынок по этому материалу уже насыщен</text>
                         }
                         <text> · доход: @DashboardDisplay.FormatMoney(preview.Revenue)</text>
                         <text> · прибыль: </text>
@@ -756,7 +907,7 @@ else
                 }
             </select>
             <input type="number" min="0" step="0.01" class="form-control d-inline-block" style="width:6em" @bind="_emergencyPurchaseVolume" />
-            <button type="button" class="btn btn-secondary" disabled="@(!CanAffordEmergencyPurchase)" @onclick="EmergencyPurchase">Купить</button>
+            <button type="button" class="btn btn-secondary" @onclick="EmergencyPurchase">Купить</button>
             @if (_emergencyPurchaseMaterialId is not null && _pendingEmergencyPurchaseVolumeByMaterial.GetValueOrDefault(_emergencyPurchaseMaterialId) > 0)
             {
                 <button type="button" class="btn btn-link p-0" @onclick="CancelEmergencyPurchase">Отменить</button>
@@ -777,9 +928,8 @@ else
         }
         @if (!CanAffordEmergencyPurchase)
         {
-            <p class="text-danger small mb-2">
-                Не хватает @DashboardDisplay.FormatMoney(EmergencyPurchaseCost - _balance) —
-                <button type="button" class="btn btn-link p-0 align-baseline" @onclick='() => _activePageTab = "finance"'>возьмите кредит в Финансах</button>.
+            <p class="text-muted small mb-2">
+                Баланс уйдёт в минус на @DashboardDisplay.FormatMoney(EmergencyPurchaseCost - _balance) — это не проблема, просто число.
             </p>
         }
     }
@@ -797,68 +947,18 @@ else
 <div style="display:@(_activePageTab == "finance" ? "" : "none")">
     <h3>Финансы</h3>
     <p>
-        Баланс: <strong class="@(_balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_balance)</strong> ·
-        долг: @DashboardDisplay.FormatMoney(_debt), текущая ставка:
-        <strong class="@(IsLoanRateDangerous ? "text-danger" : null)">@DashboardDisplay.FormatRate(_currentLoanRate)</strong>
-        @if (_penaltyRateSurcharge > 0)
-        {
-            <text> (включая штрафную надбавку @_penaltyRateSurcharge.ToString("P1") от принудительных займов)</text>
-        }
+        Баланс: <strong class="@(_balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(_balance)</strong>
     </p>
-    @if (IsLoanRateDangerous)
+    @if (_balance < 0)
     {
-        <p class="text-danger small mb-2">
-            Ставка уже близка к максимуму сессии — проценты съедают значительную часть баланса каждый
-            ход, независимо от того, сколько вы берёте новых займов. Гасите долг («Погасить досрочно»
-            ниже), а не занимайте больше.
+        <p class="text-muted small mb-2">
+            Отрицательный баланс — это просто число, никакого штрафа или займа за этим не стоит; он
+            выправится сам, как только вы продадите излишки или сократите расходы.
         </p>
-    }
-    @if (_canManage)
-    {
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-            <input type="number" min="0" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_loanAmount" @bind:event="oninput" />
-            <button type="button" class="btn btn-secondary" @onclick="TakeLoan">Взять кредит</button>
-            @if (_pendingLoanTakeAmount > 0)
-            {
-                <button type="button" class="btn btn-link btn-sm p-0" @onclick="CancelLoanRequest">Отменить</button>
-            }
-        </div>
-        @if (_pendingLoanTakeAmount > 0)
-        {
-            <p class="text-muted small mb-2">Заявлено на расчёт: @DashboardDisplay.FormatMoney(_pendingLoanTakeAmount) — деньги поступят на баланс на следующем расчёте.</p>
-        }
-        <p>
-            <em>
-                Предпросмотр: ставка @DashboardDisplay.FormatRate(LoanPreview().Rate),
-                платёж за следующий ход @DashboardDisplay.FormatMoney(LoanPreview().Payment)
-            </em>
-        </p>
-
-        @if (_debt > 0)
-        {
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                <input type="number" min="0" max="@_debt" step="0.01" class="form-control d-inline-block" style="width:8em" @bind="_repayAmount" />
-                <button type="button" class="btn btn-secondary" @onclick="RepayLoan">Погасить досрочно</button>
-                @if (_pendingLoanRepayAmount > 0)
-                {
-                    <button type="button" class="btn btn-link btn-sm p-0" @onclick="CancelLoanRepaymentRequest">Отменить</button>
-                }
-            </div>
-            @if (_pendingLoanRepayAmount > 0)
-            {
-                <p class="text-muted small mb-2">Заявлено на расчёт: @DashboardDisplay.FormatMoney(_pendingLoanRepayAmount) — спишется на следующем расчёте.</p>
-            }
-            <p class="text-muted small">
-                <em>
-                    Сверх этого с баланса каждый ход и так автоматически списываются обязательный
-                    платёж по телу долга (сейчас — @DashboardDisplay.FormatMoney(_debt * _mandatoryRepaymentRate) при текущем долге) и проценты.
-                </em>
-            </p>
-        }
     }
 
     <h4 class="mt-4">История операций</h4>
-    <p class="text-muted small">Всё, что двигает баланс или долг команды: кредиты, постройка фабрик, наём и зарплаты, R&amp;D, продажи и закупки, исполнение контрактов.</p>
+    <p class="text-muted small">Всё, что двигает баланс команды: постройка фабрик, наём и зарплаты, R&amp;D, продажи и закупки, исполнение контрактов.</p>
     @if (_financeHistory.Count == 0)
     {
         <p><em>Операций пока не было.</em></p>
@@ -869,12 +969,15 @@ else
             <table class="table table-striped table-sm align-middle">
                 <thead>
                     <tr>
-                        <th>Время</th>
+                        @* Точное время и ставка на телефоне только выдавливают таблицу за экран:
+                           ход и сумма отвечают на вопрос «что и почём», а секунды операции нужны
+                           разве что при разборе после игры — на большом экране они и остаются. *@
+                        <th class="d-none d-md-table-cell">Время</th>
                         <th>Ход</th>
                         <th>Операция</th>
                         <th>Фабрика</th>
                         <th>Сумма</th>
-                        <th>Ставка</th>
+                        <th class="d-none d-md-table-cell">Ставка</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -882,7 +985,7 @@ else
                     {
                         var isIncome = operation.Direction == FinanceHistoryCalculator.MoneyDirection.Income;
                         <tr>
-                            <td>@operation.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
+                            <td class="d-none d-md-table-cell">@operation.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
                             <td>@operation.Turn</td>
                             <td>
                                 @DashboardDisplay.FinanceOperationLabel(operation.Type)
@@ -893,7 +996,7 @@ else
                             </td>
                             <td>@(operation.FactoryId is { } factoryId ? _factoryDisplayNamesById.GetValueOrDefault(factoryId, "—") : "—")</td>
                             <td class="@(isIncome ? "text-success" : "text-danger")">@(isIncome ? "+" : "−")@DashboardDisplay.FormatMoney(operation.Amount)</td>
-                            <td>@(operation.Rate is { } rate ? DashboardDisplay.FormatRate(rate) : "—")</td>
+                            <td class="d-none d-md-table-cell">@(operation.Rate is { } rate ? DashboardDisplay.FormatRate(rate) : "—")</td>
                         </tr>
                     }
                 </tbody>
@@ -907,9 +1010,72 @@ else
 
     @if (_isDecisionPhase)
     {
-        <ContractDraftForm TeamId="_teamId" OnChanged="RefreshDashboard" />
+        <ContractDraftForm TeamId="_teamId" Role="_role" OnChanged="RefreshDashboard" />
     }
 
+    <h3 class="mt-4">Заявки на сделку</h3>
+    @if (_proposals.Count == 0)
+    {
+        <p><em>Открытых заявок нет.</em></p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Направление</th>
+                        <th>Контрагент</th>
+                        <th>Материал</th>
+                        <th>Условия</th>
+                        <th>Подана</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var proposal in _proposals)
+                    {
+                        <tr>
+                            <td>@(proposal.Incoming ? "Нам" : "От нас")</td>
+                            <td>@proposal.CounterpartyName</td>
+                            <td>@proposal.MaterialName</td>
+                            <td>
+                                @if (proposal.Incoming)
+                                {
+                                    <em class="text-body-secondary">Скрыты — узнайте у контрагента лично</em>
+                                }
+                                else
+                                {
+                                    @($"{proposal.Volume!.Value.ToString("0.##")} ед. × {DashboardDisplay.FormatMoney(proposal.UnitPrice!.Value)}")
+                                }
+                            </td>
+                            <td>ход @proposal.SubmittedOnTurn</td>
+                            <td>
+                                @if (_isDecisionPhase && Role == "Manager")
+                                {
+                                    @if (proposal.Incoming)
+                                    {
+                                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => RejectProposal(proposal.ProposalId)">Отклонить</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => WithdrawProposal(proposal.ProposalId)">Отозвать</button>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="form-text">
+            Входящая заявка означает только, что контрагент хочет сделку по этому материалу. Объём,
+            цену, штраф и сроки он назовёт лично — введите их в черновике выше, и если совпадут,
+            сделка заключится сама.
+        </p>
+    }
+
+    <h3 class="mt-4">Контракты</h3>
     @if (_contracts.Count == 0)
     {
         <p><em>Контрактов нет.</em></p>
@@ -1020,7 +1186,8 @@ else
         FactoryProfitabilityCalculator.FactoryProfitabilityEstimate? Profitability,
         ProductionCalculator.CapacityBreakdown CapacityBreakdown,
         IReadOnlyList<FactoryActivityRow> ActivityHistory,
-        decimal LiquidationValue);
+        decimal LiquidationValue,
+        bool InstantHiring);
 
     /// <summary>Одна строка таблицы «История по ходам» — что фабрика потребила со склада и сколько произвела за тот же ход (оба значения из одного и того же события <see cref="FactoryProduced"/>).</summary>
     private sealed record FactoryActivityRow(int Turn, string ConsumedSummary, decimal OutputQuantity);
@@ -1036,23 +1203,16 @@ else
         decimal? PendingVolume, decimal? PendingUnitPrice, decimal? PendingPenaltyRate, int? PendingRecurringEndTurn,
         bool WeAreTheProposer);
 
-    private sealed record StockRow(string MaterialId, string MaterialName, Material Material, decimal Quantity);
-
     /// <summary>
-    /// Предпросмотр продажи материала системе (запрос пользователя: «сразу видеть ставку, доход и
-    /// прибыль») — пересчитывается на лету из уже закешированных <see cref="_market"/>/
-    /// <see cref="_economyConfig"/>/<see cref="_realUnitCostByMaterialId"/> при каждом изменении
-    /// объёма, той же чистой функцией <see cref="MarketSaleCalculator.Calculate"/>, что и реальная
-    /// продажа — предпросмотр не может разойтись с фактом. <see cref="Profit"/> считается по
-    /// реальной себестоимости остатка на складе (взвешенное среднее фактических трат — зарплата,
-    /// закупки, поставки по контрактам, см. <see cref="Warehouse.AverageCostOf"/>), а не по
-    /// рыночной цене — та отвечает на другой вопрос (см. doc-comment <see
-    /// cref="FactoryProfitabilityCalculator"/>) и тут не годится. Известна всегда, пока материал
-    /// вообще есть на складе.
+    /// Строка таблицы заявок на сделку (docs/TODO.md №16). У входящей заявки <see cref="Volume"/> и
+    /// <see cref="UnitPrice"/> намеренно <c>null</c> — чужие условия на экран не попадают вовсе, а не
+    /// прячутся разметкой: узнать их можно только у человека, в этом и смысл механики.
     /// </summary>
-    private sealed record SellPreviewResult(
-        bool HasQuote, decimal UnitPrice, decimal OverflowVolume, decimal OverflowUnitPrice,
-        decimal Revenue, decimal Profit);
+    private sealed record ProposalRow(
+        Ulid ProposalId, bool Incoming, string CounterpartyName, string MaterialName,
+        decimal? Volume, decimal? UnitPrice, int SubmittedOnTurn);
+
+    private sealed record StockRow(string MaterialId, string MaterialName, Material Material, decimal Quantity);
 
     private sealed record MaterialOption(string Id, string Name);
 
@@ -1087,7 +1247,7 @@ else
     private string _phaseExplanation = string.Empty;
     private bool _isDecisionPhase;
     /// <summary>
-    /// Может принимать решения (строить, нанимать, вкладывать в R&amp;D, продавать, брать кредит) —
+    /// Может принимать решения (строить, нанимать, вкладывать в R&amp;D, продавать) —
     /// фаза «Решения» и роль «Управляющий»; переговорщик видит все те же панели, но в режиме чтения
     /// (запрос пользователя: «у переговорщика были те же права, что и у управляющего» — по факту
     /// действие раньше проверялось только по фазе, не по роли). Вкладка «Контракты» — исключение,
@@ -1101,19 +1261,23 @@ else
     private Timer? _tickTimer;
 
     private decimal _balance;
-    private decimal _debt;
-    private decimal _pendingLoanTakeAmount;
-    private decimal _pendingLoanRepayAmount;
-    private decimal _penaltyRateSurcharge;
+    private FinalScoreResult? _score;
+    private bool _isFinished;
     private decimal _reputationPercentage;
     private int _reputationSampleCount;
 
     private IReadOnlyList<FactoryRow> _factories = Array.Empty<FactoryRow>();
     private IReadOnlyList<BuildableDefinition> _buildableDefinitions = Array.Empty<BuildableDefinition>();
     private IReadOnlyList<FactoryOverviewList.Node> _factoryOverviewRows = Array.Empty<FactoryOverviewList.Node>();
+    private IReadOnlyList<TeamAttentionCalculator.AttentionItem> _attention = Array.Empty<TeamAttentionCalculator.AttentionItem>();
+    private DashboardDisplay.AttentionNaming _attentionNaming = new(
+        new Dictionary<Ulid, string>(), new Dictionary<string, string>(), new Dictionary<string, string>());
     private int _unlockedGeneration = 1;
     private FactoryHistoryCalculator.TeamFactoryHistory? _history;
     private int _historyEntryCount = -1;
+    private bool _showEconomyIndex;
+    private EconomyIndexDisplay.IndexSummary _economyIndex = EconomyIndexDisplay.Describe([]);
+    private LineChartDiagram.ChartLayout _economyIndexChart = new([], [], [], 900, 240);
     private Ulid? _selectedFactoryId;
     /// <summary>Отображаемое имя фабрики по Id — для истории операций (какая фабрика вызвала расход/доход), см. её построение в <see cref="RefreshDashboard"/>.</summary>
     private IReadOnlyDictionary<Ulid, string> _factoryDisplayNamesById = new Dictionary<Ulid, string>();
@@ -1121,16 +1285,20 @@ else
     private string _activeFactoryTab = "workers";
     private decimal _hireCostPerWorker;
     private decimal _fireCostPerWorker;
+    private int _maxHiresPerTurn = int.MaxValue;
     private int _baseWorkerCount;
     private readonly Dictionary<string, decimal> _teamWarehouseByMaterialId = new();
     private readonly Dictionary<string, decimal> _buildCosts = new();
     private readonly Dictionary<string, decimal> _upkeepCosts = new();
     private Market? _market;
     private EconomyConfig? _economyConfig;
+    /// <summary>Себестоимость каждого материала (<see cref="MaterialCostCalculator"/>) — заменяет рыночную котировку как база цены продажи системе/аварийной закупки (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-21).</summary>
+    private IReadOnlyDictionary<string, decimal> _materialCosts = new Dictionary<string, decimal>();
     private readonly Dictionary<string, decimal> _unitCostByMaterialId = new();
     /// <summary>Реальная себестоимость остатка (взвешенное среднее фактических трат, <see cref="Warehouse.AverageCostOf"/>) — для превью продажи, в отличие от рыночной <see cref="_unitCostByMaterialId"/> (для карточки фабрики).</summary>
     private readonly Dictionary<string, decimal> _realUnitCostByMaterialId = new();
     private IReadOnlyList<ContractRow> _contracts = Array.Empty<ContractRow>();
+    private IReadOnlyList<ProposalRow> _proposals = Array.Empty<ProposalRow>();
     private IReadOnlyList<StockRow> _stock = Array.Empty<StockRow>();
     private IReadOnlyList<MaterialOption> _emergencyPurchaseMaterials = Array.Empty<MaterialOption>();
 
@@ -1162,20 +1330,6 @@ else
     private string? _emergencyPurchaseMaterialId;
     private decimal _emergencyPurchaseVolume = 1m;
 
-    private Game.Config.Session.StartingConditionsConfig? _loanConfig;
-    private decimal _currentLoanRate;
-
-    /// <summary>
-    /// Ставка уже проела больше половины расстояния до <see cref="Game.Config.Session.StartingConditionsConfig.MaxLoanInterestRate"/>
-    /// (docs/TODO.md #21: без явной подсветки цифра ставки — просто ещё одно число среди многих,
-    /// команда могла не заметить, что она уже опасно высока, пока принудительный заём не ударил по
-    /// балансу). Порог — половина от потолка конфига, а не жёсткое число: масштабируется вместе с
-    /// тем, что сессия вообще считает «максимумом».
-    /// </summary>
-    private bool IsLoanRateDangerous => _loanConfig is not null && _currentLoanRate >= _loanConfig.MaxLoanInterestRate / 2m;
-    private decimal _loanAmount = 100m;
-    private decimal _repayAmount = 100m;
-    private decimal _mandatoryRepaymentRate;
     private IReadOnlyList<FinanceHistoryCalculator.FinanceOperation> _financeHistory = Array.Empty<FinanceHistoryCalculator.FinanceOperation>();
 
     protected override async Task OnInitializedAsync()
@@ -1229,18 +1383,23 @@ else
             var state = Host.Session.State;
 
             _currentTurn = state.CurrentTurn;
+            _isFinished = state.IsFinished;
             // Полный реплей журнала — не бесплатная операция, а страница обновляется раз в секунду:
             // пересчитываем только когда в журнале появились новые записи, а не на каждый тик
-            // таймера. Раньше ключом кеша был текущий ход — но решения (взять кредит, погасить
-            // долг) добавляют события внутри одного и того же хода, поэтому кеш по ходу не замечал
-            // их до следующего хода: свежевзятый кредит не появлялся в истории операций сразу же.
+            // таймера. Раньше ключом кеша был текущий ход — но решения (продать, построить фабрику)
+            // добавляют события внутри одного и того же хода, поэтому кеш по ходу не замечал
+            // их до следующего хода: свежее действие не появлялось в истории операций сразу же.
             var entryCount = Host.Session!.Entries.Count;
             if (_history is null || _historyEntryCount != entryCount)
             {
                 _history = FactoryHistoryCalculator.Summarize(Host.Session!.Entries, state.Config, _teamId);
                 _financeHistory = FinanceHistoryCalculator.Summarize(Host.Session!.Entries, state.Config, _teamId);
+                var indexHistory = EconomyIndexHistoryCalculator.Summarize(Host.Session!.Entries, state.Config);
+                _economyIndex = EconomyIndexDisplay.Describe(indexHistory);
+                _economyIndexChart = EconomyIndexDisplay.BuildChart(indexHistory, 900, 240);
                 _historyEntryCount = entryCount;
             }
+            _showEconomyIndex = EconomyIndexDisplay.IsVisible(state.Config.Raw.Economy);
             _phaseLabel = PhaseDisplay.PhaseLabel(state.CurrentPhase);
             _phaseExplanation = PhaseDisplay.PhaseExplanation(state.CurrentPhase);
             _isDecisionPhase = state.CurrentPhase == TurnPhase.Decision;
@@ -1248,9 +1407,6 @@ else
             _phaseDuration = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.TotalDuration(Host.Session!));
             _countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session!, DateTimeOffset.UtcNow));
             _lastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session!);
-            var loanConfig = state.Config.Raw.StartingConditions;
-            _loanConfig = loanConfig;
-            _mandatoryRepaymentRate = loanConfig.MandatoryRepaymentRatePerTurn;
             _freeCapacity = state.Config.Raw.Warehouse.FreeCapacity;
             _emergencyPurchaseEnabled = state.Config.Raw.FeatureFlags.EmergencyPurchaseEnabled;
             _emergencyPurchaseMaterials = state.Config.Materials.Values
@@ -1275,20 +1431,17 @@ else
                 .ToList();
 
             _balance = team.Balance;
-            _debt = team.Debt;
-            _pendingLoanTakeAmount = team.PendingLoanTakeAmount;
-            _pendingLoanRepayAmount = team.PendingLoanRepayAmount;
+            _score = FinalScoreCalculator.Calculate(team, MaterialCostCalculator.CalculateAll(state.Config), state.Config.Raw.FactoryDefinitions);
             _pendingSaleVolumeByMaterial = team.PendingSaleVolumeByMaterial;
             _pendingEmergencyPurchaseVolumeByMaterial = team.PendingEmergencyPurchaseVolumeByMaterial;
-            _penaltyRateSurcharge = team.PenaltyRateSurcharge;
 
             var reputation = Host.Session!.GetReputation(_teamId);
             _reputationPercentage = reputation.Percentage;
             _reputationSampleCount = reputation.SampleCount;
-            _currentLoanRate = FinanceCalculator.CalculateEffectiveLoanRate(team, loanConfig, _reputationPercentage);
 
             _market = state.Market;
             _economyConfig = state.Config.Raw.Economy;
+            _materialCosts = MaterialCostCalculator.CalculateAll(state.Config);
             _unitCostByMaterialId.Clear();
             _realUnitCostByMaterialId.Clear();
             _stock = team.Warehouse.Stock.Select(s =>
@@ -1317,7 +1470,8 @@ else
                 if (FactoryProfitabilityCalculator.TryCalculate(
                     factory, team.Factories, team.Warehouse, state.Market,
                     state.Config.Raw.WorkerProductivity, state.Config.Raw.Rnd, out var estimate,
-                    fixedCostPerTurn, state.Config.Raw.Economy.ElectricityConsumptionPerOutputUnit))
+                    fixedCostPerTurn, state.Config.Raw.Economy.ElectricityConsumptionPerOutputUnit,
+                    _materialCosts))
                 {
                     profitabilityByFactoryId[factory.Id] = estimate;
                 }
@@ -1344,6 +1498,7 @@ else
 
             _hireCostPerWorker = state.Config.Raw.WorkerProductivity.HireCostPerWorker;
             _fireCostPerWorker = state.Config.Raw.WorkerProductivity.FireCostPerWorker;
+            _maxHiresPerTurn = state.Config.Raw.WorkerProductivity.MaxHiresPerTurn;
             _baseWorkerCount = state.Config.Raw.WorkerProductivity.BaseWorkerCount;
 
             // Фабрики не хранят собственное имя — только тип (Definition.Name) и Id. При нескольких
@@ -1422,7 +1577,7 @@ else
                     upkeepPenaltyMultiplier, overhaulTier?.Name ?? string.Empty, overhaulTierCost,
                     overhaulTier?.DurationTurns ?? 0, overhaulTier?.OutputMultiplier ?? 0m,
                     consumingFactoryNames, profitabilityByFactoryId.GetValueOrDefault(factory.Id),
-                    capacityBreakdown, activityHistory, liquidationValue);
+                    capacityBreakdown, activityHistory, liquidationValue, WorkforceStep.IsInstantHiring(factory));
             }).ToList();
             if (_selectedFactoryId is null || _factories.All(f => f.FactoryId != _selectedFactoryId))
             {
@@ -1462,6 +1617,33 @@ else
             _factoryOverviewRows = FactoryOverviewList.Build(
                 sectorDefinitions, team.Factories, lastTurnOutputByFactoryId, theoreticalMaxOutputByFactoryId);
 
+            // Панель «Требует внимания» (docs/TODO.md №7). Сам расчёт живёт в движке и оперирует
+            // идентификаторами, здесь к ним добавляются только имена для подписей.
+            _attention = TeamAttentionCalculator.Calculate(Host.Session!.Entries, state, _teamId);
+            _attentionNaming = new DashboardDisplay.AttentionNaming(
+                _factoryDisplayNamesById,
+                state.Config.Materials.ToDictionary(pair => pair.Key, pair => pair.Value.Name),
+                state.Config.Raw.Wear.OverhaulTiers.ToDictionary(tier => tier.Id, tier => tier.Name));
+
+            _proposals = state.ContractProposals.Values
+                .Where(p => p.Status == ContractProposalStatus.Open
+                    && (p.SubmittedByTeamId == _teamId || p.CounterpartyTeamId == _teamId))
+                .OrderBy(p => p.SubmittedOnTurn)
+                .ThenBy(p => p.Id.ToString(), StringComparer.Ordinal)
+                .Select(p =>
+                {
+                    var incoming = p.SubmittedByTeamId != _teamId;
+                    var counterpartyId = incoming ? p.SubmittedByTeamId : p.CounterpartyTeamId;
+                    var counterpartyName = state.Teams.TryGetValue(counterpartyId, out var counterparty) ? counterparty.Name : "?";
+
+                    return new ProposalRow(
+                        p.Id, incoming, counterpartyName, p.Proposal.Terms.Material.Name,
+                        incoming ? null : p.Proposal.Terms.Volume,
+                        incoming ? null : p.Proposal.Terms.UnitPrice,
+                        p.SubmittedOnTurn);
+                })
+                .ToList();
+
             _contracts = state.Contracts.Values
                 .Where(c => c.BuyerTeamId == _teamId || c.SellerTeamId == _teamId)
                 .Select(c =>
@@ -1497,12 +1679,15 @@ else
     private BuildableDefinition? SelectedBuildableDefinition =>
         _buildableDefinitions.FirstOrDefault(d => d.Id == _selectedFactoryDefinitionId);
 
-    /// <summary>Управляет и disabled-состоянием кнопки «Построить», и текстом-пояснением рядом с ней — единый источник правды, чтобы они не разъезжались.</summary>
+    /// <summary>
+    /// Не блокирует постройку (баланс может свободно уйти в минус, docs/TODO.md #23) — только
+    /// управляет информационной подсказкой рядом с кнопкой «Построить».
+    /// </summary>
     private bool CanAffordSelectedBuild => SelectedBuildableDefinition is not { } definition || _balance >= definition.BuildCost;
 
     private void BuildFactory()
     {
-        if (_selectedFactoryDefinitionId is null || !CanAffordSelectedBuild)
+        if (_selectedFactoryDefinitionId is null)
         {
             return;
         }
@@ -1535,6 +1720,41 @@ else
     private void SelectFactory(Ulid factoryId) => _selectedFactoryId = factoryId;
 
     /// <summary>
+    /// Фабрика, о которой говорит повод, — если он вообще про фабрику: у складского сбора и у
+    /// поставки такой одной фабрики нет. У «материал кончается» их может быть несколько, берём
+    /// первую — переход по ссылке это навигация, а не выбор за игрока, какой именно фабрикой
+    /// заняться.
+    /// </summary>
+    private static Ulid? AttentionTargetFactoryId(TeamAttentionCalculator.AttentionItem item) => item switch
+    {
+        TeamAttentionCalculator.AttentionItem.FactoryStarvedOfInput x => x.FactoryId,
+        TeamAttentionCalculator.AttentionItem.FactoryWithoutWorkers x => x.FactoryId,
+        TeamAttentionCalculator.AttentionItem.FactoryInForcedDowntime x => x.FactoryId,
+        TeamAttentionCalculator.AttentionItem.OverhaulGetsMoreExpensive x => x.FactoryId,
+        TeamAttentionCalculator.AttentionItem.MaterialRunningOut x => x.AffectedFactoryIds.Count > 0 ? x.AffectedFactoryIds[0] : null,
+        _ => null,
+    };
+
+    /// <summary>
+    /// Переход из панели к самой фабрике: открывает вкладку «Фабрики» с уже выбранной карточкой и
+    /// прокручивает страницу прямо к ней. Это навигация, не совет — панель показывает, где смотреть,
+    /// а не что делать.
+    ///
+    /// <para>
+    /// Прокрутка здесь обязательна, а не косметика: карточка фабрики лежит ниже формы постройки и
+    /// всего списка типов сектора, поэтому без неё переход бросал бы игрока в начало вкладки — и он
+    /// снова искал бы нужную фабрику глазами, ровно то, ради чего панель и делалась (проверено
+    /// живым прогоном в браузере 2026-09-08).
+    /// </para>
+    /// </summary>
+    private void OpenFactoryFromAttention(Ulid factoryId)
+    {
+        _selectedFactoryId = factoryId;
+        _activePageTab = "factories";
+        ScrollTo($"factory-card-{factoryId}");
+    }
+
+    /// <summary>
     /// Прокручивает к элементу с данным id на этой же странице через встроенную в Blazor прокрутку
     /// к фрагменту URL (не полноценная навигация — тот же маршрут, меняется только якорь). Обычный
     /// <c>&lt;a href="#id"&gt;</c> внутри SVG здесь не годится: клик перехватывает роутер Blazor и
@@ -1551,6 +1771,15 @@ else
     /// списывать за каждое промежуточное значение, если команда меняла его несколько раз за ход — см.
     /// doc-comment <see cref="GameSession.SetWorkerCount"/>). Положительная разница — наём, отрицательная — увольнение.
     /// </summary>
+    /// <summary>
+    /// Сколько из объявленного прироста реально выйдет на смену уже на ближайшем расчёте — то же
+    /// правило, что применит <see cref="WorkforceStep"/> (docs/TODO.md №25). Считаем здесь, а не
+    /// зовём сам шаг: ему нужна доменная <c>Factory</c>, а у строки экрана её нет — правило же
+    /// состоит из одного <c>Math.Min</c>, и оно сторожится тестом.
+    /// </summary>
+    private int HiresThisTurn(FactoryRow factory, int delta) =>
+        factory.InstantHiring ? delta : Math.Min(delta, _maxHiresPerTurn);
+
     private (int Delta, decimal Cost) WorkerCountChange(FactoryRow factory)
     {
         var target = Math.Max(0, _targetWorkerCounts.GetValueOrDefault(factory.FactoryId, factory.DesiredWorkers));
@@ -1654,13 +1883,54 @@ else
     }
 
     /// <summary>
-    /// Чистая стоимость команды (баланс минус долг) по ходам (вкладка «Обзор») — не сырой баланс:
-    /// принудительный кредит держит баланс у нуля, пряча реальное ухудшение дел за растущим долгом,
-    /// поэтому график обязан уметь уходить ниже нуля (запрос пользователя).
+    /// Баланс команды по ходам (вкладка «Обзор») — может уходить ниже нуля, это не ошибка (SPEC
+    /// §5.1/§5.9, пересмотрено — банковский заём убран как класс механики, docs/TODO.md #23).
     /// </summary>
     private LineChartDiagram.ChartLayout BuildBalanceChartLayout()
     {
-        var series = new[] { new LineChartDiagram.ChartSeries("Баланс за вычетом долга", SectorColors.Palette[0], _history!.NetWorthByTurn) };
+        var series = new[] { new LineChartDiagram.ChartSeries("Баланс", SectorColors.Palette[0], _history!.NetWorthByTurn) };
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
+    }
+
+    /// <summary>
+    /// Отдельным графиком, а не вторым рядом на графике баланса: это две разные величины, и правило
+    /// проекта — одна шкала на график (см. doc-comment <see cref="LineChartDiagram"/>). Разойтись
+    /// они могут на порядок, если команда вложилась в фабрики.
+    /// </summary>
+    private LineChartDiagram.ChartLayout BuildScoreChartLayout()
+    {
+        var series = new[] { new LineChartDiagram.ChartSeries("Стоимость команды", SectorColors.Palette[1], _history!.ScoreByTurn) };
+
+        return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
+    }
+
+    /// <summary>
+    /// Денежный поток по ходам (вкладка «Обзор», запрос пользователя: «важно видеть не только
+    /// баланс под конец партии, но и зарабатывают ли сейчас деньги, и сколько») — сумма прихода
+    /// минус сумма расхода за каждый ход по <see cref="_financeHistory"/> (та же полная и уже
+    /// проверенная разбивка операций, что показывает вкладка «Финансы»), не накопленный итог, как
+    /// <see cref="BuildBalanceChartLayout"/> выше. Сходится с разницей баланса между соседними
+    /// точками <see cref="FactoryHistoryCalculator.TeamFactoryHistory.NetWorthByTurn"/> по построению
+    /// — <see cref="FinanceHistoryCalculator"/> перечисляет каждую операцию, трогающую баланс
+    /// команды, ни одна не пропущена и не задвоена. Ходы совсем без операций получают 0, а не
+    /// выпадают из ряда, — берём полный диапазон ходов из <see cref="BuildBalanceChartLayout"/>, а не
+    /// только те, где что-то произошло, чтобы ось ходов совпадала с графиком баланса выше.
+    /// </summary>
+    private LineChartDiagram.ChartLayout BuildCashFlowChartLayout()
+    {
+        var flowByTurn = _financeHistory
+            .GroupBy(operation => operation.Turn)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(operation =>
+                    operation.Direction == FinanceHistoryCalculator.MoneyDirection.Income ? operation.Amount : -operation.Amount));
+
+        var points = _history!.NetWorthByTurn
+            .Select(point => (point.Turn, flowByTurn.GetValueOrDefault(point.Turn)))
+            .ToList();
+
+        var series = new[] { new LineChartDiagram.ChartSeries("Поток", SectorColors.Palette[1], points) };
 
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
     }
@@ -1699,24 +1969,35 @@ else
         RunAction(() => Host.Session!.SellToSystem(_teamId, materialId, 0m));
     }
 
-    private SellPreviewResult SellPreview(StockRow row)
+    /// <summary>
+    /// Предпросмотр продажи материала системе (запрос пользователя: «сразу видеть ставку, доход и
+    /// прибыль»; с блока 11.10 — ещё и собственную просадку цены) — пересчитывается на лету из уже
+    /// закешированных <see cref="_market"/>/<see cref="_economyConfig"/>/
+    /// <see cref="_realUnitCostByMaterialId"/> при каждом изменении объёма, см.
+    /// <see cref="MarketSalePreview"/>.
+    /// </summary>
+    private MarketSalePreview.Result SellPreview(StockRow row)
     {
         var volume = _sellVolumes.GetValueOrDefault(row.MaterialId, 1m);
-        if (_market is null || _economyConfig is null || volume <= 0 || !_market.HasQuote(row.MaterialId))
+        if (_market is null || _economyConfig is null)
         {
-            return new SellPreviewResult(HasQuote: false, 0m, 0m, 0m, 0m, 0m);
+            return new MarketSalePreview.Result(HasQuote: false, 0m, 0m, 0m, 0m, 0m, 0m);
         }
 
-        var result = MarketSaleCalculator.Calculate(_market, _economyConfig, row.Material, volume);
-        var overflowUnitPrice = result.UnitPrice * _economyConfig.MarketCapacityOverflowDiscount;
-        var realUnitCost = _realUnitCostByMaterialId.GetValueOrDefault(row.MaterialId);
-        var profit = result.TotalRevenue - realUnitCost * volume;
-
-        return new SellPreviewResult(HasQuote: true, result.UnitPrice, result.OverflowVolume, overflowUnitPrice, result.TotalRevenue, profit);
+        return MarketSalePreview.Calculate(
+            _market, _materialCosts, _economyConfig, row.Material, volume,
+            _realUnitCostByMaterialId.GetValueOrDefault(row.MaterialId),
+            Host.Session!.Entries, Host.Session!.State.CurrentTurn);
     }
 
     private void ConfirmContract(Ulid contractId) =>
         RunAction(() => Host.Session!.ConfirmContract(contractId, TeamRole.Manager, _teamId));
+
+    private void WithdrawProposal(Ulid proposalId) =>
+        RunAction(() => Host.Session!.WithdrawContractProposal(proposalId, _teamId));
+
+    private void RejectProposal(Ulid proposalId) =>
+        RunAction(() => Host.Session!.RejectContractProposal(proposalId, _teamId));
 
     private void TerminateMutual(Ulid contractId) =>
         RunAction(() => Host.Session!.TerminateContract(contractId, ContractTerminationReason.Mutual, terminatingTeamId: null));
@@ -1770,22 +2051,23 @@ else
     {
         get
         {
-            if (_emergencyPurchaseMaterialId is null || _market is null || _economyConfig is null
-                || !_market.HasQuote(_emergencyPurchaseMaterialId))
+            if (_emergencyPurchaseMaterialId is null || _economyConfig is null
+                || !_materialCosts.TryGetValue(_emergencyPurchaseMaterialId, out var unitCost))
             {
                 return 0m;
             }
 
-            var unitPrice = _market.QuoteOf(_emergencyPurchaseMaterialId).Price * EmergencyPurchaseEffectiveMultiplier;
+            var unitPrice = unitCost * EmergencyPurchaseEffectiveMultiplier;
             return unitPrice * _emergencyPurchaseVolume;
         }
     }
 
+    /// <summary>Не блокирует покупку (баланс может свободно уйти в минус, docs/TODO.md #23) — только управляет информационной подсказкой рядом с кнопкой «Купить».</summary>
     private bool CanAffordEmergencyPurchase => EmergencyPurchaseCost <= _balance;
 
     private void EmergencyPurchase()
     {
-        if (_emergencyPurchaseMaterialId is null || !CanAffordEmergencyPurchase)
+        if (_emergencyPurchaseMaterialId is null)
         {
             return;
         }
@@ -1829,38 +2111,6 @@ else
     {
         var share = _allocationShares.GetValueOrDefault(factoryId, 1m);
         RunAction(() => Host.Session!.SetFactoryAllocationShare(_teamId, factoryId, share));
-    }
-
-    private void TakeLoan()
-    {
-        RunAction(() => Host.Session!.TakeLoan(_teamId, _loanAmount));
-    }
-
-    private void RepayLoan()
-    {
-        RunAction(() => Host.Session!.RepayLoan(_teamId, _repayAmount));
-    }
-
-    /// <summary>Снимает заявку на заём этого хода (SPEC §4, §5.9) — объявление 0 отменяет предыдущее.</summary>
-    private void CancelLoanRequest()
-    {
-        RunAction(() => Host.Session!.TakeLoan(_teamId, 0m));
-    }
-
-    /// <summary>Снимает заявку на добровольное погашение этого хода — симметрично <see cref="CancelLoanRequest"/>.</summary>
-    private void CancelLoanRepaymentRequest()
-    {
-        RunAction(() => Host.Session!.RepayLoan(_teamId, 0m));
-    }
-
-    private (decimal Rate, decimal Payment) LoanPreview()
-    {
-        if (_loanConfig is null)
-        {
-            return (0m, 0m);
-        }
-
-        return DashboardDisplay.PreviewLoan(_debt, _penaltyRateSurcharge, _reputationPercentage, _loanAmount, _loanConfig);
     }
 
     /// <summary>

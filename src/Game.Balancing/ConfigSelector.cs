@@ -16,13 +16,13 @@ internal static class ConfigSelector
         Path.Combine(AppContext.BaseDirectory, "Samples", "production-models");
 
     private static string DefaultSessionPath =>
-        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "pilot.json");
+        Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json");
 
     /// <summary>
     /// Грузит конфиг по <paramref name="args"/>: путь либо на уже полный <c>GameConfig</c> (собран
-    /// целиком, как <c>gameconfig.pilot.json</c>), либо на файл одной production-model цепочки без
+    /// целиком, как <c>legacy-combined-gameconfig.json</c>), либо на файл одной production-model цепочки без
     /// сессионных параметров — какой из двух перед нами, определяется по содержимому файла (наличие
-    /// поля <c>SessionPresets</c> верхнего уровня), не по флагу, так что один и тот же <c>--config</c>
+    /// поля <c>Duration</c> верхнего уровня), не по флагу, так что один и тот же <c>--config</c>
     /// работает для обоих видов файлов без дополнительных подсказок.
     /// </summary>
     public static ResolvedGameConfig Load(CliArguments args)
@@ -35,12 +35,33 @@ internal static class ConfigSelector
             throw new FileNotFoundException($"Config file not found: '{configPath}'.", configPath);
         }
 
+        var isFullGameConfig = args.SessionPath is null && IsFullGameConfig(configPath);
+
+        // --difficulty переопределяет DifficultyLevel сессионного файла до сборки: грузим модель и
+        // сессию по отдельности, подменяем уровень, собираем сами. Так одну цепочку можно прогнать
+        // по всем целым уровням бегунка одной серией вызовов (docs/TODO.md №30).
+        if (args.DifficultyLevel is { } difficultyOverride)
+        {
+            if (isFullGameConfig)
+            {
+                throw new ArgumentException(
+                    $"'--difficulty' is not applicable to a fully-composed GameConfig ('{configPath}'): the difficulty " +
+                    "slider only runs while composing a production model with session parameters (GameConfigComposer), " +
+                    "not on a file that already went through it. Pass a production-model file (optionally with --session).");
+            }
+
+            var sessionPath = args.SessionPath ?? DefaultSessionPath;
+            var productionModel = GameConfigLoader.LoadProductionModelFromFile(configPath);
+            var session = GameConfigLoader.LoadSessionFromFile(sessionPath) with { DifficultyLevel = difficultyOverride };
+            return GameConfigLoader.Load(productionModel, session);
+        }
+
         if (args.SessionPath is { } explicitSessionPath)
         {
             return GameConfigLoader.LoadFromFiles(configPath, explicitSessionPath);
         }
 
-        if (IsFullGameConfig(configPath))
+        if (isFullGameConfig)
         {
             return GameConfigLoader.LoadFromFile(configPath);
         }
@@ -53,7 +74,7 @@ internal static class ConfigSelector
     private static bool IsFullGameConfig(string configPath)
     {
         using var document = JsonDocument.Parse(File.ReadAllText(configPath));
-        return document.RootElement.TryGetProperty("SessionPresets", out _);
+        return document.RootElement.TryGetProperty("Duration", out _);
     }
 
     private static string PromptForProductionModel()

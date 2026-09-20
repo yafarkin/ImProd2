@@ -15,12 +15,14 @@ namespace Game.Bots;
 /// вызывающего кода (<see cref="BotSessionRunner"/>, <see cref="OrderBook.Match"/>).
 ///
 /// <para>
-/// <c>leverage</c> (0..1, Блок 7.3.2) — аппетит к риску/кредиту: <c>0</c> — минимальный стартовый
-/// заём, ничего не вкладывает сверх темпа, который тянет маржа, гасит долг добровольно при первой
-/// возможности (<see cref="RepayDebt"/>); <c>1</c> — максимальный стартовый заём, вкладывает в R&amp;D
-/// (командное и по каждой фабрике) на потолок, не спешит с добровольным погашением (платит только
-/// обязательный минимум). Промежуточные значения — линейная интерполяция доли между полюсами (та же
-/// схема, что и в `docs/balancing-bots.md` §2, «Промежуточные значения»).
+/// <c>leverage</c> (0..1, Блок 7.3.2) — аппетит к отрицательному балансу (нет ни займа, ни процента
+/// как класса механики, docs/TODO.md #23 — это исключительно собственная, добровольная осторожность
+/// бота, ничем в движке не наказывается): <c>0</c> — терпит минимум минуса, строит только то, на что
+/// хватает уже заработанного (<see cref="BuildNewlyUnlockedFactories"/>), ничего не вкладывает сверх
+/// темпа, который тянет маржа; <c>1</c> — терпит глубокий минус ради немедленной постройки/вложений,
+/// вкладывает в R&amp;D (командное и по каждой фабрике) на потолок с первого хода. Промежуточные
+/// значения — линейная интерполяция доли между полюсами (та же схема, что и в
+/// `docs/balancing-bots.md` §2, «Промежуточные значения»).
 /// </para>
 /// <para>
 /// <c>profile</c> (0..1, Блок 7.3.2) — распределение усилий по времени: <c>0</c> — фронт-лоадед,
@@ -49,12 +51,12 @@ namespace Game.Bots;
 public sealed class SimpleBot
 {
     /// <summary>
-    /// Доля <see cref="Game.Config.Session.StartingConditionsConfig.MaxStartingLoanAmount"/>, которую
-    /// берёт бот с минимальным <c>leverage</c> (Блок 7.3.2) — не ноль: без какого-то стартового
-    /// капитала бот не может даже построить первую фабрику, «минимум кредита» — не «совсем без
-    /// кредита». Деталь реализации, не зафиксирована в доке намеренно (`docs/balancing-bots.md` §4).
+    /// Доля <see cref="Game.Config.Session.StartingConditionsConfig.MaxInitialBuildBudget"/>,
+    /// которую терпит в минусе бот с минимальным <c>leverage</c> (Блок 7.3.2) — не ноль: совсем без
+    /// готовности хоть немного уйти в минус бот не может построить даже первую фабрику. Деталь
+    /// реализации, не зафиксирована в доке намеренно (`docs/balancing-bots.md` §4).
     /// </summary>
-    private const decimal MinStartingLoanFraction = 0.25m;
+    private const decimal MinInitialBuildBudgetFraction = 0.25m;
 
 
     /// <summary>
@@ -63,23 +65,69 @@ public sealed class SimpleBot
     /// cref="ComputeDesiredInputQuantity"/>, не плоское количество входа одной варки) бот целится
     /// держать буфер закупаемого извне сырья — заявка на покупку восполняет разницу между этим
     /// буфером и фактическим остатком. Намеренно грубая эвристика v1, не динамическая оптимизация.
+    /// Снижено с 3 до 1 (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-22: «бот чуть более
+    /// рисковый — пусть делает запасы на меньшее количество ходов») — раньше эта же осторожность была
+    /// прямой причиной того, что бот копил огромный буфер, прежде чем продать хоть что-то, теряя ходы
+    /// выручки на короткой партии (см. `docs/rebalance-2sector/README.md`, разбор разрыва бот/идеал).
     /// </summary>
-    private const decimal BuyBufferCycles = 3m;
+    private const decimal BuyBufferCycles = 1m;
 
     /// <summary>
     /// Симметричный буфер на столько же ходов вперёд для собственного потребления материала, который
     /// бот и производит, и мог бы продать на сторону — не оголяет свою же цепочку ради продажи:
     /// правильно посчитанная потребность (см. <see cref="BuyBufferCycles"/>) сама расставляет
     /// приоритет в пользу более глубокого, маржинального передела (запрос пользователя — «на чём бот
-    /// больше заработает»), не нужен отдельный явный расчёт «что выгоднее продать».
+    /// больше заработает»), не нужен отдельный явный расчёт «что выгоднее продать». Снижено с 2 до 1
+    /// — та же причина, что у <see cref="BuyBufferCycles"/>.
     /// </summary>
-    private const decimal OwnUseBufferCycles = 2m;
+    private const decimal OwnUseBufferCycles = 1m;
 
-    /// <summary>Надбавка сверх расчётной себестоимости, которую бот готов заплатить на закупке (Блок 7.3.1) — потолок цены заявки на покупку.</summary>
-    private const decimal MaxBuyPremiumRate = 0.20m;
+    /// <summary>
+    /// Где внутри «окна маркетмейкера» стоит МИНИМАЛЬНАЯ цена, за которую бот согласен продать в
+    /// P2P: <c>0</c> — ровно столько же, сколько заплатит система, <c>1</c> — столько же, сколько
+    /// стоила бы аварийная закупка. Публичная — на неё сверяется §2 диагностики.
+    ///
+    /// <para><b>Почему позиция в окне, а не наценка над себестоимостью</b> (блок 11.7). Раньше здесь
+    /// было <c>MinSellMarginRate = 0.35</c> — «себестоимость + 35%», и корректность зависела от
+    /// того, что человек вручную удержит это число строго между наценкой системной продажи (+30%) и
+    /// аварийной закупки (+55%). Дважды не удерживал (найдено 2026-08-23: потолок покупателя стоял
+    /// НИЖЕ пола продавца, из-за чего P2P-сделки были невыгодны в принципе и механика контрактов
+    /// молча не работала). Под экзогенной ценой стало ещё хуже: единой наценки над себестоимостью
+    /// больше нет вовсе, она своя у каждого материала. Позиция в окне снимает проблему
+    /// структурно — любые значения из <c>[0; 1]</c> с <see cref="SellPositionInWindow"/> ниже
+    /// <see cref="BuyPositionInWindow"/> дают корректный бутерброд по построению, на любом
+    /// материале и в любой модели ценообразования.</para>
+    ///
+    /// <para>Значение 0.20 выбрано не заново: при cost-plus окно равно
+    /// <c>[себестоимость × 1.30; себестоимость × 1.55]</c>, и позиция 0.20 даёт ровно
+    /// <c>себестоимость × 1.35</c> — прежний <c>MinSellMarginRate = 0.35</c>, копейка в копейку.
+    /// Переформулировка не меняет поведение бота, она меняет способ гарантировать его
+    /// корректность.</para>
+    /// </summary>
+    public const decimal SellPositionInWindow = 0.20m;
 
-    /// <summary>Минимальная маржа сверх расчётной себестоимости, ниже которой бот не продаёт (Блок 7.3.1) — пол цены заявки на продажу.</summary>
-    private const decimal MinSellMarginRate = 0.05m;
+    /// <summary>
+    /// Где внутри окна маркетмейкера стоит МАКСИМАЛЬНАЯ цена, которую бот согласен заплатить в P2P —
+    /// зеркало <see cref="SellPositionInWindow"/>. Значение 0.80 при cost-plus даёт ровно
+    /// <c>себестоимость × 1.50</c>, прежний <c>MaxBuyPremiumRate = 0.50</c>.
+    /// </summary>
+    public const decimal BuyPositionInWindow = 0.80m;
+
+    /// <summary>
+    /// Доля неиспорченной цены, ниже которой бот не станет продавать системе прямо сейчас (блок
+    /// 11.7): если залив уже просадил среднюю цену сделки ниже этого порога, остаток придерживается
+    /// до следующих ходов, где давление предложения успеет затухнуть.
+    ///
+    /// <para>Это то самое новое решение, которого у бота не было при cost-plus: там цена не зависела
+    /// от объёма вовсе, и «продать всё сразу» было строго оптимально. Под экзогенной ценой у склада
+    /// появляется временная стоимость, и придерживание становится осмысленным ходом, а не
+    /// нерешительностью.</para>
+    ///
+    /// <para>Порог применяется через <see cref="MarketSaleCalculator"/>, то есть одинаково работает
+    /// в обеих моделях: при cost-plus с выключенным штрафом за превышение ёмкости цена от объёма не
+    /// зависит, порог никогда не срабатывает, и поведение бота остаётся прежним.</para>
+    /// </summary>
+    public const decimal MinAcceptableSellPriceRate = 0.85m;
 
     /// <summary>Заявки мельче этого объёма не подаются вовсе — не засорять стакан пылью (Блок 7.3.1).</summary>
     private const decimal MinOrderVolume = 0.5m;
@@ -91,7 +139,7 @@ public sealed class SimpleBot
     public Sector Sector { get; }
 
     /// <summary>
-    /// Подряд идущих ходов ухудшения чистой стоимости (Balance − Debt), после которого <see
+    /// Подряд идущих ходов ухудшения баланса, после которого <see
     /// cref="UpdateFinancialTrend"/> начинает подрезать <see cref="_throttle"/> — запрос
     /// пользователя: «постоянно занимать бабки и при этом строить дальше — недальновидно», бот должен
     /// реагировать на тренд, а не слепо выполнять фиксированный план. Масштабируется номинальным
@@ -102,26 +150,43 @@ public sealed class SimpleBot
     private int DistressThresholdTurns => 1 + (int)Math.Round(_leverage * 3m, MidpointRounding.AwayFromZero);
 
     /// <summary>
-    /// На сколько <see cref="_throttle"/> сдвигается за один ход (к 0 — при ухудшении сверх <see
-    /// cref="DistressThresholdTurns"/>, обратно к 1 — при улучшении) — плавно, не рывком: полная
-    /// остановка сразу после первого же лучшего хода выглядела бы так же недальновидно, как и
-    /// упрямое строительство несмотря на кассовый разрыв.
+    /// На сколько <see cref="_throttle"/> сдвигается за один ход (к <see cref="MinThrottle"/> — при
+    /// ухудшении сверх <see cref="DistressThresholdTurns"/>, обратно к 1 — при улучшении) — плавно, не
+    /// рывком: полная остановка сразу после первого же лучшего хода выглядела бы так же недальновидно,
+    /// как и упрямое строительство несмотря на кассовый разрыв.
     /// </summary>
     private const decimal ThrottleStep = 0.25m;
+
+    /// <summary>
+    /// Пол <see cref="_throttle"/> — раньше был 0 (полная заморозка постройки, см. doc-comment
+    /// <see cref="BuildNewlyUnlockedFactories"/>), но это создавало необратимую ловушку: команда с
+    /// самым ранним межотраслевым переходом в цепочке (rebalance/2-sector-stepwise, 2026-08-23,
+    /// 3-секторная ступенчатая цепочка, `sector2`) проваливалась в небольшой, но НЕПРЕРЫВНЫЙ минус
+    /// (доход с уже построенных фабрик чуть-чуть не покрывал растущую зарплату/содержание) — тренд
+    /// баланса физически не мог «выправиться» (условие возврата к throttle=1), а без новых фабрик
+    /// нарастить доход было нечем: заморожена навсегда с хода ~7 до конца 90-ходовой партии
+    /// (Score(90) provider на порядок хуже даже собственного, уже отрицательного потолка идеального
+    /// зала). Пол в 25% (один <see cref="ThrottleStep"/>, не «выключено вовсе») оставляет команде
+    /// медленный, но работающий путь наружу — то самое реальное отличие от прежнего 0, ради которого
+    /// он и введён; финансовая осторожность продолжает придерживать темп (через <see
+    /// cref="UpdateInvestmentPace"/>), просто больше не запирает его насмерть.
+    /// </summary>
+    private const decimal MinThrottle = 0.25m;
 
     private readonly IReadOnlyList<FactoryDefinition> _sectorFactories;
     private readonly bool _maintainsFactories;
     private readonly decimal _leverage;
     private readonly decimal _profile;
+    private readonly Action<string>? _trace;
     private decimal? _previousNetWorth;
     private int _consecutiveDeclineTurns;
 
     /// <summary>
     /// Множитель темпа расширения/вложений от 1 (обычное поведение по номинальным <see
-    /// cref="_leverage"/>/<see cref="_profile"/>) до 0 (полная пауза) — см. <see
-    /// cref="UpdateFinancialTrend"/>. 1 по умолчанию: до первого пересчёта (или если <see
-    /// cref="UpdateFinancialTrend"/> вообще не вызывается вызывающим кодом) бот ведёт себя как раньше,
-    /// без сюрпризов для существующих вызывающих.
+    /// cref="_leverage"/>/<see cref="_profile"/>) до <see cref="MinThrottle"/> (не 0 — см. doc-comment
+    /// <see cref="MinThrottle"/>) — см. <see cref="UpdateFinancialTrend"/>. 1 по умолчанию: до первого
+    /// пересчёта (или если <see cref="UpdateFinancialTrend"/> вообще не вызывается вызывающим кодом)
+    /// бот ведёт себя как раньше, без сюрпризов для существующих вызывающих.
     /// </summary>
     private decimal _throttle = 1m;
 
@@ -134,11 +199,15 @@ public sealed class SimpleBot
     /// вырождаться в «поставил и забыл» — см. doc-comment <see cref="Game.Config.Economy.WearConfig"/>).
     /// <paramref name="leverage"/>/<paramref name="profile"/> (0..1, Блок 7.3.2) — две независимые оси
     /// сетки стратегий, см. doc-comment класса; значения по умолчанию воспроизводят поведение
-    /// <see cref="SimpleBot"/> до Блока 7.3.2 (регрессионный ориентир).
+    /// <see cref="SimpleBot"/> до Блока 7.3.2 (регрессионный ориентир). <paramref name="trace"/> —
+    /// необязательный приёмник построчных объяснений решений («строю X — хватает бюджета», «пропускаю
+    /// продажу Y — не набрался минимальный объём» и т.п., Блок «трассировка ботов», rebalance/2-sector-stepwise)
+    /// для диагностики (<c>--mode trace</c> в <c>Game.Balancing</c>) — <c>null</c> по умолчанию, ничего
+    /// не пишет и не стоит лишних вычислений в обычных прогонах (грид на тысячи партий).
     /// </summary>
     public SimpleBot(
         Ulid teamId, Sector sector, ResolvedGameConfig config,
-        bool maintainsFactories = true, decimal leverage = 1m, decimal profile = 0m)
+        bool maintainsFactories = true, decimal leverage = 1m, decimal profile = 0m, Action<string>? trace = null)
     {
         ArgumentNullException.ThrowIfNull(sector);
         ArgumentNullException.ThrowIfNull(config);
@@ -156,6 +225,7 @@ public sealed class SimpleBot
         _maintainsFactories = maintainsFactories;
         _leverage = leverage;
         _profile = profile;
+        _trace = trace;
         _sectorFactories = config.FactoryDefinitions
             .Where(f => f.Sector == sector)
             .OrderBy(f => f.Recipes[0].Output.Level)
@@ -171,29 +241,25 @@ public sealed class SimpleBot
     public Material FinalMaterial => _sectorFactories[^1].Recipes[0].Output;
 
     /// <summary>
-    /// Финансовая осторожность (запрос пользователя: «постоянно занимать бабки и при этом строить
-    /// дальше — недальновидно; боты должны следить за финансовым состоянием, анализировать тренд и в
-    /// зависимости от него менять поведение согласно своим параметрам»). Отслеживает чистую стоимость
-    /// команды (<c>Balance − Debt</c> — не одну только <c>Balance</c>, которая при принудительном
-    /// займе прыгает вверх на ту же сумму, что и <c>Debt</c>, и потому маскирует именно ту спираль,
-    /// которую нужно заметить). Пока чистая стоимость не ухудшается подряд дольше <see
-    /// cref="DistressThresholdTurns"/> ходов — <see cref="_throttle"/> остаётся/возвращается к 1
-    /// (обычное поведение по номинальным <c>leverage</c>/<c>profile</c>). Как только порог пройден —
-    /// <see cref="_throttle"/> начинает снижаться на <see cref="ThrottleStep"/> за ход, пока тренд не
-    /// развернётся. Идёт во все места, где темп расширения/вложений завязан на <c>leverage</c> — <see
-    /// cref="BuildNewlyUnlockedFactories"/> (новое: раньше достройка не смотрела на leverage вовсе),
-    /// <see cref="UpdateInvestmentPace"/>, <see cref="RepayDebt"/> (в бедственном положении гасит
-    /// агрессивнее номинального <c>leverage</c> — вылезать из спирали важнее, чем следовать
-    /// изначальному аппетиту к риску). Продажу через стакан (<see cref="ComputeSellOrders"/>) не
-    /// трогает — источник живых денег должен работать в любом состоянии, тормозить нужно только новые
-    /// траты. Вызывать первым в ходу решений, до любого из перечисленных методов, каждый ход.
+    /// Финансовая осторожность (запрос пользователя: «постоянно строить дальше несмотря на падающий
+    /// баланс — недальновидно; боты должны следить за финансовым состоянием, анализировать тренд и в
+    /// зависимости от него менять поведение согласно своим параметрам»). Отслеживает тренд баланса
+    /// команды. Пока баланс не ухудшается подряд дольше <see cref="DistressThresholdTurns"/> ходов —
+    /// <see cref="_throttle"/> остаётся/возвращается к 1 (обычное поведение по номинальным
+    /// <c>leverage</c>/<c>profile</c>). Как только порог пройден — <see cref="_throttle"/> начинает
+    /// снижаться на <see cref="ThrottleStep"/> за ход, пока тренд не развернётся. Идёт во все места,
+    /// где темп расширения/вложений завязан на <c>leverage</c> — <see
+    /// cref="BuildNewlyUnlockedFactories"/>, <see cref="UpdateInvestmentPace"/>. Продажу через стакан
+    /// (<see cref="ComputeSellOrders"/>) не трогает — источник живых денег должен работать в любом
+    /// состоянии, тормозить нужно только новые траты. Вызывать первым в ходу решений, до любого из
+    /// перечисленных методов, каждый ход.
     /// </summary>
     public void UpdateFinancialTrend(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var netWorth = team.Balance - team.Debt;
+        var netWorth = team.Balance;
 
         if (_previousNetWorth is { } previous)
         {
@@ -202,31 +268,33 @@ public sealed class SimpleBot
         _previousNetWorth = netWorth;
 
         var inDistress = _consecutiveDeclineTurns >= DistressThresholdTurns;
+        var previousThrottle = _throttle;
         _throttle = inDistress
-            ? Math.Max(0m, _throttle - ThrottleStep)
+            ? Math.Max(MinThrottle, _throttle - ThrottleStep)
             : Math.Min(1m, _throttle + ThrottleStep);
+
+        if (_throttle != previousThrottle)
+        {
+            _trace?.Invoke(inDistress
+                ? $"[{Sector.Id}] throttle {previousThrottle:F2}→{_throttle:F2}: {_consecutiveDeclineTurns} ходов подряд баланс падает (порог {DistressThresholdTurns})"
+                : $"[{Sector.Id}] throttle {previousThrottle:F2}→{_throttle:F2}: тренд выправился");
+        }
     }
 
     /// <summary>
-    /// Берёт первый кредит (команды больше не получают стартовый капитал автоматически — это их
-    /// первое собственное финансовое решение, SPEC §5.1; боту нужен детерминированный эквивалент
-    /// для калибровки) — сумма масштабируется <c>leverage</c> (Блок 7.3.2, см. doc-comment класса) от
-    /// <see cref="MinStartingLoanFraction"/> потолка (<c>leverage=0</c>) до самого потолка
-    /// (<see cref="Game.Config.Session.StartingConditionsConfig.MaxStartingLoanAmount"/>, <c>leverage=1</c>)
-    /// — строит все УЖЕ разблокированные фабрики сектора (Блок 9.2 — более глубокие переделы
-    /// открываются постепенно, не сразу; остальные достраивает по мере разблокировки
-    /// <see cref="BuildNewlyUnlockedFactories"/>) и нанимает на каждую базовую численность рабочих.
-    /// Темп вложений в R&amp;D (командный и по фабрикам) не объявляется здесь — им ведает
-    /// <see cref="UpdateInvestmentPace"/>, вызываемая каждый ход решений отдельно, в том числе
+    /// Первая постройка команды (SPEC §5.1 — фабрик нет, баланс 0; никакого отдельного «стартового
+    /// кредита» с иными правилами больше нет, docs/TODO.md #23: команда просто строит, баланс уходит
+    /// в минус, как и от любой другой постройки в любой другой момент партии) — строит все УЖЕ
+    /// разблокированные фабрики сектора, на которые хватает бюджета (Блок 9.2 — более глубокие
+    /// переделы открываются постепенно, не сразу; остальные достраивает по мере разблокировки/
+    /// накопления баланса <see cref="BuildNewlyUnlockedFactories"/>, тот же метод, эта функция — лишь
+    /// его первый вызов). Темп вложений в R&amp;D (командный и по фабрикам) не объявляется здесь — им
+    /// ведает <see cref="UpdateInvestmentPace"/>, вызываемая каждый ход решений отдельно, в том числе
     /// первый. Вызывать один раз, на первом ходу.
     /// </summary>
     public void BuildOutSectorChain(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
-
-        var maxStartingLoan = session.State.Config.Raw.StartingConditions.MaxStartingLoanAmount;
-        var startingLoanFraction = MinStartingLoanFraction + (1m - MinStartingLoanFraction) * _leverage;
-        session.TakeLoan(TeamId, maxStartingLoan * startingLoanFraction);
 
         BuildNewlyUnlockedFactories(session);
     }
@@ -235,13 +303,30 @@ public sealed class SimpleBot
     /// Достраивает те фабрики сектора, которые ещё не построены и уже разблокированы (Блок 9.2) —
     /// на первом ходу это подмножество, доступное сразу; на последующих — то, что только что
     /// открылось благодаря командному исследованию поколений (<see cref="UpdateInvestmentPace"/>).
-    /// Нанимает на каждую новую фабрику базовую численность рабочих; R&amp;D-вложение фабрике не
-    /// назначает — тем же <see cref="UpdateInvestmentPace"/>, вызванным следом в тот же ход, чтобы
-    /// новая фабрика не осталась на ход без объявленного темпа. Ничего не строит, если <see
-    /// cref="_throttle"/> (см. <see cref="UpdateFinancialTrend"/>) уже упал до нуля — новая фабрика
-    /// требует свежего капитала, а команда в этот момент как раз в бедственном положении: достройка
-    /// просто откладывается до улучшения тренда, разблокированные типы никуда не денутся. Вызывать
-    /// каждый ход решений, идемпотентно (уже построенные комбинации пропускаются).
+    /// Численность на новую фабрику и число самих фабрик берутся из <see cref="ChainCapacityPlanner"/>
+    /// — не «одна фабрика с базовой численностью», как было до 2026-09-07: уровень, чей выпуск не
+    /// покрывает потребность потребителей, получает донайм, а если и его потолка не хватает — вторую
+    /// (третью…) фабрику той же пары (тип, рецепт). Без этого бот физически не умел расшивать узкое
+    /// место, и конфиг, задуманный с расчётом на рост мощности по ходу партии, всегда выглядел
+    /// сломанным (запрос пользователя; см. <c>docs/economy-accounting-audit.md</c>).
+    /// R&amp;D-вложение фабрике не назначает — тем же <see cref="UpdateInvestmentPace"/>, вызванным
+    /// следом в тот же ход, чтобы новая фабрика не осталась на ход без объявленного темпа.
+    /// <para>
+    /// Постройка не бесплатна, но и не требует отдельного оформления — баланс просто уходит в минус
+    /// (docs/TODO.md #23). Тем не менее бот пропускает постройку, если она увела бы баланс глубже
+    /// самостоятельно назначенной толерантности к минусу (<see
+    /// cref="Game.Config.Session.StartingConditionsConfig.MaxInitialBuildBudget"/>, доля от
+    /// <see cref="MinInitialBuildBudgetFraction"/> до 100% в зависимости от <c>leverage</c> — тот же
+    /// диапазон, что раньше задавал размер стартового займа, теперь задаёт добровольный потолок
+    /// минуса на любой ход, не только первый) — откладывает до следующего хода решений, когда баланс
+    /// подрастёт продажами; разблокированный тип никуда не денется, метод идемпотентен. <see
+    /// cref="_throttle"/> сюда больше не примешивается (раньше здесь была жёсткая заморозка при
+    /// <c>throttle=0</c> — необратимая ловушка, см. doc-comment <see cref="MinThrottle"/>; попытка
+    /// смягчить её, ещё и умножив саму толерантность на throttle, оказалась второй, накладывающейся
+    /// заморозкой — команда, уже глубоко в минусе из-за прежних построек, не могла позволить себе
+    /// вообще ничего нового даже на полу троттлинга; толерантность оставлена чисто leverage-зависимой,
+    /// как и была, только сам бинарный запрет снят).
+    /// </para>
     /// <para>
     /// Единица достройки — не <see cref="FactoryDefinition"/>, а пара (тип, рецепт) (запрос
     /// пользователя, TODO.md #20, 2026-08-17: «научим бот строить все варианты фабрик с каждым
@@ -259,37 +344,148 @@ public sealed class SimpleBot
     {
         ArgumentNullException.ThrowIfNull(session);
 
-        if (_throttle <= 0m)
-        {
-            return;
-        }
-
         var team = session.State.Teams[TeamId];
-        var builtCombinations = team.Factories.Select(f => (f.Definition.Id, f.SelectedRecipe.Id)).ToHashSet();
-        var baseWorkerCount = session.State.Config.Raw.WorkerProductivity.BaseWorkerCount;
+        var builtCountByPair = team.Factories
+            .GroupBy(f => (f.Definition.Id, f.SelectedRecipe.Id))
+            .ToDictionary(group => group.Key, group => group.Count());
+        var productivity = session.State.Config.Raw.WorkerProductivity;
+        var factoryDefinitions = session.State.Config.Raw.FactoryDefinitions;
+        var negativeBalanceTolerance = ComputeNegativeBalanceTolerance(session);
+        var capacityPlan = ChainCapacityPlanner.Plan(session.State.Config);
+
+        // Донайм на уже стоящих фабриках — раньше новых построек: он дешевле (нет BuildCost и нового
+        // содержания) и закрывает то же узкое место.
+        TopUpWorkersTowardPlan(session, capacityPlan, negativeBalanceTolerance);
+
         foreach (var definition in _sectorFactories)
         {
             foreach (var recipe in definition.Recipes)
             {
-                if (builtCombinations.Contains((definition.Id, recipe.Id)) || recipe.Output.Level > team.UnlockedGeneration)
+                if (recipe.Output.Level > team.UnlockedGeneration)
                 {
                     continue;
                 }
 
+                var plan = capacityPlan[(definition.Id, recipe.Id)];
+                var alreadyBuilt = builtCountByPair.GetValueOrDefault((definition.Id, recipe.Id));
+                if (alreadyBuilt >= plan.FactoryCount)
+                {
+                    continue;
+                }
+
+                // Наём тоже стоит денег и тоже уводит баланс в минус — считаем его вместе с постройкой,
+                // иначе бот берёт на себя расширенный штат, которого «не заметил» в своей же проверке.
+                // Если на полный по плану штат денег нет, а на базовый есть — строим с тем, что тянем:
+                // недобранных рабочих доберёт TopUpWorkersTowardPlan на следующих ходах, когда баланс
+                // подрастёт. Отказываться от самой фабрики из-за штата было бы хуже, чем построить её
+                // с базовой бригадой.
+                var buildCost = factoryDefinitions.First(d => d.Id == definition.Id).BuildCost;
+                var affordableWorkers = AffordableWorkerCount(
+                    plan.WorkersPerFactory, alreadyHired: 0, productivity.BaseWorkerCount, productivity.HireCostPerWorker,
+                    team.Balance - buildCost, negativeBalanceTolerance);
+                if (affordableWorkers is null)
+                {
+                    _trace?.Invoke(
+                        $"[{Sector.Id}] пропускаю постройку {definition.Id}/{recipe.Id} (#{alreadyBuilt + 1} из {plan.FactoryCount}): " +
+                        $"баланс {team.Balance:F0} - постройка {buildCost:F0} - наём базовой бригады " +
+                        $"{productivity.BaseWorkerCount * productivity.HireCostPerWorker:F0} < -толерантность {negativeBalanceTolerance:F0}");
+                    continue;
+                }
+
                 var built = (FactoryBuilt)session.BuildFactory(TeamId, definition.Id, recipe.Id).Change;
-                session.SetWorkerCount(TeamId, built.FactoryId, baseWorkerCount);
+                session.SetWorkerCount(TeamId, built.FactoryId, affordableWorkers.Value);
+                _trace?.Invoke(
+                    $"[{Sector.Id}] строю {definition.Id}/{recipe.Id} (#{alreadyBuilt + 1} из {plan.FactoryCount}): cost={buildCost:F0}, " +
+                    $"баланс после={team.Balance:F0}, рабочих={affordableWorkers.Value} из {plan.WorkersPerFactory} по плану " +
+                    $"(спрос {plan.DemandPerTurn:F0}/ход)");
             }
         }
+    }
+
+
+    /// <summary>
+    /// Доводит численность уже построенных фабрик до плановой (<see cref="ChainCapacityPlanner"/>) по
+    /// мере появления денег — второй из двух рычагов расширения мощности, более дешёвый (нет ни
+    /// BuildCost, ни нового содержания). Вызывается каждый ход решений перед постройкой новых фабрик.
+    /// Сокращать штат обратно не умеет: увольнения у бота нет как механики вовсе (docs/TODO.md №24).
+    /// </summary>
+    private void TopUpWorkersTowardPlan(
+        GameSession session,
+        IReadOnlyDictionary<(string FactoryDefinitionId, string RecipeId), ChainCapacityPlanner.RecipePlan> capacityPlan,
+        decimal negativeBalanceTolerance)
+    {
+        var team = session.State.Teams[TeamId];
+        var productivity = session.State.Config.Raw.WorkerProductivity;
+
+        foreach (var factory in team.Factories.OrderBy(f => f.SelectedRecipe.Output.Level))
+        {
+            // Сравниваем с ОБЪЯВЛЕННОЙ численностью, не с фактической: наём происходит на расчёте
+            // (WorkerCountSet — только объявление, см. его doc-comment), поэтому фабрика, построенная
+            // этим же ходом, до расчёта имеет Workers=0 при уже объявленном плановом штате — по
+            // Workers бот переобъявлял бы то же самое каждый ход и мусорил в трассировке.
+            if (!capacityPlan.TryGetValue((factory.Definition.Id, factory.SelectedRecipe.Id), out var plan)
+                || factory.DesiredWorkers >= plan.WorkersPerFactory)
+            {
+                continue;
+            }
+
+            var affordable = AffordableWorkerCount(
+                plan.WorkersPerFactory, alreadyHired: factory.DesiredWorkers, minimumWorkers: factory.DesiredWorkers + 1,
+                productivity.HireCostPerWorker, team.Balance, negativeBalanceTolerance);
+            if (affordable is null)
+            {
+                continue;
+            }
+
+            session.SetWorkerCount(TeamId, factory.Id, affordable.Value);
+            _trace?.Invoke(
+                $"[{Sector.Id}] донайм {factory.Definition.Id}/{factory.SelectedRecipe.Id}: рабочих {factory.DesiredWorkers} -> " +
+                $"{affordable.Value} (план {plan.WorkersPerFactory} под спрос {plan.DemandPerTurn:F0}/ход)");
+        }
+    }
+
+    /// <summary>
+    /// Наибольшая численность в диапазоне [<paramref name="minimumWorkers"/>; <paramref name="desiredWorkers"/>],
+    /// доначать до которой (сверх <paramref name="alreadyHired"/>) не уводит баланс глубже
+    /// толерантности. <c>null</c> — не тянем даже минимум.
+    /// </summary>
+    private static int? AffordableWorkerCount(
+        int desiredWorkers, int alreadyHired, int minimumWorkers, decimal hireCostPerWorker,
+        decimal balanceAfterOtherSpending, decimal negativeBalanceTolerance)
+    {
+        for (var workers = desiredWorkers; workers >= minimumWorkers; workers--)
+        {
+            var hireCost = (workers - alreadyHired) * hireCostPerWorker;
+            if (balanceAfterOtherSpending - hireCost >= -negativeBalanceTolerance)
+            {
+                return workers;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Потолок минуса, который бот готов принять ради немедленной постройки/расширения (см. doc-comment
+    /// <see cref="BuildNewlyUnlockedFactories"/>) — доля <see
+    /// cref="Game.Config.Session.StartingConditionsConfig.MaxInitialBuildBudget"/> от <see
+    /// cref="MinInitialBuildBudgetFraction"/> (<c>leverage=0</c>) до 100% (<c>leverage=1</c>).
+    /// </summary>
+    private decimal ComputeNegativeBalanceTolerance(GameSession session)
+    {
+        var maxBudget = session.State.Config.Raw.StartingConditions.MaxInitialBuildBudget;
+        var fraction = MinInitialBuildBudgetFraction + (1m - MinInitialBuildBudgetFraction) * _leverage;
+        return maxBudget * fraction;
     }
 
     /// <summary>
     /// Держит темп вложений в R&amp;D (командное исследование поколений и каждая построенная фабрика
     /// разом, на одну и ту же долю потолка) в соответствии с осями стратегии (Блок 7.3.2, doc-comment
     /// класса): доля потолка — <c>0</c> до момента переключения, <c>leverage</c> после него. Момент
-    /// переключения — <c>profile</c> доля длительности пресета сессии (<see
-    /// cref="Game.Config.Session.SessionPresetConfig.MaxTurns"/> — публично известная команде верхняя
+    /// переключения — <c>profile</c> доля длительности сессии (<see
+    /// cref="Game.Config.Session.SessionDurationConfig.MaxTurns"/> — публично известная команде верхняя
     /// граница, не тайный <see cref="GameSessionState.EndTurn"/>), от хода 0 (<c>profile=0</c> —
-    /// вкладывает с первого хода) до последнего хода пресета (<c>profile=1</c> — почти вся партия
+    /// вкладывает с первого хода) до последнего хода сессии (<c>profile=1</c> — почти вся партия
     /// на нулевых вложениях, резкий рывок под конец). «Скромный набор фабрик» бэк-лоадед профиля
     /// (`docs/balancing-bots.md` §2) — не отдельная логика, а естественное следствие нулевого темпа
     /// командного исследования поколений: новых уровней просто не открывается, пока не наступил
@@ -301,7 +497,7 @@ public sealed class SimpleBot
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var maxTurns = session.State.Config.Raw.SessionPresets.Single(p => p.Id == session.State.PresetId).MaxTurns;
+        var maxTurns = session.State.Config.Raw.Duration.MaxTurns;
         var switchTurn = (int)Math.Round(_profile * maxTurns, MidpointRounding.AwayFromZero);
         // _throttle=1 (по умолчанию, здоровый тренд) — точно то же значение, что и до финансовой
         // осторожности, см. doc-comment UpdateFinancialTrend.
@@ -321,6 +517,10 @@ public sealed class SimpleBot
                 session.SetRndCommitment(TeamId, factory.Id, targetRndCommitment);
             }
         }
+
+        _trace?.Invoke(
+            $"[{Sector.Id}] темп вложений: R&D={targetRndCommitment:F0}, поколение={targetGenerationCommitment:F0} " +
+            $"(leverage×throttle = {_leverage:F2}×{_throttle:F2} = {fraction:F2} от максимума)");
     }
 
     /// <summary>
@@ -348,23 +548,61 @@ public sealed class SimpleBot
         foreach (var material in team.Factories.Select(f => f.SelectedRecipe.Output).Distinct())
         {
             var sellable = ComputeSurplus(session, team, material);
-            if (sellable > 0)
+            if (sellable <= 0)
             {
-                session.SellToSystem(TeamId, material.Id, sellable);
+                continue;
             }
+
+            var volume = ThrottleToAcceptablePrice(session, material, sellable);
+            if (volume <= 0)
+            {
+                _trace?.Invoke($"[{Sector.Id}] придерживаю {material.Id}: рынок насыщен, цена ниже {MinAcceptableSellPriceRate:P0} от неиспорченной");
+                continue;
+            }
+
+            session.SellToSystem(TeamId, material.Id, volume);
+            _trace?.Invoke(volume < sellable
+                ? $"[{Sector.Id}] продаю системе {material.Id} объём={volume:F1} из {sellable:F1} (остальное придержано — рынок насыщен)"
+                : $"[{Sector.Id}] продаю системе {material.Id} объём={sellable:F1}");
         }
     }
 
     /// <summary>
-    /// Число самых дешёвых ступеней <see cref="Game.Config.Economy.WearConfig.OverhaulTiers"/>
-    /// (упорядоченных по убыванию состояния — от «почти не изношена» к «убита»), которые
-    /// намеренно невыгодны и на которые бот не реагирует, — запрос пользователя: «сначала имеет
-    /// смысл ничего не делать», кривая специально устроена так, чтобы чинить по любому чиху было
-    /// расточительно. Бот дожидается ступени с индексом <see cref="IgnoredCheapestTierCount"/> и
-    /// дальше, тем самым нащупывая баланс «чиню всё время» / «чиню слишком поздно» так же, как
-    /// должна была бы играть команда.
+    /// Сколько из <paramref name="desiredVolume"/> бот согласен продать системе прямо сейчас —
+    /// общий с идеальным залом дроссель <see cref="MarketSaleCalculator.LargestVolumeAbovePriceFloor"/>
+    /// (блок 11.7). Объём мельче <see cref="MinOrderVolume"/> не подаётся вовсе.
     /// </summary>
-    private const int IgnoredCheapestTierCount = 2;
+    private decimal ThrottleToAcceptablePrice(GameSession session, Material material, decimal desiredVolume)
+    {
+        var economy = session.State.Config.Raw.Economy;
+        var market = session.State.Market;
+        if (!market.HasQuote(material.Id))
+        {
+            return desiredVolume;
+        }
+
+        var supplyPressure = Engine.MarketSupplyPressureCalculator.CalculateRecentVolume(
+            session.Entries, material.Id, session.State.CurrentTurn, economy);
+
+        var volume = MarketSaleCalculator.LargestVolumeAbovePriceFloor(
+            market, MaterialCosts(session), economy, material, desiredVolume, supplyPressure, MinAcceptableSellPriceRate);
+
+        return volume >= MinOrderVolume ? volume : 0m;
+    }
+
+    /// <summary>
+    /// Число самых дешёвых ступеней <see cref="Game.Config.Economy.WearConfig.OverhaulTiers"/>
+    /// (упорядоченных по убыванию состояния — от «почти не изношена» к «убита»), которые бот
+    /// игнорирует, прежде чем впервые заказать капремонт. Было 2 (пропускал «профилактику» и
+    /// «плановое обслуживание») — снижено до 0 (запрос пользователя, rebalance/2-sector-stepwise,
+    /// 2026-08-22: «ремонт на самой оптимальной стадии», после находки, что реальный бот на длинной
+    /// дистанции (90 ходов) деградирует по выпуску куда сильнее идеального зала, который износ вообще
+    /// не моделирует) — самая ранняя, самая дешёвая ступень («профилактика», <c>CostFraction=0.02</c>
+    /// от <c>BuildCost</c>) в самой природе своей и есть «оптимальная стадия»: чинит раньше, чем
+    /// накопится серьёзная просадка выпуска, и стоит в разы дешевле поздних ступеней. Ниже 0 опуститься
+    /// нельзя, это уже «чинить при любом, даже нулевом, отклонении от идеала».
+    /// </summary>
+    private const int IgnoredCheapestTierCount = 0;
 
     /// <summary>
     /// Поддерживает состояние уже построенных фабрик (SPEC §5.6): заказывает капремонт, как только
@@ -399,51 +637,7 @@ public sealed class SimpleBot
             }
 
             session.SetOverhaulRequested(TeamId, factory.Id, requested: true);
-        }
-    }
-
-    /// <summary>
-    /// Добровольно гасит долг сверх обязательного платежа (Блок 7.3.1-7.3.2, <c>docs/balancing-bots.md</c>
-    /// §1-2) — без этого взятый кредит никогда не уменьшается, кроме фиксированной доли за ход
-    /// (<see cref="Game.Engine.FinanceCalculator.CalculateMandatoryRepayment"/>). Свободный остаток
-    /// сверх буфера на ближайший ход (зарплата всех рабочих команды, содержание фабрик, обязательный
-    /// платёж, проценты, уже объявленные R&amp;D-вложения — свои и командные) гасится не целиком, а в
-    /// доле <c>max(1 - leverage, 1 - throttle)</c> (Блок 7.3.2, doc-comment класса — номинальная доля
-    /// от <c>leverage</c>; финансовая осторожность, <see cref="UpdateFinancialTrend"/> — при
-    /// ухудшающемся тренде гасит агрессивнее номинального аппетита к риску, вылезать из спирали
-    /// принудительных займов важнее, чем следовать изначальной стратегии). При здоровом тренде
-    /// (<c>throttle=1</c>) доля равна ровно <c>1 - leverage</c>, как и до финансовой осторожности.
-    /// <c>leverage=1</c> при здоровом тренде — доля 0, ничего не гасит сверх обязательного;
-    /// <c>leverage=0</c> — доля 1, гасит весь свободный остаток при первой возможности. Ничего не
-    /// делает, если долга нет или буфер уже съедает весь баланс. Идемпотентно, вызывать каждый ход
-    /// решений.
-    /// </summary>
-    public void RepayDebt(GameSession session)
-    {
-        ArgumentNullException.ThrowIfNull(session);
-
-        var team = session.State.Teams[TeamId];
-        if (team.Debt <= 0m)
-        {
-            return;
-        }
-
-        var config = session.State.Config.Raw;
-        var totalWorkers = team.Factories.Sum(f => f.Workers);
-        var reputationPercentage = session.GetReputation(TeamId).Percentage;
-
-        var buffer = FinanceCalculator.CalculateSalaries(totalWorkers, config.WorkerProductivity)
-                     + FinanceCalculator.CalculateFactoryUpkeep(team.Factories, config.FactoryDefinitions, config.Wear)
-                     + FinanceCalculator.CalculateMandatoryRepayment(team, config.StartingConditions)
-                     + FinanceCalculator.CalculateInterest(team, config.StartingConditions, reputationPercentage)
-                     + team.Factories.Sum(f => f.RndCommitmentPerTurn)
-                     + team.GenerationResearchCommitmentPerTurn;
-
-        var repayFraction = Math.Max(1m - _leverage, 1m - _throttle);
-        var repayable = (team.Balance - buffer) * repayFraction;
-        if (repayable > 0m)
-        {
-            session.RepayLoan(TeamId, Math.Min(repayable, team.Debt));
+            _trace?.Invoke($"[{Sector.Id}] заказываю капремонт {factory.Definition.Id}: состояние={factory.Condition:F2}, ступень={tier?.Id ?? "?"} (cost={tier?.CostFraction:P0} от BuildCost, {tier?.DurationTurns} ход(ов))");
         }
     }
 
@@ -452,31 +646,39 @@ public sealed class SimpleBot
     /// материалу, который команда сама производит: настоящий свободный остаток сверх
     /// законтрактованного и сверх собственной потребности (<see cref="ComputeSurplus"/> — тот же
     /// расчёт, что и у <see cref="SellSurplusToSystem"/>, не оголяет свою цепочку ради продажи на
-    /// сторону). Цена — себестоимость плюс минимальная маржа (<see cref="MinSellMarginRate"/>).
+    /// сторону). Цена — себестоимость (<see cref="MaterialCosts"/>) плюс минимальная маржа (<see
+    /// cref="MinSellMarginRate"/>).
     /// </summary>
     public IReadOnlyList<TradeOrder> ComputeSellOrders(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var recipeBook = session.State.Config.RecipeBook;
-        var rawMaterialCosts = RawMaterialCosts(session);
+        var (windowFloor, windowCeiling) = MarketMakerWindow(session);
 
         var orders = new List<TradeOrder>();
         foreach (var material in team.Factories.Select(f => f.SelectedRecipe.Output).Distinct())
         {
             var sellable = ComputeSurplus(session, team, material);
-            if (sellable < MinOrderVolume || !TryCalculateUnitCost(material, recipeBook, rawMaterialCosts, out var unitCost))
+            if (sellable < MinOrderVolume)
             {
+                _trace?.Invoke($"[{Sector.Id}] не продаю {material.Id}: излишек {sellable:F1} < минимального объёма {MinOrderVolume:F1}");
+                continue;
+            }
+            if (!windowFloor.TryGetValue(material.Id, out var floor) || !windowCeiling.TryGetValue(material.Id, out var ceiling))
+            {
+                _trace?.Invoke($"[{Sector.Id}] не продаю {material.Id}: окно маркетмейкера не посчиталось");
                 continue;
             }
 
+            var limitPrice = PriceAtWindowPosition(floor, ceiling, SellPositionInWindow);
+            _trace?.Invoke($"[{Sector.Id}] sellOrder {material.Id} объём={sellable:F1} окно=[{floor:F4};{ceiling:F4}] лимит={limitPrice:F4}");
             orders.Add(new TradeOrder
             {
                 TeamId = TeamId,
                 Material = material,
                 Volume = sellable,
-                LimitPrice = unitCost * (1m + MinSellMarginRate),
+                LimitPrice = limitPrice,
             });
         }
 
@@ -490,16 +692,15 @@ public sealed class SimpleBot
     /// строительством всей цепочки сектора, см. <see cref="BuildNewlyUnlockedFactories"/>). Целится в
     /// буфер на <see cref="BuyBufferCycles"/> ходов настоящей потребности (<see
     /// cref="ComputeDesiredInputQuantity"/>, не плоское количество входа одной варки); заявка —
-    /// только на нехватку до этого буфера. Цена — себестоимость плюс потолок надбавки (<see
-    /// cref="MaxBuyPremiumRate"/>).
+    /// только на нехватку до этого буфера. Цена — <see cref="BuyPositionInWindow"/> внутри окна
+    /// маркетмейкера.
     /// </summary>
     public IReadOnlyList<TradeOrder> ComputeBuyOrders(GameSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
         var team = session.State.Teams[TeamId];
-        var recipeBook = session.State.Config.RecipeBook;
-        var rawMaterialCosts = RawMaterialCosts(session);
+        var (windowFloor, windowCeiling) = MarketMakerWindow(session);
         var ownProducedMaterials = team.Factories.Select(f => f.SelectedRecipe.Output).ToHashSet();
 
         var neededMaterials = team.Factories
@@ -513,17 +714,25 @@ public sealed class SimpleBot
             var desiredPerTurn = team.Factories.Sum(factory => ComputeDesiredInputQuantity(session, factory, material));
             var targetBuffer = desiredPerTurn * BuyBufferCycles;
             var deficit = targetBuffer - team.Warehouse.QuantityOf(material);
-            if (deficit < MinOrderVolume || !TryCalculateUnitCost(material, recipeBook, rawMaterialCosts, out var unitCost))
+            if (deficit < MinOrderVolume)
             {
+                _trace?.Invoke($"[{Sector.Id}] не покупаю {material.Id}: буфер {targetBuffer:F1} - склад {team.Warehouse.QuantityOf(material):F1} = {deficit:F1} < минимального объёма {MinOrderVolume:F1}");
+                continue;
+            }
+            if (!windowFloor.TryGetValue(material.Id, out var floor) || !windowCeiling.TryGetValue(material.Id, out var ceiling))
+            {
+                _trace?.Invoke($"[{Sector.Id}] не покупаю {material.Id}: окно маркетмейкера не посчиталось");
                 continue;
             }
 
+            var limitPrice = PriceAtWindowPosition(floor, ceiling, BuyPositionInWindow);
+            _trace?.Invoke($"[{Sector.Id}] buyOrder {material.Id} объём={deficit:F1} окно=[{floor:F4};{ceiling:F4}] лимит={limitPrice:F4}");
             orders.Add(new TradeOrder
             {
                 TeamId = TeamId,
                 Material = material,
                 Volume = deficit,
-                LimitPrice = unitCost * (1m + MaxBuyPremiumRate),
+                LimitPrice = limitPrice,
             });
         }
 
@@ -580,29 +789,39 @@ public sealed class SimpleBot
         return desiredBatches * input.Quantity;
     }
 
-    /// <summary>Котировки текущего рынка на всё сырьё, у которого уже есть котировка, — вход для <see cref="CostCalculator.CalculateUnitCost"/> (тот же приём, что <c>DashboardDisplay.TryCalculateUnitCost</c> в Game.Web).</summary>
-    private static IReadOnlyDictionary<Material, decimal> RawMaterialCosts(GameSession session) =>
-        session.State.Config.Materials.Values
-            .Where(m => m.IsRawMaterial && session.State.Market.HasQuote(m.Id))
-            .ToDictionary(m => m, m => session.State.Market.QuoteOf(m.Id).Price);
+    /// <summary>
+    /// Себестоимость каждого материала конфига — единая, статическая (<see
+    /// cref="MaterialCostCalculator"/>, не рыночная котировка и не по своей же живой фабрике — запрос
+    /// пользователя, rebalance/2-sector-stepwise, 2026-08-21: «НЕТ НИКАКОЙ РЫНОЧНОЙ ЦЕНЫ! Есть
+    /// себестоимость материала, которую мы прекрасно можем посчитать»). Раньше здесь была
+    /// команда-специфичная оценка (<c>FactoryProfitabilityCalculator</c> по своей фабрике, рыночная
+    /// котировка как запасной вариант) — из-за этого продавец и покупатель одного и того же материала
+    /// могли получить РАЗНЫЕ числа для одной и той же вещи; теперь все команды и система смотрят на
+    /// одну и ту же величину, поэтому пол продавца (<see cref="MinSellMarginRate"/> над себестоимостью)
+    /// заведомо ниже потолка покупателя (<see cref="MaxBuyPremiumRate"/> над той же себестоимостью) —
+    /// сделка между двумя честными командами больше не может провалиться из-за рассинхрона в том, что
+    /// каждая сторона считает «себестоимостью».
+    /// </summary>
+    private static IReadOnlyDictionary<string, decimal> MaterialCosts(GameSession session) =>
+        Engine.MaterialCostCalculator.CalculateAll(session.State.Config);
 
     /// <summary>
-    /// Обёртка над <see cref="CostCalculator.CalculateUnitCost"/>, не падающая, если по какому-то
-    /// сырью в цепочке ещё нет котировки (например, самый первый ход) — заявка в этом случае просто
-    /// не подаётся в этот раз, а не роняет весь прогон.
+    /// Границы «окна маркетмейкера» по каждому материалу: сколько за единицу заплатит система
+    /// (нижняя) и сколько запросит за неё при аварийной закупке (верхняя). Всё, что между ними, —
+    /// пространство, где P2P-сделка выгоднее обоих внешних вариантов сразу ОБЕИМ сторонам.
+    /// <see cref="Engine.SystemSaleReferencePriceCalculator"/> знает про модель ценообразования, бот —
+    /// нет: он видит только две границы (блок 11.7).
     /// </summary>
-    private static bool TryCalculateUnitCost(
-        Material material, RecipeBook recipeBook, IReadOnlyDictionary<Material, decimal> rawMaterialCosts, out decimal unitCost)
+    private static (IReadOnlyDictionary<string, decimal> Floor, IReadOnlyDictionary<string, decimal> Ceiling)
+        MarketMakerWindow(GameSession session)
     {
-        try
-        {
-            unitCost = CostCalculator.CalculateUnitCost(material, recipeBook, rawMaterialCosts);
-            return true;
-        }
-        catch (ArgumentException)
-        {
-            unitCost = 0m;
-            return false;
-        }
+        var costs = MaterialCosts(session);
+        return (
+            Engine.SystemSaleReferencePriceCalculator.CalculateAll(session.State.Config, costs),
+            Engine.SystemSaleReferencePriceCalculator.CalculateEmergencyAll(session.State.Config, costs));
     }
+
+    /// <summary>Цена в заданной позиции окна: <c>пол + позиция × (потолок − пол)</c>.</summary>
+    private static decimal PriceAtWindowPosition(decimal floor, decimal ceiling, decimal position) =>
+        floor + position * (ceiling - floor);
 }

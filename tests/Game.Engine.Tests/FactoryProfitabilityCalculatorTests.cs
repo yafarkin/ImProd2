@@ -22,13 +22,9 @@ public class FactoryProfitabilityCalculatorTests
     {
         BaseWorkerCount = 5,
         DiminishingReturnsFactor = 0.5m,
-        HireCostPerWorker = 100m,
+        HireCostPerWorker = 100m, MaxHiresPerTurn = 1000,
         FireCostPerWorker = 50m,
         SalaryPerWorkerPerTurn = 5m,
-        // Выше суммарной численности любого сценария этого файла (максимум — 10, два экземпляра по
-        // 5 рабочих) — тесты этого файла не про прогрессивную надбавку, она не должна включаться.
-        TeamSalaryBaseWorkerCount = 1000,
-        SalaryEscalationFactor = 1.5m,
     };
 
     private static readonly RndConfig NoRndBonus = new()
@@ -73,7 +69,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         var found = FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -102,7 +98,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(4m, 1000m), // ниже входов+зарплаты
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -122,7 +118,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -154,7 +150,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -201,7 +197,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 3m);
+        }, electricityPrice: 3m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -226,7 +222,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 3m);
+        }, electricityPrice: 3m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -252,7 +248,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 3m);
+        }, electricityPrice: 3m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -276,7 +272,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
         var teamFactories = new[] { factoryA, factoryB };
 
         FactoryProfitabilityCalculator.TryCalculate(
@@ -308,7 +304,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(50m, 1000m), // рыночная цена руды — 50/ед., но это не то, что реально заплачено
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -329,7 +325,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         var found = FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -339,6 +335,62 @@ public class FactoryProfitabilityCalculatorTests
         Assert.Equal(0m, estimate.ProjectedOutputQuantity); // сырья нет вовсе — реального выпуска нет
         Assert.Equal(0m, estimate.InputCost); // и тратить не на что
         Assert.Equal(25m, estimate.MaxInputCost); // теоретический потолок (10 руды*2 + 5 угля*1) — по рыночной цене, раз реальной истории закупок ещё нет
+    }
+
+    /// <summary>
+    /// Блок 11.10: если вызывающая сторона передала расчётную себестоимость по пирамиде сырья, она
+    /// и есть запасной вариант для никогда не приобретавшегося входа — а не котировка. Под
+    /// экзогенной ценой котировка это цена сбыта с наценкой, и оценка входа по ней делала бы
+    /// глубокие фабрики тем убыточнее, чем глубже передел.
+    /// </summary>
+    [Fact]
+    public void TryCalculate_Prefers_The_Calculated_Unit_Cost_Over_The_Quote_For_An_Input_Never_Acquired()
+    {
+        var factory = NewFactory(workers: 5);
+        var warehouse = new Warehouse(); // ни руды, ни угля ещё не завозили
+        var market = new Market();
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
+        {
+            [Ore.Id] = new(2m, 1000m), // котировка руды 2 — это цена СБЫТА, с наценкой
+            [Coal.Id] = new(1m, 1000m),
+            [Sheet.Id] = new(10m, 1000m),
+        }, electricityPrice: 0m, economyIndex: 1m);
+
+        var unitCosts = new Dictionary<string, decimal> { [Ore.Id] = 1.5m, [Coal.Id] = 0.5m };
+
+        var found = FactoryProfitabilityCalculator.TryCalculate(
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
+            out var estimate, unitCostByMaterialId: unitCosts);
+
+        Assert.True(found);
+        Assert.Equal(10m * 1.5m + 5m * 0.5m, estimate.MaxInputCost); // по себестоимости (17.5), не по котировке (25)
+    }
+
+    /// <summary>
+    /// Материал, которого нет ни на складе, ни в переданной таблице себестоимостей, по-прежнему
+    /// оценивается котировкой — запасной вариант к запасному варианту, иначе виджет замолчал бы там,
+    /// где раньше отвечал.
+    /// </summary>
+    [Fact]
+    public void TryCalculate_Still_Falls_Back_To_The_Quote_For_A_Material_Missing_From_The_Cost_Table()
+    {
+        var factory = NewFactory(workers: 5);
+        var warehouse = new Warehouse();
+        var market = new Market();
+        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
+        {
+            [Ore.Id] = new(2m, 1000m),
+            [Coal.Id] = new(1m, 1000m),
+            [Sheet.Id] = new(10m, 1000m),
+        }, electricityPrice: 0m, economyIndex: 1m);
+
+        var found = FactoryProfitabilityCalculator.TryCalculate(
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
+            out var estimate,
+            unitCostByMaterialId: new Dictionary<string, decimal> { [Ore.Id] = 1.5m }); // угля в таблице нет
+
+        Assert.True(found);
+        Assert.Equal(10m * 1.5m + 5m * 1m, estimate.MaxInputCost); // руда — по себестоимости, уголь — по котировке
     }
 
     [Fact]
@@ -352,7 +404,7 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             // Coal сознательно без котировки
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         var found = FactoryProfitabilityCalculator.TryCalculate(
             factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
@@ -360,54 +412,6 @@ public class FactoryProfitabilityCalculatorTests
 
         Assert.False(found);
         Assert.False(estimate.HasPriceSignal);
-    }
-
-    /// <summary>
-    /// Прогрессивная надбавка над порогом (в отличие от <see cref="Productivity"/> выше, где порог
-    /// намеренно недостижим) — нужна отдельная конфигурация, чтобы воспроизвести баг: команда с ровно
-    /// пятью рабочими на ходу как раз в базовом тарифе (25 = 5*5), но лишний десяток «фантомных»
-    /// рабочих (например, вторая фабрика на вынужденном простое) толкает команду в надбавку.
-    /// </summary>
-    private static readonly WorkerProductivityConfig ProgressiveProductivity = new()
-    {
-        BaseWorkerCount = 5,
-        DiminishingReturnsFactor = 0.5m,
-        HireCostPerWorker = 100m,
-        FireCostPerWorker = 50m,
-        SalaryPerWorkerPerTurn = 5m,
-        TeamSalaryBaseWorkerCount = 5,
-        SalaryEscalationFactor = 2m,
-    };
-
-    [Fact]
-    public void TryCalculate_Excludes_Factories_Under_Repair_From_The_Progressive_Wage_Pool()
-    {
-        // Баг (запрос пользователя: «Прибыльность фабрики» расходится с реальным балансом): фабрика B
-        // стоит в вынужденном простое — TickFinanceStep.Run считает прогрессивную зарплату команды по
-        // !IsUnderRepair рабочим (её зарплата идёт отдельным льготным тарифом, см. WearStep), а виджет
-        // раньше суммировал ВСЕХ рабочих команды, включая простаивающих — из-за этого работающая
-        // фабрика A получала завышенную (по более высокой прогрессивной ступени) долю зарплаты и могла
-        // показать убыток там, где реальный тик списал бы меньше.
-        var factoryA = NewFactory(workers: 5);
-        var factoryB = NewFactory(workers: 5);
-        factoryB.StartRepair(conditionAtEntry: 0.15m, durationTurns: 3, outputMultiplier: 0m, salaryRate: 0.1m, upkeepRate: 0.1m, targetCondition: 0.85m);
-        var warehouse = WarehouseWith(ore: 1000m, coal: 1000m);
-        var market = new Market();
-        market.ReplaceQuotes(new Dictionary<string, MaterialQuote>
-        {
-            [Ore.Id] = new(2m, 1000m),
-            [Coal.Id] = new(1m, 1000m),
-            [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
-
-        FactoryProfitabilityCalculator.TryCalculate(
-            factoryA, new[] { factoryA, factoryB }, warehouse, market, ProgressiveProductivity, NoRndBonus,
-            out var estimateA);
-
-        // Без фабрики B в пуле — ровно 5 рабочих, ровно на пороге, без надбавки: 5*5 = 25.
-        // (До фикса: пул считался как 10 рабочих, 5 сверх порога по двойному тарифу — 25 + 5*5*2 = 75,
-        // и на долю A из них приходилось бы 75*5/10 = 37.5, на 12.5 больше реального списания.)
-        Assert.Equal(25m, estimateA.WageCost);
     }
 
     [Fact]
@@ -426,10 +430,10 @@ public class FactoryProfitabilityCalculatorTests
             [Ore.Id] = new(2m, 1000m),
             [Coal.Id] = new(1m, 1000m),
             [Sheet.Id] = new(10m, 1000m),
-        }, electricityPrice: 0m);
+        }, electricityPrice: 0m, economyIndex: 1m);
 
         FactoryProfitabilityCalculator.TryCalculate(
-            factory, new[] { factory }, warehouse, market, ProgressiveProductivity, NoRndBonus,
+            factory, new[] { factory }, warehouse, market, Productivity, NoRndBonus,
             out var estimate,
             fixedCostPerTurn: 8m);
 

@@ -1,0 +1,330 @@
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using Game.Engine;
+
+namespace Game.Balancing;
+
+/// <summary>
+/// Форматирует результат <see cref="ProductionCostLevelCalculator.Calculate"/> в читаемый текстовый
+/// отчёт: подробно, по каждой паре (фабрика, рецепт), сгруппированной по сектору и уровню — что
+/// потребляет, что производит, из чего складываются расходы и какая получилась себестоимость единицы
+/// (тот же смысл, что в интерфейсе — «Себестоимость единицы», см. <c>DashboardDisplay.FormatUnitCost</c>
+/// в Game.Web, здесь не переиспользуется напрямую, чтобы не тянуть зависимость на Game.Web ради двух
+/// форматных строк), плюс «Себестоимость на 1 рабочего» — честная единица сравнения между фабриками и
+/// уровнями с разным числом параллельных фабрик. В конце — сводная таблица «сектор;уровень;сумма
+/// расходов уровня» с отметкой, где разброс между секторами на одном уровне превышает <see
+/// cref="LevelParityWarningRatio"/>, и таблица окупаемости по уровням (<see cref="AppendPaybackSummary"/>).
+/// <para>
+/// Раньше (2026-08-21) в отчёте намеренно не было никакой цены продажи/margin — реальная цена
+/// складывалась из рыночной котировки и переговоров, заранее неизвестна. С тех пор игра перешла на
+/// опорную цену системной продажи (<see cref="SystemSaleReferencePriceCalculator"/>: при cost-plus —
+/// себестоимость × фиксированная наценка, при экзогенной модели — заданная в конфиге цена сбыта)
+/// — и по ней, как по гарантированному ПОЛУ дохода (без кросс-торговли вообще:
+/// доказано, что в симметричной топологии P2P даёт команде чистый ноль), можно честно посчитать
+/// окупаемость (запрос пользователя, rebalance/2-sector-stepwise, 2026-08-23, направление A плана
+/// исследований — <c>docs/rebalance-2sector/balance-experiment-plan.md</c>). Это не наивная оценка
+/// прежних времён (`BaseSellPrice × MarginMultiplierByProcessingLevel`, отвязанная от себестоимости) —
+/// наценка накладывается на уже посчитанную настоящую себестоимость, не на произвольную табличную цену.
+/// </para>
+/// </summary>
+public static class ProductionCostLevelReportWriter
+{
+    /// <summary>Порог «стоит отметить» разброса между самым дорогим и самым дешёвым сектором на одном уровне (запрос пользователя — не больше 15%).</summary>
+    public const decimal LevelParityWarningRatio = 1.15m;
+
+    /// <summary>
+    /// Запас ходов на конец партии для окупаемости по умолчанию (решение пользователя, 2026-08-23:
+    /// «к ходу 75 из 90 в плюс, чтобы оставалось 15 ходов запаса на рост или исправление ситуации» —
+    /// не <c>MaxTurns / 2</c>, как было раньше по умолчанию, а именно <c>MaxTurns − 15</c>). Единое
+    /// место — <c>Program.cs</c> (<c>--mode cost-levels</c>), <c>DiagnoseRun</c> и
+    /// <c>AdminBalanceLab.razor</c> берут порог отсюда, не считают втроём по-разному.
+    /// </summary>
+    public const decimal DefaultPaybackBufferTurns = 15m;
+
+    /// <summary>Порог окупаемости по умолчанию для конфига — длина сессии минус <see cref="DefaultPaybackBufferTurns"/>, не меньше нуля.</summary>
+    public static decimal DefaultPaybackWarningTurns(Game.Config.Session.SessionDurationConfig duration)
+    {
+        ArgumentNullException.ThrowIfNull(duration);
+        return Math.Max(0m, duration.MaxTurns - DefaultPaybackBufferTurns);
+    }
+
+    /// <param name="rows"><see cref="ProductionCostLevelCalculator.Calculate"/>.</param>
+    /// <param name="paybackWarningTurns">Порог «стоит отметить» для окупаемости (в ходах) — выше него уровень флагуется как рискованный (см. <see cref="AppendPaybackSummary"/>). <c>null</c> — без предупреждений, только цифры.</param>
+    public static string Format(IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows, decimal? paybackWarningTurns = null)
+    {
+        ArgumentNullException.ThrowIfNull(rows);
+
+        var text = new StringBuilder();
+        var workers = rows.Count > 0 ? rows[0].Workers : 0;
+        text.AppendLine($"Себестоимость производства при {workers} рабочих на каждой фабрике (без хода, без рынка, без зарплаты — SPEC-независимый аналитический срез).");
+        text.AppendLine();
+
+        foreach (var sectorGroup in rows.GroupBy(r => (r.SectorId, r.SectorName)).OrderBy(g => g.Key.SectorId, StringComparer.Ordinal))
+        {
+            text.AppendLine($"=== Сектор {sectorGroup.Key.SectorId} ({sectorGroup.Key.SectorName}) ===");
+            text.AppendLine();
+
+            foreach (var levelGroup in sectorGroup.GroupBy(r => r.Level).OrderBy(g => g.Key))
+            {
+                text.AppendLine($"--- Уровень {levelGroup.Key} ---");
+                text.AppendLine();
+
+                foreach (var row in levelGroup.OrderBy(r => r.FactoryId, StringComparer.Ordinal).ThenBy(r => r.RecipeId, StringComparer.Ordinal))
+                {
+                    text.AppendLine($"Фабрика: {row.FactoryName} [{row.FactoryId}] (рецепт: {row.RecipeId})");
+                    text.AppendLine($"  Рабочих: {row.Workers}");
+                    text.AppendLine($"  Выпуск: {row.OutputMaterialId} × {FormatQuantity(row.OutputQuantity)} /ход");
+
+                    if (row.Inputs.Count == 0)
+                    {
+                        text.AppendLine("  Входы: (сырьё, входов нет)");
+                    }
+                    else
+                    {
+                        text.AppendLine("  Входы:");
+                        foreach (var input in row.Inputs)
+                        {
+                            text.AppendLine(
+                                $"    {input.MaterialId} × {FormatQuantity(input.Quantity)} " +
+                                $"(себестоимость единицы {FormatUnitCost(input.UnitCost)}) = {FormatMoney(input.LineCost)}");
+                        }
+                        text.AppendLine($"    Сумма себестоимостей единиц входов: {FormatUnitCost(row.Inputs.Sum(i => i.UnitCost))}");
+                    }
+
+                    text.AppendLine("  Расходы:");
+                    text.AppendLine($"    Сырьё:         {FormatMoney(row.InputCost)}");
+                    text.AppendLine($"    Содержание:    {FormatMoney(row.FixedCostPerTurn)}");
+                    text.AppendLine($"    Электричество: {FormatMoney(row.ElectricityCost)}");
+                    text.AppendLine($"    ИТОГО:         {FormatMoney(row.TotalCost)}");
+                    text.AppendLine($"  Себестоимость единицы {row.OutputMaterialId}: {FormatUnitCost(row.UnitCost)}");
+                    text.AppendLine($"  Итого по фабрике: {FormatMoney(row.TotalCost)} /ход");
+                    text.AppendLine(
+                        $"  Себестоимость на 1 рабочего: {FormatMoney(row.CostPerWorker)} /ход (честная единица сравнения между " +
+                        "фабриками/уровнями с разным числом параллельных фабрик)");
+                    text.AppendLine(
+                        $"  Окупаемость (BuildCost={FormatMoney(row.BuildCost)}, продажа 100% выпуска системе, без кросс-торговли): " +
+                        (row.PaybackTurns is { } payback ? $"{payback:F1} ход(ов)" : "никогда (нулевая или отрицательная маржа)"));
+                    if (paybackWarningTurns is { } targetTurns)
+                    {
+                        text.AppendLine(
+                            $"  Допустимый BuildCost при цели {targetTurns:F0} ход(ов) (направление B, обратная задача): " +
+                            $"≤{FormatMoney(row.MaxBuildCostForTargetPayback(targetTurns))}");
+                    }
+
+                    if (row.Inputs.Count > 0)
+                    {
+                        text.AppendLine($"  Сырьё рекурсивно, на 1 ед. {row.OutputMaterialId} (до самых первых фабрик, включая межотраслевые связи):");
+                        foreach (var raw in row.RawMaterialsPerUnit.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key, StringComparer.Ordinal))
+                        {
+                            text.AppendLine($"    {raw.Key} × {FormatQuantity(raw.Value)}");
+                        }
+                        text.AppendLine($"    Сумма (физических единиц сырья, не ¤): {FormatQuantity(row.RawMaterialsPerUnit.Values.Sum())}");
+                    }
+
+                    text.AppendLine();
+                }
+
+                var levelTotalCost = levelGroup.Sum(r => r.TotalCost);
+                var levelUnitCostSum = levelGroup.Sum(r => r.UnitCost);
+                var levelWorkersSumAll = levelGroup.Sum(r => r.Workers);
+                var levelCostPerWorker = levelWorkersSumAll > 0 ? levelTotalCost / levelWorkersSumAll : 0m;
+                text.AppendLine($"Итого на уровень {levelGroup.Key}: {FormatMoney(levelTotalCost)} /ход, сумма себестоимостей единиц: {FormatUnitCost(levelUnitCostSum)}");
+                text.AppendLine($"Себестоимость на 1 рабочего, уровень {levelGroup.Key}: {FormatMoney(levelCostPerWorker)} /ход (всего {levelWorkersSumAll} рабочих на {levelGroup.Count()} фабрик(ах))");
+                text.AppendLine();
+            }
+        }
+
+        AppendLevelSummary(text, rows);
+        AppendByLevelBySectorView(text, rows);
+        AppendMonotonicityCheck(text, rows);
+        AppendPaybackSummary(text, rows, paybackWarningTurns);
+        return text.ToString();
+    }
+
+    /// <summary>
+    /// Срок окупаемости каждого уровня в изоляции (направление A плана исследований,
+    /// <c>docs/rebalance-2sector/balance-experiment-plan.md</c>, 2026-08-23) — сводная таблица по
+    /// каждой строке <see cref="ProductionCostLevelCalculator.FactoryRecipeCost.PaybackTurns"/>, с
+    /// отметкой ⚠, если он превышает <paramref name="warningTurns"/> (например, половину длительности
+    /// самой длинной сессии — решение пользователя: «мы не уверены, что реально до конца дойдут
+    /// ребята, а так есть риск застрять в финансовой яме», окупаемость обязана уложиться с запасом,
+    /// не ровно к последнему ходу).
+    /// </summary>
+    private static void AppendPaybackSummary(
+        StringBuilder text, IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows, decimal? warningTurns)
+    {
+        text.AppendLine(
+            warningTurns is { } w
+                ? $"=== Окупаемость по уровням (продажа 100% системе, без кросс-торговли; порог предупреждения — {w:F0} ход(ов)) ==="
+                : "=== Окупаемость по уровням (продажа 100% системе, без кросс-торговли) ===");
+        text.AppendLine(
+            warningTurns is { }
+                ? "sector;level;factory;recipe;build_cost;payback_turns;max_build_cost_for_target"
+                : "sector;level;factory;recipe;build_cost;payback_turns");
+
+        var ordered = rows
+            .OrderBy(r => r.SectorId, StringComparer.Ordinal)
+            .ThenBy(r => r.Level)
+            .ThenBy(r => r.FactoryId, StringComparer.Ordinal)
+            .ThenBy(r => r.RecipeId, StringComparer.Ordinal)
+            .ToList();
+
+        foreach (var row in ordered)
+        {
+            var paybackText = row.PaybackTurns is { } payback
+                ? payback.ToString("F1", CultureInfo.InvariantCulture)
+                : "never";
+            var marker = row.PaybackTurns is null || (warningTurns is { } threshold && row.PaybackTurns > threshold)
+                ? " ⚠"
+                : "";
+            var line = $"{row.SectorId};{row.Level};{row.FactoryId};{row.RecipeId};{row.BuildCost.ToString("0.##", CultureInfo.InvariantCulture)};{paybackText}";
+            if (warningTurns is { } target)
+            {
+                line += $";{row.MaxBuildCostForTargetPayback(target).ToString("0.##", CultureInfo.InvariantCulture)}";
+            }
+            text.AppendLine(line + marker);
+        }
+
+        text.AppendLine();
+    }
+
+    /// <summary>
+    /// Проверка «себестоимость единицы по цепочке не должна падать» (запрос пользователя): для
+    /// каждого рецепта с входами — себестоимость единицы выхода должна быть не меньше самого дорогого
+    /// из прямых входов (вход + содержание + электричество ≥ вход). Формально это НЕ математическая
+    /// гарантия (зависит от <c>Recipe.OutputQuantity</c> — рецепт может «размножать» дешёвые единицы
+    /// из дорогого сырья), поэтому это диагностика подозрительных мест в конкретном контенте, не
+    /// проверка корректности расчёта. Не путать с «Себестоимость на 1 рабочего» — та величина
+    /// (= себестоимость единицы × <c>ProductionRate</c>) НЕ обязана расти по уровням, потому что
+    /// <c>ProductionRate</c> задаётся вручную по каждому рецепту независимо от себестоимости (это и
+    /// есть основной рычаг балансировки между отраслями, см. пункт «перебалансировка
+    /// metallurgy-petrochemistry.json» в docs/TODO.md #22) — себестоимость единицы обязана расти,
+    /// произведение с ней — нет.
+    /// </summary>
+    private static void AppendMonotonicityCheck(StringBuilder text, IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows)
+    {
+        text.AppendLine("=== Монотонность себестоимости по цепочке (себестоимость единицы выхода vs самый дорогой прямой вход) ===");
+
+        var violations = rows
+            .Where(r => r.Inputs.Count > 0)
+            .Select(r => (Row: r, MaxInputUnitCost: r.Inputs.Max(i => i.UnitCost)))
+            .Where(x => x.Row.UnitCost < x.MaxInputUnitCost)
+            .OrderBy(x => x.Row.SectorId, StringComparer.Ordinal)
+            .ThenBy(x => x.Row.Level)
+            .ToList();
+
+        if (violations.Count == 0)
+        {
+            text.AppendLine("  Нарушений нет — себестоимость единицы нигде не падает ниже самого дорогого прямого входа.");
+            text.AppendLine();
+            return;
+        }
+
+        foreach (var (row, maxInputUnitCost) in violations)
+        {
+            text.AppendLine(
+                $"  ⚠ {row.SectorId}, уровень {row.Level}, {row.FactoryId} ({row.RecipeId}): себестоимость единицы {row.OutputMaterialId} " +
+                $"{FormatUnitCost(row.UnitCost)} < самый дорогой вход {FormatUnitCost(maxInputUnitCost)}");
+        }
+
+        text.AppendLine();
+    }
+
+    /// <summary>
+    /// Тот же итог по уровням, что и <see cref="AppendLevelSummary"/>, но перегруппированный — сначала
+    /// уровень, внутри него все секторы — так удобнее сравнивать отрасли глазами на одном уровне, не
+    /// листая сектора по отдельности (запрос пользователя).
+    /// </summary>
+    private static void AppendByLevelBySectorView(StringBuilder text, IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows)
+    {
+        text.AppendLine("=== По уровням, по секторам ===");
+        text.AppendLine();
+
+        var byLevel = rows
+            .GroupBy(r => r.Level)
+            .OrderBy(g => g.Key);
+
+        foreach (var levelGroup in byLevel)
+        {
+            text.AppendLine($"Уровень {levelGroup.Key}");
+            var bySector = levelGroup
+                .GroupBy(r => (r.SectorId, r.SectorName))
+                .Select(g =>
+                {
+                    var totalCost = g.Sum(r => r.TotalCost);
+                    var workersAll = g.Sum(r => r.Workers);
+                    var costPerWorker = workersAll > 0 ? totalCost / workersAll : 0m;
+                    return (g.Key.SectorId, g.Key.SectorName, Total: totalCost, CostPerWorker: costPerWorker);
+                })
+                .OrderBy(x => x.SectorId, StringComparer.Ordinal);
+
+            foreach (var entry in bySector)
+            {
+                text.AppendLine(
+                    $"    Отрасль {entry.SectorId} ({entry.SectorName}) - {FormatMoney(entry.Total)} /ход, " +
+                    $"{FormatMoney(entry.CostPerWorker)} себестоимость на рабочего");
+            }
+
+            text.AppendLine();
+        }
+    }
+
+    /// <summary>
+    /// Сводная таблица «сектор;уровень;сумма ИТОГО по всем (фабрика,рецепт) этого уровня» — сумма N
+    /// цифр уровня (запрос пользователя: несколько фабрик/рецептов уровня складываются в одну), плюс
+    /// предупреждение там, где разброс между секторами на одном уровне превышает <see cref="LevelParityWarningRatio"/>.
+    /// </summary>
+    private static void AppendLevelSummary(StringBuilder text, IReadOnlyList<ProductionCostLevelCalculator.FactoryRecipeCost> rows)
+    {
+        text.AppendLine("=== Сводная таблица: сектор;уровень;сумма расходов уровня ===");
+        text.AppendLine("sector;level;total_cost");
+
+        var bySectorAndLevel = rows
+            .GroupBy(r => (r.SectorId, r.Level))
+            .Select(g => (g.Key.SectorId, g.Key.Level, Total: g.Sum(r => r.TotalCost)))
+            .OrderBy(x => x.SectorId, StringComparer.Ordinal)
+            .ThenBy(x => x.Level)
+            .ToList();
+
+        foreach (var entry in bySectorAndLevel)
+        {
+            text.AppendLine($"{entry.SectorId};{entry.Level};{entry.Total.ToString("0.##", CultureInfo.InvariantCulture)}");
+        }
+
+        text.AppendLine();
+        text.AppendLine($"=== Паритет между секторами по уровням (порог предупреждения — разброс > {LevelParityWarningRatio - 1:P0}) ===");
+        foreach (var levelGroup in bySectorAndLevel.GroupBy(x => x.Level).OrderBy(g => g.Key))
+        {
+            var values = levelGroup.ToList();
+            if (values.Count < 2)
+            {
+                continue;
+            }
+
+            var max = values.Max(v => v.Total);
+            var min = values.Min(v => v.Total);
+            var ratio = min > 0 ? max / min : decimal.MaxValue;
+            var marker = ratio > LevelParityWarningRatio ? " ⚠ ПРЕВЫШЕНИЕ ПОРОГА" : "";
+            text.AppendLine($"  Уровень {levelGroup.Key}: разброс {ratio:0.00}×{marker}");
+        }
+
+        var maxLevel = rows.Max(r => r.Level);
+        var finalLevelValues = bySectorAndLevel.Where(x => x.Level == maxLevel).ToList();
+        if (finalLevelValues.Count >= 2)
+        {
+            var max = finalLevelValues.Max(v => v.Total);
+            var min = finalLevelValues.Min(v => v.Total);
+            var ratio = min > 0 ? max / min : decimal.MaxValue;
+            text.AppendLine();
+            text.AppendLine($"Финальный уровень цепочки ({maxLevel}): разброс между секторами {ratio:0.0000}× " +
+                             (ratio <= 1.005m ? "— сходится (в пределах 0.5%)." : "— НЕ сходится (цель — не более 0.5%)."));
+        }
+    }
+
+    private static string FormatMoney(decimal amount) => $"{amount.ToString("N2", CultureInfo.InvariantCulture)} ¤";
+
+    private static string FormatUnitCost(decimal amount) => $"{amount.ToString("0.####", CultureInfo.InvariantCulture)} ¤";
+
+    private static string FormatQuantity(decimal amount) => amount.ToString("N2", CultureInfo.InvariantCulture);
+}

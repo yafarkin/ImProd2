@@ -14,21 +14,30 @@ namespace Game.Engine;
 ///
 /// <para><b>Допущения v1</b> (намеренные упрощения, см. §4 «Допущения v1», не итоговый дизайн):</para>
 /// <list type="bullet">
-/// <item>Обмен между ветками — по себестоимости (<see cref="CostCalculator"/>), без переговорной
-/// надбавки; платёж за перевод идёт в обе стороны (продавец получает деньги, покупатель платит) —
-/// перевод не бесплатный подарок, просто без монопольной наценки.</item>
+/// <item>Обмен между ветками — по себестоимости (<see cref="MaterialCostCalculator"/> — не рыночная
+/// котировка, запрос пользователя, rebalance/2-sector-stepwise, 2026-08-21), без переговорной надбавки;
+/// платёж за перевод идёт в обе стороны (продавец получает деньги, покупатель платит) — перевод не
+/// бесплатный подарок, просто без монопольной наценки.</item>
 /// <item>Остаток излишка материала, который не забрала ни одна соседняя ветка (после <see
 /// cref="TransferAcrossBranches"/>), продаётся системе тем же ходом по <see
-/// cref="MarketSaleCalculator"/> (котировка × <see cref="EconomyConfig.MarginMultiplierByProcessingLevel"/>
-/// текущего уровня передела, включая понижающий коэффициент за превышение ёмкости) — аналог
+/// cref="MarketSaleCalculator"/> — по правилам действующей модели ценообразования, включая просадку
+/// цены за перепроизводство (собственный счётчик давления предложения, блок 11.6) — аналог
 /// <c>SimpleBot.SellSurplusToSystem</c> у реального бота, а не только пассивная оценка склада в конце
 /// хода (см. <see cref="ComputeValue"/>). Добавлено намеренно: без этого X(t) сильно
 /// недооценивал ветки с большим числом параллельных нисходящих переделов на одном сырье — у них
 /// заметная доля выпуска не находит покупателя среди соседних веток и должна уходить в реальный
 /// рыночный доход, а не лежать на складе по неполной цене (см. <c>docs/TODO.md</c> №2, находка сессии
 /// 2026-08-15).</item>
-/// <item>Полная информация, ноль ошибок: капремонт не нужен вовсе — состояние фабрики держится на 1.0
-/// (не моделируем износ), эквивалент «капремонт всегда точно вовремя».</item>
+/// <item>Износ и капремонт моделируются полностью (с 2026-09-08, <c>docs/TODO.md</c> №18) — теми же
+/// функциями <see cref="WearCalculator"/> и тем же порядком внутри хода, что и <see cref="WearStep"/>
+/// в реальном тике. Эталонная политика обслуживания — <see cref="RunWearAndOverhaul"/>: чинить на
+/// самой дешёвой ступени при первом же признаке износа, ровно как <c>SimpleBot.MaintainFactories</c>
+/// с <c>IgnoredCheapestTierCount = 0</c>. Неучтённых статей расходов у зала больше НЕТ: зарплата,
+/// содержание, электричество, наём, склад и капремонт списываются теми же формулами, что в реальном
+/// тике. До 2026-09-06 не списывались также электричество, наём и склад — из-за чего X(t) был не
+/// верхней границей, а фикцией (на боевом `metallurgy.json` неучтённым оставалось 73% реальных
+/// расходов, из них электричество — крупнейшая статья вообще; см.
+/// `docs/economy-accounting-audit.md`, дефект 2).</item>
 /// <item>Темп вложений — эталонная постоянная доля потолка за ход, и для R&amp;D фабрики, и для
 /// командного исследования поколений: 100% <see cref="RndConfig.MaxCommitmentPerTurn"/>/<see
 /// cref="GenerationResearchConfig.MaxCommitmentPerTurn"/> каждый ход, пока не достигнут потолок
@@ -42,18 +51,52 @@ namespace Game.Engine;
 /// </list>
 ///
 /// <para>
-/// Не моделирует кредиты/проценты/принудительные займы вообще — тот же простой P&amp;L, что и у
-/// <see cref="FinalScoreCalculator"/> (Cash - Debt + WarehouseValue + FactoriesValue), только без
-/// займов, значит без долга: денежный остаток может уходить в минус (аванс за раннюю постройку до
-/// первой выручки) — это не «нехватка кредита», а просто отрицательное слагаемое суммы, кредитное
-/// плечо — отдельная ось (<c>leverage</c>, Блок 7.3.2), не часть эталона.
+/// Тот же простой P&amp;L, что и у <see cref="FinalScoreCalculator"/> (Cash + WarehouseValue +
+/// FactoriesValue) — банковского займа как класса механики в игре больше нет (docs/TODO.md #23):
+/// денежный остаток может свободно уходить в минус (аванс за раннюю постройку до первой выручки) —
+/// это не ошибка, а просто отрицательное слагаемое суммы; кредитное плечо (<c>leverage</c>, Блок
+/// 7.3.2) — отдельная ось калибровки ботов, не часть игрового эталона.
 /// </para>
 /// </summary>
 public static class IdealHallCalculator
 {
     /// <summary>
+    /// Приёмник построчной трассировки расчёта (Блок «трассировка ботов», rebalance/2-sector-stepwise,
+    /// диагностика для <c>--mode trace</c> в <c>Game.Balancing</c>) — <c>null</c> по умолчанию, тогда
+    /// <see cref="Calculate"/> остаётся чистой функцией без побочных эффектов, как и было. Не
+    /// потокобезопасно и не переиспользуется параллельно (единственный вызывающий — CLI-режим
+    /// трассировки, который считает X(t) один раз последовательно) — статическое поле, а не параметр
+    /// <see cref="Calculate"/>, чтобы не менять сигнатуру уже вызывающего кода, который трассировку не
+    /// просит (грид/обычный <c>--mode ideal-hall</c>).
+    /// </summary>
+    public static Action<string>? Trace;
+
+    /// <summary>
+    /// Доля неиспорченной цены, ниже которой идеальный зал не продаёт системе, а придерживает
+    /// остаток до затухания давления (блок 11.7). Совпадает с
+    /// <c>SimpleBot.MinAcceptableSellPriceRate</c> намеренно: зал обязан играть не хуже бота, иначе
+    /// он перестаёт быть верхней границей. Продублировано числом, а не ссылкой, потому что
+    /// <c>Game.Engine</c> не знает про <c>Game.Bots</c> (направление зависимостей) —
+    /// расхождение ловится <c>IdealHallUpperBoundTests</c>.
+    /// </summary>
+    private const decimal MinAcceptableSellPriceRate = 0.85m;
+
+    /// <summary>Печатает склад и кассу ветки в лог трассировки (см. <see cref="Trace"/>) — сырьё для сравнения с трассировкой реального бота построчно.</summary>
+    private static void TraceWarehouse(BranchState branch, string phase)
+    {
+        if (Trace is null)
+        {
+            return;
+        }
+
+        var stock = string.Join(" ", branch.Team.Warehouse.Stock.Select(s => $"{s.Material.Id}={s.Quantity:F1}"));
+        Trace($"[ideal] {branch.Sector.Id,-8} {phase,-14} cash={branch.Cash,10:F1} {stock}");
+    }
+
+    /// <summary>
     /// Считает X(t) для каждого сектора <paramref name="config"/> на <paramref name="maxTurns"/>
-    /// ходов. Чистая функция (без рандома) — два вызова с одним и тем же конфигом дают одно и то же.
+    /// ходов. Чистая функция (без рандома) — два вызова с одним и тем же конфигом дают одно и то же
+    /// (если не считать <see cref="Trace"/> — побочный эффект только на приёмник лога, не на сам результат).
     /// </summary>
     public static IdealHallResult Calculate(ResolvedGameConfig config, int maxTurns)
     {
@@ -63,32 +106,58 @@ public static class IdealHallCalculator
             throw new ArgumentOutOfRangeException(nameof(maxTurns), maxTurns, "Turn count must be positive.");
         }
 
-        var rawMaterialCosts = BuildRawMaterialCosts(config);
-        var basePriceByMaterialId = config.Raw.Economy.BaseMarketPerMaterial
-            .ToDictionary(m => m.MaterialId, m => m.BasePrice);
+        var materialCosts = MaterialCostCalculator.CalculateAll(config);
+        // Эталон обязан уметь то же, что и реальная команда (иначе он перестаёт быть верхней границей):
+        // расшивать узкое место доньмом и второй фабрикой того же уровня — см. ChainCapacityPlanner.
+        var capacityPlan = ChainCapacityPlanner.Plan(config);
+        var referencePrices = SystemSaleReferencePriceCalculator.CalculateAll(config, materialCosts);
         var branches = config.Sectors.Select(sector => CreateBranch(config, sector)).ToList();
         var market = new Market();
 
+        // Собственный счётчик давления предложения — зал симулирует, а не играет, журнала у него нет
+        // (блок 11.6, долг из 11.5). Эквивалентен MarketSupplyPressureCalculator по построению:
+        // затухание на 0.5^(1/полураспад) раз в ход плюс продажи текущего хода с полным весом дают
+        // ровно ту же взвешенную сумму, что и обход журнала. Без него зал систематически завышал бы
+        // выручку под External, не видя межходовой памяти рынка.
+        var supplyPressure = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        var pressureDecayPerTurn = (decimal)Math.Pow(
+            0.5, 1.0 / Math.Max(1, config.Raw.Economy.MarketSupplyPressureHalfLifeTurns));
+
         for (var turn = 1; turn <= maxTurns; turn++)
         {
+            Trace?.Invoke($"=== TURN {turn} ===");
             var marketUpdate = MarketCalculator.Calculate(turn, config.Raw.Economy);
-            market.ReplaceQuotes(marketUpdate.Quotes, marketUpdate.ElectricityPrice);
+            market.ReplaceQuotes(marketUpdate.Quotes, marketUpdate.ElectricityPrice, EconomyIndexCalculator.Calculate(turn, config.Raw.Economy));
+
+            foreach (var materialId in supplyPressure.Keys.ToList())
+            {
+                supplyPressure[materialId] *= pressureDecayPerTurn;
+            }
 
             foreach (var branch in branches)
             {
                 AdvanceGeneration(branch, config, turn);
                 ChargeGenerationResearch(branch, config);
-                BuildNewlyUnlockedFactories(branch, config, turn);
+                ChargeWarehouseFee(branch, config);
+                BuildNewlyUnlockedFactories(branch, config, turn, maxTurns, capacityPlan, referencePrices);
                 AdvanceFactoryLevelsAndChargeRnd(branch, config, turn);
-                RunProduction(branch, config);
+                // Порядок трёх следующих строк повторяет реальный тик и важен именно в таком виде:
+                // TickFinanceStep списывает зарплату и содержание ДО WearStep (то есть по состоянию на
+                // начало хода, без сегодняшнего декея), а производство идёт уже ПОСЛЕ износа — по
+                // состоянию, в котором фабрика реально работает этот ход.
+                RunHiring(branch, config);
                 ChargeOperatingCosts(branch, config);
+                RunWearAndOverhaul(branch, config, turn);
+                RunProduction(branch, config);
+                TraceWarehouse(branch, "post-production");
             }
 
-            TransferAcrossBranches(branches, config, rawMaterialCosts, market);
+            TransferAcrossBranches(branches, config, materialCosts, market, supplyPressure);
 
             foreach (var branch in branches)
             {
-                branch.ValueByTurn.Add(ComputeValue(branch, config, basePriceByMaterialId));
+                TraceWarehouse(branch, "post-transfer");
+                branch.ValueByTurn.Add(ComputeValue(branch, config, materialCosts));
             }
         }
 
@@ -99,6 +168,7 @@ public static class IdealHallCalculator
                 SectorId = b.Sector.Id,
                 SectorName = b.Sector.Name,
                 ValueByTurn = b.ValueByTurn,
+                ExpensesByType = b.Expenses,
             }).ToList(),
         };
     }
@@ -114,6 +184,21 @@ public static class IdealHallCalculator
         public Dictionary<Ulid, int> BuiltAtTurn { get; } = new();
         public Dictionary<Ulid, int> PreviousLevel { get; } = new();
         public List<decimal> ValueByTurn { get; } = new();
+
+        /// <summary>Накопленный расход по категориям — см. <see cref="IdealHallBranchTrajectory.ExpensesByType"/>.</summary>
+        public Dictionary<FinanceHistoryCalculator.OperationType, decimal> Expenses { get; } = new();
+
+        /// <summary>Списывает <paramref name="amount"/> с кассы и записывает его в категорию <paramref name="type"/> — единственный способ потратить деньги в этом классе, чтобы разбивка не могла разойтись с кассой.</summary>
+        public void Spend(FinanceHistoryCalculator.OperationType type, decimal amount)
+        {
+            if (amount == 0m)
+            {
+                return;
+            }
+
+            Cash -= amount;
+            Expenses[type] = Expenses.GetValueOrDefault(type) + amount;
+        }
     }
 
     private static BranchState CreateBranch(ResolvedGameConfig config, Sector sector)
@@ -154,7 +239,7 @@ public static class IdealHallCalculator
         var genConfig = config.Raw.GenerationResearch;
         if (!GenerationResearchCalculator.IsAtMaxGeneration(branch.PreviousGeneration, genConfig))
         {
-            branch.Cash -= genConfig.MaxCommitmentPerTurn;
+            branch.Spend(FinanceHistoryCalculator.OperationType.GenerationResearchInvested, genConfig.MaxCommitmentPerTurn);
         }
 
         branch.PreviousGeneration = branch.Team.UnlockedGeneration;
@@ -165,29 +250,157 @@ public static class IdealHallCalculator
     /// у <see cref="SimpleBot.BuildNewlyUnlockedFactories"/>, тем же именем не просто совпадение —
     /// оба должны сходиться в одном и том же выборе рецепта, иначе «идеальный зал» перестаёт быть
     /// честной верхней границей для реального бота, запрос пользователя, TODO.md #20, 2026-08-17):
-    /// тип с несколькими рецептами даёт отдельную фабрику на каждый рецепт.
+    /// тип с несколькими рецептами даёт отдельную фабрику на каждый рецепт. Сколько ИМЕННО фабрик
+    /// каждой пары и по сколько рабочих на каждой — решает <see cref="ChainCapacityPlanner"/>, а не
+    /// «одна с базовой численностью» (2026-09-07): эталон обязан уметь расшивать узкое место теми же
+    /// рычагами, что и живая команда, иначе он перестаёт быть верхней границей для бота, который это
+    /// теперь умеет.
+    ///
+    /// <para>
+    /// <b>Гейт «успеет ли отбить хотя бы наём» (2026-09-07, docs/TODO.md №29).</b> Раньше зал строил
+    /// каждую пару в тот же ход, когда её разблокировало поколение, безусловно — «раньше не может быть
+    /// хуже, чем позже». После починки учёта (docs/economy-accounting-audit.md, дефект 2) зал платит
+    /// за наём при постройке; фабрика, разблокированная за один-два хода до конца партии, этот
+    /// разовый расход уже не отобьёт своим переделом и тянет итог вниз. Такая пара теперь не строится.
+    /// </para>
+    /// <para>
+    /// Порог намеренно узкий — <i>только</i> наём, не полный <c>BuildCost</c>. Сам <c>BuildCost</c>
+    /// возвращается в итог остаточной стоимостью фабрики при <c>Condition=1</c>
+    /// (<see cref="FinalScoreCalculator"/>), поэтому построить фед-фабрику на любое число ходов &gt; ~2
+    /// строго улучшает счёт на <c>передел×0.30×ходы − наём</c> — гейт по «окупаемости всего BuildCost»
+    /// (первый вариант из №29) отсекал бы фабрики, которые реальному боту всё равно выгодно строить, и
+    /// сам ломал бы верхнюю границу. Остаточное превышение бота над залом на короткой синтетической
+    /// цепочке (<c>IdealHallUpperBoundTests</c>, ~102%) этот гейт не закрывает — оно от фронт-загрузки
+    /// капзатрат и темпа вложений на 1-м ходу, а это уже «полноценный решатель по ходам», второй
+    /// вариант №29, отложенный.
+    /// </para>
     /// </summary>
-    private static void BuildNewlyUnlockedFactories(BranchState branch, ResolvedGameConfig config, int turn)
+    private static void BuildNewlyUnlockedFactories(
+        BranchState branch, ResolvedGameConfig config, int turn, int maxTurns,
+        IReadOnlyDictionary<(string FactoryDefinitionId, string RecipeId), ChainCapacityPlanner.RecipePlan> capacityPlan,
+        IReadOnlyDictionary<string, decimal> referencePrices)
     {
-        var builtCombinations = branch.Team.Factories.Select(f => (f.Definition.Id, f.SelectedRecipe.Id)).ToHashSet();
-        var baseWorkerCount = config.Raw.WorkerProductivity.BaseWorkerCount;
+        var turnsRemaining = maxTurns - turn + 1;
+        var builtCountByPair = branch.Team.Factories
+            .GroupBy(f => (f.Definition.Id, f.SelectedRecipe.Id))
+            .ToDictionary(group => group.Key, group => group.Count());
         foreach (var definition in branch.SectorFactories)
         {
             foreach (var recipe in definition.Recipes)
             {
-                if (builtCombinations.Contains((definition.Id, recipe.Id)) || recipe.Output.Level > branch.Team.UnlockedGeneration)
+                if (recipe.Output.Level > branch.Team.UnlockedGeneration)
                 {
                     continue;
                 }
 
-                var buildCost = config.Raw.FactoryDefinitions.First(d => d.Id == definition.Id).BuildCost;
-                var factory = branch.Team.BuildFactory(Ulid.NewUlid(), definition, recipe, builtAtTurn: turn);
-                factory.Hire(baseWorkerCount);
-                branch.Cash -= buildCost;
-                branch.BuiltAtTurn[factory.Id] = turn;
-                branch.PreviousLevel[factory.Id] = 1;
+                var plan = capacityPlan[(definition.Id, recipe.Id)];
+                var alreadyBuilt = builtCountByPair.GetValueOrDefault((definition.Id, recipe.Id));
+                var rawDefinition = config.Raw.FactoryDefinitions.First(d => d.Id == definition.Id);
+                var buildCost = rawDefinition.BuildCost;
+
+                if (alreadyBuilt == 0
+                    && !WouldRecoverHireCostBeforeGameEnds(
+                        definition, recipe, plan.WorkersPerFactory, rawDefinition.FixedCostPerTurn, config, turnsRemaining,
+                        referencePrices))
+                {
+                    // Даже разовый наём не отобьёт — пропускаем навсегда: с ростом turn окно только сужается.
+                    continue;
+                }
+
+                for (var i = alreadyBuilt; i < plan.FactoryCount; i++)
+                {
+                    var factory = branch.Team.BuildFactory(Ulid.NewUlid(), definition, recipe, builtAtTurn: turn);
+                    // Только объявляем штат — сам наём растянут и исполняется RunHiring, тем же
+                    // пределом за ход, что и в движке (docs/TODO.md №25). Раньше здесь стоял
+                    // Hire(plan.WorkersPerFactory): зал укомплектовывал бригаду мгновенно, и после
+                    // введения инерции найма он бы завышал потолок ровно на первые ходы работы
+                    // каждой новой фабрики.
+                    factory.SetDesiredWorkers(plan.WorkersPerFactory);
+                    branch.Spend(FinanceHistoryCalculator.OperationType.FactoryBuilt, buildCost);
+                    branch.BuiltAtTurn[factory.Id] = turn;
+                    branch.PreviousLevel[factory.Id] = 1;
+                }
             }
         }
+    }
+
+    /// <summary>
+    /// Доводит фактическую численность до объявленной тем же правилом, что и движок
+    /// (<see cref="WorkforceStep"/>): не больше <c>MaxHiresPerTurn</c> человек на фабрику за ход,
+    /// добыча — мгновенно (docs/TODO.md №25). Стоит на том же месте порядка внутри хода, что и
+    /// <see cref="WorkforceStep"/> внутри <see cref="TickFinanceStep"/>, — до зарплат и до
+    /// производства: нанятые в этот ход уже получают зарплату и уже работают.
+    ///
+    /// <para>
+    /// Идеальный зал — верхняя граница, но граница <i>достижимого</i>: инерция найма не обходится
+    /// никакой стратегией, поэтому она обязана быть и в потолке. Если оставить залу мгновенный наём,
+    /// <c>Score/X</c> просядет у всех разом на ровном месте, и вся калибровка поедет — тот же класс
+    /// расхождения, что был с износом (docs/TODO.md №18).
+    /// </para>
+    /// </summary>
+    private static void RunHiring(BranchState branch, ResolvedGameConfig config)
+    {
+        var maxHiresPerTurn = config.Raw.WorkerProductivity.MaxHiresPerTurn;
+        foreach (var factory in branch.Team.Factories)
+        {
+            var gap = factory.DesiredWorkers - factory.Workers;
+            if (gap <= 0)
+            {
+                continue;
+            }
+
+            var hireCount = WorkforceStep.IsInstantHiring(factory) ? gap : Math.Min(gap, maxHiresPerTurn);
+            factory.Hire(hireCount);
+            // Наём стоит денег (docs/economy-accounting-audit.md, дефект 2, шаг 2) — раньше
+            // идеальный зал набирал бригаду бесплатно, реальная команда платит.
+            branch.Spend(
+                FinanceHistoryCalculator.OperationType.WorkersHired,
+                hireCount * config.Raw.WorkerProductivity.HireCostPerWorker);
+        }
+    }
+
+    /// <summary>
+    /// Отобьёт ли пара (тип, рецепт), построенная сейчас, хотя бы свой разовый наём за оставшиеся
+    /// <paramref name="turnsRemaining"/> ходов. Прибыль за ход — общая формула
+    /// <see cref="SystemSaleReferencePriceCalculator.ProfitPerTurn"/> (выпуск по опорной цене минус
+    /// входы по их опорной цене минус собственный передел) на свежепостроенной фабрике первого
+    /// уровня при <paramref name="workersPerFactory"/> рабочих: те же допущения, что у
+    /// <c>ProductionCostLevelCalculator</c> в Game.Balancing — 100% выпуска системе, без
+    /// кросс-торговли и без роста выпуска от R&amp;D, то есть заведомо не оптимистичная. Возвращает
+    /// <c>false</c>, если прибыль не положительна или <c>прибыль × turnsRemaining</c> меньше разового
+    /// <c>HireCostPerWorker × workersPerFactory</c>.
+    /// </summary>
+    private static bool WouldRecoverHireCostBeforeGameEnds(
+        FactoryDefinition definition, Recipe recipe, int workersPerFactory,
+        decimal fixedCostPerTurn, ResolvedGameConfig config, int turnsRemaining,
+        IReadOnlyDictionary<string, decimal> referencePrices)
+    {
+        var probe = new Factory(Ulid.NewUlid(), definition.Sector, definition, recipe);
+        probe.Hire(workersPerFactory);
+        var output = ProductionCalculator
+            .CalculateCapacityBreakdown(probe, config.Raw.WorkerProductivity, config.Raw.Rnd)
+            .TheoreticalMaxOutput;
+
+        var electricityCost = output
+            * config.Raw.Economy.ElectricityConsumptionPerOutputUnit
+            * config.Raw.Economy.ElectricityBasePrice;
+        var salaryCost = workersPerFactory * config.Raw.WorkerProductivity.SalaryPerWorkerPerTurn;
+        var conversionCost = fixedCostPerTurn + electricityCost + salaryCost;
+        var batches = recipe.OutputQuantity > 0 ? output / recipe.OutputQuantity : 0m;
+        var inputsAtReferencePrice = recipe.Inputs.Sum(
+            input => input.Quantity * batches * SystemSaleReferencePriceCalculator.PriceOf(referencePrices, input.Material.Id));
+        var profitPerTurn = SystemSaleReferencePriceCalculator.ProfitPerTurn(
+            output,
+            SystemSaleReferencePriceCalculator.PriceOf(referencePrices, recipe.Output.Id),
+            inputsAtReferencePrice,
+            conversionCost);
+        if (profitPerTurn <= 0m)
+        {
+            return false;
+        }
+
+        var hireCost = workersPerFactory * config.Raw.WorkerProductivity.HireCostPerWorker;
+        return profitPerTurn * turnsRemaining >= hireCost;
     }
 
     /// <summary>Та же закрытая форма, что <see cref="AdvanceGeneration"/>, но на уровне одной фабрики — с момента её постройки.</summary>
@@ -199,7 +412,7 @@ public static class IdealHallCalculator
             var previousLevel = branch.PreviousLevel[factory.Id];
             if (!RndCalculator.IsAtMaxLevel(previousLevel, rndConfig))
             {
-                branch.Cash -= rndConfig.MaxCommitmentPerTurn;
+                branch.Spend(FinanceHistoryCalculator.OperationType.RndInvested, rndConfig.MaxCommitmentPerTurn);
             }
 
             var turnsSinceBuilt = turn - branch.BuiltAtTurn[factory.Id] + 1;
@@ -241,16 +454,134 @@ public static class IdealHallCalculator
                 {
                     branch.Team.Warehouse.Add(factory.SelectedRecipe.Output, result.OutputQuantity, cost: 0m);
                 }
+
+                // Электричество — та же формула и та же (базовая) цена, что списывает реальный тик
+                // (GameSession.RunTick). Раньше не списывалось вовсе, хотя это крупнейшая статья
+                // расходов на реальных конфигах — из-за чего X(t) был не потолком, а фикцией
+                // (docs/economy-accounting-audit.md, дефект 2, шаг 2).
+                branch.Spend(
+                    FinanceHistoryCalculator.OperationType.FactoryOverhead,
+                    result.OutputQuantity
+                        * config.Raw.Economy.ElectricityConsumptionPerOutputUnit
+                        * config.Raw.Economy.ElectricityBasePrice);
             }
         }
     }
 
-    /// <summary>Зарплата и содержание фабрик — те же формулы, что реальный тик (<see cref="FinanceCalculator"/>); состояние всех фабрик — 1.0 (см. doc-comment класса), поэтому штрафа за износ в содержании нет.</summary>
+    /// <summary>
+    /// Зарплата и содержание фабрик — те же формулы, что реальный тик (<see cref="FinanceCalculator"/>),
+    /// включая штраф к содержанию за износ (<see cref="WearCalculator.CalculateUpkeepPenaltyMultiplier"/>
+    /// внутри <see cref="FinanceCalculator.CalculateFactoryUpkeep"/>). Фабрики на простое исключены из
+    /// обеих статей — им и зарплату, и содержание списывает <see cref="RunWearAndOverhaul"/> по
+    /// льготным тарифам ступени, ровно как <see cref="TickFinanceStep"/>/<see cref="WearStep"/> в
+    /// реальном тике; посчитать их здесь означало бы заплатить дважды.
+    /// Электричество списывает <see cref="RunProduction"/> (там известен выпуск), наём —
+    /// <see cref="RunHiring"/>, плату за склад — <see cref="ChargeWarehouseFee"/>,
+    /// капремонт — <see cref="RunWearAndOverhaul"/>. Неучтённых статей расходов у зала не осталось.
+    /// </summary>
     private static void ChargeOperatingCosts(BranchState branch, ResolvedGameConfig config)
     {
-        var totalWorkers = branch.Team.Factories.Sum(f => f.Workers);
-        branch.Cash -= FinanceCalculator.CalculateSalaries(totalWorkers, config.Raw.WorkerProductivity);
-        branch.Cash -= FinanceCalculator.CalculateFactoryUpkeep(branch.Team.Factories, config.Raw.FactoryDefinitions, config.Raw.Wear);
+        var totalWorkers = branch.Team.Factories.Where(f => !f.IsUnderRepair).Sum(f => f.Workers);
+        branch.Spend(
+            FinanceHistoryCalculator.OperationType.SalariesPaid,
+            FinanceCalculator.CalculateSalaries(totalWorkers, config.Raw.WorkerProductivity));
+        branch.Spend(
+            FinanceHistoryCalculator.OperationType.FactoryUpkeep,
+            FinanceCalculator.CalculateFactoryUpkeep(branch.Team.Factories, config.Raw.FactoryDefinitions, config.Raw.Wear));
+    }
+
+    /// <summary>
+    /// Износ и капремонт за ход (SPEC §5.6, <c>docs/TODO.md</c> №18) — те же три взаимоисключающих
+    /// случая и в том же порядке, что у <see cref="WearStep"/> в реальном тике, теми же функциями
+    /// <see cref="WearCalculator"/>: (1) фабрика уже на простое — списываются льготные зарплата и
+    /// содержание ступени, ход простоя засчитывается, на последнем состояние восстанавливается;
+    /// (2) фабрика изношена — эталонная политика заказывает капремонт (см. ниже); (3) иначе —
+    /// рутинный декей состояния.
+    ///
+    /// <para>
+    /// <b>Эталонная политика обслуживания: чинить сразу, на самой дешёвой ступени.</b> Как только
+    /// состояние отходит от 1.0, зал заказывает капремонт — то есть всегда попадает в первую ступень
+    /// <see cref="WearConfig.OverhaulTiers"/> (самую дешёвую и самую короткую). Это ровно то, что
+    /// делает реальный бот (<c>SimpleBot.MaintainFactories</c> при <c>IgnoredCheapestTierCount = 0</c>,
+    /// решение пользователя от 2026-08-22 «ремонт на самой оптимальной стадии»), и совпадение здесь
+    /// обязательно, а не желательно: зал, обслуживающий фабрики хуже бота, перестаёт быть верхней
+    /// границей X(t). Зал при этом строго не медленнее — у него нет задержки «решение в ход N,
+    /// эффект в ход N+1», решение применяется тем же ходом.
+    /// </para>
+    /// <para>
+    /// Следствие политики: вынужденный простой (<see cref="WearConfig.CriticalConditionThreshold"/>)
+    /// в идеальном зале не наступает никогда — состояние физически не успевает туда упасть. Это не
+    /// упрощение модели, а прямое свойство эталонной игры: довести фабрику до принудительной
+    /// остановки — ошибка, а зал ошибок не делает.
+    /// </para>
+    /// <para>
+    /// Рассматривалась и отвергнута более скупая политика «тянуть до нижней границы самой дешёвой
+    /// ступени» (реже платить за ремонт, дольше работать изношенным): она экономит долю
+    /// <c>BuildCost</c>, но платит за это просадкой выпуска и растущим штрафом к содержанию каждый
+    /// ход — и, главное, разошлась бы с ботом, а расхождение здесь стоит дороже любой экономии.
+    /// </para>
+    /// </summary>
+    private static void RunWearAndOverhaul(BranchState branch, ResolvedGameConfig config, int turn)
+    {
+        var wearConfig = config.Raw.Wear;
+        foreach (var factory in branch.Team.Factories)
+        {
+            var definition = config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id);
+
+            if (factory.IsUnderRepair)
+            {
+                // Плоский тариф от базовой ставки, не через FinanceCalculator.CalculateSalaries — тот
+                // же приём и то же обоснование, что в WearStep.RunRepairTurn.
+                branch.Spend(
+                    FinanceHistoryCalculator.OperationType.SalariesPaid,
+                    factory.Workers * config.Raw.WorkerProductivity.SalaryPerWorkerPerTurn * factory.RepairSalaryRate);
+                branch.Spend(
+                    FinanceHistoryCalculator.OperationType.FactoryUpkeep,
+                    definition.FixedCostPerTurn * factory.RepairUpkeepRate);
+
+                factory.AdvanceRepairTurn();
+                if (factory.RepairTurnsRemaining <= 0)
+                {
+                    factory.CompleteRepair(turn);
+                }
+
+                continue;
+            }
+
+            if (!WearCalculator.IsFullyRestored(factory.Condition))
+            {
+                var tier = WearCalculator.SelectTier(factory.Condition, wearConfig.OverhaulTiers)
+                           ?? throw new InvalidOperationException(
+                               $"Ideal hall reached condition {factory.Condition} on factory definition '{definition.Id}', " +
+                               "but no configured tier covers it — WearConfig.OverhaulTiers must cover the whole range " +
+                               "down to CriticalConditionThreshold.");
+
+                branch.Spend(FinanceHistoryCalculator.OperationType.FactoryOverhaul, definition.BuildCost * tier.CostFraction);
+                factory.StartRepair(
+                    factory.Condition, tier.DurationTurns, tier.OutputMultiplier, tier.SalaryRate, tier.UpkeepRate,
+                    targetCondition: 1m);
+                continue;
+            }
+
+            var ageBeyondGrace = WearCalculator.CalculateAgeBeyondGrace(factory.LastResetTurn, turn, wearConfig.GracePeriodTurns);
+            var decayRate = WearCalculator.CalculateDecayRate(ageBeyondGrace, wearConfig);
+            factory.ApplyConditionChange(WearCalculator.CalculateNextCondition(factory.Condition, decayRate));
+        }
+    }
+
+    /// <summary>
+    /// Плата за превышение бесплатного лимита склада (<see cref="WarehouseFeeCalculator"/>) — как и в
+    /// реальном тике, считается по остатку НА НАЧАЛО хода, до производства и до продажи излишка
+    /// (<see cref="GameSession.RunTick"/> зовёт <see cref="TickFinanceStep"/> первым, раньше
+    /// системной продажи и производства). Списывать её после производства было бы строже реального
+    /// движка: платили бы за выпуск, который тем же ходом уходит системе.
+    /// </summary>
+    private static void ChargeWarehouseFee(BranchState branch, ResolvedGameConfig config)
+    {
+        var totalStock = branch.Team.Warehouse.Stock.Sum(stock => stock.Quantity);
+        branch.Spend(
+            FinanceHistoryCalculator.OperationType.WarehouseFee,
+            WarehouseFeeCalculator.Calculate(totalStock, config.Raw.Warehouse).Fee);
     }
 
     /// <summary>
@@ -265,8 +596,8 @@ public static class IdealHallCalculator
     /// doc-comment класса, «намеренно добавлено») — не откладывается до пассивной оценки склада.
     /// </summary>
     private static void TransferAcrossBranches(
-        IReadOnlyList<BranchState> branches, ResolvedGameConfig config, IReadOnlyDictionary<Material, decimal> rawMaterialCosts,
-        Market market)
+        IReadOnlyList<BranchState> branches, ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> materialCosts,
+        Market market, Dictionary<string, decimal> supplyPressure)
     {
         foreach (var material in config.Materials.Values)
         {
@@ -282,15 +613,17 @@ public static class IdealHallCalculator
                 continue;
             }
 
-            var remainingSurplus = surplus - TransferToBuyers(seller, branches, material, surplus, config, rawMaterialCosts);
-            SellRemainingSurplusToSystem(seller, material, remainingSurplus, config, market);
+            var transferred = TransferToBuyers(seller, branches, material, surplus, config, materialCosts);
+            var remainingSurplus = surplus - transferred;
+            Trace?.Invoke($"[ideal] transfer {material.Id,-12} продавец={seller.Sector.Id} излишек={surplus:F1} передано={transferred:F1} продано системе={remainingSurplus:F1}");
+            SellRemainingSurplusToSystem(seller, material, remainingSurplus, config, market, materialCosts, supplyPressure);
         }
     }
 
     /// <summary>Раздаёт излишек продавца соседним веткам-покупателям по себестоимости (см. doc-comment <see cref="TransferAcrossBranches"/>). Возвращает фактически переданное количество — остаток после этого не покупателям, а системе (<see cref="SellRemainingSurplusToSystem"/>).</summary>
     private static decimal TransferToBuyers(
         BranchState seller, IReadOnlyList<BranchState> branches, Material material, decimal surplus,
-        ResolvedGameConfig config, IReadOnlyDictionary<Material, decimal> rawMaterialCosts)
+        ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> materialCosts)
     {
         var buyers = branches
             .Where(b => b != seller)
@@ -304,7 +637,10 @@ public static class IdealHallCalculator
 
         var totalDeficit = buyers.Sum(entry => entry.Deficit);
         var fillRatio = Math.Min(1m, surplus / totalDeficit);
-        if (fillRatio <= 0m || !TryCalculateUnitCost(material, config.RecipeBook, rawMaterialCosts, out var unitCost))
+        Trace?.Invoke(fillRatio < 1m
+            ? $"[ideal] transfer {material.Id,-12} покупатели=[{string.Join(", ", buyers.Select(b => $"{b.Branch.Sector.Id}:дефицит={b.Deficit:F1}"))}] fillRatio={fillRatio:P0} — излишка не хватает на весь спрос"
+            : $"[ideal] transfer {material.Id,-12} покупатели=[{string.Join(", ", buyers.Select(b => $"{b.Branch.Sector.Id}:дефицит={b.Deficit:F1}"))}] fillRatio={fillRatio:P0}");
+        if (fillRatio <= 0m || !materialCosts.TryGetValue(material.Id, out var unitCost))
         {
             return 0m;
         }
@@ -327,7 +663,7 @@ public static class IdealHallCalculator
             // своя такая же фабрика.
             var payment = quantity * unitCost;
             seller.Cash += payment;
-            buyer.Cash -= payment;
+            buyer.Spend(FinanceHistoryCalculator.OperationType.ContractDelivery, payment);
             transferredTotal += quantity;
         }
 
@@ -335,21 +671,37 @@ public static class IdealHallCalculator
     }
 
     /// <summary>
-    /// Продаёт продавцу-ветке то, что не забрали соседи, системе по рыночной котировке этого хода
+    /// Продаёт продавцу-ветке то, что не забрали соседи, системе по себестоимости этого материала
     /// (<see cref="MarketSaleCalculator"/>, с наценкой уровня передела и понижающим коэффициентом за
     /// превышение ёмкости) — аналог <c>SimpleBot.SellSurplusToSystem</c> реального бота (см.
     /// doc-comment класса). Материал у каждой ветки свой (<see cref="Material.Sector"/>), поэтому
     /// разные ветки никогда не делят одну и ту же ёмкость рынка за один вызов.
     /// </summary>
     private static void SellRemainingSurplusToSystem(
-        BranchState seller, Material material, decimal remainingSurplus, ResolvedGameConfig config, Market market)
+        BranchState seller, Material material, decimal remainingSurplus, ResolvedGameConfig config, Market market,
+        IReadOnlyDictionary<string, decimal> materialCosts, Dictionary<string, decimal> supplyPressure)
     {
         if (remainingSurplus <= 0m || !market.HasQuote(material.Id))
         {
             return;
         }
 
-        var sale = MarketSaleCalculator.Calculate(market, config.Raw.Economy, material, remainingSurplus);
+        var pressureBefore = supplyPressure.GetValueOrDefault(material.Id);
+
+        // Идеальная игра не топит собственную цену: как и бот (SimpleBot.MinAcceptableSellPriceRate),
+        // зал придерживает объём, который ушёл бы в насыщенный рынок дешевле порога. Порог обязан
+        // быть НЕ ХУЖЕ ботовского, иначе зал перестаёт быть верхней границей X(t) — реальная команда
+        // обыгрывала бы «идеальную» просто за счёт того, что не заливает рынок (блок 11.7).
+        var sellableNow = MarketSaleCalculator.LargestVolumeAbovePriceFloor(
+            market, materialCosts, config.Raw.Economy, material, remainingSurplus, pressureBefore,
+            MinAcceptableSellPriceRate);
+        if (sellableNow <= 0m)
+        {
+            return;
+        }
+
+        var sale = MarketSaleCalculator.Calculate(
+            market, materialCosts, config.Raw.Economy, material, sellableNow, pressureBefore);
         var soldVolume = sale.WithinCapacityVolume + sale.OverflowVolume;
         if (soldVolume <= 0m)
         {
@@ -359,6 +711,7 @@ public static class IdealHallCalculator
         seller.Team.Warehouse.Remove(material, soldVolume);
         seller.Cash += sale.TotalRevenue;
         market.RecordSale(material.Id, soldVolume);
+        supplyPressure[material.Id] = pressureBefore + soldVolume;
     }
 
     /// <summary>
@@ -417,51 +770,28 @@ public static class IdealHallCalculator
         return total;
     }
 
-    /// <summary>X(t) на конец хода — тот же состав слагаемых, что <see cref="FinalScoreCalculator"/> (без долга, см. doc-comment класса): касса + ликвидационная стоимость фабрик + ликвидационная стоимость склада по базовой рыночной цене (без наценки передела — она относится к активной продаже системе, не к пассивной оценке остатка, тот же принцип, что и в <see cref="FinalScoreCalculator.WarehouseValue"/>).</summary>
+    /// <summary>
+    /// X(t) на конец хода — тот же состав слагаемых, что <see cref="FinalScoreCalculator"/>: касса +
+    /// остаточная стоимость фабрик (привязана к <see cref="Factory.Condition"/>, который с 2026-09-08
+    /// реально гуляет по циклу износ/капремонт, см. <see cref="RunWearAndOverhaul"/>: фабрика на
+    /// момент замера стоит долю <see cref="FactoryDefinitionConfig.BuildCost"/>, а не всегда полную,
+    /// как было при допущении «износа нет») + остаточная стоимость склада **ровно по себестоимости**, без скидки на ликвидацию
+    /// (<c>EconomyConfig.WarehouseLiquidationRate</c> здесь больше не участвует — сознательное
+    /// упрощение по запросу пользователя, одна и та же формула для идеального зала, реального бота и
+    /// будущей реальной игры, см. doc-comment <see cref="FinalScoreCalculator"/>).
+    /// </summary>
     private static decimal ComputeValue(
-        BranchState branch, ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> basePriceByMaterialId)
+        BranchState branch, ResolvedGameConfig config, IReadOnlyDictionary<string, decimal> materialCosts)
     {
         var factoriesValue = branch.Team.Factories.Sum(factory =>
         {
             var definition = config.Raw.FactoryDefinitions.First(d => d.Id == factory.Definition.Id);
-            return definition.BuildCost * definition.LiquidationValueCoefficient;
+            return FactoryResidualValueCalculator.Calculate(definition, factory.Condition);
         });
 
         var warehouseValue = branch.Team.Warehouse.Stock.Sum(stock =>
-            stock.Quantity
-            * basePriceByMaterialId.GetValueOrDefault(stock.Material.Id, 0m)
-            * config.Raw.Economy.WarehouseLiquidationRate);
+            stock.Quantity * materialCosts.GetValueOrDefault(stock.Material.Id, 0m));
 
         return branch.Cash + factoriesValue + warehouseValue;
-    }
-
-    private static IReadOnlyDictionary<Material, decimal> BuildRawMaterialCosts(ResolvedGameConfig config)
-    {
-        var costs = new Dictionary<Material, decimal>();
-        foreach (var entry in config.Raw.Economy.BaseMarketPerMaterial)
-        {
-            if (config.Materials.TryGetValue(entry.MaterialId, out var material) && material.IsRawMaterial)
-            {
-                costs[material] = entry.BasePrice;
-            }
-        }
-
-        return costs;
-    }
-
-    /// <summary>Обёртка над <see cref="CostCalculator.CalculateUnitCost"/>, не падающая при отсутствующей базовой цене где-то в цепочке (тот же приём, что <c>SimpleBot.TryCalculateUnitCost</c>) — перевод в этот ход просто не считается, а не роняет весь прогон.</summary>
-    private static bool TryCalculateUnitCost(
-        Material material, RecipeBook recipeBook, IReadOnlyDictionary<Material, decimal> rawMaterialCosts, out decimal unitCost)
-    {
-        try
-        {
-            unitCost = CostCalculator.CalculateUnitCost(material, recipeBook, rawMaterialCosts);
-            return true;
-        }
-        catch (ArgumentException)
-        {
-            unitCost = 0m;
-            return false;
-        }
     }
 }

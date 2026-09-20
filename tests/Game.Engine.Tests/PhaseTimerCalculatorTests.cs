@@ -16,7 +16,7 @@ public class PhaseTimerCalculatorTests
     {
         var config = TestGameConfig.BuildWithPhaseTiming(Timing);
         var now = Epoch;
-        var session = GameSession.StartWithEndTurn(config, "test", endTurn: 999, Array.Empty<TeamSpec>(), clock: () => now);
+        var session = GameSession.StartWithEndTurn(config, endTurn: 999, Array.Empty<TeamSpec>(), clock: () => now);
 
         return (session, by => now += by);
     }
@@ -98,7 +98,7 @@ public class PhaseTimerCalculatorTests
     {
         var config = TestGameConfig.BuildWithPhaseTiming(Timing);
         var now = Epoch;
-        var session = GameSession.StartWithEndTurn(config, "test", endTurn: 1, Array.Empty<TeamSpec>(), clock: () => now);
+        var session = GameSession.StartWithEndTurn(config, endTurn: 1, Array.Empty<TeamSpec>(), clock: () => now);
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision(1) at EndTurn -> finishes

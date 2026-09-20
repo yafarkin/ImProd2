@@ -30,7 +30,7 @@ public class MultiRecipeFactoryTests
         var sector = config.Sectors.Single();
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 5, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sector.Id } });
+            config, endTurn: 5, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sector.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
 
         var bot = new SimpleBot(teamId, sector, config, leverage: 1m);
@@ -52,7 +52,7 @@ public class MultiRecipeFactoryTests
         var sector = config.Sectors.Single();
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            config, "short", endTurn: 5, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sector.Id } });
+            config, endTurn: 5, new[] { new TeamSpec { Id = teamId, Name = "Бот", SectorId = sector.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement(1) -> Decision(1)
 
         var bot = new SimpleBot(teamId, sector, config, leverage: 1m);
@@ -107,19 +107,9 @@ public class MultiRecipeFactoryTests
             },
             StartingConditions = new StartingConditionsConfig
             {
-                MaxStartingLoanAmount = 100_000m,
-                BaseLoanInterestRate = 0.05m,
-                LoanInterestRateGrowthPerUnitBorrowed = 0m,
-                ForcedLoanPenaltyRatePerOccurrence = 0.1m,
-                MaxReputationRatePenalty = 0.1m,
-                MandatoryRepaymentRatePerTurn = 0m,
-                MaxTotalDebt = 1_000_000_000m,
-                MaxLoanInterestRate = 1_000_000_000m,
+                MaxInitialBuildBudget = 100_000m,
             },
-            SessionPresets = new[]
-            {
-                new SessionPresetConfig { Id = "short", Name = "Короткая", MinTurns = 5, MaxTurns = 5, TurnDurationMinutes = 1 },
-            },
+            Duration = new SessionDurationConfig { MinTurns = 5, MaxTurns = 5 },
             PhaseTiming = new PhaseTimingConfig { SettlementPhaseSeconds = 1, DecisionPhaseSeconds = 1 },
             Economy = new EconomyConfig
             {
@@ -128,13 +118,9 @@ public class MultiRecipeFactoryTests
                 EmergencyPurchasePressureHalfLifeTurns = 3,
                 BaseMarketPerMaterial = new[]
                 {
-                    new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 1_000_000m },
-                    new MaterialMarketConfig { MaterialId = "alloy-x", BasePrice = 50m, BaseCapacity = 1_000_000m },
-                    new MaterialMarketConfig { MaterialId = "alloy-y", BasePrice = 50m, BaseCapacity = 1_000_000m },
-                },
-                MarginMultiplierByProcessingLevel = new[]
-                {
-                    new ProcessingLevelMarginConfig { Level = 1, MarginMultiplier = 1.2m },
+                    new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "alloy-x", BaseSellPrice = 50m, BaseCapacity = 1_000_000m },
+                    new MaterialMarketConfig { MaterialId = "alloy-y", BaseSellPrice = 50m, BaseCapacity = 1_000_000m },
                 },
                 MarketCapacityOverflowDiscount = 0.5m,
                 ElectricityBasePrice = 1m,
@@ -146,11 +132,9 @@ public class MultiRecipeFactoryTests
             {
                 BaseWorkerCount = 5,
                 DiminishingReturnsFactor = 0.5m,
-                HireCostPerWorker = 50m,
+                HireCostPerWorker = 50m, MaxHiresPerTurn = 1000,
                 FireCostPerWorker = 30m,
                 SalaryPerWorkerPerTurn = 5m,
-                TeamSalaryBaseWorkerCount = 1000,
-                SalaryEscalationFactor = 1.5m,
             },
             Rnd = new RndConfig
             {
@@ -191,13 +175,9 @@ public class MultiRecipeFactoryTests
                 VoluntaryTerminationFee = 100m,
                 MaxActiveContractsPerTeam = null,
             },
-            Taxes = new TaxesConfig { PropertyTaxRatePerTurn = 0m, SalesTaxRate = 0m },
-            Deposits = new DepositsConfig { InterestRatePerTurn = 0m },
             News = Array.Empty<NewsItemConfig>(),
             FeatureFlags = new FeatureFlagsConfig
             {
-                TaxesEnabled = false,
-                DepositsEnabled = false,
                 EmergencyPurchaseEnabled = true,
             },
         };

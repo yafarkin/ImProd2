@@ -13,8 +13,8 @@ namespace Game.Bots.Llm;
 /// «выросло/упало») — здесь ровно наоборот: не сырые числа, а уже сравненные окна с явным словом
 /// тренда, чтобы не заставлять модель вычитать и делить в уме.
 /// <para>
-/// Все источники — уже существующие в движке calculators, ничего заново не выдумано: проценты/тело
-/// кредита и денежный поток — из <see cref="FinanceHistoryCalculator"/> (та же бухгалтерская книга,
+/// Все источники — уже существующие в движке calculators, ничего заново не выдумано: денежный поток
+/// — из <see cref="FinanceHistoryCalculator"/> (та же бухгалтерская книга,
 /// что питает вкладку «Финансы»), простой фабрик и загрузка — из <see cref="FactoryProduced"/>
 /// (несёт готовое <c>CapacityLimitedOutputQuantity</c> отдельно от фактического
 /// <c>OutputQuantity</c> — не нужно пересчитывать, было ли ограничение по сырью), рыночная позиция —
@@ -64,8 +64,6 @@ public static class BotDerivedMetricsBuilder
             ? $"=== DERIVED METRICS (recent: turns {recentWindow.Start}-{recentWindow.End}, prior: turns {priorForHeader.Start}-{priorForHeader.End}) ==="
             : $"=== DERIVED METRICS (recent: turns {recentWindow.Start}-{recentWindow.End}, not enough history yet for a prior window) ===");
 
-        AppendLoanService(text, financeOps, recentWindow, priorWindow);
-        AppendLoanCostRightNow(text, session, teamId, team);
         var recentNet = AppendCashFlow(text, financeOps, recentWindow, priorWindow);
         AppendWarehouseFee(text, financeOps, recentWindow, priorWindow);
         AppendIdleFactories(text, team, productionPoints);
@@ -77,68 +75,6 @@ public static class BotDerivedMetricsBuilder
 
         return text.ToString();
     }
-
-    private static void AppendLoanService(
-        StringBuilder text, IReadOnlyList<FinanceHistoryCalculator.FinanceOperation> ops,
-        (int Start, int End) recent, (int Start, int End)? prior)
-    {
-        text.AppendLine();
-        text.AppendLine("LOAN SERVICE");
-
-        var recentInterest = SumOps(ops, recent, op => op.Type == FinanceHistoryCalculator.OperationType.InterestCharged);
-        var recentPrincipal = SumOps(ops, recent, IsPrincipalRepayment);
-
-        var interestLine = $"Interest paid: {Money(recentInterest)}";
-        var principalLine = $"Principal repaid: {Money(recentPrincipal)}";
-
-        if (prior is { } window)
-        {
-            var priorInterest = SumOps(ops, window, op => op.Type == FinanceHistoryCalculator.OperationType.InterestCharged);
-            var priorPrincipal = SumOps(ops, window, IsPrincipalRepayment);
-            interestLine += $" (prior {Money(priorInterest)}), trend: {TrendLabel(Classify(recentInterest, priorInterest))}";
-            principalLine += $" (prior {Money(priorPrincipal)}), trend: {TrendLabel(Classify(recentPrincipal, priorPrincipal))}";
-        }
-
-        text.AppendLine(interestLine);
-        text.AppendLine(principalLine);
-    }
-
-    /// <summary>
-    /// Реальная стоимость долга прямо сейчас, числом, а не абстрактным "проценты растут" — прямой
-    /// запрос пользователя (2026-08-20), по следам прогона <c>_2bot_gpt_oss_20b_2stage_v2</c>: оба
-    /// бота 45 ходов подряд брали заём с формулировкой в `reason` буквально «cover warehouse overage
-    /// fee», ни разу не связав это с тем, что сам заём тоже стоит денег (а после нескольких таких
-    /// ходов — уже дорого). "LOAN SERVICE" выше показывает, сколько процентов УЖЕ заплачено за окно
-    /// — это про прошлое; здесь — сколько будет стоить долг НА СЛЕДУЮЩЕМ ходу при текущей ставке,
-    /// чтобы решение "занять ещё" сравнивалось с конкретной ценой, а не игнорировало её.
-    /// </summary>
-    private static void AppendLoanCostRightNow(StringBuilder text, GameSession session, Ulid teamId, Team team)
-    {
-        text.AppendLine();
-        text.AppendLine("LOAN COST RIGHT NOW");
-
-        if (team.Debt <= 0m)
-        {
-            text.AppendLine("No debt — a new loan would start at the base rate.");
-            return;
-        }
-
-        var loanConfig = session.State.Config.Raw.StartingConditions;
-        var reputation = session.GetReputation(teamId);
-        var rate = FinanceCalculator.CalculateEffectiveLoanRate(team, loanConfig, reputation.Percentage);
-        var interest = FinanceCalculator.CalculateInterest(team, loanConfig, reputation.Percentage);
-
-        text.AppendLine(
-            $"Effective rate: {Percent(rate)}/turn on your current debt of {Money(team.Debt)} — that alone costs " +
-            $"{Money(interest)} in interest NEXT turn, before any new loan or mandatory repayment. Borrowing MORE " +
-            "raises this rate further and compounds every turn it isn't repaid — a loan is one of the most " +
-            "expensive ways to cover a recurring cost like the warehouse overage fee below; selling the surplus " +
-            "(sellToSystem/postSellOffer) or producing less (setWorkerCount down) fixes the actual cause instead " +
-            "of just delaying it at a growing price.");
-    }
-
-    private static bool IsPrincipalRepayment(FinanceHistoryCalculator.FinanceOperation op) =>
-        op.Type is FinanceHistoryCalculator.OperationType.MandatoryRepayment or FinanceHistoryCalculator.OperationType.VoluntaryRepayment;
 
     /// <summary>Возвращает чистый денежный поток за <paramref name="recent"/> окно — переиспользуется в <see cref="AppendRunway"/>, чтобы не считать дважды.</summary>
     private static decimal AppendCashFlow(
@@ -361,11 +297,11 @@ public static class BotDerivedMetricsBuilder
     {
         var state = session.State;
         var own = state.Teams[teamId];
-        var ownNetWorthNow = own.Balance - own.Debt;
-        var leader = state.Teams.Values.OrderByDescending(t => t.Balance - t.Debt).First();
+        var ownNetWorthNow = own.Balance;
+        var leader = state.Teams.Values.OrderByDescending(t => t.Balance).First();
 
         text.AppendLine();
-        text.AppendLine("MARKET POSITION (net worth = balance - debt)");
+        text.AppendLine("MARKET POSITION (net worth = balance)");
 
         if (leader.Id == teamId)
         {
@@ -373,7 +309,7 @@ public static class BotDerivedMetricsBuilder
             return;
         }
 
-        var leaderNetWorthNow = leader.Balance - leader.Debt;
+        var leaderNetWorthNow = leader.Balance;
         text.AppendLine(leaderNetWorthNow > 0
             ? $"Your net worth is {Percent(SafeDivide(ownNetWorthNow, leaderNetWorthNow))} of the leader's ({leader.Name}, {Money(leaderNetWorthNow)})."
             : $"You: {Money(ownNetWorthNow)}, leader ({leader.Name}): {Money(leaderNetWorthNow)} (both at or below zero).");

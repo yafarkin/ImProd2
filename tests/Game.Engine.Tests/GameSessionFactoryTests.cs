@@ -74,7 +74,7 @@ public class GameSessionFactoryTests
         var config = TestGameConfig.BuildWithGenerationResearch();
         var teamId = Ulid.NewUlid();
         var session = GameSession.StartWithEndTurn(
-            new EventLog<GameSessionState>(new GameSessionState(config)), "test", endTurn: 999,
+            new EventLog<GameSessionState>(new GameSessionState(config)), endTurn: 999,
             new[] { new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
 
@@ -90,7 +90,7 @@ public class GameSessionFactoryTests
         var teamId = Ulid.NewUlid();
         var log = new EventLog<GameSessionState>(new GameSessionState(config));
         var session = GameSession.StartWithEndTurn(
-            log, "test", endTurn: 999,
+            log, endTurn: 999,
             new[] { new TeamSpec { Id = teamId, Name = "Команда А1", SectorId = TestGameConfig.SectorA.Id } });
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Settlement -> Decision
         log.Append(new TeamGenerationAdvanced { Id = Ulid.NewUlid(), TeamId = teamId, NewGeneration = 2 });

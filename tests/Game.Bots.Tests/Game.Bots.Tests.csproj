@@ -23,13 +23,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\src\Game.Config\Samples\gameconfig.pilot.json" Link="Samples\gameconfig.pilot.json">
+    <None Include="..\Fixtures\legacy-combined-gameconfig.json" Link="Fixtures\legacy-combined-gameconfig.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\src\Game.Config\Samples\production-models\control-twin-metallurgy.json" Link="Samples\production-models\control-twin-metallurgy.json">
+    <None Include="..\Fixtures\production-models\**\*.json" Link="Fixtures\production-models\%(RecursiveDir)%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\src\Game.Config\Samples\sessions\pilot.json" Link="Samples\sessions\pilot.json">
+    <None Include="..\..\src\Game.Config\Samples\sessions\main.json" Link="Samples\sessions\main.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

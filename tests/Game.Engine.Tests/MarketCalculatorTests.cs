@@ -14,9 +14,8 @@ public class MarketCalculatorTests
             EmergencyPurchasePressureHalfLifeTurns = 1,
             BaseMarketPerMaterial = new[]
             {
-                new MaterialMarketConfig { MaterialId = "ore", BasePrice = 10m, BaseCapacity = 100m },
+                new MaterialMarketConfig { MaterialId = "ore", BaseSellPrice = 10m, BaseCapacity = 100m },
             },
-            MarginMultiplierByProcessingLevel = Array.Empty<ProcessingLevelMarginConfig>(),
             MarketCapacityOverflowDiscount = 0.5m,
             ElectricityBasePrice = 5m,
             ElectricityConsumptionPerOutputUnit = 0m,

@@ -27,18 +27,16 @@ public class FactoryHistoryCalculatorTests
         Assert.Empty(history.ConsumedInputsByFactoryId);
         Assert.Empty(history.ProfitByLevel);
         Assert.Empty(history.NetWorthByTurn);
+        Assert.Empty(history.ScoreByTurn);
         Assert.Empty(history.ReputationByTurn);
     }
 
     [Fact]
     public void Summarize_Snapshots_Net_Worth_At_The_End_Of_Each_Completed_Turn()
     {
-        // Ход 1: баланс — стартовый заём 100 000 минус постройка (100) = 99 900; наём 5 рабочих
-        // (5*50=250) в ход 1 только объявлен (SetWorkerCount бесплатен и мгновенен), реально спишется
-        // только на расчёте хода 2 (см. TickFinanceStep/WorkforceStep — тот же приём, что и R&D).
-        // Долг — сам заём, 100 000 (ещё ничего не погашено); чистая стоимость — разница,
-        // 99 900 - 100 000 = -100 (сырой баланс выглядел бы позитивным, пряча реальный отрицательный
-        // результат первого хода за долгом).
+        // Ход 1: баланс — стартовые деньги 100 000 минус постройка (100) = 99 900; наём 5 рабочих
+        // в ход 1 только объявлен (SetWorkerCount бесплатен и мгновенен), реально спишется только на
+        // расчёте хода 2 (см. TickFinanceStep/WorkforceStep — тот же приём, что и R&D).
         var (session, teamId, _) = BuildAndStaffAMine(workers: 5);
 
         session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
@@ -47,7 +45,57 @@ public class FactoryHistoryCalculatorTests
         var history = FactoryHistoryCalculator.Summarize(session.Entries, TestGameConfig.Resolved, teamId);
 
         var turn1 = Assert.Single(history.NetWorthByTurn, point => point.Turn == 1);
-        Assert.Equal(-100m, turn1.NetWorth);
+        Assert.Equal(99_900m, turn1.NetWorth);
+    }
+
+    /// <summary>
+    /// Ради этого ряд и заведён (docs/TODO.md №10): построенная фабрика уводит деньги из баланса, но
+    /// не из счёта — она остаётся у команды как актив. Если бы <c>ScoreByTurn</c> просто повторял
+    /// баланс, разбор после игры показывал бы вложившуюся в производство команду беднее, чем она есть.
+    /// </summary>
+    [Fact]
+    public void Summarize_Counts_A_Built_Factory_Into_The_Score_Even_Though_It_Left_The_Balance()
+    {
+        var (session, teamId, _) = BuildAndStaffAMine(workers: 5);
+
+        session.AdvancePhase(PhaseTransitionTrigger.Timer); // Decision -> Settlement, ход 2
+        session.RunTick(new Random(1));
+
+        var history = FactoryHistoryCalculator.Summarize(session.Entries, TestGameConfig.Resolved, teamId);
+
+        var netWorth = Assert.Single(history.NetWorthByTurn, point => point.Turn == 1).NetWorth;
+        var score = Assert.Single(history.ScoreByTurn, point => point.Turn == 1).Score;
+
+        // Ход 1: склад ещё пуст (производство идёт только на расчёте хода 2), поэтому вся разница
+        // между счётом и балансом — это ровно остаточная стоимость одной шахты.
+        var mine = TestGameConfig.Resolved.Raw.FactoryDefinitions.First(d => d.Id == TestGameConfig.Mine.Id);
+        var residualValue = FactoryResidualValueCalculator.Calculate(mine, condition: 1m);
+
+        Assert.True(residualValue > 0m, "Тест бессмыслен, если шахта ничего не стоит после постройки.");
+        Assert.Equal(netWorth + residualValue, score);
+    }
+
+    /// <summary>Ряды счёта и баланса покрывают одни и те же ходы — на график они кладутся как параллельные.</summary>
+    [Fact]
+    public void Summarize_Reports_The_Score_For_Exactly_The_Same_Turns_As_The_Balance()
+    {
+        var (session, teamId, _) = BuildAndStaffAMine(workers: 5);
+
+        for (var i = 0; i < 3; i++)
+        {
+            session.AdvancePhase(PhaseTransitionTrigger.Timer);
+            if (session.State.CurrentPhase == TurnPhase.Settlement)
+            {
+                session.RunTick(new Random(1));
+            }
+        }
+
+        var history = FactoryHistoryCalculator.Summarize(session.Entries, TestGameConfig.Resolved, teamId);
+
+        Assert.NotEmpty(history.ScoreByTurn);
+        Assert.Equal(
+            history.NetWorthByTurn.Select(point => point.Turn),
+            history.ScoreByTurn.Select(point => point.Turn));
     }
 
     [Fact]

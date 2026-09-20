@@ -23,7 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\src\Game.Config\Samples\gameconfig.pilot.json" Link="Samples\gameconfig.pilot.json">
+    <None Include="..\Fixtures\legacy-combined-gameconfig.json" Link="Fixtures\legacy-combined-gameconfig.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\Fixtures\production-models\**\*.json" Link="Fixtures\production-models\%(RecursiveDir)%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
