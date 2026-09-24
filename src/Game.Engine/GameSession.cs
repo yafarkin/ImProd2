@@ -1283,7 +1283,11 @@ public sealed class GameSession
         // — общий якорь цены для аварийной закупки и продажи системе этого хода, один расчёт на всех.
         var materialCosts = MaterialCostCalculator.CalculateAll(config);
 
-        foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
+        // Порядок обхода команд меняется от хода к ходу (SettlementOrder) — он решает гонку за общую
+        // ёмкость рынка, и при постоянном порядке одна и та же команда выигрывала её всю партию.
+        var settlementOrder = SettlementOrder.ForTurn(State.Teams.Values, State.CurrentTurn);
+
+        foreach (var team in settlementOrder)
         {
             foreach (var change in TickFinanceStep.Run(
                 team, config.Raw.WorkerProductivity, config.Raw.Warehouse,
@@ -1296,8 +1300,8 @@ public sealed class GameSession
             // Заявки на аварийную закупку и продажу системе (SPEC §4, §5.3-5.4) — после финансового
             // шага, до расчёта производства (чтобы закупленное сырьё успело попасть в этот же расчёт
             // производства, а продать можно было только то, что было на складе до него, не свежий
-            // выпуск). Порядок команд между собой (внешний foreach, по возрастанию Team.Id) здесь и
-            // решает гонку за общую ёмкость рынка между продажами разных команд.
+            // выпуск). Порядок команд между собой (внешний foreach, SettlementOrder) здесь и решает
+            // гонку за общую ёмкость рынка между продажами разных команд.
             foreach (var change in EmergencyPurchaseStep.Run(team, materialCosts, config.Raw.Economy, Entries, State.CurrentTurn, State.Market))
             {
                 appended.Add(_log.Append(change));
@@ -1320,11 +1324,11 @@ public sealed class GameSession
         // изолированного сектора, при том что SimpleBot.BuyBufferCycles=1 целится ровно в один ход).
         // Теперь: все команды считают уровень L → доставляются контракты именно на материалы уровня L
         // → все команды считают уровень L+1 (и так видят уже доставленное). Порядок команд внутри
-        // уровня — по Team.Id, тот же, что раньше был внешним циклом.
+        // уровня — тот же SettlementOrder этого хода, что и у продаж выше.
         var levels = config.Materials.Values.Select(material => material.Level).Distinct().OrderBy(level => level).ToList();
         foreach (var level in levels)
         {
-            foreach (var team in State.Teams.Values.OrderBy(team => team.Id))
+            foreach (var team in settlementOrder)
             {
                 // Внутри одного уровня фабрики считаются одной группой (ProductionCalculator.CalculateGroup),
                 // а не по одной: если несколько из них претендуют на один и тот же дефицитный материал,
