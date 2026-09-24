@@ -18,8 +18,11 @@ public static class OrderBook
 {
     /// <summary>
     /// Сводит заявки на продажу и покупку по каждому материалу отдельно и подписывает сделки на то,
-    /// что сошлось. Детерминированный порядок сведения (по цене, при равенстве — по <see
-    /// cref="Ulid"/> команды) — та же дисциплина, что и у остального движка (AGENTS правило 6).
+    /// что сошлось. Детерминированный порядок сведения: по цене, при равенстве — по месту команды в
+    /// <see cref="SettlementOrder"/> этого хода (AGENTS правило 6). Раньше равные заявки сводились по
+    /// возрастанию <see cref="Ulid"/> команды — одинаковые боты одного сектора ставят одинаковые цены,
+    /// и команда с меньшим идентификатором всю партию забирала встречный объём первой (замер 2026-09-24:
+    /// этот перекос давал большую часть преимущества ранней команды сектора, не расчёт хода).
     /// </summary>
     public static void Match(
         GameSession session,
@@ -33,6 +36,9 @@ public static class OrderBook
         ArgumentNullException.ThrowIfNull(confirmationCodeRandom);
 
         var turn = session.State.CurrentTurn;
+        var placeByTeam = SettlementOrder.ForTurn(session.State.Teams.Values, turn)
+            .Select((team, place) => (team.Id, place))
+            .ToDictionary(pair => pair.Id, pair => pair.place);
         var penaltyRate = session.State.Config.Raw.Contracts.DeliveryMissPenaltyRate;
 
         var materials = sellOrders.Select(o => o.Material)
@@ -47,12 +53,12 @@ public static class OrderBook
             // максимизирует объём сведённых сделок, не только их число.
             var sellers = sellOrders
                 .Where(o => o.Material == material)
-                .OrderBy(o => o.LimitPrice).ThenBy(o => o.TeamId)
+                .OrderBy(o => o.LimitPrice).ThenBy(o => placeByTeam[o.TeamId])
                 .Select(o => (Order: o, Remaining: o.Volume))
                 .ToList();
             var buyers = buyOrders
                 .Where(o => o.Material == material)
-                .OrderByDescending(o => o.LimitPrice).ThenBy(o => o.TeamId)
+                .OrderByDescending(o => o.LimitPrice).ThenBy(o => placeByTeam[o.TeamId])
                 .Select(o => (Order: o, Remaining: o.Volume))
                 .ToList();
 
