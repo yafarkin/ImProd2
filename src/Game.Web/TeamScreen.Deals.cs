@@ -29,6 +29,12 @@ public sealed partial class TeamScreen
     /// <summary>Чего нашим фабрикам не хватит на ход при полной загрузке («Нужно нам»).</summary>
     public IReadOnlyList<MaterialShortfall> Shortfalls { get; private set; } = [];
 
+    /// <summary>«С чем идти в зал» переговорщика: свободный остаток, себестоимость и котировка по каждому материалу (<see cref="NegotiationBrief"/>).</summary>
+    public IReadOnlyList<NegotiationBrief.Offer> Offers { get; private set; } = [];
+
+    /// <summary>Сколько черновиков вошедшего переговорщика сейчас ждут управляющего — для его шапки.</summary>
+    public int MyDraftsAwaitingManager { get; private set; }
+
     /// <summary>Репутация нашей и остальных команд — мы первыми, остальные по имени.</summary>
     public IReadOnlyList<TeamReputation> Reputations { get; private set; } = [];
 
@@ -49,16 +55,32 @@ public sealed partial class TeamScreen
     private void RefreshDealsSection(GameSessionState state, Team team)
     {
         var maxOutputById = Factories.ToDictionary(f => f.FactoryId, f => f.CapacityBreakdown.TheoreticalMaxOutput);
-        Shortfalls = team.Factories
+        var consumption = team.Factories
             .SelectMany(factory => factory.SelectedRecipe.Inputs.Select(input => (
                 input.Material,
                 PerTurn: maxOutputById.GetValueOrDefault(factory.Id) / factory.SelectedRecipe.OutputQuantity * input.Quantity)))
             .GroupBy(x => x.Material.Id)
-            .Select(group => new MaterialShortfall(
-                group.Key, group.First().Material.Name, group.Sum(x => x.PerTurn), team.Warehouse.QuantityOf(group.First().Material)))
+            .Select(group => (Material: group.First().Material, PerTurn: group.Sum(x => x.PerTurn)))
+            .ToList();
+        Shortfalls = consumption
+            .Select(x => new MaterialShortfall(x.Material.Id, x.Material.Name, x.PerTurn, team.Warehouse.QuantityOf(x.Material)))
             .Where(shortfall => shortfall.PerTurn > shortfall.OnStock)
             .OrderBy(shortfall => shortfall.MaterialName, StringComparer.Ordinal)
             .ToList();
+
+        Offers = NegotiationBrief.Build(
+            team.Warehouse.Stock.Select(s => (s.Material, s.Quantity, UnitCostForNegotiation(s.Material.Id))).ToList(),
+            consumption.ToDictionary(x => x.Material.Id, x => x.PerTurn, StringComparer.Ordinal),
+            NegotiationBrief.Promised(state.Contracts.Values, TeamId, state.CurrentTurn),
+            team.Warehouse.Stock
+                .Where(s => state.Market.HasQuote(s.Material.Id))
+                .ToDictionary(s => s.Material.Id, s => state.Market.QuoteOf(s.Material.Id).Price, StringComparer.Ordinal));
+
+        MyDraftsAwaitingManager = Role == ParticipantRole.Negotiator && ParticipantCode is not null
+            ? state.ContractDrafts.Values.Count(d => d.TeamId == TeamId
+                && d.PreparedByParticipantCode == ParticipantCode
+                && d.Status == ContractDraftStatus.AwaitingManager)
+            : 0;
 
         Reputations = state.Teams.Values
             .Select(t =>
@@ -95,6 +117,15 @@ public sealed partial class TeamScreen
             _deliveriesEntryCount = entries.Count;
         }
     }
+
+    /// <summary>
+    /// Себестоимость единицы для переговоров: реальная (средняя фактических трат на остаток), а если
+    /// материал ещё не производился — оценка по рецепту; <c>null</c> — нет ни той, ни другой.
+    /// </summary>
+    private decimal? UnitCostForNegotiation(string materialId) =>
+        RealUnitCostByMaterialId.GetValueOrDefault(materialId) is var real && real > 0m
+            ? real
+            : UnitCostByMaterialId.TryGetValue(materialId, out var estimate) ? estimate : null;
 
     /// <summary>Поставки и срывы по контрактам — прямо из событий журнала, как их считает и репутация.</summary>
     public static IReadOnlyDictionary<Ulid, DeliveryStats> CountDeliveries(IReadOnlyList<EventLogEntry<GameSessionState>> entries)

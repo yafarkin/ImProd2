@@ -88,7 +88,7 @@ else
                     }
                 </select>
             }
-            <span class="hint">@(_stockQuantity is { } stock && stock > 0 ? $"на складе у нас {stock:0.##}" : "")</span>
+            <span class="hint">@StockHint</span>
         </label>
 
         <label class="fld">
@@ -212,6 +212,13 @@ else
     [Parameter]
     public EventCallback<Ulid?> ReplyToProposalIdChanged { get; set; }
 
+    /// <summary>
+    /// Свободный остаток по материалам (<see cref="NegotiationBrief"/>) — у переговорщика подсказка под
+    /// «Материалом» говорит, сколько можно обещать, а не только сколько лежит. <c>null</c> — не показывать.
+    /// </summary>
+    [Parameter]
+    public IReadOnlyDictionary<string, decimal>? FreeStock { get; set; }
+
     private bool CanSubmit => Role == ParticipantRole.Manager;
 
     private bool CanHandOver => Role == ParticipantRole.Negotiator && !string.IsNullOrEmpty(ParticipantCode);
@@ -256,6 +263,21 @@ else
     /// ход или разово поставлять») — разовая сделка приносит доход один раз, регулярная — на каждом
     /// ходу действия контракта.</summary>
     private string DeliveryPeriodLabel => _type == ContractType.Spot ? "разово" : "за ход";
+
+    private string StockHint
+    {
+        get
+        {
+            if (_stockQuantity is not { } stock || stock <= 0)
+            {
+                return "";
+            }
+
+            return FreeStock is not null && _materialId is not null
+                ? $"свободно {FreeStock.GetValueOrDefault(_materialId):0.##} · на складе {stock:0.##}"
+                : $"на складе у нас {stock:0.##}";
+        }
+    }
 
     private string CounterpartyReputationHint => _counterpartyReputation is { } percentage
         ? $"репутация {percentage:F0} % ({_counterpartyReputationSamples})"

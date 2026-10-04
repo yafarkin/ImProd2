@@ -88,7 +88,14 @@
                     <MembersSection Screen="_screen" />
                     break;
                 default:
-                    <TurnSection Screen="_screen" />
+                    @if (_screen.Role == ParticipantRole.Negotiator)
+                    {
+                        <NegotiatorSection Screen="_screen" />
+                    }
+                    else
+                    {
+                        <TurnSection Screen="_screen" />
+                    }
                     break;
             }
         }
@@ -135,8 +142,11 @@
 
     private Ulid? FactoryId => Ulid.TryParse(FactoryIdText, out var factoryId) ? factoryId : null;
 
-    /// <summary>Доска потребностей — часть «Сделок»: в навигации подсвечены они.</summary>
-    private string NavSection => ActiveSection == "needs" ? "deals" : ActiveSection;
+    /// <summary>
+    /// Раздел, подсвеченный в навигации. У управляющего доска потребностей — часть «Сделок»; у
+    /// переговорщика доска — свой раздел навигации.
+    /// </summary>
+    private string NavSection => ActiveSection == "needs" && _screen?.Role != ParticipantRole.Negotiator ? "deals" : ActiveSection;
 
     /// <summary>Входящая заявка, на которую отвечают: <c>/team/deals?reply={id}</c> — так ведёт «Ответить заявкой» с «Хода».</summary>
     [SupplyParameterFromQuery(Name = "reply")]

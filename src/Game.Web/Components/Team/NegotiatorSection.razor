@@ -1,0 +1,149 @@
+@* Главный экран переговорщика — «Переговоры» (docs/manager-ui/README.md §4, блок 6, макет
+   mockups/negotiator.html). Раньше переговорщик видел экран управляющего в режиме чтения: приказ на ход,
+   рычаги фабрик, кнопки, которые ему не нажать. Здесь только то, с чем он работает у стола: что можно
+   отдать и почём, репутация команд, черновик для управляющего, судьба его черновиков и сделки команды
+   в режиме чтения. *@
+
+<div class="negotiator-layout">
+    <div class="min-w-0">
+        <section class="mb-4">
+            <h2 class="h5">С чем идти в зал</h2>
+            <h3 class="h6 mb-1">Можем предложить</h3>
+            @if (Screen.Offers.Count == 0)
+            {
+                <p class="small text-muted">Склад пуст.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-1">
+                        <thead>
+                            <tr>
+                                <th>Материал</th>
+                                <th class="text-end">Свободно</th>
+                                <th class="text-end">Себест.</th>
+                                <th class="text-end">Рынок</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var offer in Screen.Offers)
+                            {
+                                <tr>
+                                    <td>@offer.Material.Name</td>
+                                    <td class="text-end">
+                                        @offer.Free.ToString("0.##")
+                                        @if (offer.Free < offer.OnStock)
+                                        {
+                                            <span class="d-block small text-muted">из @offer.OnStock.ToString("0.##")</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">@(offer.UnitCost is { } cost ? DashboardDisplay.FormatUnitCost(cost) : "—")</td>
+                                    <td class="text-end">@(offer.MarketPrice is { } price ? DashboardDisplay.FormatUnitCost(price) : "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <p class="small text-muted">
+                    «Свободно» — остаток минус то, что наши фабрики заберут за ход при полной загрузке, и
+                    минус обещанное по действующим контрактам. Себестоимость и рынок — за единицу.
+                </p>
+            }
+
+            <h3 class="h6 mb-1">Нужно нам</h3>
+            @if (Screen.Shortfalls.Count == 0)
+            {
+                <p class="small text-muted mb-0">Сырья на ход при полной загрузке фабрик хватает.</p>
+            }
+            else
+            {
+                <ul class="small ps-3 mb-0">
+                    @foreach (var shortfall in Screen.Shortfalls)
+                    {
+                        <li>@shortfall.MaterialName: нужно @shortfall.PerTurn.ToString("0.##")/ход, на складе @shortfall.OnStock.ToString("0.##")</li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="mb-4">
+            <h2 class="h5">Репутация команд</h2>
+            <p class="small text-muted mb-1">Доля исполненных поставок, свежие факты весят больше.</p>
+            <table class="table table-sm mb-0">
+                <tbody>
+                    @foreach (var reputation in Screen.Reputations)
+                    {
+                        <tr>
+                            <td>@reputation.TeamName@(reputation.IsUs ? " (мы)" : "")</td>
+                            <td class="text-end">@reputation.Percentage.ToString("F0") %</td>
+                            <td class="text-end small text-muted">@reputation.SampleCount @(reputation.SampleCount == 1 ? "факт" : "фактов")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <div class="min-w-0">
+        <section class="mb-4" id="deal-form">
+            @if (Screen.IsDecisionPhase)
+            {
+                <ContractDraftForm TeamId="Screen.TeamId" Role="Screen.Role" ParticipantCode="@Screen.ParticipantCode"
+                                   @bind-EditingDraftId="Screen.EditingDraftId" FreeStock="FreeStock" OnChanged="Screen.Refresh" />
+            }
+            else
+            {
+                <h3 class="h5">Черновик сделки</h3>
+                <p class="text-muted small"><em>Черновики передаются в фазе «Решения» — сейчас фаза «@Screen.PhaseLabel».</em></p>
+            }
+        </section>
+
+        <section class="mb-4">
+            <ContractDraftList TeamId="Screen.TeamId" ParticipantCode="@Screen.ParticipantCode" IsDecisionPhase="Screen.IsDecisionPhase"
+                               OnChanged="Screen.Refresh" />
+        </section>
+
+        <section class="mb-4">
+            <h2 class="h5">Сделки команды</h2>
+            <p class="small text-muted">Только просмотр — подаёт заявки и подтверждает сделки управляющий.</p>
+            @foreach (var proposal in Screen.Proposals.Where(p => p.Incoming))
+            {
+                <div class="border rounded p-2 mb-2">
+                    <div class="d-flex flex-wrap align-items-baseline gap-2">
+                        <strong>@proposal.CounterpartyName</strong>
+                        <span>@(proposal.WeAreBuyer ? "хочет продать нам" : "хочет купить у нас"): @proposal.MaterialName</span>
+                        <span class="badge text-bg-warning ms-auto">заявка</span>
+                    </div>
+                    <div class="small text-muted">Условия скрыты — их назовут лично.</div>
+                </div>
+            }
+            @foreach (var proposal in Screen.Proposals.Where(p => !p.Incoming))
+            {
+                <div class="border rounded p-2 mb-2">
+                    <div class="d-flex flex-wrap align-items-baseline gap-2">
+                        <strong>@(proposal.WeAreBuyer ? $"{proposal.CounterpartyName} → нам" : $"мы → {proposal.CounterpartyName}")</strong>
+                        <span class="badge text-bg-light ms-auto">ждёт встречной</span>
+                    </div>
+                    <div class="small">@ContractDisplay.OutgoingProposalLine(proposal)</div>
+                </div>
+            }
+            @foreach (var contract in Screen.Contracts.Where(c => c.Status is ContractStatus.Active or ContractStatus.PendingConfirmation))
+            {
+                <ContractCard @key="contract.ContractId" Screen="Screen" Contract="contract" />
+            }
+            @if (Screen.Proposals.Count == 0 && !Screen.Contracts.Any(c => c.Status is ContractStatus.Active or ContractStatus.PendingConfirmation))
+            {
+                <p class="small text-muted mb-0">Ни заявок, ни действующих контрактов у команды нет.</p>
+            }
+        </section>
+    </div>
+</div>
+
+@code {
+    /// <summary>Модель экрана команды — общая для всех разделов, её держит оболочка страницы.</summary>
+    [Parameter, EditorRequired]
+    public TeamScreen Screen { get; set; } = default!;
+
+    private IReadOnlyDictionary<string, decimal> FreeStock =>
+        Screen.Offers.ToDictionary(offer => offer.Material.Id, offer => offer.Free, StringComparer.Ordinal);
+}

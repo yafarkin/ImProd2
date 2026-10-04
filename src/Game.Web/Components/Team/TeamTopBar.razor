@@ -5,7 +5,7 @@
 
 <header class="team-topbar @(Screen.IsDecisionPhase ? "" : "closed")">
     <div class="row1">
-        <span class="team" title="@Screen.DisplayName — @RoleDisplay.Name(Screen.Role)">@(Screen.TeamName ?? "Команда")</span>
+        <span class="team" title="@Screen.DisplayName — @RoleDisplay.Name(Screen.Role)">@(Screen.TeamName ?? "Команда")@(Screen.Role == ParticipantRole.Negotiator && Screen.DisplayName is { } name ? $" · {name}" : null)</span>
         @if (!Screen.SessionActive)
         {
             <span class="phase">Сессия ещё не началась</span>
@@ -37,7 +37,12 @@
         {
             <a class="awaiting" href="/team">Ждёт меня <span class="badge rounded-pill bg-danger">@Screen.AwaitingManagerCount</span></a>
         }
-        @if (Screen.Role != ParticipantRole.Manager)
+        @if (Screen.Role == ParticipantRole.Negotiator)
+        {
+            @* Переговорщику важнее всего, что его черновики не забыты у управляющего (макет negotiator.html). *@
+            <a class="awaiting" href="/team">Черновики у управляющего: <b>@Screen.MyDraftsAwaitingManager</b></a>
+        }
+        else if (Screen.Role != ParticipantRole.Manager)
         {
             <span class="muted">@RoleDisplay.Name(Screen.Role) · только просмотр</span>
         }

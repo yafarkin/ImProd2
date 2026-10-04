@@ -1,0 +1,17 @@
+/* «Переговоры» (макет mockups/negotiator.html): на телефоне одна колонка, на широком экране слева то,
+   с чем идти в зал, справа черновик, мои черновики и сделки команды. */
+.negotiator-layout {
+    display: grid;
+    gap: 1rem;
+}
+
+@media (min-width: 992px) {
+    .negotiator-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 1.5rem;
+    }
+}
+
+.min-w-0 {
+    min-width: 0;
+}

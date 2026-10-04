@@ -103,6 +103,40 @@ public class ContractDraftPagesTests
         }
     }
 
+    /// <summary>
+    /// Главный экран переговорщика (блок 6 редизайна): три своих раздела, «С чем идти в зал», счётчик
+    /// его черновиков у управляющего в шапке — и ничего из рычагов управляющего.
+    /// </summary>
+    [Fact]
+    public async Task The_Negotiator_Lands_On_Negotiations_With_A_Counter_Of_Drafts_At_The_Manager()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
+        try
+        {
+            var codes = StartTwoTeams(host);
+            PrepareDraft(host.Session!, codes);
+
+            var html = await RenderTeamPage(factory, codes.NegotiatorCode, "/team");
+
+            Assert.Contains("С чем идти в зал", html);
+            Assert.Contains("Репутация команд", html);
+            Assert.Contains("Мои черновики", html);
+            Assert.Matches(@"Черновики у управляющего: <b[^>]*>1</b>", html);
+            Assert.Contains(">Переговоры</span>", html);
+            Assert.Contains(">Доска</span>", html);
+            Assert.Contains(">Команда</span>", html);
+            Assert.DoesNotContain("Приказ на ход", html);
+            Assert.DoesNotContain(">Аналитика</span>", html);
+        }
+        finally
+        {
+            host.HardReset();
+        }
+    }
+
     private sealed record Codes(Ulid TeamId, Ulid CounterpartyId, string ManagerCode, string CounterpartyManagerCode, string NegotiatorCode);
 
     private static Codes StartTwoTeams(GameSessionHost host)
@@ -134,12 +168,12 @@ public class ContractDraftPagesTests
         session.PrepareContractDraft(new ContractProposal(codes.TeamId, codes.CounterpartyId, codes.TeamId, terms), codes.NegotiatorCode);
     }
 
-    private static async Task<string> RenderTeamPage(WebApplicationFactory<Program> factory, string loginCode)
+    private static async Task<string> RenderTeamPage(WebApplicationFactory<Program> factory, string loginCode, string path = "/team/deals")
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = loginCode }));
 
-        var response = await client.GetAsync("/team/deals");
+        var response = await client.GetAsync(path);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());

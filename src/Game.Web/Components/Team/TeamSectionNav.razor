@@ -1,27 +1,44 @@
-@* Четыре раздела экрана команды (docs/manager-ui/README.md §4): на телефоне — панель снизу, под
+@* Разделы экрана команды (docs/manager-ui/README.md §4) — четыре у управляющего, три у переговорщика: на телефоне — панель снизу, под
    большим пальцем, на широком экране — вкладки под шапкой. Каждый раздел — свой адрес, поэтому кнопка
    «Назад» браузера возвращает в предыдущий раздел, а не со страницы вовсе. Подсветку раздела задаёт
    оболочка, а не NavLink по адресу: страница фабрики /team/factory/{id} — часть «Производства». *@
 
 <nav class="team-nav">
-    <a href="team" class="@ActiveClass("turn")">
-        <span class="ico">◉</span><span class="label">Ход</span>
-        @* Один счётчик на всё, что на «Ходе» требует взгляда: поводы «Требует внимания» и решения,
-           которые ждут управляющего. *@
-        @if (HomeCount > 0 && !Screen.IsFinished)
-        {
-            <span class="badge rounded-pill bg-danger">@HomeCount</span>
-        }
-    </a>
-    <a href="team/production" class="@ActiveClass("production")">
-        <span class="ico">▤</span><span class="label">Производство</span>
-    </a>
-    <a href="team/deals" class="@ActiveClass("deals")">
-        <span class="ico">⇄</span><span class="label">Сделки</span>
-    </a>
-    <a href="team/analytics" class="@ActiveClass("analytics")">
-        <span class="ico">∿</span><span class="label">Аналитика</span>
-    </a>
+    @if (Screen.Role == ParticipantRole.Negotiator)
+    {
+        @* У переговорщика три раздела (§4 «Переговорщик»): ему не нужны «Приказ на ход» и рычаги фабрик,
+           а «Команда» — то же «Производство» в режиме чтения. *@
+        <a href="team" class="@ActiveClass("turn")">
+            <span class="ico">⇄</span><span class="label">Переговоры</span>
+        </a>
+        <a href="team/needs" class="@ActiveClass("needs")">
+            <span class="ico">☰</span><span class="label">Доска</span>
+        </a>
+        <a href="team/production" class="@ActiveClass("production")">
+            <span class="ico">▤</span><span class="label">Команда</span>
+        </a>
+    }
+    else
+    {
+        <a href="team" class="@ActiveClass("turn")">
+            <span class="ico">◉</span><span class="label">Ход</span>
+            @* Один счётчик на всё, что на «Ходе» требует взгляда: поводы «Требует внимания» и решения,
+               которые ждут управляющего. *@
+            @if (HomeCount > 0 && !Screen.IsFinished)
+            {
+                <span class="badge rounded-pill bg-danger">@HomeCount</span>
+            }
+        </a>
+        <a href="team/production" class="@ActiveClass("production")">
+            <span class="ico">▤</span><span class="label">Производство</span>
+        </a>
+        <a href="team/deals" class="@ActiveClass("deals")">
+            <span class="ico">⇄</span><span class="label">Сделки</span>
+        </a>
+        <a href="team/analytics" class="@ActiveClass("analytics")">
+            <span class="ico">∿</span><span class="label">Аналитика</span>
+        </a>
+    }
 </nav>
 
 @code {
