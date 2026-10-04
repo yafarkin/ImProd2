@@ -2,7 +2,7 @@
 
 Руководство для LLM-агента, работающего над проектом **«Производственные цепочки»** (offline business simulation game).
 
-> Этот файл описывает, *как* работать над проектом. Что именно строить — в `docs/SPEC.md`. Пошаговый план сборки — в `docs/BUILD_PLAN.md`. Концепция для людей — в `docs/CONCEPT.md`.
+> Этот файл описывает, *как* работать над проектом. Что именно строить — в `docs/SPEC.md`. Пошаговый план сборки — в `docs/BUILD_PLAN.md` (все его блоки уже реализованы, теперь это история). **Что осталось сделать — `docs/TODO.md`, раздел «Что осталось сделать» в начале файла**; новая работа берётся оттуда, тем же порядком «один блок за раз». Концепция для людей — в `docs/CONCEPT.md`.
 
 ---
 
@@ -45,8 +45,9 @@ src/
   Game.Config/         — модели GameConfig, загрузка и валидация JSON, авторские файлы Samples/.
   Game.Persistence/    — durable журнал, снапшоты, восстановление.
   Game.Bots/           — формульные боты для симуляции партий (сделаны в фазе 7, до UI).
-  Game.Bots.Llm/       — боты на локальной LLM для качественного плейтеста (не замена формульным).
-  Game.Bots.Llm.Console/ — консольный автономный прогон LLM-ботов.
+  Game.Bots.Llm/       — боты на локальной LLM для качественного плейтеста (направление закрыто
+                         2026-09-20, `docs/TODO.md` №20; код оставлен, не развивается).
+  Game.Bots.Llm.Console/ — консольный автономный прогон LLM-ботов (там же).
   Game.Balancing/      — консольный инструмент калибровки (главный вход — `--mode diagnose`).
   Game.LoadTest/       — консольная нагрузочная проверка.
   Game.Web/            — Blazor Server: страницы игрока, оператора, ведущего, админа, большого экрана.
@@ -55,7 +56,8 @@ tests/
   Game.Domain.Tests/ Game.Engine.Tests/ Game.Config.Tests/ Game.Persistence.Tests/
   Game.Bots.Tests/ Game.Bots.Llm.Tests/ Game.Balancing.Tests/ Game.Web.Tests/
 docs/
-  SPEC.md  CONCEPT.md  BUILD_PLAN.md  TODO.md  и тематические документы по балансу/экономике
+  SPEC.md  CONCEPT.md  BUILD_PLAN.md  TODO.md  PILOT_CHECKLIST.md  и тематические документы по балансу/экономике
+  manager-ui/          — устройство экрана команды (управляющий, переговорщик), макеты, отчёт по редизайну
 ```
 
 Тестовых проектов нет только у `Game.LoadTest` и `Game.Bots.Llm.Console` — это тонкие консольные

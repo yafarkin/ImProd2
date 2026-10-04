@@ -24,16 +24,20 @@
 - Панель внимания и любые подписи — только факты, без повелительного наклонения (тест
   `AttentionTextTests.No_Kind_Tells_The_Player_What_To_Do`).
 
-**Как устроен экран команды сейчас (после блоков 1–3):**
+**Как устроен экран команды сейчас (итог редизайна, блоки 1–7):**
 - `Components/Pages/Team.razor` — оболочка: маршруты `/team`, `/team/{Section}` и
   `/team/factory/{id}?tab={рычаг}` (страница фабрики), шапка, навигация, таймер обновления раз в
   секунду, прокрутка наверх при открытии раздела. Подсветку раздела в `TeamSectionNav` задаёт оболочка
   (`ActiveSection`), а не `NavLink`: страница фабрики — часть «Производства».
 - `TeamScreen.cs` — модель экрана: все данные и действия игрока (бывший `@code` старого `Team.razor`),
-  `Refresh()` под `Host.SyncRoot`, `RunAction()`, событие `Changed`. `TeamScreen.Turn.cs` — данные
-  «Хода»: `LastSettlement`, `Awaiting`, `OrderLines`.
-- `Components/Team/`: `TeamTopBar` (шапка), `TeamSectionNav` (четыре раздела), `TurnSection`,
-  `ProductionSection`, `DealsSection`, `AnalyticsSection`, `MembersSection`. Стили — рядом, в
+  `Refresh()` под `Host.SyncRoot`, `RunAction()`, событие `Changed`, `ErrorMessage`/`InfoMessage`.
+  `TeamScreen.Turn.cs` — данные «Хода»: `LastSettlement`, `Awaiting`, `OrderLines`;
+  `TeamScreen.Deals.cs` — «Сделки», доска, переговоры: `Shortfalls`, `Offers`, `Reputations`, `Board`,
+  поставки по контрактам.
+- `Components/Team/`: `TeamTopBar` (шапка), `TeamSectionNav` (четыре раздела у управляющего, три у
+  переговорщика), `TurnSection`, `ProductionSection`, `FactorySection`, `DealsSection`,
+  `NeedsSection`, `AnalyticsSection`, `NegotiatorSection`, `MembersSection` и строки-компоненты
+  (`FactoryInstanceRow`, `StockLineRow`, `GenerationLock`, `ContractCard`). Стили — рядом, в
   `.razor.css`; общий липкий контейнер — `Team.razor.css`.
 - «Производство» (блок 3): модель цепочки — чистый класс `ProductionChain` (переделы → типы →
   экземпляры, склад после передела, который его производит, «замок» закрытых поколений, «прочее на

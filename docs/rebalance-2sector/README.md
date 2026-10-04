@@ -1,5 +1,9 @@
 # Пошаговая перебалансировка, начиная с малого
 
+> **Статус (сверка 2026-10-04): история.** Журнал эксперимента ветки `rebalance/2-sector-stepwise`,
+> ветка влита в `main` 2026-09-07. Выжимка приёмов — `docs/production-chain-calibration-lessons.md`;
+> как проверять цепочку сейчас — `docs/balancing-tool-howto.md` (`--mode diagnose`).
+
 Контекст: `docs/production-staging.md` + `production_staging_plan`/`analytical_cost_level_calculator`
 память — прошлая попытка перебалансировать `ProductionRate` через статический `--mode cost-levels`
 снимок улучшила статическую картину, но сломала реальную динамику (`--mode ideal-hall` X(T) стало в
