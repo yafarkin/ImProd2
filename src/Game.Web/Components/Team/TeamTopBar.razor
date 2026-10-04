@@ -1,0 +1,53 @@
+@* Шапка экрана команды (docs/manager-ui/README.md §3 п.4): видна всегда, на любом разделе и при любой
+   прокрутке. Одна-три строки фиксированной высоты: ход, фаза, таймер, баланс, «ждёт меня» и последняя
+   новость. Строка новости есть всегда, даже пустая, — раньше новость появлялась внутри плашки фазы и
+   сдвигала вкладки вниз прямо под пальцем (живой обход 2026-10-04). *@
+
+<header class="team-topbar @(Screen.IsDecisionPhase ? "" : "closed")">
+    <div class="row1">
+        <span class="team" title="@Screen.DisplayName — @RoleDisplay.Name(Screen.Role)">@(Screen.TeamName ?? "Команда")</span>
+        @if (!Screen.SessionActive)
+        {
+            <span class="phase">Сессия ещё не началась</span>
+        }
+        else if (Screen.IsFinished)
+        {
+            <span class="phase">Партия завершена</span>
+            <a class="results" href="/results">итоги →</a>
+        }
+        else
+        {
+            <span class="phase" title="@Screen.PhaseExplanation">Ход @Screen.CurrentTurn · @Screen.PhaseLabel</span>
+            <span class="timer">@Screen.Countdown</span>
+        }
+        @if (Screen.Role == ParticipantRole.Manager)
+        {
+            <a class="menu" href="/team/members" title="Состав команды и QR-коды">⋯</a>
+        }
+    </div>
+    <div class="row2">
+        <span>Баланс <b class="@(Screen.Balance < 0 ? "negative" : null)">@DashboardDisplay.FormatMoney(Screen.Balance)</b></span>
+        @if (Screen.Role == ParticipantRole.Manager && Screen.AwaitingManagerCount > 0 && !Screen.IsFinished)
+        {
+            <a class="awaiting" href="/team/deals">Ждёт меня <span class="badge rounded-pill bg-danger">@Screen.AwaitingManagerCount</span></a>
+        }
+        @if (Screen.Role != ParticipantRole.Manager)
+        {
+            <span class="muted">@RoleDisplay.Name(Screen.Role) · только просмотр</span>
+        }
+        @if (Screen.SessionActive && !Screen.IsFinished && !Screen.IsDecisionPhase)
+        {
+            <span class="muted">решения закрыты до фазы «Решения»</span>
+        }
+    </div>
+    @if (Screen.SessionActive)
+    {
+        <div class="news" title="@Screen.LastNewsHeadline">@(Screen.LastNewsHeadline is { } headline ? "📰 " + headline : " ")</div>
+    }
+</header>
+
+@code {
+    /// <summary>Модель экрана команды — общая для всех разделов, её держит оболочка страницы.</summary>
+    [Parameter, EditorRequired]
+    public TeamScreen Screen { get; set; } = default!;
+}

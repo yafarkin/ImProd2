@@ -1,0 +1,85 @@
+@inject NavigationManager Nav
+
+@* Раздел «Ход» (docs/manager-ui/README.md §4). В блоке 1 здесь только панель «Требует внимания»,
+   перенесённая как есть; итоги расчёта, «Ждёт моего решения» и «Приказ на ход» — блок 2. *@
+
+<h2>Требует внимания</h2>
+@* Вводный текст свёрнут в <details>: на телефоне развёрнутый абзац занимал полэкрана и
+   отодвигал сами поводы ниже сгиба — то есть мешал ровно тому, ради чего вкладка сделана
+   (проверено живым прогоном в браузере 2026-09-08). Одной строки достаточно, чтобы стало
+   понятно, чего тут ждать, остальное — по клику для тех, кому интересно. *@
+@if (!Screen.IsFinished)
+{
+    <p class="text-muted mb-2">
+        Только факты: что уже идёт не так и что сломается в ближайшие
+        @DashboardDisplay.Turns(TeamAttentionCalculator.SoonHorizonTurns). Что делать — решаете вы.
+    </p>
+    <details class="mb-3">
+        <summary class="text-muted small">Как это считается</summary>
+        <p class="text-muted small mt-2">
+            Подсказок по стратегии здесь нет и не будет: панель показывает, что происходит и почему,
+            но не советует, что строить, покупать или продавать. Прогнозы считаются по самой
+            оптимистичной оценке собственного выпуска — как если бы сырья всегда хватало, — поэтому
+            если предупреждение появилось, беда наступит даже при идеальной загрузке фабрик.
+        </p>
+    </details>
+}
+@if (Screen.IsFinished)
+{
+    @* Панель говорит только про будущее — «списывается каждый ход», «сломается через 2 хода».
+       После последнего хода такого будущего нет, и те же слова из полезного предупреждения
+       превращаются в неверное утверждение. Поэтому здесь она замолкает целиком, а не показывает
+       устаревший список (замечено живым прогоном 2026-09-08, docs/TODO.md №10). *@
+    <div class="alert alert-secondary">
+        Партия закончилась — предупреждать больше не о чем. Что происходило с фабриками и
+        складом по ходам, осталось в разделах «Производство» и «Аналитика».
+    </div>
+}
+else if (Screen.Attention.Count == 0)
+{
+    <div class="alert alert-success">Ничего срочного. Ни одна фабрика не простаивает, поставки обеспечены, склад в пределах лимита.</div>
+}
+else
+{
+    @foreach (var group in new[]
+    {
+        (Horizon: TeamAttentionCalculator.AttentionHorizon.Now, Title: "Прямо сейчас", Color: "#dc3545"),
+        (Horizon: TeamAttentionCalculator.AttentionHorizon.Soon, Title: "Через несколько ходов", Color: "#fd7e14"),
+    })
+    {
+        var items = Screen.Attention.Where(i => i.Horizon == group.Horizon).ToList();
+        @if (items.Count > 0)
+        {
+            <h3 class="h6 text-uppercase text-muted mt-3">@group.Title</h3>
+            <div class="d-flex flex-column gap-2">
+                @foreach (var item in items)
+                {
+                    var (headline, detail) = DashboardDisplay.AttentionText(item, Screen.AttentionNaming);
+                    <div class="border rounded p-2" style="border-color:@group.Color; border-left-width:4px; background:@(group.Color)14">
+                        <div style="font-weight:600">@headline</div>
+                        <div class="text-muted small">@detail</div>
+                        @if (TeamScreen.AttentionTargetFactoryId(item) is { } targetId)
+                        {
+                            <button type="button" class="btn btn-link btn-sm p-0"
+                                    @onclick="() => OpenFactoryFromAttention(targetId)">Открыть фабрику</button>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    }
+}
+
+@code {
+    /// <summary>Модель экрана команды — общая для всех разделов, её держит оболочка страницы.</summary>
+    [Parameter, EditorRequired]
+    public TeamScreen Screen { get; set; } = default!;
+
+    /// <summary>
+    /// Переход из панели к самой фабрике: открывает раздел «Производство» с уже выбранной карточкой и
+    /// прокручивает к ней. Это навигация, не совет — панель показывает, где смотреть, а не что делать.
+    /// Прокрутка обязательна: карточка лежит ниже формы постройки и всего списка типов сектора, без неё
+    /// игрок снова искал бы фабрику глазами (проверено живым прогоном 2026-09-08).
+    /// </summary>
+    private void OpenFactoryFromAttention(Ulid factoryId) => Nav.NavigateTo($"/team/production?factory={factoryId}");
+}

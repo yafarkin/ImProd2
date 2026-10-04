@@ -23,7 +23,7 @@ public class ContractDraftPagesTests
         Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json"));
 
     [Fact]
-    public async Task Manager_Sees_The_Negotiators_Draft_With_Its_Terms_And_A_Counter_On_The_Contracts_Tab()
+    public async Task Manager_Sees_The_Negotiators_Draft_With_Its_Terms_And_A_Counter_In_The_Header()
     {
         using var factory = new WebApplicationFactory<Program>();
         var host = factory.Services.GetRequiredService<GameSessionHost>();
@@ -42,7 +42,8 @@ public class ContractDraftPagesTests
             Assert.Contains("4321 ед. × 0.47 ¤", html);
             Assert.Contains("Подать как есть", html);
             Assert.Contains("Вернуть", html);
-            Assert.Matches(@"Контракты\s*<span class=""badge rounded-pill bg-danger ms-1"">1</span>", html);
+            // Счётчик из SPEC §3 — в шапке, виден из любого раздела.
+            Assert.Matches(@"Ждёт меня\s*<span[^>]*>1</span>", html);
         }
         finally
         {
@@ -136,7 +137,7 @@ public class ContractDraftPagesTests
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = loginCode }));
 
-        var response = await client.GetAsync("/team");
+        var response = await client.GetAsync("/team/deals");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());

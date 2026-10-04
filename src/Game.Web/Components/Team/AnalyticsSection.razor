@@ -1,0 +1,129 @@
+@* Раздел «Аналитика» (docs/manager-ui/README.md §4). В блоке 1 — бывшие вкладки «Обзор» (без состава
+   команды) и «Финансы» как есть; переключатель графиков и фильтр истории — блок 5. *@
+
+<h2>Что у меня плохо</h2>
+<ul class="list-unstyled">
+    <li>Баланс: <strong class="@(Screen.Balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(Screen.Balance)</strong></li>
+    @* Тот же счёт, по которому в конце партии считаются места (FinalScoreCalculator). Показан по
+       ходу игры, а не только на итогах: без него команда, вложившая всё в производство, видит
+       падающий баланс и не понимает, что стала богаче (docs/TODO.md №10). Чужие счета до конца
+       партии не показываются нигде — публична только сумма на счету (SPEC §7). *@
+    @if (Screen.Score is not null)
+    {
+        <li>
+            Сколько стоит команда: <strong class="@(Screen.Score.Score < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(Screen.Score.Score)</strong>
+            <span class="text-muted small">
+                — деньги @DashboardDisplay.FormatMoney(Screen.Score.Cash)
+                + склад @DashboardDisplay.FormatMoney(Screen.Score.WarehouseValue)
+                + фабрики @DashboardDisplay.FormatMoney(Screen.Score.FactoriesValue)
+            </span>
+        </li>
+    }
+    <li>
+        Репутация: @Screen.ReputationPercentage.ToString("F0")%
+        (@Screen.ReputationSampleCount @(Screen.ReputationSampleCount == 1 ? "факт" : "фактов"))
+        @if (Screen.ReputationSampleCount < 3)
+        {
+            <em class="text-muted">— пока мало данных для оценки</em>
+        }
+    </li>
+</ul>
+
+@if (Screen.ShowEconomyIndex && Screen.EconomyIndex.HasData)
+{
+    <h4 class="h6 mt-4">Внешняя экономика</h4>
+    <p class="mb-1">
+        Индекс деловой активности:
+        <strong class="@Screen.EconomyIndex.CssClass">@Screen.EconomyIndex.ValueText @Screen.EconomyIndex.Arrow</strong>
+        <span class="text-muted small">— @Screen.EconomyIndex.LevelText</span>
+    </p>
+    <p class="text-muted small">
+        Индекс двигает сторону спроса: чем он выше, тем дороже система покупает вашу продукцию и
+        тем больше готова принять, не роняя цену. Куда он пойдёт дальше — график не показывает,
+        об этом предупреждает новостная лента.
+    </p>
+    @ChartRenderer.Render(Screen.EconomyIndexChart)
+}
+
+@if (Screen.History is null)
+{
+    <p><em>Графики по ходам появятся после первого хода сессии.</em></p>
+}
+else
+{
+    <h4 class="h6 mt-4">Баланс по ходам</h4>
+    @ChartRenderer.Render(Screen.BuildBalanceChartLayout())
+    <h4 class="h6 mt-4">Сколько стоит команда по ходам</h4>
+    <p class="text-muted small">Может расти, когда баланс падает: значит, деньги ушли в фабрики и склад, а не пропали.</p>
+    @ChartRenderer.Render(Screen.BuildScoreChartLayout())
+    <h4 class="h6 mt-4">Денежный поток по ходам</h4>
+    <p class="text-muted small">Разница баланса с прошлым ходом — не накопленный итог: выше нуля — заработали за этот ход, ниже — потратили больше, чем заработали.</p>
+    @ChartRenderer.Render(Screen.BuildCashFlowChartLayout())
+    <h4 class="h6 mt-4">Репутация по ходам</h4>
+    @ChartRenderer.Render(Screen.BuildReputationChartLayout())
+}
+
+<h3>Финансы</h3>
+<p>
+    Баланс: <strong class="@(Screen.Balance < 0 ? "text-danger" : null)">@DashboardDisplay.FormatMoney(Screen.Balance)</strong>
+</p>
+@if (Screen.Balance < 0)
+{
+    <p class="text-muted small mb-2">
+        Отрицательный баланс — это просто число, никакого штрафа или займа за этим не стоит; он
+        выправится сам, как только вы продадите излишки или сократите расходы.
+    </p>
+}
+
+<h4 class="mt-4">История операций</h4>
+<p class="text-muted small">Всё, что двигает баланс команды: постройка фабрик, наём и зарплаты, R&amp;D, продажи и закупки, исполнение контрактов.</p>
+@if (Screen.FinanceHistory.Count == 0)
+{
+    <p><em>Операций пока не было.</em></p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle">
+            <thead>
+                <tr>
+                    @* Точное время и ставка на телефоне только выдавливают таблицу за экран:
+                       ход и сумма отвечают на вопрос «что и почём», а секунды операции нужны
+                       разве что при разборе после игры — на большом экране они и остаются. *@
+                    <th class="d-none d-md-table-cell">Время</th>
+                    <th>Ход</th>
+                    <th>Операция</th>
+                    <th>Фабрика</th>
+                    <th>Сумма</th>
+                    <th class="d-none d-md-table-cell">Ставка</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var operation in Screen.FinanceHistory.Reverse())
+                {
+                    var isIncome = operation.Direction == FinanceHistoryCalculator.MoneyDirection.Income;
+                    <tr>
+                        <td class="d-none d-md-table-cell">@operation.Timestamp.ToLocalTime().ToString("HH:mm:ss")</td>
+                        <td>@operation.Turn</td>
+                        <td>
+                            @DashboardDisplay.FinanceOperationLabel(operation.Type)
+                            @if (DashboardDisplay.FinanceOperationDetail(operation) is { } detail)
+                            {
+                                <br /><span class="text-muted small">@detail</span>
+                            }
+                        </td>
+                        <td>@(operation.FactoryId is { } factoryId ? Screen.FactoryDisplayNamesById.GetValueOrDefault(factoryId, "—") : "—")</td>
+                        <td class="@(isIncome ? "text-success" : "text-danger")">@(isIncome ? "+" : "−")@DashboardDisplay.FormatMoney(operation.Amount)</td>
+                        <td class="d-none d-md-table-cell">@(operation.Rate is { } rate ? DashboardDisplay.FormatRate(rate) : "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    /// <summary>Модель экрана команды — общая для всех разделов, её держит оболочка страницы.</summary>
+    [Parameter, EditorRequired]
+    public TeamScreen Screen { get; set; } = default!;
+}

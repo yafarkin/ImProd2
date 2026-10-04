@@ -36,6 +36,12 @@ a, .btn-link {
     z-index: 1050;
 }
 
+/* На экране команды наверх прилипает своя шапка с таймером и балансом (Team.razor.css). Две липкие
+   полосы друг на друге закрывали бы таймер, поэтому здесь отладочная полоса уезжает вместе со страницей. */
+body:has(.team-chrome) .debug-mode-banner {
+    position: static;
+}
+
 .debug-mode-banner span {
     letter-spacing: 0.02em;
 }

@@ -59,7 +59,7 @@ public class TeamPageFactoryOverviewTests
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
 
-            var response = await client.GetAsync("/team");
+            var response = await client.GetAsync("/team/production");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
@@ -102,7 +102,7 @@ public class TeamPageFactoryOverviewTests
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
 
-            var response = await client.GetAsync("/team");
+            var response = await client.GetAsync("/team/production");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 

@@ -1,0 +1,178 @@
+@* Раздел «Сделки» (docs/manager-ui/README.md §4). В блоке 1 — бывшая вкладка «Контракты» как есть;
+   слияние с переговорной панелью и доской потребностей — блок 4. *@
+
+<h2>Контракты</h2>
+<p><a href="/team/negotiate">Переговорная панель</a> · <a href="/team/needs">Доска потребностей</a></p>
+
+<ContractDraftList TeamId="Screen.TeamId" Role="Screen.Role" ParticipantCode="@Screen.ParticipantCode" IsDecisionPhase="Screen.IsDecisionPhase"
+                   OnEdit="draftId => Screen.EditingDraftId = draftId" OnChanged="Screen.Refresh" />
+
+@if (Screen.IsDecisionPhase)
+{
+    <ContractDraftForm TeamId="Screen.TeamId" Role="Screen.Role" ParticipantCode="@Screen.ParticipantCode"
+                       @bind-EditingDraftId="Screen.EditingDraftId" OnChanged="Screen.Refresh" />
+}
+
+<h3 class="mt-4">Заявки на сделку</h3>
+@if (Screen.Proposals.Count == 0)
+{
+    <p><em>Открытых заявок нет.</em></p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Направление</th>
+                    <th>Контрагент</th>
+                    <th>Материал</th>
+                    <th>Условия</th>
+                    <th>Подана</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var proposal in Screen.Proposals)
+                {
+                    <tr>
+                        <td>@(proposal.Incoming ? "Нам" : "От нас")</td>
+                        <td>@proposal.CounterpartyName</td>
+                        <td>@proposal.MaterialName</td>
+                        <td>
+                            @if (proposal.Incoming)
+                            {
+                                <em class="text-body-secondary">Скрыты — узнайте у контрагента лично</em>
+                            }
+                            else
+                            {
+                                @($"{proposal.Volume!.Value.ToString("0.##")} ед. × {DashboardDisplay.FormatMoney(proposal.UnitPrice!.Value)}")
+                            }
+                        </td>
+                        <td>ход @proposal.SubmittedOnTurn</td>
+                        <td>
+                            @if (Screen.IsDecisionPhase && Screen.Role == ParticipantRole.Manager)
+                            {
+                                @if (proposal.Incoming)
+                                {
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Screen.RejectProposal(proposal.ProposalId)">Отклонить</button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Screen.WithdrawProposal(proposal.ProposalId)">Отозвать</button>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <p class="form-text">
+        Входящая заявка означает только, что контрагент хочет сделку по этому материалу. Объём,
+        цену, штраф и сроки он назовёт лично — введите их в черновике выше, и если совпадут,
+        сделка заключится сама.
+    </p>
+}
+
+<h3 class="mt-4">Контракты</h3>
+@if (Screen.Contracts.Count == 0)
+{
+    <p><em>Контрактов нет.</em></p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Роль</th>
+                    <th>Контрагент</th>
+                    <th>Материал</th>
+                    <th>Тип</th>
+                    <th>Объём</th>
+                    <th>Цена</th>
+                    <th>Штраф</th>
+                    <th>Срок</th>
+                    <th>Код</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var contract in Screen.Contracts)
+                {
+                    <tr>
+                        <td>@contract.Role</td>
+                        <td>@contract.CounterpartyName</td>
+                        <td>@contract.MaterialName</td>
+                        <td>@DashboardDisplay.ContractTypeLabel(contract.Type)</td>
+                        <td>@contract.Volume.ToString("0.##")</td>
+                        <td>@DashboardDisplay.FormatMoney(contract.UnitPrice)</td>
+                        <td>@DashboardDisplay.FormatRate(contract.PenaltyRate)</td>
+                        <td>@DashboardDisplay.FormatTurnRange(contract.Type, contract.Status, contract.EffectiveTurn, contract.SpotDeliveryTurn, contract.RecurringEndTurn)</td>
+                        <td>@contract.ConfirmationCode</td>
+                        <td>@contract.StatusLabel</td>
+                        <td>
+                            @if (Screen.IsDecisionPhase)
+                            {
+                                @if (contract.Status == ContractStatus.PendingConfirmation && Screen.Role == ParticipantRole.Manager && !contract.WeAreTheProposer)
+                                {
+                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Screen.ConfirmContract(contract.ContractId)">Подтвердить</button>
+                                }
+                                @if (contract.Status == ContractStatus.Active)
+                                {
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Screen.TerminateMutual(contract.ContractId)">Расторгнуть по согласию</button>
+                                        <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Screen.TerminateVoluntary(contract.ContractId)">Расторгнуть в одностороннем порядке</button>
+                                    </div>
+
+                                    @if (contract.Type == ContractType.Recurring)
+                                    {
+                                        @if (contract.HasPendingRevision)
+                                        {
+                                            @if (contract.PendingRevisionIsMine)
+                                            {
+                                                <p><em>Предложен пересмотр — ждём ответа второй стороны.</em></p>
+                                            }
+                                            else
+                                            {
+                                                <p>
+                                                    Предложен пересмотр: объём @contract.PendingVolume?.ToString("0.##"),
+                                                    цена @DashboardDisplay.FormatMoney(contract.PendingUnitPrice ?? 0m),
+                                                    штраф @DashboardDisplay.FormatRate(contract.PendingPenaltyRate ?? 0m),
+                                                    до хода @contract.PendingRecurringEndTurn.
+                                                </p>
+                                                @if (Screen.Role == ParticipantRole.Manager)
+                                                {
+                                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Screen.AcceptRevision(contract.ContractId)">Принять</button>
+                                                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Screen.RejectRevision(contract.ContractId)">Отклонить</button>
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                                <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:5em" @bind="Screen.RevisionVolumes[contract.ContractId]" />
+                                                <input type="number" min="0.01" step="0.01" class="form-control d-inline-block" style="width:5em" @bind="Screen.RevisionUnitPrices[contract.ContractId]" />
+                                                <input type="number" min="0" max="1" step="0.01" class="form-control d-inline-block" style="width:4em" @bind="Screen.RevisionPenaltyRates[contract.ContractId]" />
+                                                <input type="number" min="1" class="form-control d-inline-block" style="width:4em" @bind="Screen.RevisionEndTurns[contract.ContractId]" />
+                                                <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Screen.ProposeRevision(contract.ContractId)">Предложить пересмотр</button>
+                                            </div>
+                                        }
+                                    }
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    /// <summary>Модель экрана команды — общая для всех разделов, её держит оболочка страницы.</summary>
+    [Parameter, EditorRequired]
+    public TeamScreen Screen { get; set; } = default!;
+}

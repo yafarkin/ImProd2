@@ -1,0 +1,82 @@
+/* Прилипание к верху окна — у общего контейнера шапки и вкладок в оболочке страницы (Team.razor.css). */
+.team-topbar {
+    padding: 0.5rem 1rem;
+    background: #1f2a44;
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.row1 {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.team {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.phase {
+    background: #2f6fde;
+    border-radius: 4px;
+    padding: 0 0.4rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.closed .phase {
+    background: #d97706;
+}
+
+.timer {
+    margin-left: auto;
+    font-weight: 700;
+    font-size: 1.15rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.results {
+    margin-left: auto;
+    color: #cfe0ff;
+}
+
+.menu {
+    color: #fff;
+    text-decoration: none;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0 0.25rem;
+}
+
+.row2 {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.9rem;
+    margin-top: 0.2rem;
+}
+
+.negative {
+    color: #ff9a9a;
+}
+
+.awaiting {
+    color: #fff;
+    text-decoration: none;
+}
+
+.muted {
+    color: #b8c2d8;
+}
+
+.news {
+    margin-top: 0.2rem;
+    color: #cfe0ff;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 1.2em;
+}

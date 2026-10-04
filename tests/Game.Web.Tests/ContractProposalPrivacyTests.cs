@@ -118,7 +118,7 @@ public class ContractProposalPrivacyTests
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = loginCode }));
 
-        var response = await client.GetAsync("/team");
+        var response = await client.GetAsync("/team/deals");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());

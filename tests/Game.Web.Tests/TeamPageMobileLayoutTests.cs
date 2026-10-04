@@ -26,7 +26,7 @@ public class TeamPageMobileLayoutTests
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "production-models", "tiny-2-sectors.json"),
         Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json"));
 
-    private static async Task<string> RenderTeamPage()
+    private static async Task<string> RenderTeamPage(string path)
     {
         using var factory = new WebApplicationFactory<Program>();
         var host = factory.Services.GetRequiredService<GameSessionHost>();
@@ -49,7 +49,7 @@ public class TeamPageMobileLayoutTests
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
 
-            var response = await client.GetAsync("/team");
+            var response = await client.GetAsync(path);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         }
@@ -60,16 +60,32 @@ public class TeamPageMobileLayoutTests
     }
 
     /// <summary>
-    /// Оба ряда вкладок — страницы и карточки фабрики — переносятся, а не прокручиваются вбок. Семь
-    /// вкладок на 390px в одну строку не помещаются никогда, и при <c>flex-nowrap</c> три последние
-    /// (включая «Контракты») оказывались за краем экрана без какого-либо признака, что они есть.
+    /// Семь вкладок страницы заменила навигация из четырёх разделов с собственными адресами (блок 1
+    /// редизайна, docs/manager-ui/README.md §8): на телефоне это нижняя панель, где все четыре видны
+    /// всегда. До неё из семи вкладок на 390px было видно четыре, без признака, что есть остальные.
     /// </summary>
     [Fact]
-    public async Task Both_Tab_Rows_Wrap_Instead_Of_Scrolling_Sideways()
+    public async Task All_Four_Sections_Are_Reachable_From_Any_Section()
     {
-        var html = await RenderTeamPage();
+        var html = await RenderTeamPage("/team/analytics");
 
-        Assert.Equal(2, CountOccurrences(html, "nav nav-pills flex-wrap"));
+        Assert.Contains("team-nav", html);
+        Assert.Contains("href=\"team/production\"", html);
+        Assert.Contains("href=\"team/deals\"", html);
+        Assert.Contains("href=\"team/analytics\"", html);
+        Assert.Contains("href=\"team\"", html);
+    }
+
+    /// <summary>
+    /// Вкладки карточки фабрики переносятся, а не прокручиваются вбок: при <c>flex-nowrap</c> последние
+    /// оказывались за краем экрана без какого-либо признака, что они есть.
+    /// </summary>
+    [Fact]
+    public async Task Factory_Card_Tabs_Wrap_Instead_Of_Scrolling_Sideways()
+    {
+        var html = await RenderTeamPage("/team/production");
+
+        Assert.Equal(1, CountOccurrences(html, "nav nav-pills flex-wrap"));
         Assert.DoesNotContain("nav nav-pills flex-nowrap", html);
         Assert.DoesNotContain("overflow-x:auto; white-space:nowrap", html);
     }
@@ -81,7 +97,7 @@ public class TeamPageMobileLayoutTests
     [Fact]
     public async Task Finance_History_Hides_Low_Value_Columns_On_Narrow_Screens()
     {
-        var html = await RenderTeamPage();
+        var html = await RenderTeamPage("/team/analytics");
 
         Assert.Contains("<th class=\"d-none d-md-table-cell\">Время</th>", html);
         Assert.Contains("<th class=\"d-none d-md-table-cell\">Ставка</th>", html);
