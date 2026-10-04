@@ -233,14 +233,18 @@ public sealed class GameSession
             ? proposal.SellerTeamId
             : proposal.BuyerTeamId;
 
-        // Кандидаты — только открытые заявки контрагента по этой же паре сторон. Своих заявок здесь
-        // быть не может: заявка команды с самой собой не создаётся (ContractProposal), а две заявки
-        // одной команды ContractFormation всё равно не сведёт.
+        // Кандидаты — только открытые заявки контрагента по этой же паре сторон и этому же материалу.
+        // Заявка на другой материал — другая сделка, а не встречная с расхождением: раньше заявка
+        // «кокс → Лес» встречала заявку «Леса» на руду и получала «не совпадает материал, объём, цена»
+        // (приёмка редизайна 2026-10-04, решение пользователя — искать по материалу). Своих заявок
+        // здесь быть не может: заявка команды с самой собой не создаётся (ContractProposal), а две
+        // заявки одной команды ContractFormation всё равно не сведёт.
         var candidates = State.ContractProposals.Values
             .Where(p => p.Status == ContractProposalStatus.Open
                 && p.SubmittedByTeamId == counterpartyId
                 && p.Proposal.BuyerTeamId == proposal.BuyerTeamId
-                && p.Proposal.SellerTeamId == proposal.SellerTeamId)
+                && p.Proposal.SellerTeamId == proposal.SellerTeamId
+                && p.Proposal.Terms.Material.Id == proposal.Terms.Material.Id)
             .OrderBy(p => p.Id.ToString(), StringComparer.Ordinal)
             .ToList();
 

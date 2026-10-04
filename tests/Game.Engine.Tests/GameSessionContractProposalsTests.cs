@@ -86,6 +86,33 @@ public class GameSessionContractProposalsTests
         Assert.Equal(ContractProposalStatus.Open, session.State.ContractProposals[result.ProposalId].Status);
     }
 
+    /// <summary>
+    /// Заявка на другой материал — другая сделка, а не встречная с расхождением (приёмка редизайна
+    /// 2026-10-04): раньше она находилась как «встречная» и получала «не совпадает материал, объём, цена».
+    /// </summary>
+    [Fact]
+    public void A_Proposal_For_Another_Material_Is_Not_A_Counter_Proposal()
+    {
+        var (session, buyerId, sellerId) = TestGameConfig.StartGameSessionWithTwoTeams();
+        ToDecisionPhase(session);
+
+        var (buyerProposal, sellerSheet) = TestGameConfig.MatchingSheetSpotProposals(buyerId, sellerId);
+        var oreTerms = new ContractTerms(
+            ContractType.Spot, TestGameConfig.Ore, 10m, 20m, 0.1m, effectiveTurn: 2, spotDeliveryTurn: 2, recurringEndTurn: null);
+        session.SubmitContractProposal(new ContractProposal(buyerId, sellerId, buyerId, oreTerms), TeamRole.Manager, new Random(1));
+
+        var unrelated = session.SubmitContractProposal(sellerSheet, TeamRole.Manager, new Random(1));
+
+        Assert.False(unrelated.IsMatched);
+        Assert.False(unrelated.HasCounterpartyProposal);
+        Assert.Empty(unrelated.Mismatches);
+
+        // А встречная по тому же материалу по-прежнему сводится, даже когда рядом висит заявка на другой.
+        var matched = session.SubmitContractProposal(buyerProposal, TeamRole.Manager, new Random(1));
+        Assert.True(matched.IsMatched);
+        Assert.Equal(TestGameConfig.Sheet, matched.Contract!.Terms.Material);
+    }
+
     [Fact]
     public void A_Team_Cannot_Match_Its_Own_Proposal_With_Itself()
     {
