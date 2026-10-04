@@ -64,9 +64,13 @@ public class TeamPageFactoryOverviewTests
             var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
             Assert.Contains("id=\"decide-now\"", html);
-            Assert.Contains($"factory-card-{host.Session!.State.Teams[team.Id].Factories.Single().Id}", html);
+            Assert.Contains($"factory-link-{host.Session!.State.Teams[team.Id].Factories.Single().Id}", html);
             Assert.Contains("border-style:dashed", html); // хотя бы один непостроенный узел
             Assert.Contains("не построена", html);
+            Assert.Contains("Склад после передела 0", html);
+            Assert.Contains("Передел 1", html);
+            Assert.Contains("Требуют внимания", html);
+            Assert.DoesNotContain("factory-workers", html);
         }
         finally
         {

@@ -49,7 +49,7 @@ public class TeamPageHiringRampTests
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
 
-            var response = await client.GetAsync("/team/production");
+            var response = await client.GetAsync($"/team/factory/{built.FactoryId}");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         }

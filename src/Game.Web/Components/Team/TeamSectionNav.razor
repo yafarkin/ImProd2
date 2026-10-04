@@ -12,9 +12,9 @@
             <span class="badge rounded-pill bg-danger">@HomeCount</span>
         }
     </NavLink>
-    <NavLink href="team/production">
+    <a href="/team/production" class="@(OnProduction ? "active" : null)">
         <span class="ico">▤</span><span class="label">Производство</span>
-    </NavLink>
+    </a>
     <NavLink href="team/deals">
         <span class="ico">⇄</span><span class="label">Сделки</span>
     </NavLink>
@@ -24,6 +24,8 @@
 </nav>
 
 @code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    private bool OnProduction => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?')[0] is "team/production" || Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("team/factory/", StringComparison.Ordinal);
     /// <summary>Модель экрана команды — нужна только счётчикам на разделах.</summary>
     [Parameter, EditorRequired]
     public TeamScreen Screen { get; set; } = default!;

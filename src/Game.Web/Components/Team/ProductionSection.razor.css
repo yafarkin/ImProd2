@@ -1,0 +1,7 @@
+.production-layout { display: grid; gap: 1.5rem; }
+.production-layout > * { min-width: 0; }
+.production-layout select { width: 100% !important; max-width: 100%; }
+.production-level summary { cursor: pointer; overflow-wrap: anywhere; }
+.factory-link { display: flex; flex-direction: column; color: inherit; text-decoration: none; }
+.factory-link:hover { background: var(--bs-tertiary-bg); }
+@media (min-width: 992px) { .production-layout { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } }

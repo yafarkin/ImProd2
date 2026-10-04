@@ -1,0 +1,57 @@
+@using Game.Config.Economy
+    @foreach (var row in Rows)
+    {
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+            <span><strong>@row.MaterialName</strong>: @row.Quantity.ToString("0.##")</span>
+            @if (Screen.CanManage)
+            {
+                <input type="number" min="0" step="1" class="form-control d-inline-block" style="width:6em" @bind="Screen.SellVolumes[row.MaterialId]" @bind:event="oninput" />
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => Screen.SellVolumes[row.MaterialId] = row.Quantity">Всё</button>
+                <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Screen.SellToSystem(row.MaterialId)">Продать системе</button>
+                @if (Screen.PendingSaleVolumeByMaterial.GetValueOrDefault(row.MaterialId) > 0)
+                {
+                    <button type="button" class="btn btn-link btn-sm p-0" @onclick="() => Screen.CancelSaleToSystem(row.MaterialId)">Отменить</button>
+                }
+            }
+        </div>
+        <p class="small text-muted mb-1">Производят: @Producers(row.MaterialId) · Потребляют: @Consumers(row.MaterialId)</p>
+        @if (Screen.CanManage)
+        {
+            @if (Screen.PendingSaleVolumeByMaterial.GetValueOrDefault(row.MaterialId) is var pendingSale && pendingSale > 0)
+            {
+                <p class="text-muted small mb-1">Заявлено на расчёт: @pendingSale.ToString("0.##") — спишется со склада и зачислится на баланс на следующем расчёте.</p>
+            }
+            var preview = Screen.SellPreview(row);
+            <p class="text-muted small mb-2">
+                @if (preview.HasQuote)
+                {
+                    <text>Цена за единицу: @DashboardDisplay.FormatUnitCost(preview.UnitPrice)</text>
+                    @if (preview.PriceImpactRate >= MarketSalePreview.NoticeablePriceImpactRate)
+                    {
+                        <text> (без вашей заявки — @DashboardDisplay.FormatUnitCost(preview.MarginalUnitPrice); этот объём просаживает цену на @preview.PriceImpactRate.ToString("P0"))</text>
+                    }
+                    @if (preview.OverflowVolume > 0)
+                    {
+                        <text> · из них @preview.OverflowVolume.ToString("0.##") сверх ёмкости рынка — рынок по этому материалу уже насыщен</text>
+                    }
+                    <text> · доход: @DashboardDisplay.FormatMoney(preview.Revenue)</text>
+                    <text> · прибыль: </text>
+                    <strong class="@(preview.Profit >= 0 ? "text-success" : "text-danger")">@DashboardDisplay.FormatMoney(preview.Profit)</strong>
+                }
+                else
+                {
+                    <em>Нет рыночной котировки — продажу и доход по этому материалу оценить пока нельзя.</em>
+                }
+            </p>
+        }
+    }
+
+@code {
+    [Parameter, EditorRequired] public TeamScreen Screen { get; set; } = default!;
+    [Parameter] public int? Level { get; set; }
+    private IEnumerable<TeamScreen.StockRow> Rows => Screen.Stock.Where(row => Level is null || (Level == -1 ? !Screen.FactoryOverviewRows.Any(n => n.Definition.Recipes[0].Output.Level == MaterialLevel(row.MaterialId)) : MaterialLevel(row.MaterialId) == Level));
+    private int MaterialLevel(string id) => Screen.Stock.First(row => row.MaterialId == id).Material.Level;
+    private string Producers(string id) => Names(Screen.Factories.Where(f => f.ProducedMaterial.Id == id));
+    private string Consumers(string id) => Names(Screen.Factories.Where(f => f.Inputs.Any(i => i.Material.Id == id)));
+    private static string Names(IEnumerable<TeamScreen.FactoryRow> factories) => string.Join(", ", factories.Select(f => f.DefinitionName).Distinct()) is { Length: > 0 } names ? names : "нет фабрик";
+}

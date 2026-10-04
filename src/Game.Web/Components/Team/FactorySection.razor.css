@@ -1,0 +1,7 @@
+.factory-lever { padding: 1rem 0; border-top: 1px solid var(--bs-border-color); scroll-margin-top: 10rem; }
+.factory-lever summary { cursor: pointer; font-weight: 600; }
+::deep select { max-width: 100%; }
+@media (min-width: 992px) {
+    .card-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 1.5rem; }
+    .factory-heading { grid-column: 1 / -1; }
+}
