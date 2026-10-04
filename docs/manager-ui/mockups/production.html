@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Производство — макет</title>
+<link rel="stylesheet" href="mockup.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="row1">
+    <span class="team">Сталь</span>
+    <span class="phase">Ход 41 · Решения</span>
+    <span class="timer num">03:48</span>
+    <a class="menu" href="#">⋯</a>
+  </div>
+  <div class="row2">
+    <span>Баланс <b class="num">12 480 ¤</b> <span class="pos num">(+612 за ход)</span></span>
+    <span>Ждёт меня <span class="badge">1</span></span>
+  </div>
+</header>
+
+<nav class="nav">
+  <a href="turn.html"><span class="ico">◉</span>Ход<span class="badge">1</span></a>
+  <a class="on" href="production.html"><span class="ico">▤</span>Производство</a>
+  <a href="deals.html"><span class="ico">⇄</span>Сделки</a>
+  <a href="analytics.html"><span class="ico">∿</span>Аналитика</a>
+</nav>
+
+<main>
+  <div class="note">Сценарий поздней партии: ход 41, 15 фабрик, открыто поколение 4. Остальные макеты — ход 13.</div>
+  <div class="cols wide-left">
+    <div>
+      <section class="sec">
+        <h2>Цепочка <span class="count">15 фабрик</span> <span class="right muted">сырьё → продукт</span></h2>
+        <div class="seg">
+          <a class="on" href="#">Все</a><a href="#">Требуют внимания · 2</a>
+        </div>
+
+        <!-- Передел с проблемой — раскрыт -->
+        <details class="lvl" open>
+          <summary>
+            <span class="lvl-name">Передел 0 · добыча</span>
+            <span class="lvl-sum">6 фабрик · <span class="warn-txt">⚠ 1</span></span>
+          </summary>
+
+          <details class="grp" open>
+            <summary class="fac warn">
+              <div><div class="name">Рудник ×3</div><div class="sub">30 рабочих · хуже всех: состояние 61 %</div></div>
+              <div class="out"><b class="num">3 610</b><span class="small muted">ед./ход</span></div>
+            </summary>
+            <a class="fac inst" href="factory.html"><div><div class="name">Рудник №1</div><div class="sub">10 рабочих · состояние 88 %</div></div><div class="out num">1 251</div></a>
+            <a class="fac inst warn" href="factory.html#wear"><div><div class="name">Рудник №2</div><div class="sub">10 рабочих · состояние 61 % · капремонт дорожает через 1 ход</div></div><div class="out num">1 108</div></a>
+            <a class="fac inst" href="factory.html"><div><div class="name">Рудник №3</div><div class="sub">10 рабочих · состояние 90 %</div></div><div class="out num">1 251</div></a>
+          </details>
+
+          <details class="grp">
+            <summary class="fac">
+              <div><div class="name">Угольная шахта ×2</div><div class="sub">20 рабочих</div></div>
+              <div class="out"><b class="num">1 140</b><span class="small muted">ед./ход</span></div>
+            </summary>
+          </details>
+          <a class="fac" href="factory.html">
+            <div><div class="name">Известняковый карьер</div><div class="sub">8 рабочих</div></div>
+            <div class="out"><b class="num">420</b><span class="small muted">ед./ход</span></div>
+          </a>
+          <a class="fac ghost" href="#"><div><div class="name">+ Построить на переделе 0</div><div class="sub">3 типа · от 890 ¤</div></div></a>
+
+          <div class="stock">
+            <div class="row"><span class="m"><b>Железная руда</b> <span class="num">2 310</span><br><span class="flow">+3 610 · −3 400 агломерация</span></span><a class="btn" href="#sell">Продать</a></div>
+            <div class="row"><span class="m"><b>Коксующийся уголь</b> <span class="num">410</span><br><span class="flow">+1 140 · −1 044 коксохим</span></span><a class="btn" href="#sell">Продать</a></div>
+            <div class="row"><span class="m"><b>Известняк</b> <span class="num">96</span><br><span class="flow">+420 · −410 доменные печи</span></span><a class="btn" href="#sell">Продать</a></div>
+          </div>
+        </details>
+
+        <!-- Переделы без проблем — свёрнуты, в заголовке сводка -->
+        <details class="lvl">
+          <summary>
+            <span class="lvl-name">Передел 1</span>
+            <span class="lvl-sum">4 фабрики · агломерат 1 700 · кокс 700 / ход</span>
+          </summary>
+        </details>
+        <details class="lvl">
+          <summary>
+            <span class="lvl-name">Передел 2</span>
+            <span class="lvl-sum">2 фабрики · чугун 540 / ход</span>
+          </summary>
+        </details>
+
+        <details class="lvl" open>
+          <summary>
+            <span class="lvl-name">Передел 3</span>
+            <span class="lvl-sum">2 фабрики · <span class="bad-txt">⚠ 1</span></span>
+          </summary>
+          <details class="grp" open>
+            <summary class="fac bad">
+              <div><div class="name">Кислородный конвертер ×2</div><div class="sub">не хватает чугуна: нужно 600, есть 540</div></div>
+              <div class="out"><b class="num">270</b><span class="small muted">из 300</span></div>
+            </summary>
+            <a class="fac inst bad" href="factory.html"><div><div class="name">Конвертер №1</div><div class="sub">доля при нехватке 1 · 2 хода подряд не на мощности</div></div><div class="out num">120 / 150</div></a>
+            <a class="fac inst" href="factory.html"><div><div class="name">Конвертер №2</div><div class="sub">доля при нехватке 1.25</div></div><div class="out num">150 / 150</div></a>
+          </details>
+        </details>
+
+        <details class="lvl">
+          <summary>
+            <span class="lvl-name">Передел 4</span>
+            <span class="lvl-sum">1 фабрика · стальной лист 130 / ход</span>
+          </summary>
+        </details>
+
+        <div class="gen">
+          🔒 <b>Передел 5 откроет поколение 5</b> — 61 из 140 очков · 250 ¤/ход
+          <div class="bar"><i style="width:44%"></i></div>
+          <a class="btn link" href="#">изменить вложение</a>
+        </div>
+      </section>
+      <div class="note">
+        Группировка в два слоя. <b>Передел</b> — сворачиваемый блок со сводкой в заголовке: число фабрик, выпуск, число проблем.
+        Переделы с проблемой раскрыты, остальные свёрнуты. <b>Однотипные фабрики</b> — одна строка «Рудник ×3» с суммарным выпуском
+        и худшим состоянием, по тапу раскрываются экземпляры. Фильтр «Требуют внимания» оставляет только проблемные строки.
+        Свёрнутое состояние запоминается в браузере, чтобы не раскрывать заново каждый ход.
+      </div>
+    </div>
+
+    <div>
+      <section class="sec" id="sell">
+        <h2>Быстрая продажа: железная руда</h2>
+        <div class="fgrid">
+          <label class="fld"><span>Объём</span><input value="2310"></label>
+          <div class="fld"><span>&nbsp;</span><a class="btn" href="#">Всё (2 310)</a></div>
+        </div>
+        <div class="kv">
+          <span class="k">Цена за единицу</span><span class="v num">0.0694 ¤</span>
+          <span class="k">Без вашей заявки</span><span class="v num">0.0712 ¤</span>
+          <span class="k sum">Доход</span><span class="v num sum pos">+160.31 ¤</span>
+        </div>
+        <div class="acts" style="margin-top:8px"><a class="btn pri" href="#">В приказ на ход</a></div>
+        <div class="note">Быстрая кнопка — здесь, рядом с остатком. Сама заявка попадает в «Приказ на ход», где её видно вместе со всем остальным и можно поменять или отменить. На телефоне — нижняя всплывающая панель.</div>
+      </section>
+
+      <section class="sec">
+        <h2>Аварийная закупка</h2>
+        <details><summary>Купить материал у системы</summary><p class="small muted">Форма как сейчас; заявка уходит в приказ на ход.</p></details>
+      </section>
+    </div>
+  </div>
+</main>
+</body>
+</html>

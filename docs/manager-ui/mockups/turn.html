@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ход — макет</title>
+<link rel="stylesheet" href="mockup.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="row1">
+    <span class="team">Сталь</span>
+    <span class="phase">Ход 13 · Решения</span>
+    <span class="timer num">04:12</span>
+    <a class="menu" href="#" title="Команда, QR, выход">⋯</a>
+  </div>
+  <div class="row2">
+    <span>Баланс <b class="num">−6 334 ¤</b> <span class="neg num">(−438.5 за ход)</span></span>
+    <span>Ждёт меня <span class="badge">3</span></span>
+  </div>
+  <a class="news" href="#">📰 Порт расширяет перевалку — логистика дешевеет</a>
+</header>
+
+<nav class="nav">
+  <a class="on" href="turn.html"><span class="ico">◉</span>Ход<span class="badge">3</span></a>
+  <a href="production.html"><span class="ico">▤</span>Производство</a>
+  <a href="deals.html"><span class="ico">⇄</span>Сделки</a>
+  <a href="analytics.html"><span class="ico">∿</span>Аналитика</a>
+</nav>
+
+<main>
+  <div class="cols">
+    <div>
+      <section class="sec">
+        <h2>Итоги расчёта хода 12 <a class="right" href="analytics.html">подробнее</a></h2>
+        <div class="kv">
+          <span class="k">Доходы</span><span class="v num pos">+0 ¤</span>
+          <span class="k">Зарплаты и содержание</span><span class="v num neg">−312 ¤</span>
+          <span class="k">Закупки по контрактам</span><span class="v num neg">−1.5 ¤</span>
+          <span class="k">Исследования</span><span class="v num neg">−125 ¤</span>
+          <span class="k sum">Итого за ход</span><span class="v num sum neg">−438.5 ¤</span>
+        </div>
+        <p class="small muted" style="margin:8px 0 0">
+          Произведено: железная руда 1 251 · уголь 570 · кокс 350.<br>
+          Поставки: получено 3 ед. природного газа от «Нефти» — в срок.
+        </p>
+      </section>
+
+      <section class="sec">
+        <h2>Требует внимания <span class="count">3</span></h2>
+        <div class="item soon">
+          <div class="t">Капремонт подорожает через 1 ход — 3 фабрики</div>
+          <div class="d">Рудник, Угольная шахта, Коксохимический завод: сейчас «Профилактика», станет «Плановое обслуживание».</div>
+          <div class="acts"><a class="btn link" href="production.html#mine">Рудник → износ</a> <a class="btn link" href="#">Угольная шахта → износ</a> <a class="btn link" href="#">Коксохим → износ</a></div>
+        </div>
+        <div class="note">Три одинаковых повода сейчас идут тремя карточками. Здесь сгруппированы в одну, ссылки ведут сразу на рычаг «Износ», а не на «Люди».</div>
+      </section>
+    </div>
+
+    <div>
+      <section class="sec">
+        <h2>Ждёт моего решения <span class="count hot">3</span></h2>
+        <div class="item wait">
+          <div class="t">Черновик от Пети: продаём кокс «Нефти»</div>
+          <div class="d">40 ед. × 0.47 ¤ = 18.80 ¤ · разовая, ход 15 · штраф 10 %.</div>
+          <div class="acts"><a class="btn pri" href="#">Подать заявку</a> <a class="btn" href="deals.html#reply">Поправить</a> <a class="btn" href="#">Вернуть</a></div>
+        </div>
+        <div class="item wait">
+          <div class="t">Входящая заявка от «Леса»: железная руда</div>
+          <div class="d">Условия контрагент назовёт лично. Чтобы заключить — введите те же условия в ответной заявке.</div>
+          <div class="acts"><a class="btn pri" href="deals.html#reply">Ответить заявкой</a> <a class="btn" href="#">Отклонить</a></div>
+        </div>
+        <div class="item wait">
+          <div class="t">«Нефть» предлагает пересмотр контракта на газ</div>
+          <div class="d">3 → 5 ед./ход, цена 0.50 → 0.48 ¤, штраф 10 %.</div>
+          <div class="acts"><a class="btn pri" href="#">Принять</a> <a class="btn" href="#">Отклонить</a></div>
+        </div>
+      </section>
+
+      <section class="sec">
+        <h2>Приказ на ход 13 <span class="right muted">исполнится при расчёте</span></h2>
+        <ul class="order">
+          <li><span class="what">Коксохимический завод: нанять ещё 5 (выйдут на смену 5 из 5)</span><span class="cost num neg">−125 ¤</span><a class="btn link" href="#">✕</a></li>
+          <li><span class="what">Продать системе: железная руда 6 000 ед. × 0.0694</span><span class="cost num pos">+416 ¤</span><a class="btn link" href="#">✕</a></li>
+          <li><span class="what">Исследование поколения 2</span><span class="cost num neg">−125 ¤</span><a class="btn link" href="#">изменить</a></li>
+          <li><span class="what">Рудник: капремонт «Профилактика», простой 1 ход</span><span class="cost num neg">−28.2 ¤</span><a class="btn link" href="#">✕</a></li>
+        </ul>
+        <div class="kv" style="margin-top:8px">
+          <span class="k sum">Ожидаемо по приказу</span><span class="v num sum pos">+137.8 ¤</span>
+        </div>
+        <p class="small muted" style="margin:6px 0 0">Зарплаты и содержание сюда не входят — они спишутся в любом случае.</p>
+      </section>
+    </div>
+  </div>
+  <div class="note">
+    Экран отвечает по порядку: что случилось (итоги) → что не так (внимание) → что ждёт меня → что я уже решил.
+    На ширине ≥ 992px — две колонки, слева «прошлое», справа «сейчас».
+    Пояснение фазы («ваше окно для действий…») убрано из постоянного вида — оно доступно по тапу на фазу.
+  </div>
+</main>
+</body>
+</html>

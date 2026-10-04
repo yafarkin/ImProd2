@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сделки — макет</title>
+<link rel="stylesheet" href="mockup.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="row1">
+    <span class="team">Сталь</span>
+    <span class="phase">Ход 13 · Решения</span>
+    <span class="timer num">04:12</span>
+    <a class="menu" href="#">⋯</a>
+  </div>
+  <div class="row2">
+    <span>Баланс <b class="num">−6 334 ¤</b> <span class="neg num">(−438.5 за ход)</span></span>
+    <span>Ждёт меня <span class="badge">3</span></span>
+  </div>
+</header>
+
+<nav class="nav">
+  <a href="turn.html"><span class="ico">◉</span>Ход<span class="badge">3</span></a>
+  <a href="production.html"><span class="ico">▤</span>Производство</a>
+  <a class="on" href="deals.html"><span class="ico">⇄</span>Сделки</a>
+  <a href="analytics.html"><span class="ico">∿</span>Аналитика</a>
+</nav>
+
+<main>
+  <div class="cols">
+    <div>
+      <section class="sec">
+        <h2>Ждёт моего ответа <span class="count hot">3</span></h2>
+        <div class="deal">
+          <div class="head"><span class="who">Черновик от Пети</span><span>продаём кокс «Нефти»</span><span class="st ask">черновик</span></div>
+          <div class="terms num">40 ед. × 0.47 ¤ = 18.80 ¤ · разовая, ход 15 · штраф 10 %</div>
+          <div class="acts" style="margin-top:6px"><a class="btn pri" href="#">Подать заявку</a> <a class="btn" href="#reply">Поправить</a> <a class="btn" href="#">Вернуть</a></div>
+          <div class="note">Требует нового события в журнале: сейчас черновик живёт только в браузере переговорщика и до управляющего не доходит (см. README §2 п.20).</div>
+        </div>
+        <div class="deal">
+          <div class="head"><span class="who">Лес</span><span>хочет купить железную руду</span><span class="st ask">заявка</span></div>
+          <div class="terms">Условия скрыты — узнайте лично. Репутация «Леса»: 100 % (0 фактов).</div>
+          <div class="acts" style="margin-top:6px"><a class="btn pri" href="#reply">Ответить заявкой</a> <a class="btn" href="#">Отклонить</a></div>
+        </div>
+        <div class="deal">
+          <div class="head"><span class="who">Нефть</span><span>пересмотр контракта на газ</span><span class="st ask">пересмотр</span></div>
+          <div class="terms">3 → 5 ед./ход · 0.50 → 0.48 ¤/ед. · штраф 10 % · бессрочно</div>
+          <div class="acts" style="margin-top:6px"><a class="btn pri" href="#">Принять</a> <a class="btn" href="#">Отклонить</a></div>
+        </div>
+      </section>
+
+      <section class="sec">
+        <h2>Действующие контракты <span class="count">1</span></h2>
+        <div class="deal">
+          <div class="head"><span class="who">Нефть → нам</span><span>природный газ</span><span class="st ok">действует</span></div>
+          <div class="terms num">3 ед./ход × 0.50 ¤ = 1.50 ¤/ход · штраф 10 % · с хода 6, бессрочно · код 8ZKPX2</div>
+          <div class="terms small muted">Поставки: 7 из 7 в срок.</div>
+          <details><summary>Пересмотреть или расторгнуть</summary>
+            <div class="form-row">
+              <div class="f"><label>Объём/ход</label><input value="3"></div>
+              <div class="f"><label>Цена за ед.</label><input value="0.50"></div>
+              <div class="f"><label>Штраф</label><input value="10 %"></div>
+              <div class="f"><label>До хода</label><input value="бессрочно"></div>
+            </div>
+            <div class="acts"><a class="btn" href="#">Предложить пересмотр</a> <a class="btn" href="#">Расторгнуть по согласию</a> <a class="btn dng" href="#">Расторгнуть в одностороннем</a></div>
+          </details>
+        </div>
+        <div class="note">Было: таблица из 11 колонок, на телефоне строка высотой ~400px, статус и кнопки за правым краем. Стало: карточка, цена — в формате «за единицу» (0.50, а не «1 ¤»), редкие действия свёрнуты.</div>
+      </section>
+
+      <section class="sec">
+        <h2>Мои заявки <span class="count">0</span></h2>
+        <p class="small muted" style="margin:0">Поданные заявки ждут встречную от контрагента. Можно отозвать.</p>
+      </section>
+    </div>
+
+    <div>
+      <section class="sec" id="reply">
+        <h2>Новая заявка</h2>
+        <div class="fgrid">
+          <label class="fld"><span>Контрагент</span><select><option>Лес</option></select><span class="hint">репутация 100 % (0)</span></label>
+          <label class="fld"><span>Мы</span><select><option>Продаём</option></select><span class="hint"></span></label>
+          <label class="fld"><span>Материал</span><select><option>Железная руда</option></select><span class="hint">на складе 6 555</span></label>
+          <label class="fld"><span>Тип</span><select><option>Разовый</option></select><span class="hint"></span></label>
+        </div>
+        <div class="fgrid four">
+          <label class="fld"><span>Объём</span><input value="" placeholder="ед."><span class="hint"></span></label>
+          <label class="fld"><span>Цена за ед.</span><input value="" placeholder="¤"><span class="hint">рынок 0.0694 · себест. 0.031</span></label>
+          <label class="fld"><span>Штраф</span><input value="10 %"><span class="hint"></span></label>
+          <label class="fld"><span>Ход поставки</span><input value="14"><span class="hint">ближайший — 14</span></label>
+        </div>
+        <div class="kv small"><span class="k">Сумма сделки</span><span class="v num muted">— введите объём и цену</span></div>
+        <div class="acts" style="margin-top:8px"><a class="btn pri" href="#">Подать заявку</a></div>
+        <div class="note">Поля стоят ровно: подпись сверху в одну строку, подсказка всегда снизу и занимает место, даже если пустая. Объём и цена пустые, а не «10 × 10 ¤» при рынке 0.61 ¤. Ответ на входящую заявку предзаполняет контрагента, сторону и материал.</div>
+      </section>
+
+      <section class="sec">
+        <h2>Для переговоров</h2>
+        <p style="margin:0 0 4px"><b>Нужно нам</b> <span class="small muted">(нехватка под текущие рецепты)</span></p>
+        <p class="small muted" style="margin:0 0 8px">Дефицита нет.</p>
+        <p style="margin:0 0 4px"><b>Можем предложить</b></p>
+        <span class="chip">Железная руда 6 555</span><span class="chip">Кокс 1 642</span><span class="chip">Уголь 690</span><span class="chip">Газ 15</span>
+        <p style="margin:10px 0 4px"><b>Репутация</b></p>
+        <p class="small" style="margin:0">Наша 100 % (0 фактов) · Нефть 100 % (7) · Лес 100 % (0)</p>
+        <p style="margin:10px 0 0"><a href="needs.html">Доска потребностей зала (5 записей, 2 по нашим материалам) →</a></p>
+        <div class="note">Сюда переехала страница <code>/team/negotiate</code>. Доска потребностей — отдельный экран (<code>needs.html</code>), вход отсюда.</div>
+      </section>
+    </div>
+  </div>
+</main>
+</body>
+</html>

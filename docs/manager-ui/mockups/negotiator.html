@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Переговорщик — макет</title>
+<link rel="stylesheet" href="mockup.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="row1">
+    <span class="team">Сталь · Петя</span>
+    <span class="phase">Ход 13 · Решения</span>
+    <span class="timer num">04:12</span>
+    <a class="menu" href="#">⋯</a>
+  </div>
+  <div class="row2">
+    <span>Переговорщик</span>
+    <span>Черновики у управляющего: <b>1</b></span>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="on" href="negotiator.html"><span class="ico">⇄</span>Переговоры</a>
+  <a href="needs.html"><span class="ico">☰</span>Доска</a>
+  <a href="production.html"><span class="ico">▤</span>Команда</a>
+</nav>
+
+<main>
+  <div class="cols">
+    <div>
+      <section class="sec">
+        <h2>С чем идти в зал</h2>
+        <p style="margin:0 0 4px"><b>Можем предложить</b></p>
+        <table>
+          <thead><tr><th>Материал</th><th class="r">Свободно</th><th class="r">Себест.</th><th class="r">Рынок</th></tr></thead>
+          <tbody>
+            <tr><td>Железная руда</td><td class="r num">6 555</td><td class="r num">0.031</td><td class="r num">0.0694</td></tr>
+            <tr><td>Кокс</td><td class="r num">1 642</td><td class="r num">0.29</td><td class="r num">0.4523</td></tr>
+            <tr><td>Коксующийся уголь</td><td class="r num">168</td><td class="r num">0.08</td><td class="r num">0.1203</td></tr>
+          </tbody>
+        </table>
+        <p class="small muted" style="margin:4px 0 10px">«Свободно» — остаток минус то, что наши фабрики заберут в следующий ход и что уже обещано по контрактам.</p>
+        <p style="margin:0 0 4px"><b>Нужно нам</b></p>
+        <p class="small muted" style="margin:0">Дефицита под текущие рецепты нет.</p>
+        <div class="note">Цены — за единицу, в формате <code>FormatUnitCost</code>. Это три числа, которые переговорщику нужны у стола: сколько можем отдать, ниже какой цены в убыток, сколько даёт система.</div>
+      </section>
+
+      <section class="sec">
+        <h2>Репутация команд</h2>
+        <table>
+          <tbody>
+            <tr><td>Сталь (мы)</td><td class="r num">100 %</td><td class="r small muted">0 фактов</td></tr>
+            <tr><td>Нефть</td><td class="r num">100 %</td><td class="r small muted">7 фактов</td></tr>
+            <tr><td>Лес</td><td class="r num">100 %</td><td class="r small muted">0 фактов</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <div>
+      <section class="sec">
+        <h2>Подготовить черновик</h2>
+        <div class="fgrid">
+          <label class="fld"><span>Контрагент</span><select><option>Нефть</option></select><span class="hint">100 % (7)</span></label>
+          <label class="fld"><span>Мы</span><select><option>Продаём</option></select><span class="hint"></span></label>
+          <label class="fld"><span>Материал</span><select><option>Кокс</option></select><span class="hint">свободно 1 642</span></label>
+          <label class="fld"><span>Тип</span><select><option>Разовый</option></select><span class="hint"></span></label>
+          <label class="fld"><span>Объём</span><input value="40"><span class="hint"></span></label>
+          <label class="fld"><span>Цена за ед.</span><input value="0.47"><span class="hint">себест. 0.29 · рынок 0.4523</span></label>
+          <label class="fld"><span>Штраф</span><input value="10 %"><span class="hint"></span></label>
+          <label class="fld"><span>Ход поставки</span><input value="15"><span class="hint"></span></label>
+        </div>
+        <div class="kv small"><span class="k">Сумма</span><span class="v num">18.80 ¤ · прибыль 7.20 ¤</span></div>
+        <div class="acts" style="margin-top:8px"><a class="btn pri" href="#">Передать управляющему</a></div>
+      </section>
+
+      <section class="sec">
+        <h2>Мои черновики</h2>
+        <div class="deal">
+          <div class="head"><span class="who">Нефти: кокс</span><span class="st ask">у Анны</span></div>
+          <div class="terms num">40 × 0.47 ¤ · разовая, ход 15</div>
+        </div>
+        <div class="note">Статусы: «у управляющего» → «подана» (ждёт встречную) → «заключена», либо «возвращена» с причиной. Нужен новый тип события, см. README §2 п.20.</div>
+      </section>
+
+      <section class="sec">
+        <h2>Сделки команды</h2>
+        <div class="ro">Только просмотр — подтверждает и подаёт управляющий.</div>
+        <div class="deal">
+          <div class="head"><span class="who">Нефть → нам</span><span>природный газ</span><span class="st ok">действует</span></div>
+          <div class="terms num">3 ед./ход × 0.50 ¤ · бессрочно</div>
+        </div>
+        <div class="deal">
+          <div class="head"><span class="who">Лес</span><span>хочет железную руду</span><span class="st ask">заявка</span></div>
+          <div class="terms">Условия узнать лично.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <div class="note">Три раздела вместо четырёх: переговорщику не нужны «Приказ на ход» и рычаги фабрик. «Команда» — то же «Производство» в режиме чтения.</div>
+</main>
+</body>
+</html>

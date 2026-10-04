@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Аналитика — макет</title>
+<link rel="stylesheet" href="mockup.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="row1">
+    <span class="team">Сталь</span>
+    <span class="phase">Ход 13 · Решения</span>
+    <span class="timer num">04:12</span>
+    <a class="menu" href="#">⋯</a>
+  </div>
+  <div class="row2">
+    <span>Баланс <b class="num">−6 334 ¤</b> <span class="neg num">(−438.5 за ход)</span></span>
+    <span>Ждёт меня <span class="badge">3</span></span>
+  </div>
+</header>
+
+<nav class="nav">
+  <a href="turn.html"><span class="ico">◉</span>Ход<span class="badge">3</span></a>
+  <a href="production.html"><span class="ico">▤</span>Производство</a>
+  <a href="deals.html"><span class="ico">⇄</span>Сделки</a>
+  <a class="on" href="analytics.html"><span class="ico">∿</span>Аналитика</a>
+</nav>
+
+<main>
+  <div class="cols">
+    <div>
+      <section class="sec">
+        <h2>Сколько стоит команда</h2>
+        <div class="kv">
+          <span class="k">Деньги</span><span class="v num neg">−6 334 ¤</span>
+          <span class="k">Склад по рыночной цене</span><span class="v num">941 ¤</span>
+          <span class="k">Фабрики</span><span class="v num">3 792 ¤</span>
+          <span class="k sum">Итого</span><span class="v num sum neg">−1 600 ¤</span>
+        </div>
+        <p class="small muted" style="margin:8px 0 0">Может расти, когда баланс падает: деньги ушли в фабрики и склад, а не пропали.</p>
+        <p class="small" style="margin:6px 0 0">Репутация: 100 % (0 фактов) — пока мало данных.</p>
+      </section>
+
+      <section class="sec">
+        <h2>По ходам</h2>
+        <p class="small muted" style="margin:0 0 6px">Один график с переключателем вместо четырёх подряд.</p>
+        <div class="form-row"><span class="chip" style="background:#cfe2ff">Стоимость команды</span><span class="chip">Баланс</span><span class="chip">Поток за ход</span><span class="chip">Репутация</span><span class="chip">Склад</span><span class="chip">Прибыль по переделам</span></div>
+        <div class="chart"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><polyline fill="none" stroke="#0d6efd" stroke-width="1" points="0,10 30,30 55,33 70,28 85,25 100,22"/></svg></div>
+      </section>
+
+      <section class="sec">
+        <h2>Внешняя экономика</h2>
+        <p style="margin:0">Индекс деловой активности: <b class="pos">1.03 ↑</b> <span class="small muted">— выше нейтрального на 3 %</span></p>
+        <div class="chart" style="height:70px;margin-top:6px"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><polyline fill="none" stroke="#198754" stroke-width="1" points="0,20 40,20 60,19 80,17 100,16"/></svg></div>
+        <p style="margin:10px 0 4px"><b>На что влияет</b></p>
+        <div class="kv small">
+          <span class="k">Цена, по которой система покупает у вас</span><span class="v num pos">×1.03</span>
+          <span class="k">Сколько система готова купить без падения цены</span><span class="v num pos">×1.03</span>
+          <span class="k">Цена аварийной закупки у системы</span><span class="v num neg">×1.03</span>
+          <span class="k">Зарплаты, энергия, содержание, постройка</span><span class="v muted">не меняются</span>
+        </div>
+        <p class="small muted" style="margin:6px 0 0">
+          1.00 — нейтральный уровень. Индекс меняет только сторону спроса: при 1.03 тот же склад продаётся примерно
+          на 3 % дороже, а расходы остаются прежними. Цены по контрактам между командами индекс не трогает —
+          о них вы договариваетесь сами. Куда индекс пойдёт дальше, график не показывает: об этом заранее
+          предупреждает лента новостей.
+        </p>
+        <div class="note">Множители в таблице считаются из текущего индекса — игрок видит не абстрактное «1.03 ↑», а что именно это значит для его денег. Формулы из <code>docs/external-economy.md</code> §2.1.</div>
+      </section>
+    </div>
+
+    <div>
+      <section class="sec">
+        <h2>История операций <span class="right"><a href="#">все ходы ▾</a></span></h2>
+        <table>
+          <thead><tr><th>Ход</th><th>Операция</th><th class="r">Сумма</th></tr></thead>
+          <tbody>
+            <tr><td>12</td><td>Зарплата · Рудник</td><td class="r num neg">−100 ¤</td></tr>
+            <tr><td>12</td><td>Зарплата · Угольная шахта</td><td class="r num neg">−100 ¤</td></tr>
+            <tr><td>12</td><td>Содержание · Коксохим</td><td class="r num neg">−36.75 ¤</td></tr>
+            <tr><td>12</td><td>Поставка газа от «Нефти»</td><td class="r num neg">−1.50 ¤</td></tr>
+            <tr><td>12</td><td>Исследование поколения</td><td class="r num neg">−125 ¤</td></tr>
+            <tr><td colspan="3" class="small muted">…</td></tr>
+          </tbody>
+        </table>
+        <p class="small muted" style="margin:6px 0 0">Фильтр по ходу и по фабрике; итог хода — первой строкой группы.</p>
+      </section>
+    </div>
+  </div>
+  <div class="note">Всё, что отвечает на «почему так вышло» и нужно на разборе после игры. Во время хода сюда заходят по ссылке «подробнее» из итогов расчёта.</div>
+</main>
+</body>
+</html>
