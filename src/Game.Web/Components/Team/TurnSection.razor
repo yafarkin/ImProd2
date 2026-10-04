@@ -282,5 +282,5 @@
     /// рычаг. Это навигация, не совет: панель показывает, где смотреть, а не что делать. Разделы не
     /// делят экземпляр страницы, поэтому фабрика и вкладка передаются через адрес.
     /// </summary>
-    private void OpenFactory(Ulid factoryId, string tab) => Nav.NavigateTo($"/team/factory/{factoryId}?tab={tab}");
+    private void OpenFactory(Ulid factoryId, string tab) => Nav.NavigateTo($"/team/production?factory={factoryId}&tab={tab}");
 }

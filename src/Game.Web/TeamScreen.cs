@@ -422,7 +422,7 @@ public sealed partial class TeamScreen
                     consumingFactoryNames, profitabilityByFactoryId.GetValueOrDefault(factory.Id),
                     capacityBreakdown, activityHistory, liquidationValue, WorkforceStep.IsInstantHiring(factory));
             }).ToList();
-            if (SelectedFactoryId is null)
+            if (SelectedFactoryId is null || Factories.All(f => f.FactoryId != SelectedFactoryId))
             {
                 SelectedFactoryId = Factories.FirstOrDefault()?.FactoryId;
             }
@@ -552,7 +552,7 @@ public sealed partial class TeamScreen
         RunAction(() => Host.Session!.SellFactory(TeamId, factoryId));
     }
 
-    /// <summary>Выбор экземпляра фабрики для страницы с управлением.</summary>
+    /// <summary>Клик по узлу на схеме построенных фабрик — открывает карточку деталей этого экземпляра ниже.</summary>
     public void SelectFactory(Ulid factoryId) => SelectedFactoryId = factoryId;
 
     /// <summary>

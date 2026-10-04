@@ -58,10 +58,10 @@ public class TeamShellTests
     }
 
     [Fact]
-    public async Task The_Factory_Has_A_Separate_Page_And_Opens_The_Requested_Instance()
+    public async Task The_Factory_In_The_Address_Opens_Its_Card_On_Production()
     {
         // Так «Требует внимания» ведёт к фабрике: разделы не делят экземпляр страницы, и какую фабрику
-        // открыть, передаётся через адрес. Список производства карточку больше не открывает.
+        // открыть, передаётся через адрес. Без адреса открыта карточка первой фабрики.
         string? firstCard = null;
         string? secondCard = null;
         var html = await RenderAsManager((session, teamId) =>
@@ -73,56 +73,16 @@ public class TeamShellTests
             var factories = session.State.Teams[teamId].Factories.OrderBy(f => f.Id).ToList();
             firstCard = $"factory-card-{factories[0].Id}";
             secondCard = $"factory-card-{factories[1].Id}";
-            return $"/team/factory/{factories[1].Id}?tab=wear";
+            return $"/team/production?factory={factories[1].Id}";
         });
 
         Assert.Contains(secondCard!, html);
         Assert.DoesNotContain(firstCard!, html);
-        Assert.Contains("← Цепочка производства", html);
-        Assert.Contains("ступень R&D", html);
-        Assert.DoesNotContain("Цепочка производства</h2>", html);
-        Assert.Contains("id=\"factory-wear\"", html);
-    }
-
-    [Theory]
-    [InlineData("invalid")]
-    [InlineData("missing")]
-    [InlineData("foreign")]
-    public async Task A_Factory_Outside_The_Team_Does_Not_Show_Another_Factory(string kind)
-    {
-        var html = await RenderAsManager((session, teamId) =>
-        {
-            var definition = session.State.Config.FactoryDefinitions.First(d => d.Sector == session.State.Teams[teamId].Sector && d.Recipes[0].Output.Level == 0);
-            session.BuildFactory(teamId, definition.Id);
-            var id = Ulid.NewUlid().ToString();
-            if (kind == "foreign")
-            {
-                var other = session.State.Teams.Values.First(t => t.Id != teamId);
-                id = ((FactoryBuilt)session.BuildFactory(other.Id, definition.Id).Change).FactoryId.ToString();
-            }
-            return $"/team/factory/{(kind == "invalid" ? "garbage" : id)}";
-        });
-        Assert.Contains("Фабрика не найдена в вашей команде", html);
-        Assert.DoesNotContain("id=\"factory-workers\"", html);
-    }
-
-    [Fact]
-    public async Task Negotiators_See_The_Factory_Without_Management_Actions()
-    {
-        var html = await RenderAsManager((session, teamId) =>
-        {
-            var definition = session.State.Config.FactoryDefinitions.First(d => d.Sector == session.State.Teams[teamId].Sector && d.Recipes[0].Output.Level == 0);
-            var id = ((FactoryBuilt)session.BuildFactory(teamId, definition.Id).Change).FactoryId;
-            return $"/team/factory/{id}";
-        }, ParticipantRole.Negotiator);
-        Assert.Contains("Рабочих:", html);
-        Assert.DoesNotContain("Применить</button>", html);
-        Assert.DoesNotContain("Продать за", html);
     }
 
     private static Task<string> RenderAsManager(string path) => RenderAsManager((_, _) => path);
 
-    private static async Task<string> RenderAsManager(Func<GameSession, Ulid, string> preparePath, ParticipantRole role = ParticipantRole.Manager)
+    private static async Task<string> RenderAsManager(Func<GameSession, Ulid, string> preparePath)
     {
         using var factory = new WebApplicationFactory<Program>();
         var host = factory.Services.GetRequiredService<GameSessionHost>();
@@ -133,11 +93,7 @@ public class TeamShellTests
             host.SetDraftConfig(FixtureConfig());
             host.AddStagedTeam("Тета", host.DraftConfig.Sectors.First().Id);
             var team = host.StagedTeams.Single();
-            host.AddStagedTeam("Другая", host.DraftConfig.Sectors.First().Id);
-            var manager = host.AddStagedParticipant(role, team.Id, "Участник Тета");
-            host.AddStagedParticipant(ParticipantRole.Manager, host.StagedTeams.First(t => t.Id != team.Id).Id, "Другой управляющий");
-            if (role != ParticipantRole.Manager)
-                host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Тета");
+            var manager = host.AddStagedParticipant(ParticipantRole.Manager, team.Id, "Управляющий Тета");
             host.StartSessionFromDraft();
             host.Session!.AdvancePhase(PhaseTransitionTrigger.Facilitator); // Settlement -> Decision
             var path = preparePath(host.Session!, team.Id);

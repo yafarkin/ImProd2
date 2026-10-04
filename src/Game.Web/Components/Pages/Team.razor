@@ -1,6 +1,5 @@
 @page "/team"
 @page "/team/{Section}"
-@page "/team/factory/{FactoryIdParam}"
 @attribute [Authorize(Roles = "Manager,Negotiator")]
 @rendermode InteractiveServer
 @implements IDisposable
@@ -60,30 +59,23 @@
             <div class="alert alert-danger">@_screen.ErrorMessage</div>
         }
 
-        @if (FactoryIdParam is not null || (ActiveSection == "production" && FactoryParam is not null))
+        @switch (ActiveSection)
         {
-            <FactorySection Screen="_screen" />
-        }
-        else
-        {
-            @switch (ActiveSection)
-            {
-                case "production":
-                    <ProductionSection Screen="_screen" />
-                    break;
-                case "deals":
-                    <DealsSection Screen="_screen" />
-                    break;
-                case "analytics":
-                    <AnalyticsSection Screen="_screen" />
-                    break;
-                case "members":
-                    <MembersSection Screen="_screen" />
-                    break;
-                default:
-                    <TurnSection Screen="_screen" />
-                    break;
-            }
+            case "production":
+                <ProductionSection Screen="_screen" />
+                break;
+            case "deals":
+                <DealsSection Screen="_screen" />
+                break;
+            case "analytics":
+                <AnalyticsSection Screen="_screen" />
+                break;
+            case "members":
+                <MembersSection Screen="_screen" />
+                break;
+            default:
+                <TurnSection Screen="_screen" />
+                break;
         }
     </div>
 }
@@ -103,19 +95,18 @@
     [Parameter]
     public string? Section { get; set; }
 
-    [Parameter]
-    public string? FactoryIdParam { get; set; }
-
     [SupplyParameterFromQuery(Name = "welcome")]
     public string? WelcomeParam { get; set; }
 
     /// <summary>
-    /// Старый адрес фабрики через query-параметр. Новые ссылки используют /team/factory/{id}.
+    /// Фабрика, которую раздел «Производство» должен открыть и к которой прокрутить, — так панель
+    /// «Требует внимания» ведёт к фабрике. Через адрес, а не через общее состояние: разделы не делят
+    /// экземпляр страницы (см. <see cref="OnAfterRenderAsync"/>).
     /// </summary>
     [SupplyParameterFromQuery(Name = "factory")]
     public string? FactoryParam { get; set; }
 
-    /// <summary>Раздел страницы фабрики для прокрутки: «Износ», R&D и другие.</summary>
+    /// <summary>Вкладка карточки той же фабрики — «Износ» для повода про капремонт и т. п.</summary>
     [SupplyParameterFromQuery(Name = "tab")]
     public string? FactoryTabParam { get; set; }
 
@@ -128,7 +119,7 @@
     private bool _showWelcome;
     private Timer? _tickTimer;
 
-    private string ActiveSection => FactoryIdParam is not null ? "production" : Section is { } section && KnownSections.Contains(section) ? section : TurnSectionName;
+    private string ActiveSection => Section is { } section && KnownSections.Contains(section) ? section : TurnSectionName;
 
     protected override async Task OnInitializedAsync()
     {
@@ -138,17 +129,15 @@
         _showWelcome = WelcomeParam == "1";
 
         _screen = new TeamScreen(Host, teamId, role, user.FindFirst("code")?.Value, user.Identity?.Name);
-        if (Ulid.TryParse(FactoryIdParam ?? FactoryParam, out var factoryId))
+        if (Ulid.TryParse(FactoryParam, out var factoryId))
         {
             _screen.SelectedFactoryId = factoryId;
-            _screen.PendingScrollTargetId = null;
+            _screen.PendingScrollTargetId = $"factory-card-{factoryId}";
             if (FactoryTabParam is { } tab && KnownFactoryTabs.Contains(tab))
             {
                 _screen.ActiveFactoryTab = tab;
             }
         }
-        if ((FactoryIdParam ?? FactoryParam) is { } requestedId && !Ulid.TryParse(requestedId, out _))
-            _screen.SelectedFactoryId = Ulid.Empty;
         _screen.Changed += OnScreenChanged;
 
         _tickTimer = new Timer(_ =>
@@ -164,7 +153,7 @@
     /// Переход между разделами — это «улучшенная навигация» статического роутера: каждый раздел
     /// открывается новым экземпляром страницы, а браузер при этом прокрутку не сбрасывает — «Сделки»
     /// открывались с той высоты, на которой была прокручена «Аналитика» (живой обход 2026-10-04).
-    /// На странице фабрики нужный раздел прокручивает FactorySection.
+    /// Исключение — переход к конкретной фабрике: туда прокручивает сам раздел «Производство».
     /// </summary>
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

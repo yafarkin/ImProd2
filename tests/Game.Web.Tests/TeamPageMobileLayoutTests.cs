@@ -49,7 +49,7 @@ public class TeamPageMobileLayoutTests
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
 
-            var response = await client.GetAsync(path == "factory" ? $"/team/factory/{host.Session!.State.Teams[team.Id].Factories.Single().Id}" : path);
+            var response = await client.GetAsync(path);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         }
@@ -70,25 +70,22 @@ public class TeamPageMobileLayoutTests
         var html = await RenderTeamPage("/team/analytics");
 
         Assert.Contains("team-nav", html);
-        Assert.Contains("href=\"/team/production\"", html);
+        Assert.Contains("href=\"team/production\"", html);
         Assert.Contains("href=\"team/deals\"", html);
         Assert.Contains("href=\"team/analytics\"", html);
         Assert.Contains("href=\"team\"", html);
     }
 
     /// <summary>
-    /// Основные рычаги фабрики видны сразу. Вложенных вкладок на странице больше нет.
+    /// Вкладки карточки фабрики переносятся, а не прокручиваются вбок: при <c>flex-nowrap</c> последние
+    /// оказывались за краем экрана без какого-либо признака, что они есть.
     /// </summary>
     [Fact]
-    public async Task Factory_Controls_Are_All_Visible_Without_Nested_Tabs()
+    public async Task Factory_Card_Tabs_Wrap_Instead_Of_Scrolling_Sideways()
     {
-        var html = await RenderTeamPage("factory");
+        var html = await RenderTeamPage("/team/production");
 
-        Assert.Contains("id=\"factory-workers\"", html);
-        Assert.Contains("id=\"factory-recipe\"", html);
-        Assert.Contains("id=\"factory-rnd\"", html);
-        Assert.Contains("id=\"factory-wear\"", html);
-        Assert.DoesNotContain("nav nav-pills", html);
+        Assert.Equal(1, CountOccurrences(html, "nav nav-pills flex-wrap"));
         Assert.DoesNotContain("nav nav-pills flex-nowrap", html);
         Assert.DoesNotContain("overflow-x:auto; white-space:nowrap", html);
     }
@@ -109,4 +106,16 @@ public class TeamPageMobileLayoutTests
         Assert.Contains("<th>Сумма</th>", html);
     }
 
+    private static int CountOccurrences(string haystack, string needle)
+    {
+        var count = 0;
+        var index = haystack.IndexOf(needle, StringComparison.Ordinal);
+        while (index >= 0)
+        {
+            count++;
+            index = haystack.IndexOf(needle, index + needle.Length, StringComparison.Ordinal);
+        }
+
+        return count;
+    }
 }

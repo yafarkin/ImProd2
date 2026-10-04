@@ -122,15 +122,6 @@ else
     </div>
 }
 
-<h3 class="mt-4">Остатки по ходам</h3>
-@if (Screen.History is null) { <p class="text-muted">График появится после первого хода сессии.</p> }
-else { @ChartRenderer.Render(Screen.BuildWarehouseStockChartLayout()) }
-@if (Screen.History is { ProfitByLevel.Count: > 0 })
-{
-    <h3 class="mt-4">Прибыльность по переделам</h3>
-    @ChartRenderer.Render(Screen.BuildProfitByLevelChartLayout())
-}
-
 @code {
     /// <summary>Модель экрана команды — общая для всех разделов, её держит оболочка страницы.</summary>
     [Parameter, EditorRequired]
