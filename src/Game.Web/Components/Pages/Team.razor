@@ -82,7 +82,7 @@
                     <NeedsSection Screen="_screen" />
                     break;
                 case "analytics":
-                    <AnalyticsSection Screen="_screen" />
+                    <AnalyticsSection Screen="_screen" InitialTurn="@TurnParam" />
                     break;
                 case "members":
                     <MembersSection Screen="_screen" />
@@ -141,6 +141,10 @@
     /// <summary>Входящая заявка, на которую отвечают: <c>/team/deals?reply={id}</c> — так ведёт «Ответить заявкой» с «Хода».</summary>
     [SupplyParameterFromQuery(Name = "reply")]
     public string? ReplyParam { get; set; }
+
+    /// <summary>Ход для истории операций: <c>/team/analytics?turn=N</c> — так ведёт «Все операции» из итогов расчёта.</summary>
+    [SupplyParameterFromQuery(Name = "turn")]
+    public int? TurnParam { get; set; }
 
     private Ulid? ReplyToProposalId => Ulid.TryParse(ReplyParam, out var proposalId) ? proposalId : null;
 

@@ -99,10 +99,13 @@ public class TeamPageMobileLayoutTests
     {
         var html = await RenderTeamPage("/team/analytics");
 
-        Assert.Contains("<th class=\"d-none d-md-table-cell\">Время</th>", html);
-        Assert.Contains("<th class=\"d-none d-md-table-cell\">Ставка</th>", html);
-        // Ход и сумма скрываться не должны ни при какой ширине — на них таблица и держится.
-        Assert.Contains("<th>Ход</th>", html);
-        Assert.Contains("<th>Сумма</th>", html);
+        // [^>]* — у раздела свои стили, и к тегам добавляется атрибут их области.
+        Assert.Matches("<th class=\"d-none d-md-table-cell\"[^>]*>Время</th>", html);
+        Assert.Matches("<th class=\"d-none d-md-table-cell\"[^>]*>Ставка</th>", html);
+        // Операция и сумма скрываться не должны ни при какой ширине — на них таблица и держится; ход с
+        // блока 5 — строка-заголовок группы с итогом, а не колонка.
+        Assert.Matches("<th[^>]*>Операция</th>", html);
+        Assert.Matches("<th class=\"text-end\"[^>]*>Сумма</th>", html);
+        Assert.DoesNotMatch("<th[^>]*d-none[^>]*>(Операция|Сумма)</th>", html);
     }
 }

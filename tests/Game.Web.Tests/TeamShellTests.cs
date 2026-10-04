@@ -140,6 +140,23 @@ public class TeamShellTests
         Assert.Contains(">отозвать</button>", html);
     }
 
+    [Fact]
+    public async Task Analytics_Groups_Operations_By_Turn_And_Takes_The_Turn_From_The_Address()
+    {
+        // «Все операции хода» из итогов расчёта ведут сюда с ?turn=N — история открывается сразу на нём.
+        var html = await RenderAsManager((session, teamId) =>
+        {
+            session.BuildFactory(teamId, MineDefinitionId(session, teamId));
+            return $"/team/analytics?turn={session.State.CurrentTurn}";
+        });
+
+        Assert.Matches("<option value=\"1\"[^>]*selected", html);
+        Assert.Contains("Ход 1 · итог", html);
+        Assert.Contains("Постройка фабрики", html);
+        // Один график с переключателем, а не шесть подряд.
+        Assert.Contains(">Стоимость команды</button>", html);
+    }
+
     private static string MineDefinitionId(GameSession session, Ulid teamId) => session.State.Config.FactoryDefinitions
         .First(d => d.Sector == session.State.Teams[teamId].Sector && d.Recipes[0].Output.Level == 0).Id;
 

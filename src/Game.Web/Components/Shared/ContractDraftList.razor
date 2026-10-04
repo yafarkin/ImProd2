@@ -1,8 +1,8 @@
 @inject GameSessionHost Host
 
-@* Черновики сделок между переговорщиком и управляющим (SPEC §3). Управляющий видит черновики, которые
-   ждут его решения, переговорщик — свои, со статусом. Условия здесь показываются полностью: это
-   внутреннее дело команды, контрагент черновиков не видит вовсе. *@
+@* Черновики переговорщика со статусом (SPEC §3): передан, подан как заявка, возвращён с причиной. Черновики,
+   которые ждут управляющего, он видит в «Ждёт моего ответа» (раздел «Сделки», блок 4 редизайна).
+   Условия показываются полностью: это внутреннее дело команды, контрагент черновиков не видит вовсе. *@
 
 @if (_errorMessage is not null)
 {
@@ -13,76 +13,36 @@
     <div class="alert alert-success">@_successMessage</div>
 }
 
-@if (Role == ParticipantRole.Manager)
+<h3 class="mt-4">Мои черновики</h3>
+@if (_rows.Count == 0)
 {
-    <h3 class="mt-4">
-        Черновики от переговорщиков
-        @if (_rows.Count > 0)
-        {
-            <span class="badge rounded-pill bg-danger ms-1">@_rows.Count</span>
-        }
-    </h3>
-    @if (_rows.Count == 0)
-    {
-        <p><em>Новых черновиков нет.</em></p>
-    }
-    else
-    {
-        <div class="d-flex flex-column gap-2 mb-2">
-            @foreach (var row in _rows)
-            {
-                <div class="border rounded p-2">
-                    <div><strong>@row.AuthorName</strong> · @row.Summary</div>
-                    <div class="text-muted small">@row.Terms · передан на ходу @row.PreparedOnTurn</div>
-                    @if (IsDecisionPhase)
-                    {
-                        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-                            <button type="button" class="btn btn-primary btn-sm" @onclick="() => SubmitAsIs(row.DraftId)">Подать как есть</button>
-                            <button type="button" class="btn btn-secondary btn-sm" @onclick="() => OnEdit.InvokeAsync(row.DraftId)">Поправить</button>
-                            <input class="form-control form-control-sm d-inline-block w-auto" placeholder="Причина (необязательно)" @bind="_returnReasons[row.DraftId]" />
-                            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => Return(row.DraftId)">Вернуть</button>
-                        </div>
-                    }
-                </div>
-            }
-        </div>
-    }
+    <p><em>Вы ещё не передавали черновиков управляющему.</em></p>
 }
 else
 {
-    <h3 class="mt-4">Мои черновики</h3>
-    @if (_rows.Count == 0)
-    {
-        <p><em>Вы ещё не передавали черновиков управляющему.</em></p>
-    }
-    else
-    {
-        <div class="d-flex flex-column gap-2 mb-2">
-            @foreach (var row in _rows)
-            {
-                <div class="border rounded p-2">
-                    <div>@row.Summary · <strong>@row.StatusLabel</strong></div>
-                    <div class="text-muted small">@row.Terms · передан на ходу @row.PreparedOnTurn</div>
-                    @if (row.ReturnReason is not null)
-                    {
-                        <div class="small">Причина: @row.ReturnReason</div>
-                    }
-                    @if (IsDecisionPhase && row.Status == ContractDraftStatus.AwaitingManager)
-                    {
-                        <button type="button" class="btn btn-link btn-sm p-0 mt-1" @onclick="() => Withdraw(row.DraftId)">Забрать</button>
-                    }
-                </div>
-            }
-        </div>
-    }
+    <div class="d-flex flex-column gap-2 mb-2">
+        @foreach (var row in _rows)
+        {
+            <div class="border rounded p-2">
+                <div>@row.Summary · <strong>@row.StatusLabel</strong></div>
+                <div class="text-muted small">@row.Terms · передан на ходу @row.PreparedOnTurn</div>
+                @if (row.ReturnReason is not null)
+                {
+                    <div class="small">Причина: @row.ReturnReason</div>
+                }
+                @if (IsDecisionPhase && row.Status == ContractDraftStatus.AwaitingManager)
+                {
+                    <button type="button" class="btn btn-link btn-sm p-0 mt-1" @onclick="() => Withdraw(row.DraftId)">Забрать</button>
+                }
+            </div>
+        }
+    </div>
 }
+
 
 @code {
     [Parameter, EditorRequired]
     public Ulid TeamId { get; set; }
-
-    [Parameter, EditorRequired]
-    public ParticipantRole Role { get; set; }
 
     /// <summary>Код входа вошедшего — по нему переговорщик находит свои черновики.</summary>
     [Parameter]
@@ -91,19 +51,14 @@ else
     [Parameter]
     public bool IsDecisionPhase { get; set; }
 
-    /// <summary>Управляющий хочет поправить черновик перед подачей — родитель загружает его в форму.</summary>
-    [Parameter]
-    public EventCallback<Ulid> OnEdit { get; set; }
-
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
     private sealed record DraftRow(
-        Ulid DraftId, string AuthorName, string Summary, string Terms, int PreparedOnTurn,
+        Ulid DraftId, string Summary, string Terms, int PreparedOnTurn,
         ContractDraftStatus Status, string StatusLabel, string? ReturnReason);
 
     private IReadOnlyList<DraftRow> _rows = Array.Empty<DraftRow>();
-    private readonly Dictionary<Ulid, string?> _returnReasons = new();
     private string? _errorMessage;
     private string? _successMessage;
 
@@ -120,20 +75,11 @@ else
             }
 
             var state = Host.Session.State;
-            var drafts = state.ContractDrafts.Values.Where(d => d.TeamId == TeamId);
-            drafts = Role == ParticipantRole.Manager
-                ? drafts.Where(d => d.Status == ContractDraftStatus.AwaitingManager)
-                : drafts.Where(d => d.PreparedByParticipantCode == ParticipantCode);
-
-            _rows = drafts
+            _rows = state.ContractDrafts.Values
+                .Where(d => d.TeamId == TeamId && d.PreparedByParticipantCode == ParticipantCode)
                 .OrderByDescending(d => d.Id.ToString(), StringComparer.Ordinal)
                 .Select(d => ToRow(d, state))
                 .ToList();
-        }
-
-        foreach (var row in _rows)
-        {
-            _returnReasons.TryAdd(row.DraftId, null);
         }
     }
 
@@ -147,42 +93,11 @@ else
         // Название команды — произвольная строка и не склоняется, поэтому «у команды «Нефть»», а не «у «Нефти»».
         var summary = (weAreBuyer ? "покупка у команды «" : "продажа команде «") + counterpartyName + "»: " + terms.Material.Name;
         var termsText = DashboardDisplay.DraftTermsLabel(terms);
-        var author = state.Participants.TryGetValue(draft.PreparedByParticipantCode, out var participant)
-            ? participant.DisplayName
-            : "Переговорщик";
 
         return new DraftRow(
-            draft.Id, author, summary, termsText, draft.PreparedOnTurn,
+            draft.Id, summary, termsText, draft.PreparedOnTurn,
             draft.Status, DashboardDisplay.ContractDraftStatusLabel(draft.Status), draft.ReturnReason);
     }
-
-    private async Task SubmitAsIs(Ulid draftId) => await Run(() =>
-    {
-        var draft = Host.Session!.State.ContractDrafts[draftId];
-        var result = Host.Session.SubmitContractProposal(draft.Proposal, TeamRole.Manager, Random.Shared, draftId);
-        if (result.IsMatched)
-        {
-            _successMessage = "Условия сошлись — сделка заключена, ждёт подтверждения управляющего контрагента.";
-        }
-        else if (result.HasCounterpartyProposal)
-        {
-            // Чужие числа не называем — только расходящиеся поля, как в форме черновика (№16).
-            _errorMessage =
-                "Заявка от контрагента уже есть, но условия не сошлись: "
-                + string.Join("; ", result.Mismatches.Select(DashboardDisplay.ContractMismatchLabel))
-                + ". Заявка сохранена — уточните расхождение лично и подайте заново.";
-        }
-        else
-        {
-            _successMessage = "Заявка подана и ждёт встречной от контрагента.";
-        }
-    });
-
-    private async Task Return(Ulid draftId) => await Run(() =>
-    {
-        Host.Session!.ReturnContractDraft(draftId, TeamId, _returnReasons.GetValueOrDefault(draftId));
-        _successMessage = "Черновик возвращён переговорщику.";
-    });
 
     private async Task Withdraw(Ulid draftId) => await Run(() =>
     {

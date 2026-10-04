@@ -57,8 +57,8 @@
         @if (!IsManager)
         {
             <section class="mb-4">
-                <ContractDraftList TeamId="Screen.TeamId" Role="Screen.Role" ParticipantCode="@Screen.ParticipantCode" IsDecisionPhase="Screen.IsDecisionPhase"
-                                   OnEdit="draftId => Screen.EditingDraftId = draftId" OnChanged="Screen.Refresh" />
+                <ContractDraftList TeamId="Screen.TeamId" ParticipantCode="@Screen.ParticipantCode" IsDecisionPhase="Screen.IsDecisionPhase"
+                                   OnChanged="Screen.Refresh" />
             </section>
         }
 

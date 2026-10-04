@@ -82,6 +82,39 @@ public static class EconomyIndexDisplay
     }
 
     /// <summary>
+    /// Одна строка «На что влияет индекс»: <see cref="Multiplier"/> — «×1.03» или «не меняются»;
+    /// <see cref="CssClass"/> — зелёный, если для команды это хорошо, красный — если плохо.
+    /// </summary>
+    public sealed record Effect(string What, string Multiplier, string CssClass);
+
+    /// <summary>
+    /// Что именно значит текущий индекс для денег команды (docs/manager-ui/README.md §3 п.7: объясняем
+    /// числа, которые игрок не может проверить сам). Индекс двигает только сторону спроса
+    /// (docs/external-economy.md §2.1, §2.3): цену сбыта системе, её ёмкость и цену аварийной закупки.
+    /// Издержки и цены контрактов между командами он не трогает — без этой строки игрок ищет влияние
+    /// индекса на зарплаты, которого нет.
+    /// </summary>
+    public static IReadOnlyList<Effect> Effects(decimal index)
+    {
+        var multiplier = "×" + index.ToString("0.00", CultureInfo.InvariantCulture);
+        var (good, bad) = index switch
+        {
+            > EconomyIndexCalculator.NeutralIndex => ("text-success", "text-danger"),
+            < EconomyIndexCalculator.NeutralIndex => ("text-danger", "text-success"),
+            _ => ("text-muted", "text-muted"),
+        };
+
+        return
+        [
+            new Effect("Цена, по которой система покупает у вас", multiplier, good),
+            new Effect("Сколько система готова купить без падения цены", multiplier, good),
+            new Effect("Цена аварийной закупки у системы", multiplier, bad),
+            new Effect("Зарплаты, энергия, содержание, постройка", "не меняются", "text-muted"),
+            new Effect("Цены контрактов между командами", "не меняются", "text-muted"),
+        ];
+    }
+
+    /// <summary>
     /// График индекса по ходам. Одна линия, линейная шкала — размах индекса невелик
     /// (<see cref="EconomyConfig.EconomyIndexMin"/>..<see cref="EconomyConfig.EconomyIndexMax"/>),
     /// логарифмическая тут нечего показывать.

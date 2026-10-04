@@ -293,12 +293,12 @@ public class AuthenticationTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task Negotiate_Page_Allows_A_Logged_In_Negotiator()
+    public async Task Deals_Page_Allows_A_Logged_In_Negotiator()
     {
         var client = CreateClient();
         await PostLogin(client, SeedCodeFor(ParticipantRole.Negotiator));
 
-        var response = await client.GetAsync("/team/negotiate");
+        var response = await client.GetAsync("/team/deals");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

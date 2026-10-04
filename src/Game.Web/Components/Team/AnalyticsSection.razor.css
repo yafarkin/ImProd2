@@ -1,0 +1,33 @@
+/* «Аналитика» (макет mockups/analytics.html): на широком экране слева счёт, график и индекс, справа
+   история операций. */
+.analytics-layout {
+    display: grid;
+    gap: 1rem;
+}
+
+@media (min-width: 992px) {
+    .analytics-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 1.5rem;
+    }
+}
+
+.min-w-0 {
+    min-width: 0;
+}
+
+.kv {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 0.15rem 1rem;
+}
+
+.kv dt {
+    font-weight: normal;
+    color: #6c757d;
+}
+
+.kv dd {
+    margin: 0;
+    text-align: right;
+}

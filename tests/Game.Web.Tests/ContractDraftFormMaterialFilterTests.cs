@@ -52,7 +52,7 @@ public class ContractDraftFormMaterialFilterTests
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
 
-            var response = await client.GetAsync("/team/negotiate");
+            var response = await client.GetAsync("/team/deals");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
@@ -94,7 +94,7 @@ public class ContractDraftFormMaterialFilterTests
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
 
-            var response = await client.GetAsync("/team/negotiate");
+            var response = await client.GetAsync("/team/deals");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 

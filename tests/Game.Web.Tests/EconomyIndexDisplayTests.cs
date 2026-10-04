@@ -91,4 +91,30 @@ public class EconomyIndexDisplayTests
     private static EconomyConfig ShippedEconomy() => GameConfigLoader.LoadFromFiles(
         Path.Combine(AppContext.BaseDirectory, "Samples", "production-models", "training-1-sector.json"),
         Path.Combine(AppContext.BaseDirectory, "Samples", "sessions", "main.json")).Raw.Economy;
+
+    /// <summary>
+    /// Индекс двигает только сторону спроса (docs/external-economy.md §2.1, §2.3) — таблица «На что
+    /// влияет» обязана говорить это прямо, иначе игрок ищет влияние индекса на зарплаты.
+    /// </summary>
+    [Fact]
+    public void Effects_Scale_Demand_Side_Only_And_Name_What_Stays_Put()
+    {
+        var effects = EconomyIndexDisplay.Effects(1.03m);
+
+        Assert.Equal(3, effects.Count(e => e.Multiplier == "×1.03"));
+        Assert.Contains(effects, e => e.What.StartsWith("Зарплаты") && e.Multiplier == "не меняются");
+        Assert.Contains(effects, e => e.What.StartsWith("Цены контрактов") && e.Multiplier == "не меняются");
+    }
+
+    [Fact]
+    public void A_Rising_Index_Is_Good_For_Sales_And_Bad_For_Emergency_Purchase()
+    {
+        var up = EconomyIndexDisplay.Effects(1.05m);
+        var down = EconomyIndexDisplay.Effects(0.95m);
+
+        Assert.Equal("text-success", up.Single(e => e.What.StartsWith("Цена, по которой")).CssClass);
+        Assert.Equal("text-danger", up.Single(e => e.What.StartsWith("Цена аварийной")).CssClass);
+        Assert.Equal("text-danger", down.Single(e => e.What.StartsWith("Цена, по которой")).CssClass);
+        Assert.Equal("text-success", down.Single(e => e.What.StartsWith("Цена аварийной")).CssClass);
+    }
 }

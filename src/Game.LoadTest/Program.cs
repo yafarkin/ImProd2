@@ -162,7 +162,7 @@ internal static class LoadTestRunner
         {
             participants.Add((Register(host, ParticipantRole.Manager, team.Id, $"Управляющий {team.Name}"), "/team"));
             participants.Add((Register(host, ParticipantRole.Negotiator, team.Id, $"Переговорщик 1 {team.Name}"), "/team"));
-            participants.Add((Register(host, ParticipantRole.Negotiator, team.Id, $"Переговорщик 2 {team.Name}"), "/team/negotiate"));
+            participants.Add((Register(host, ParticipantRole.Negotiator, team.Id, $"Переговорщик 2 {team.Name}"), "/team/deals"));
         }
         participants.Add((Register(host, ParticipantRole.Operator, null, "Оператор"), "/operator"));
         participants.Add((Register(host, ParticipantRole.Facilitator, null, "Ведущий"), "/facilitator"));
