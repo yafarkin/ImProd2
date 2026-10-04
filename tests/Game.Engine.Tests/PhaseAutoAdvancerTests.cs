@@ -109,4 +109,71 @@ public class PhaseAutoAdvancerTests
         var actedAgain = PhaseAutoAdvancer.TryAdvance(session, Epoch + TimeSpan.FromDays(1), new Random(1));
         Assert.False(actedAgain);
     }
+
+    [Fact]
+    public void Facilitator_Advance_Out_Of_An_Uncalculated_Settlement_While_Paused_Runs_The_Tick_First()
+    {
+        var session = StartSession();
+        session.Pause();
+
+        PhaseAutoAdvancer.AdvanceByFacilitator(session, new Random(1));
+
+        Assert.Equal(TurnPhase.Decision, session.State.CurrentPhase);
+        Assert.Equal(1, session.Entries.Count(e => e.Change is MarketUpdated));
+    }
+
+    [Fact]
+    public void Facilitator_Advance_Into_Settlement_While_Paused_Runs_The_Tick_Immediately()
+    {
+        var session = StartSession();
+        session.Pause();
+        PhaseAutoAdvancer.AdvanceByFacilitator(session, new Random(1)); // Settlement(1) -> Decision(1)
+
+        PhaseAutoAdvancer.AdvanceByFacilitator(session, new Random(1)); // Decision(1) -> Settlement(2)
+
+        Assert.Equal(2, session.State.CurrentTurn);
+        Assert.Equal(TurnPhase.Settlement, session.State.CurrentPhase);
+        Assert.True(PhaseTimerCalculator.CalculationTickAlreadyRanForCurrentPhase(session));
+        Assert.Equal(2, session.Entries.Count(e => e.Change is MarketUpdated));
+    }
+
+    [Fact]
+    public void Repeated_Facilitator_Advances_Calculate_Every_Turn_Exactly_Once()
+    {
+        var session = StartSession();
+        session.Pause();
+
+        for (var i = 0; i < 10; i++)
+        {
+            PhaseAutoAdvancer.AdvanceByFacilitator(session, new Random(1));
+        }
+
+        // Десять переходов от Settlement(1): Decision(1), Settlement(2), ..., Decision(5), Settlement(6).
+        Assert.Equal(6, session.State.CurrentTurn);
+        Assert.Equal(6, session.Entries.Count(e => e.Change is MarketUpdated));
+    }
+
+    [Fact]
+    public void Facilitator_Advance_Does_Not_Rerun_A_Tick_The_Timer_Already_Ran()
+    {
+        var session = StartSession();
+        PhaseAutoAdvancer.TryAdvance(session, Epoch, new Random(1)); // the timer runs the tick
+
+        PhaseAutoAdvancer.AdvanceByFacilitator(session, new Random(1));
+
+        Assert.Equal(TurnPhase.Decision, session.State.CurrentPhase);
+        Assert.Equal(1, session.Entries.Count(e => e.Change is MarketUpdated));
+    }
+
+    [Fact]
+    public void Facilitator_Advance_That_Finishes_The_Session_Runs_No_Tick()
+    {
+        var session = StartSession(endTurn: 1);
+        PhaseAutoAdvancer.AdvanceByFacilitator(session, new Random(1)); // Settlement(1) -> Decision(1)
+
+        PhaseAutoAdvancer.AdvanceByFacilitator(session, new Random(1)); // Decision(1) at EndTurn -> finished
+
+        Assert.True(session.State.IsFinished);
+        Assert.Equal(1, session.Entries.Count(e => e.Change is MarketUpdated));
+    }
 }

@@ -48,4 +48,34 @@ public static class PhaseAutoAdvancer
         session.AdvancePhase(PhaseTransitionTrigger.Timer);
         return true;
     }
+
+    /// <summary>
+    /// Досрочный переход фазы по команде ведущего («Ускорить фазу»). Голый
+    /// <see cref="GameSession.AdvancePhase"/> здесь не годится: расчёт считает только
+    /// <see cref="TryAdvance"/>, а тот на паузе молчит и опрашивается раз в секунду, — поэтому ведущий,
+    /// ускоряющий фазы на паузе или просто двумя быстрыми нажатиями, проводил сессию через
+    /// <see cref="TurnPhase.Settlement"/> без расчёта: ход проходил без зарплат, производства и поставок.
+    /// Тут расчёт гарантирован с обеих сторон перехода: досчитывается перед уходом из
+    /// <see cref="TurnPhase.Settlement"/>, если ещё не был посчитан, и считается сразу при входе в неё —
+    /// даже на паузе, раз ведущий двигает фазы явно.
+    /// </summary>
+    public static void AdvanceByFacilitator(GameSession session, Random newsRandom)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(newsRandom);
+
+        EnsureCalculationTickRan(session, newsRandom);
+        session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
+        EnsureCalculationTickRan(session, newsRandom);
+    }
+
+    private static void EnsureCalculationTickRan(GameSession session, Random newsRandom)
+    {
+        if (!session.State.IsFinished
+            && session.State.CurrentPhase == TurnPhase.Settlement
+            && !PhaseTimerCalculator.CalculationTickAlreadyRanForCurrentPhase(session))
+        {
+            session.RunTick(newsRandom);
+        }
+    }
 }

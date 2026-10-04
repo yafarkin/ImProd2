@@ -436,7 +436,7 @@ else
 
     private void StartSession() => RunAction(() => Host.StartSessionFromDraft());
 
-    private void AdvancePhaseNow() => RunAction(() => Host.Session!.AdvancePhase(PhaseTransitionTrigger.Facilitator));
+    private void AdvancePhaseNow() => RunAction(() => PhaseAutoAdvancer.AdvanceByFacilitator(Host.Session!, Random.Shared));
 
     private void TogglePause() => RunAction(() =>
     {
