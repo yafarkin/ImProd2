@@ -24,8 +24,8 @@ public sealed record ContractRevisionProposed : Change<GameSessionState>
     /// <summary>Предложенная новая ставка штрафа за срыв.</summary>
     public required decimal PenaltyRate { get; init; }
 
-    /// <summary>Предложенный новый последний ход действия контракта.</summary>
-    public required int RecurringEndTurn { get; init; }
+    /// <summary>Предложенный новый последний ход действия контракта; <c>null</c> — бессрочно, до расторжения.</summary>
+    public required int? RecurringEndTurn { get; init; }
 
     public override void Apply(GameSessionState state)
     {

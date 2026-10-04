@@ -599,10 +599,13 @@ public sealed class GameSession
     /// Предлагает пересмотр условий действующего recurring-контракта (Блок 9.3, SPEC §6): вторая
     /// сторона вправе принять или отклонить через <see cref="RespondToContractRevision"/>, при
     /// отказе контракт продолжает действовать без изменений и без штрафа за сам факт предложения.
+    /// <paramref name="recurringEndTurn"/> — последний ход действия нового контракта; <c>null</c> —
+    /// бессрочно, до расторжения. Раньше ход окончания был обязателен, и пересмотр одной цены у
+    /// бессрочного контракта молча делал его срочным (приёмка редизайна 2026-10-04).
     /// Только в фазе решений.
     /// </summary>
     public EventLogEntry<GameSessionState> ProposeContractRevision(
-        Ulid contractId, Ulid proposingTeamId, decimal volume, decimal unitPrice, decimal penaltyRate, int recurringEndTurn)
+        Ulid contractId, Ulid proposingTeamId, decimal volume, decimal unitPrice, decimal penaltyRate, int? recurringEndTurn)
     {
         EnsureDecisionsAllowed();
 

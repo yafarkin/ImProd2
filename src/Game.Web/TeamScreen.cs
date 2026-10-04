@@ -195,7 +195,8 @@ public sealed partial class TeamScreen
     public Dictionary<Ulid, decimal> RevisionVolumes { get; } = new();
     public Dictionary<Ulid, decimal> RevisionUnitPrices { get; } = new();
     public Dictionary<Ulid, decimal> RevisionPenaltyRates { get; } = new();
-    public Dictionary<Ulid, int> RevisionEndTurns { get; } = new();
+    /// <summary>Ход окончания в форме пересмотра; <c>null</c> — бессрочно. Изначально — срок самого контракта.</summary>
+    public Dictionary<Ulid, int?> RevisionEndTurns { get; } = new();
     public string? SelectedFactoryDefinitionId { get; set; }
     public string? ErrorMessage { get; set; }
 
@@ -500,7 +501,7 @@ public sealed partial class TeamScreen
                     RevisionVolumes.TryAdd(c.Id, c.Terms.Volume);
                     RevisionUnitPrices.TryAdd(c.Id, c.Terms.UnitPrice);
                     RevisionPenaltyRates.TryAdd(c.Id, c.Terms.PenaltyRate);
-                    RevisionEndTurns.TryAdd(c.Id, c.Terms.RecurringEndTurn ?? CurrentTurn);
+                    RevisionEndTurns.TryAdd(c.Id, c.Terms.RecurringEndTurn);
 
                     return new ContractRow(
                         c.Id, c.BuyerTeamId == TeamId ? "Покупатель" : "Продавец", counterpartyName, c.Terms.Material.Name,
@@ -852,7 +853,7 @@ public sealed partial class TeamScreen
         var volume = RevisionVolumes.GetValueOrDefault(contractId, 1m);
         var unitPrice = RevisionUnitPrices.GetValueOrDefault(contractId, 1m);
         var penaltyRate = RevisionPenaltyRates.GetValueOrDefault(contractId, 0.1m);
-        var endTurn = RevisionEndTurns.GetValueOrDefault(contractId, CurrentTurn);
+        var endTurn = RevisionEndTurns.GetValueOrDefault(contractId);
         RunAction(() => Host.Session!.ProposeContractRevision(contractId, TeamId, volume, unitPrice, penaltyRate, endTurn));
     }
 

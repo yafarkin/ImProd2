@@ -44,11 +44,11 @@
                     </label>
                     <label class="fld">
                         <span class="lbl">До хода</span>
-                        <input type="number" min="1" class="form-control form-control-sm" @bind="Screen.RevisionEndTurns[Contract.ContractId]" />
+                        <input type="number" min="1" class="form-control form-control-sm" placeholder="бессрочно" @bind="Screen.RevisionEndTurns[Contract.ContractId]" />
                     </label>
                 </div>
                 <p class="small text-muted mb-1">
-                    Пересмотр всегда задаёт ход окончания@(Contract.RecurringEndTurn is null ? " — сейчас контракт бессрочный" : "").
+                    Пустое «До хода» — бессрочно, до расторжения; номер хода делает контракт срочным.
                     Новые условия вступят в силу, только если вторая сторона примет их.
                 </p>
             }

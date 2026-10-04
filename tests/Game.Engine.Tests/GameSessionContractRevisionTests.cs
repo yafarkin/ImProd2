@@ -125,6 +125,27 @@ public class GameSessionContractRevisionTests
         Assert.True(session.VerifyIntegrity());
     }
 
+    /// <summary>
+    /// Пересмотр без хода окончания — бессрочный контракт-замена (приёмка редизайна 2026-10-04): раньше
+    /// ход окончания был обязателен, и пересмотр одной цены молча делал бессрочный контракт срочным.
+    /// </summary>
+    [Fact]
+    public void A_Revision_Without_An_End_Turn_Makes_The_Replacement_Open_Ended()
+    {
+        var (session, buyerId, _, contractId) = StartWithActiveRecurringContract();
+        session.ProposeContractRevision(contractId, buyerId, volume: 10m, unitPrice: 18m, penaltyRate: 0.1m, recurringEndTurn: null);
+
+        Assert.Null(session.GetPendingContractRevision(contractId)!.RecurringEndTurn);
+
+        session.RespondToContractRevision(contractId, TeamRole.Manager, accept: true, new Random(2));
+
+        var replacement = session.State.Contracts.Values.Single(c => c.SupersedesContractId == contractId);
+        Assert.Equal(ContractStatus.Active, replacement.Status);
+        Assert.Equal(18m, replacement.Terms.UnitPrice);
+        Assert.Null(replacement.Terms.RecurringEndTurn);
+        Assert.True(session.VerifyIntegrity());
+    }
+
     [Fact]
     public void RespondToContractRevision_Reject_Leaves_The_Contract_Unchanged()
     {
