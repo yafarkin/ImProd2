@@ -1,85 +1,286 @@
 @inject NavigationManager Nav
 
-@* Раздел «Ход» (docs/manager-ui/README.md §4). В блоке 1 здесь только панель «Требует внимания»,
-   перенесённая как есть; итоги расчёта, «Ждёт моего решения» и «Приказ на ход» — блок 2. *@
+@* Раздел «Ход» (docs/manager-ui/README.md §4, блок 2) — экран следует циклу хода: что принёс расчёт →
+   что идёт не так → что ждёт моего решения → что я уже решил. На широком экране две колонки: слева
+   «прошлое», справа «сейчас»; на телефоне — одна, в том же порядке. *@
 
-<h2>Требует внимания</h2>
-@* Вводный текст свёрнут в <details>: на телефоне развёрнутый абзац занимал полэкрана и
-   отодвигал сами поводы ниже сгиба — то есть мешал ровно тому, ради чего вкладка сделана
-   (проверено живым прогоном в браузере 2026-09-08). Одной строки достаточно, чтобы стало
-   понятно, чего тут ждать, остальное — по клику для тех, кому интересно. *@
-@if (!Screen.IsFinished)
-{
-    <p class="text-muted mb-2">
-        Только факты: что уже идёт не так и что сломается в ближайшие
-        @DashboardDisplay.Turns(TeamAttentionCalculator.SoonHorizonTurns). Что делать — решаете вы.
-    </p>
-    <details class="mb-3">
-        <summary class="text-muted small">Как это считается</summary>
-        <p class="text-muted small mt-2">
-            Подсказок по стратегии здесь нет и не будет: панель показывает, что происходит и почему,
-            но не советует, что строить, покупать или продавать. Прогнозы считаются по самой
-            оптимистичной оценке собственного выпуска — как если бы сырья всегда хватало, — поэтому
-            если предупреждение появилось, беда наступит даже при идеальной загрузке фабрик.
-        </p>
-    </details>
-}
-@if (Screen.IsFinished)
-{
-    @* Панель говорит только про будущее — «списывается каждый ход», «сломается через 2 хода».
-       После последнего хода такого будущего нет, и те же слова из полезного предупреждения
-       превращаются в неверное утверждение. Поэтому здесь она замолкает целиком, а не показывает
-       устаревший список (замечено живым прогоном 2026-09-08, docs/TODO.md №10). *@
-    <div class="alert alert-secondary">
-        Партия закончилась — предупреждать больше не о чем. Что происходило с фабриками и
-        складом по ходам, осталось в разделах «Производство» и «Аналитика».
-    </div>
-}
-else if (Screen.Attention.Count == 0)
-{
-    <div class="alert alert-success">Ничего срочного. Ни одна фабрика не простаивает, поставки обеспечены, склад в пределах лимита.</div>
-}
-else
-{
-    @foreach (var group in new[]
-    {
-        (Horizon: TeamAttentionCalculator.AttentionHorizon.Now, Title: "Прямо сейчас", Color: "#dc3545"),
-        (Horizon: TeamAttentionCalculator.AttentionHorizon.Soon, Title: "Через несколько ходов", Color: "#fd7e14"),
-    })
-    {
-        var items = Screen.Attention.Where(i => i.Horizon == group.Horizon).ToList();
-        @if (items.Count > 0)
-        {
-            <h3 class="h6 text-uppercase text-muted mt-3">@group.Title</h3>
-            <div class="d-flex flex-column gap-2">
-                @foreach (var item in items)
+<div class="row g-3">
+    <div class="col-lg-6">
+        <section class="card mb-3">
+            <div class="card-body">
+                @if (Screen.LastSettlement is { } summary)
                 {
-                    var (headline, detail) = DashboardDisplay.AttentionText(item, Screen.AttentionNaming);
-                    <div class="border rounded p-2" style="border-color:@group.Color; border-left-width:4px; background:@(group.Color)14">
-                        <div style="font-weight:600">@headline</div>
-                        <div class="text-muted small">@detail</div>
-                        @if (TeamScreen.AttentionTargetFactoryId(item) is { } targetId)
+                    <h2 class="h5 card-title">Итоги расчёта хода @summary.Turn</h2>
+                    <table class="table table-sm mb-2">
+                        <tbody>
+                            @foreach (var line in summary.Lines)
+                            {
+                                <tr>
+                                    <td>@line.Label</td>
+                                    <td class="text-end text-nowrap @(line.Amount >= 0 ? "text-success" : "text-danger")">@Signed(line.Amount)</td>
+                                </tr>
+                            }
+                            <tr class="fw-bold">
+                                <td>Итого за расчёт</td>
+                                <td class="text-end text-nowrap @(summary.Net >= 0 ? "text-success" : "text-danger")">@Signed(summary.Net)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    @if (Screen.LastSettlementOutput.Count > 0)
+                    {
+                        <p class="small text-muted mb-1">
+                            Произведено: @string.Join(" · ", Screen.LastSettlementOutput.Select(x => $"{x.MaterialName} {x.Quantity:0.##}"))
+                        </p>
+                    }
+                    @foreach (var delivery in summary.Deliveries)
+                    {
+                        <p class="small text-muted mb-1">Поставка: @delivery</p>
+                    }
+                    <a class="small" href="/team/analytics">Все операции →</a>
+                }
+                else
+                {
+                    <h2 class="h5 card-title">Итоги расчёта</h2>
+                    <p class="text-muted mb-0">Расчётов с движением денег ещё не было — итоги появятся после первого.</p>
+                }
+            </div>
+        </section>
+
+        <section class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5 card-title">
+                    Требует внимания
+                    @if (Screen.Attention.Count > 0 && !Screen.IsFinished)
+                    {
+                        <span class="badge rounded-pill bg-secondary ms-1">@Screen.Attention.Count</span>
+                    }
+                </h2>
+                @* Вводный текст свёрнут в <details>: на телефоне развёрнутый абзац занимал полэкрана и
+                   отодвигал сами поводы ниже сгиба (проверено живым прогоном в браузере 2026-09-08). *@
+                @if (!Screen.IsFinished)
+                {
+                    <p class="text-muted small mb-1">
+                        Только факты: что уже идёт не так и что сломается в ближайшие
+                        @DashboardDisplay.Turns(TeamAttentionCalculator.SoonHorizonTurns). Что делать — решаете вы.
+                    </p>
+                    <details class="mb-2">
+                        <summary class="text-muted small">Как это считается</summary>
+                        <p class="text-muted small mt-2">
+                            Подсказок по стратегии здесь нет и не будет: панель показывает, что происходит и почему,
+                            но не советует, что строить, покупать или продавать. Прогнозы считаются по самой
+                            оптимистичной оценке собственного выпуска — как если бы сырья всегда хватало, — поэтому
+                            если предупреждение появилось, беда наступит даже при идеальной загрузке фабрик.
+                        </p>
+                    </details>
+                }
+                @if (Screen.IsFinished)
+                {
+                    @* Панель говорит только про будущее. После последнего хода такого будущего нет, и те же
+                       слова превращаются в неверное утверждение (живой прогон 2026-09-08, docs/TODO.md №10). *@
+                    <p class="text-muted mb-0">
+                        Партия закончилась — предупреждать больше не о чем. Что происходило с фабриками и
+                        складом по ходам, осталось в разделах «Производство» и «Аналитика».
+                    </p>
+                }
+                else if (Screen.Attention.Count == 0)
+                {
+                    <div class="alert alert-success mb-0">Ничего срочного. Ни одна фабрика не простаивает, поставки обеспечены, склад в пределах лимита.</div>
+                }
+                else
+                {
+                    @foreach (var horizon in Horizons)
+                    {
+                        var groups = Screen.Attention
+                            .Where(i => i.Horizon == horizon.Horizon)
+                            .GroupBy(i => i.GetType())
+                            .ToList();
+                        @if (groups.Count > 0)
                         {
-                            <button type="button" class="btn btn-link btn-sm p-0"
-                                    @onclick="() => OpenFactoryFromAttention(targetId)">Открыть фабрику</button>
+                            <h3 class="h6 text-uppercase text-muted mt-2">@horizon.Title</h3>
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var group in groups)
+                                {
+                                    var items = group.ToList();
+                                    <div class="border rounded p-2" style="border-color:@horizon.Color; border-left-width:4px; background:@(horizon.Color)14">
+                                        @if (items.Count == 1)
+                                        {
+                                            var (headline, detail) = DashboardDisplay.AttentionText(items[0], Screen.AttentionNaming);
+                                            <div style="font-weight:600">@headline</div>
+                                            <div class="text-muted small">@detail</div>
+                                            @if (TeamScreen.AttentionTargetFactoryId(items[0]) is { } targetId)
+                                            {
+                                                var tab = DashboardDisplay.AttentionFactoryTab(items[0]);
+                                                <button type="button" class="btn btn-link btn-sm p-0"
+                                                        @onclick="() => OpenFactory(targetId, tab)">Открыть фабрику</button>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @* Одинаковые поводы — одной карточкой: три фабрики с одним и тем же «капремонт
+                                               подорожает» раньше шли тремя одинаковыми карточками подряд (живой обход 2026-10-04). *@
+                                            <div style="font-weight:600">@DashboardDisplay.AttentionGroupHeadline(items[0], items.Count)</div>
+                                            <ul class="list-unstyled small mb-0 mt-1">
+                                                @foreach (var item in items)
+                                                {
+                                                    var (headline, detail) = DashboardDisplay.AttentionText(item, Screen.AttentionNaming);
+                                                    <li class="mb-1">
+                                                        @if (TeamScreen.AttentionTargetFactoryId(item) is { } targetId)
+                                                        {
+                                                            var tab = DashboardDisplay.AttentionFactoryTab(item);
+                                                            <button type="button" class="btn btn-link btn-sm p-0 align-baseline text-start"
+                                                                    @onclick="() => OpenFactory(targetId, tab)">@headline</button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>@headline</span>
+                                                        }
+                                                        <span class="text-muted"> — @detail</span>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                }
+            </div>
+        </section>
+    </div>
+
+    <div class="col-lg-6">
+        <section class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5 card-title">
+                    @(Screen.Role == ParticipantRole.Manager ? "Ждёт моего решения" : "Ждёт решения управляющего")
+                    @if (Screen.Awaiting.Count > 0)
+                    {
+                        <span class="badge rounded-pill bg-danger ms-1">@Screen.Awaiting.Count</span>
+                    }
+                </h2>
+                @if (Screen.Awaiting.Count == 0)
+                {
+                    <p class="text-muted mb-0">Ничего не ждёт: подтверждений, пересмотров, входящих заявок и черновиков нет.</p>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-2">
+                        @foreach (var item in Screen.Awaiting)
+                        {
+                            <div class="border rounded p-2" style="border-color:#0d6efd; border-left-width:4px; background:#0d6efd0f">
+                                <div style="font-weight:600">@item.Title</div>
+                                <div class="text-muted small">@item.Detail</div>
+                                @if (CanAct)
+                                {
+                                    <div class="d-flex flex-wrap gap-2 mt-2">
+                                        @switch (item.Kind)
+                                        {
+                                            case TeamScreen.AwaitingKind.Draft:
+                                                <a class="btn btn-primary btn-sm" href="/team/deals">Разобрать в «Сделках»</a>
+                                                break;
+                                            case TeamScreen.AwaitingKind.Confirmation:
+                                                <button type="button" class="btn btn-primary btn-sm" @onclick="() => Screen.ConfirmContract(item.Id)">Подтвердить</button>
+                                                break;
+                                            case TeamScreen.AwaitingKind.Revision:
+                                                <button type="button" class="btn btn-primary btn-sm" @onclick="() => Screen.AcceptRevision(item.Id)">Принять</button>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => Screen.RejectRevision(item.Id)">Отклонить</button>
+                                                break;
+                                            case TeamScreen.AwaitingKind.IncomingProposal:
+                                                <a class="btn btn-primary btn-sm" href="/team/deals">Ответить заявкой</a>
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => Screen.RejectProposal(item.Id)">Отклонить</button>
+                                                break;
+                                        }
+                                    </div>
+                                }
+                            </div>
                         }
                     </div>
                 }
             </div>
-        }
-    }
-}
+        </section>
+
+        <section class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5 card-title">Приказ на ход @Screen.CurrentTurn</h2>
+                @if (Screen.IsFinished)
+                {
+                    <p class="text-muted mb-0">Партия закончилась — решения больше не принимаются.</p>
+                }
+                else if (Screen.OrderLines.Count == 0)
+                {
+                    <p class="text-muted mb-0">
+                        Решений на этот ход пока нет. Наём, продажи системе, капремонт и аварийные закупки,
+                        объявленные в «Производстве», соберутся здесь.
+                    </p>
+                }
+                else
+                {
+                    <p class="text-muted small mb-2">
+                        Всё это исполнится при ближайшем расчёте, одним разом. До него любое решение можно отменить или поменять.
+                    </p>
+                    @foreach (var group in new[] { (EveryTurn: false, Title: "В ближайший расчёт"), (EveryTurn: true, Title: "Каждый ход, пока не изменить") })
+                    {
+                        var lines = Screen.OrderLines.Where(l => l.EveryTurn == group.EveryTurn).ToList();
+                        @if (lines.Count > 0)
+                        {
+                            <h3 class="h6 text-uppercase text-muted mt-2">@group.Title</h3>
+                            <table class="table table-sm align-middle mb-1">
+                                <tbody>
+                                    @foreach (var line in lines)
+                                    {
+                                        <tr>
+                                            <td>@line.Text</td>
+                                            <td class="text-end text-nowrap @(line.Amount >= 0 ? "text-success" : "text-danger")">@Signed(line.Amount)</td>
+                                            <td class="text-end text-nowrap">
+                                                @if (line.EditHref is { } href)
+                                                {
+                                                    <a class="small" href="@href">изменить</a>
+                                                }
+                                                @if (line.Cancel is { } cancel && CanAct)
+                                                {
+                                                    <button type="button" class="btn btn-link btn-sm p-0 ms-2 text-danger" title="Отменить" @onclick="cancel">✕</button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                    <tr class="fw-bold">
+                                        <td>Итого</td>
+                                        <td class="text-end text-nowrap">@Signed(lines.Sum(l => l.Amount))</td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        }
+                    }
+                    <p class="text-muted small mb-0">Зарплаты, энергия и содержание фабрик сюда не входят — они спишутся в любом случае.</p>
+                }
+            </div>
+        </section>
+    </div>
+</div>
 
 @code {
     /// <summary>Модель экрана команды — общая для всех разделов, её держит оболочка страницы.</summary>
     [Parameter, EditorRequired]
     public TeamScreen Screen { get; set; } = default!;
 
+    private static readonly (TeamAttentionCalculator.AttentionHorizon Horizon, string Title, string Color)[] Horizons =
+    [
+        (TeamAttentionCalculator.AttentionHorizon.Now, "Прямо сейчас", "#dc3545"),
+        (TeamAttentionCalculator.AttentionHorizon.Soon, "Через несколько ходов", "#fd7e14"),
+    ];
+
+    /// <summary>Кнопки решений — только у управляющего и только в фазе «Решения»; переговорщик видит то же самое для чтения.</summary>
+    private bool CanAct => Screen.CanManage;
+
+    private static string Signed(decimal amount) =>
+        (amount > 0 ? "+" : amount < 0 ? "−" : "") + DashboardDisplay.FormatMoney(Math.Abs(amount));
+
     /// <summary>
-    /// Переход из панели к самой фабрике: открывает раздел «Производство» с уже выбранной карточкой и
-    /// прокручивает к ней. Это навигация, не совет — панель показывает, где смотреть, а не что делать.
-    /// Прокрутка обязательна: карточка лежит ниже формы постройки и всего списка типов сектора, без неё
-    /// игрок снова искал бы фабрику глазами (проверено живым прогоном 2026-09-08).
+    /// Переход из панели к самой фабрике — на ту вкладку её карточки, где лежит связанный с поводом
+    /// рычаг. Это навигация, не совет: панель показывает, где смотреть, а не что делать. Разделы не
+    /// делят экземпляр страницы, поэтому фабрика и вкладка передаются через адрес.
     /// </summary>
-    private void OpenFactoryFromAttention(Ulid factoryId) => Nav.NavigateTo($"/team/production?factory={factoryId}");
+    private void OpenFactory(Ulid factoryId, string tab) => Nav.NavigateTo($"/team/production?factory={factoryId}&tab={tab}");
 }

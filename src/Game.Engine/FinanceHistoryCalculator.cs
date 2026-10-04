@@ -93,10 +93,17 @@ public static class FinanceHistoryCalculator
     /// cref="OperationType.DeliveryMissPenalty"/> (запрос пользователя: живой лог с успешной
     /// поставкой нефти давал только «Поставка по контракту, сумма», без ответа на «поставлено чего,
     /// сколько и кем/кому») — у остальных видов операций своя достаточная деталь (например, фабрика).
+    /// <para>
+    /// <see cref="DuringSettlement"/> — операция пришла из расчёта хода (<see cref="GameSession.RunTick"/>),
+    /// а не из решения в фазе «Решения» того же хода (постройка и продажа фабрики применяются сразу).
+    /// Нужно сводке «Итоги расчёта» на экране команды: иначе фабрика, построенная уже после расчёта,
+    /// попадала бы в итоги этого расчёта.
+    /// </para>
     /// </summary>
     public sealed record FinanceOperation(
         DateTimeOffset Timestamp, int Turn, OperationType Type, MoneyDirection Direction, decimal Amount, decimal? Rate,
-        Ulid? FactoryId = null, string? MaterialName = null, decimal? Volume = null, string? CounterpartyName = null);
+        Ulid? FactoryId = null, string? MaterialName = null, decimal? Volume = null, string? CounterpartyName = null,
+        bool DuringSettlement = false);
 
     /// <summary>Можно звать в любой момент сессии; для команды без единой денежной операции список выходит пустым.</summary>
     public static IReadOnlyList<FinanceOperation> Summarize(
@@ -111,6 +118,7 @@ public static class FinanceHistoryCalculator
         foreach (var entry in entries)
         {
             entry.Change.Apply(scratch);
+            var operationsBefore = operations.Count;
 
             switch (entry.Change)
             {
@@ -218,6 +226,14 @@ public static class FinanceHistoryCalculator
                 case ContractTerminated change when change.Fee > 0 && change.TerminatingTeamId == teamId:
                     operations.Add(new FinanceOperation(entry.Timestamp, scratch.CurrentTurn, OperationType.ContractTerminationFee, MoneyDirection.Expense, change.Fee, Rate: null));
                     break;
+            }
+
+            if (scratch.CurrentPhase == TurnPhase.Settlement)
+            {
+                for (var i = operationsBefore; i < operations.Count; i++)
+                {
+                    operations[i] = operations[i] with { DuringSettlement = true };
+                }
             }
         }
 

@@ -5,9 +5,11 @@
 <nav class="team-nav">
     <NavLink href="team" Match="NavLinkMatch.All">
         <span class="ico">◉</span><span class="label">Ход</span>
-        @if (Screen.Attention.Count > 0 && !Screen.IsFinished)
+        @* Один счётчик на всё, что на «Ходе» требует взгляда: поводы «Требует внимания» и решения,
+           которые ждут управляющего. *@
+        @if (HomeCount > 0 && !Screen.IsFinished)
         {
-            <span class="badge rounded-pill bg-danger">@Screen.Attention.Count</span>
+            <span class="badge rounded-pill bg-danger">@HomeCount</span>
         }
     </NavLink>
     <NavLink href="team/production">
@@ -15,10 +17,6 @@
     </NavLink>
     <NavLink href="team/deals">
         <span class="ico">⇄</span><span class="label">Сделки</span>
-        @if (Screen.AwaitingManagerCount > 0 && !Screen.IsFinished)
-        {
-            <span class="badge rounded-pill bg-danger">@Screen.AwaitingManagerCount</span>
-        }
     </NavLink>
     <NavLink href="team/analytics">
         <span class="ico">∿</span><span class="label">Аналитика</span>
@@ -29,4 +27,6 @@
     /// <summary>Модель экрана команды — нужна только счётчикам на разделах.</summary>
     [Parameter, EditorRequired]
     public TeamScreen Screen { get; set; } = default!;
+
+    private int HomeCount => Screen.Attention.Count + Screen.AwaitingManagerCount;
 }

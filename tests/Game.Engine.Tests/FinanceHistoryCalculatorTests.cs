@@ -32,6 +32,22 @@ public class FinanceHistoryCalculatorTests
     }
 
     [Fact]
+    public void Summarize_Tells_Settlement_Operations_From_Decisions_Of_The_Same_Turn()
+    {
+        // Сводка «Итоги расчёта» на экране команды берёт только операции расчёта: фабрика, построенная
+        // уже в фазе «Решения» того же хода, к итогам расчёта не относится.
+        var (log, team) = TestGameConfig.StartSessionWithOneTeam(); // ход 1 начинается с расчёта
+        log.Append(new SalariesPaid { Id = Ulid.NewUlid(), TeamId = team.Id, TotalWorkers = 5, Amount = 25m });
+        log.Append(new PhaseAdvanced { Id = Ulid.NewUlid(), Trigger = PhaseTransitionTrigger.Timer }); // -> Решения
+        log.Append(new GrantIssued { Id = Ulid.NewUlid(), TeamId = team.Id, Amount = 500m });
+
+        var operations = FinanceHistoryCalculator.Summarize(log.Entries, TestGameConfig.Resolved, team.Id);
+
+        Assert.True(operations.Single(o => o.Type == FinanceHistoryCalculator.OperationType.SalariesPaid).DuringSettlement);
+        Assert.False(operations.Single(o => o.Type == FinanceHistoryCalculator.OperationType.GrantReceived).DuringSettlement);
+    }
+
+    [Fact]
     public void Summarize_Preserves_Chronological_Order()
     {
         var (log, team) = TestGameConfig.StartSessionWithOneTeam();

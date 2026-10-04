@@ -14,7 +14,7 @@ namespace Game.Web;
 /// страницу заново, — поэтому то, что должно пережить переход (какую фабрику открыть), передаётся
 /// через адрес.
 /// </summary>
-public sealed class TeamScreen
+public sealed partial class TeamScreen
 {
     public sealed record FactoryRow(
         Ulid FactoryId, string DefinitionName, int Level, int Workers, int DesiredWorkers,
@@ -515,10 +515,7 @@ public sealed class TeamScreen
                 })
                 .ToList();
 
-            AwaitingManagerCount = Role != ParticipantRole.Manager
-                ? 0
-                : state.ContractDrafts.Values.Count(d => d.TeamId == TeamId && d.Status == ContractDraftStatus.AwaitingManager)
-                  + Contracts.Count(c => c.Status == ContractStatus.PendingConfirmation && !c.WeAreTheProposer);
+            RefreshTurnSection(state, team);
         }
     }
 
@@ -837,19 +834,20 @@ public sealed class TeamScreen
     /// (запрос пользователя: наказывать зависимость от рынка, а не саму операцию) — здесь только для
     /// предпросмотра до отправки действия.
     /// </summary>
-    public decimal EmergencyPurchaseEffectiveMultiplier
-    {
-        get
-        {
-            if (EmergencyPurchaseMaterialId is null || EconomyConfig is null || Host.Session is null)
-            {
-                return 0m;
-            }
+    public decimal EmergencyPurchaseEffectiveMultiplier =>
+        EmergencyPurchaseMaterialId is null ? 0m : EmergencyPurchaseMultiplierFor(EmergencyPurchaseMaterialId);
 
-            var recentVolume = EmergencyPurchasePressureCalculator.CalculateRecentVolume(
-                Host.Session.Entries, TeamId, EmergencyPurchaseMaterialId, CurrentTurn, EconomyConfig);
-            return EconomyConfig.EmergencyPurchaseBaseMultiplier + EconomyConfig.EmergencyPurchasePressureMultiplierPerUnit * recentVolume;
+    /// <summary>Эффективный множитель аварийной закупки конкретного материала — общий для формы закупки и для «Приказа на ход».</summary>
+    public decimal EmergencyPurchaseMultiplierFor(string materialId)
+    {
+        if (EconomyConfig is null || Host.Session is null)
+        {
+            return 0m;
         }
+
+        var recentVolume = EmergencyPurchasePressureCalculator.CalculateRecentVolume(
+            Host.Session.Entries, TeamId, materialId, CurrentTurn, EconomyConfig);
+        return EconomyConfig.EmergencyPurchaseBaseMultiplier + EconomyConfig.EmergencyPurchasePressureMultiplierPerUnit * recentVolume;
     }
 
     /// <summary>

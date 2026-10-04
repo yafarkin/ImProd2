@@ -19,5 +19,5 @@
 
 /* Карточка фабрики после перехода к ней не должна прятаться под прилипшей шапкой. */
 .team-body ::deep [id] {
-    scroll-margin-top: 7rem;
+    scroll-margin-top: 9rem;
 }

@@ -26,10 +26,16 @@
         }
     </div>
     <div class="row2">
-        <span>Баланс <b class="@(Screen.Balance < 0 ? "negative" : null)">@DashboardDisplay.FormatMoney(Screen.Balance)</b></span>
+        <span>
+            Баланс <b class="@(Screen.Balance < 0 ? "negative" : null)">@DashboardDisplay.FormatMoney(Screen.Balance)</b>
+            @if (Screen.LastSettlement is { } settlement && settlement.Turn == Screen.CurrentTurn)
+            {
+                <span class="delta @(settlement.Net < 0 ? "negative" : "positive")" title="Итог расчёта этого хода">(@(settlement.Net >= 0 ? "+" : "−")@DashboardDisplay.FormatMoney(Math.Abs(settlement.Net)) за ход)</span>
+            }
+        </span>
         @if (Screen.Role == ParticipantRole.Manager && Screen.AwaitingManagerCount > 0 && !Screen.IsFinished)
         {
-            <a class="awaiting" href="/team/deals">Ждёт меня <span class="badge rounded-pill bg-danger">@Screen.AwaitingManagerCount</span></a>
+            <a class="awaiting" href="/team">Ждёт меня <span class="badge rounded-pill bg-danger">@Screen.AwaitingManagerCount</span></a>
         }
         @if (Screen.Role != ParticipantRole.Manager)
         {

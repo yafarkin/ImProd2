@@ -106,6 +106,15 @@
     [SupplyParameterFromQuery(Name = "factory")]
     public string? FactoryParam { get; set; }
 
+    /// <summary>Вкладка карточки той же фабрики — «Износ» для повода про капремонт и т. п.</summary>
+    [SupplyParameterFromQuery(Name = "tab")]
+    public string? FactoryTabParam { get; set; }
+
+    private static readonly HashSet<string> KnownFactoryTabs = new(StringComparer.Ordinal)
+    {
+        "workers", "recipe", "rnd", "wear", "destination", "profitability", "charts",
+    };
+
     private TeamScreen? _screen;
     private bool _showWelcome;
     private Timer? _tickTimer;
@@ -124,6 +133,10 @@
         {
             _screen.SelectedFactoryId = factoryId;
             _screen.PendingScrollTargetId = $"factory-card-{factoryId}";
+            if (FactoryTabParam is { } tab && KnownFactoryTabs.Contains(tab))
+            {
+                _screen.ActiveFactoryTab = tab;
+            }
         }
         _screen.Changed += OnScreenChanged;
 

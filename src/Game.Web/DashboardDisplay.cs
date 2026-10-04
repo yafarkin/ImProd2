@@ -233,6 +233,49 @@ public static class DashboardDisplay
         IReadOnlyDictionary<string, string> OverhaulTierNames);
 
     /// <summary>
+    /// Заголовок группы одинаковых поводов «Требует внимания» (блок 2 редизайна): три фабрики с одним и
+    /// тем же «капремонт подорожает» раньше шли тремя одинаковыми карточками подряд (живой обход
+    /// 2026-10-04). Как и <see cref="AttentionText"/>, только факт — без повелительного наклонения.
+    /// </summary>
+    public static string AttentionGroupHeadline(TeamAttentionCalculator.AttentionItem sample, int count) => sample switch
+    {
+        TeamAttentionCalculator.AttentionItem.FactoryStarvedOfInput => $"Без полной загрузки: {Factories(count)}",
+        TeamAttentionCalculator.AttentionItem.FactoryWithoutWorkers => $"Без рабочих: {Factories(count)}",
+        TeamAttentionCalculator.AttentionItem.FactoryInForcedDowntime => $"Вынужденный простой по износу: {Factories(count)}",
+        TeamAttentionCalculator.AttentionItem.DeliveryDueAndShort => $"Поставки в ближайшем расчёте, которые нечем закрыть: {count}",
+        TeamAttentionCalculator.AttentionItem.OverhaulGetsMoreExpensive => $"Капремонт подорожает: {Factories(count)}",
+        TeamAttentionCalculator.AttentionItem.DeliveryAheadWillBeShort => $"Поставки впереди, которые не закрыть: {count}",
+        TeamAttentionCalculator.AttentionItem.MaterialRunningOut => $"Кончаются материалы: {count}",
+        _ => $"{sample.GetType().Name}: {count}",
+    };
+
+    /// <summary>
+    /// Вкладка карточки фабрики, на которой лежит рычаг, связанный с поводом. Раньше переход из
+    /// «Требует внимания» всегда открывал «Люди» — даже для предупреждения про капремонт (живой обход
+    /// 2026-10-04). Это навигация к месту, а не совет, что там сделать.
+    /// </summary>
+    public static string AttentionFactoryTab(TeamAttentionCalculator.AttentionItem item) => item switch
+    {
+        TeamAttentionCalculator.AttentionItem.FactoryInForcedDowntime => "wear",
+        TeamAttentionCalculator.AttentionItem.OverhaulGetsMoreExpensive => "wear",
+        TeamAttentionCalculator.AttentionItem.FactoryStarvedOfInput => "recipe",
+        TeamAttentionCalculator.AttentionItem.MaterialRunningOut => "recipe",
+        _ => "workers",
+    };
+
+    /// <summary>«1 фабрика», «3 фабрики», «5 фабрик».</summary>
+    public static string Factories(int count)
+    {
+        var lastTwo = Math.Abs(count) % 100;
+        var last = lastTwo % 10;
+        var word = lastTwo is >= 11 and <= 14 ? "фабрик"
+            : last == 1 ? "фабрика"
+            : last is >= 2 and <= 4 ? "фабрики"
+            : "фабрик";
+        return $"{count} {word}";
+    }
+
+    /// <summary>
     /// Заголовок и пояснение одного повода обратить внимание. Формулировки намеренно описательные:
     /// что случилось и почему — без единого «сделайте», см. границу в doc-comment
     /// <see cref="TeamAttentionCalculator"/>.

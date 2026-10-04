@@ -59,7 +59,8 @@ public class AttentionTextTests
     public void No_Kind_Tells_The_Player_What_To_Do(TeamAttentionCalculator.AttentionItem item)
     {
         var (headline, detail) = DashboardDisplay.AttentionText(item, Naming);
-        var text = $"{headline} {detail}".ToLowerInvariant();
+        // Заголовок группы одинаковых поводов (блок 2 редизайна) подчиняется тому же правилу.
+        var text = $"{headline} {detail} {DashboardDisplay.AttentionGroupHeadline(item, 3)}".ToLowerInvariant();
 
         string[] advice =
         [
@@ -68,6 +69,34 @@ public class AttentionTextTests
         ];
         Assert.All(advice, word => Assert.DoesNotContain(word, text));
     }
+
+    [Fact]
+    public void Same_Kind_Items_Get_One_Group_Headline_With_A_Count()
+    {
+        var headline = DashboardDisplay.AttentionGroupHeadline(
+            new TeamAttentionCalculator.AttentionItem.OverhaulGetsMoreExpensive(MillId, 1, "a", "b"), 3);
+
+        Assert.Equal("Капремонт подорожает: 3 фабрики", headline);
+    }
+
+    [Fact]
+    public void An_Overhaul_Warning_Leads_To_The_Wear_Tab_Not_To_Workers()
+    {
+        // Раньше «Открыть фабрику» всегда вело на «Люди» — даже для предупреждения про капремонт.
+        Assert.Equal("wear", DashboardDisplay.AttentionFactoryTab(
+            new TeamAttentionCalculator.AttentionItem.OverhaulGetsMoreExpensive(MillId, 1, "a", "b")));
+        Assert.Equal("workers", DashboardDisplay.AttentionFactoryTab(
+            new TeamAttentionCalculator.AttentionItem.FactoryWithoutWorkers(MillId)));
+    }
+
+    [Theory]
+    [InlineData(1, "1 фабрика")]
+    [InlineData(3, "3 фабрики")]
+    [InlineData(5, "5 фабрик")]
+    [InlineData(12, "12 фабрик")]
+    [InlineData(22, "22 фабрики")]
+    public void Factory_Count_Is_Declined(int count, string expected) =>
+        Assert.Equal(expected, DashboardDisplay.Factories(count));
 
     [Fact]
     public void Names_Come_From_The_Naming_Dictionaries()
