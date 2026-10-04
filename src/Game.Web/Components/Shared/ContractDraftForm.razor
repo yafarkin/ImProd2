@@ -10,7 +10,14 @@
 @if (!CanSubmit)
 {
     <div class="alert alert-info">
-        Черновик можно подготовить, но отправляет заявку управляющий команды (SPEC §3).
+        Черновик уйдёт вашему управляющему — заявку контрагенту подаёт он, как есть или поправив условия.
+    </div>
+}
+@if (_editingDraftAuthor is not null)
+{
+    <div class="alert alert-secondary d-flex flex-wrap align-items-center gap-2">
+        <span>Правка черновика от <strong>@_editingDraftAuthor</strong>. Отправка подаст заявку и закроет черновик.</span>
+        <button type="button" class="btn btn-link btn-sm p-0" @onclick="CancelDraftEditing">Не править</button>
     </div>
 }
 
@@ -165,7 +172,14 @@ else
         }
     </div>
 
-    <button type="button" class="btn btn-primary" @onclick="SubmitDraft" disabled="@(!CanSubmit)">Отправить</button>
+    @if (CanSubmit)
+    {
+        <button type="button" class="btn btn-primary" @onclick="SubmitDraft">Отправить</button>
+    }
+    else
+    {
+        <button type="button" class="btn btn-primary" @onclick="HandOverDraft" disabled="@(!CanHandOver)">Передать управляющему</button>
+    }
 }
 
 @code {
@@ -179,7 +193,26 @@ else
     [Parameter]
     public EventCallback OnChanged { get; set; }
 
+    /// <summary>Код входа вошедшего — нужен переговорщику, чтобы черновик был записан на него (SPEC §3).</summary>
+    [Parameter]
+    public string? ParticipantCode { get; set; }
+
+    /// <summary>
+    /// Черновик переговорщика, загруженный управляющим в форму для правки и подачи; null — форма
+    /// заполняется с нуля. Двусторонняя привязка: после подачи форма сама сбрасывает его в null.
+    /// </summary>
+    [Parameter]
+    public Ulid? EditingDraftId { get; set; }
+
+    [Parameter]
+    public EventCallback<Ulid?> EditingDraftIdChanged { get; set; }
+
     private bool CanSubmit => Role == ParticipantRole.Manager;
+
+    private bool CanHandOver => Role == ParticipantRole.Negotiator && !string.IsNullOrEmpty(ParticipantCode);
+
+    private Ulid? _loadedDraftId;
+    private string? _editingDraftAuthor;
 
     private IReadOnlyList<(Ulid Id, string Name)> _counterparties = Array.Empty<(Ulid, string)>();
     private IReadOnlyList<Factory> _ourFactories = Array.Empty<Factory>();
@@ -209,7 +242,66 @@ else
     /// ходу действия контракта.</summary>
     private string DeliveryPeriodLabel => _type == ContractType.Spot ? "разово" : "за ход";
 
-    protected override void OnParametersSet() => Refresh();
+    protected override void OnParametersSet()
+    {
+        if (EditingDraftId != _loadedDraftId)
+        {
+            LoadDraft(EditingDraftId);
+        }
+
+        Refresh();
+    }
+
+    /// <summary>
+    /// Переносит условия черновика в поля формы — один раз при смене <see cref="EditingDraftId"/>, а не на
+    /// каждом ежесекундном обновлении родителя, иначе правки управляющего затирались бы черновиком.
+    /// </summary>
+    private void LoadDraft(Ulid? draftId)
+    {
+        _loadedDraftId = draftId;
+        _editingDraftAuthor = null;
+        if (draftId is not { } id)
+        {
+            return;
+        }
+
+        lock (Host.SyncRoot)
+        {
+            if (Host.Session is null || !Host.Session.State.ContractDrafts.TryGetValue(id, out var draft))
+            {
+                return;
+            }
+
+            var proposal = draft.Proposal;
+            var terms = proposal.Terms;
+            var weAreBuyer = proposal.BuyerTeamId == TeamId;
+            _counterpartyTeamId = weAreBuyer ? proposal.SellerTeamId : proposal.BuyerTeamId;
+            _role = weAreBuyer ? "buyer" : "seller";
+            _materialId = terms.Material.Id;
+            _type = terms.Type;
+            _volume = terms.Volume;
+            _unitPrice = terms.UnitPrice;
+            _penaltyRate = terms.PenaltyRate;
+            if (terms.SpotDeliveryTurn is { } deliveryTurn)
+            {
+                _spotDeliveryTurn = deliveryTurn;
+            }
+            _recurringIndefinite = terms.Type == ContractType.Recurring && terms.RecurringEndTurn is null;
+            if (terms.RecurringEndTurn is { } endTurn)
+            {
+                _recurringDurationTurns = endTurn - terms.EffectiveTurn + 1;
+            }
+            _editingDraftAuthor = Host.Session.State.Participants.TryGetValue(draft.PreparedByParticipantCode, out var author)
+                ? author.DisplayName
+                : "переговорщика";
+        }
+    }
+
+    private async Task CancelDraftEditing()
+    {
+        LoadDraft(null);
+        await EditingDraftIdChanged.InvokeAsync(null);
+    }
 
     private void Refresh()
     {
@@ -365,31 +457,16 @@ else
                 }
                 else
                 {
-                    var state = Host.Session.State;
-                    var material = state.Config.Materials[_materialId];
-                    var iAmBuyer = _role == "buyer";
-                    var buyerId = iAmBuyer ? TeamId : counterpartyId;
-                    var sellerId = iAmBuyer ? counterpartyId : TeamId;
-                    // effectiveTurn — заглушка (1): «ход вступления в силу» больше не то, что стороны
-                    // заявляют заранее и должны совпасть — настоящий подставляется один раз при
-                    // подтверждении, см. Contract.ResolveTermsForActivation. Recurring передаёт
-                    // длительность через тот же RecurringEndTurn (от заглушки 1 разница как раз и
-                    // даёт длительность минус один ход) — так делать можно, потому что при активации
-                    // используется только разность двух полей, не их абсолютное значение. Бессрочный
-                    // (_recurringIndefinite) — null и остаётся null через всю активацию.
-                    const int effectiveTurnPlaceholder = 1;
-                    var terms = new ContractTerms(
-                        _type, material, _volume, _unitPrice, _penaltyRate, effectiveTurnPlaceholder,
-                        _type == ContractType.Spot ? _spotDeliveryTurn : null,
-                        _type == ContractType.Recurring && !_recurringIndefinite ? effectiveTurnPlaceholder + _recurringDurationTurns - 1 : null);
-
-                    var ourProposal = new ContractProposal(buyerId, sellerId, TeamId, terms);
-                    result = Host.Session.SubmitContractProposal(ourProposal, TeamRole.Manager, Random.Shared);
+                    result = Host.Session.SubmitContractProposal(
+                        BuildProposal(Host.Session.State, counterpartyId), TeamRole.Manager, Random.Shared, _loadedDraftId);
                 }
             }
 
             if (result is not null)
             {
+                LoadDraft(null);
+                await EditingDraftIdChanged.InvokeAsync(null);
+
                 if (result.IsMatched)
                 {
                     _successMessage = "Условия сошлись — сделка заключена, ждёт подтверждения управляющего контрагента.";
@@ -406,6 +483,63 @@ else
                 else
                 {
                     _successMessage = "Заявка подана и ждёт встречной от контрагента.";
+                }
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            _errorMessage = ex.Message;
+        }
+
+        Refresh();
+        await OnChanged.InvokeAsync();
+    }
+
+    /// <summary>Собирает заявку нашей команды из полей формы — общая для подачи управляющим и для черновика переговорщика.</summary>
+    private ContractProposal BuildProposal(GameSessionState state, Ulid counterpartyId)
+    {
+        var material = state.Config.Materials[_materialId!];
+        var iAmBuyer = _role == "buyer";
+        var buyerId = iAmBuyer ? TeamId : counterpartyId;
+        var sellerId = iAmBuyer ? counterpartyId : TeamId;
+        // effectiveTurn — заглушка (1): «ход вступления в силу» больше не то, что стороны
+        // заявляют заранее и должны совпасть — настоящий подставляется один раз при
+        // подтверждении, см. Contract.ResolveTermsForActivation. Recurring передаёт
+        // длительность через тот же RecurringEndTurn (от заглушки 1 разница как раз и
+        // даёт длительность минус один ход) — так делать можно, потому что при активации
+        // используется только разность двух полей, не их абсолютное значение. Бессрочный
+        // (_recurringIndefinite) — null и остаётся null через всю активацию.
+        const int effectiveTurnPlaceholder = 1;
+        var terms = new ContractTerms(
+            _type, material, _volume, _unitPrice, _penaltyRate, effectiveTurnPlaceholder,
+            _type == ContractType.Spot ? _spotDeliveryTurn : null,
+            _type == ContractType.Recurring && !_recurringIndefinite ? effectiveTurnPlaceholder + _recurringDurationTurns - 1 : null);
+
+        return new ContractProposal(buyerId, sellerId, TeamId, terms);
+    }
+
+    private async Task HandOverDraft()
+    {
+        _errorMessage = null;
+        _successMessage = null;
+
+        if (_counterpartyTeamId is not { } counterpartyId || _materialId is null || ParticipantCode is null)
+        {
+            return;
+        }
+
+        try
+        {
+            lock (Host.SyncRoot)
+            {
+                if (Host.Session is null)
+                {
+                    _errorMessage = "Сессия сейчас не активна.";
+                }
+                else
+                {
+                    Host.Session.PrepareContractDraft(BuildProposal(Host.Session.State, counterpartyId), ParticipantCode);
+                    _successMessage = "Черновик передан управляющему.";
                 }
             }
         }

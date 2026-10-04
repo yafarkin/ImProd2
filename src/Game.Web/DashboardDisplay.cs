@@ -70,6 +70,35 @@ public static class DashboardDisplay
         _ => type.ToString()
     };
 
+    /// <summary>Русская подпись статуса черновика сделки — для переговорщика, который его передал (SPEC §3).</summary>
+    public static string ContractDraftStatusLabel(ContractDraftStatus status) => status switch
+    {
+        ContractDraftStatus.AwaitingManager => "у управляющего",
+        ContractDraftStatus.Submitted => "подан как заявка",
+        ContractDraftStatus.Returned => "возвращён",
+        ContractDraftStatus.Withdrawn => "забран",
+        _ => status.ToString()
+    };
+
+    /// <summary>
+    /// Условия черновика одной строкой: «40 ед. × 0.47 ¤ = 18.8 ¤ · разовая, ход 15 · штраф 10.0 %». Цена
+    /// за единицу — через <see cref="FormatUnitCost"/>: в боевой модели она 0.07–0.6 ¤, и округление до
+    /// целого, как у <see cref="FormatMoney"/>, показало бы 0.47 как «0 ¤».
+    /// </summary>
+    public static string DraftTermsLabel(ContractTerms terms)
+    {
+        var period = terms.Type == ContractType.Recurring ? " ед./ход" : " ед.";
+        var schedule = terms.Type switch
+        {
+            ContractType.Spot => $"разовая, ход {terms.SpotDeliveryTurn}",
+            _ when terms.RecurringEndTurn is { } endTurn => $"регулярная, {Turns(endTurn - terms.EffectiveTurn + 1)}",
+            _ => "регулярная, бессрочно",
+        };
+
+        return $"{terms.Volume:0.##}{period} × {FormatUnitCost(terms.UnitPrice)} = {FormatUnitCost(terms.Volume * terms.UnitPrice)}"
+            + $" · {schedule} · штраф {FormatRate(terms.PenaltyRate)}";
+    }
+
     /// <summary>Русская подпись вида финансовой операции для истории операций «Финансов» (Блок 9.2).</summary>
     public static string FinanceOperationLabel(FinanceHistoryCalculator.OperationType type) => type switch
     {

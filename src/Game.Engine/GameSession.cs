@@ -203,9 +203,12 @@ public sealed class GameSession
     /// а вызывающему возвращается разбор расхождения по полям (но не чужие числа — см. <see
     /// cref="ContractMismatchReason"/>). Отправлять может только управляющий: переговорщик готовит
     /// черновик, но не подаёт его (SPEC §3). Только в фазе решений.
+    /// <paramref name="sourceDraftId"/> — черновик переговорщика, по которому подаётся заявка
+    /// (<see cref="PrepareContractDraft"/>); условия заявки могут от него отличаться, черновик при этом
+    /// закрывается как поданный.
     /// </summary>
     public ContractProposalSubmissionResult SubmitContractProposal(
-        ContractProposal proposal, TeamRole submittingRole, Random confirmationCodeRandom)
+        ContractProposal proposal, TeamRole submittingRole, Random confirmationCodeRandom, Ulid? sourceDraftId = null)
     {
         EnsureDecisionsAllowed();
         ArgumentNullException.ThrowIfNull(proposal);
@@ -213,6 +216,15 @@ public sealed class GameSession
         if (submittingRole != TeamRole.Manager)
         {
             throw new InvalidOperationException("Only a team manager can submit a contract proposal.");
+        }
+        if (sourceDraftId is { } draftId)
+        {
+            var draft = GetDraftAwaitingManager(draftId);
+            if (draft.TeamId != proposal.SubmittedByTeamId)
+            {
+                throw new ArgumentException(
+                    "A proposal can only be submitted from a draft of the submitting team.", nameof(sourceDraftId));
+            }
         }
 
         EnsureContractLoadAllows(proposal.SubmittedByTeamId);
@@ -241,7 +253,7 @@ public sealed class GameSession
             if (attempt.IsMatched)
             {
                 var proposalId = Ulid.NewUlid();
-                _log.Append(ToSubmittedEvent(proposalId, proposal));
+                _log.Append(ToSubmittedEvent(proposalId, proposal, sourceDraftId));
                 _log.Append(new ContractSigned
                 {
                     Id = Ulid.NewUlid(),
@@ -260,7 +272,7 @@ public sealed class GameSession
         }
 
         var storedId = Ulid.NewUlid();
-        _log.Append(ToSubmittedEvent(storedId, proposal));
+        _log.Append(ToSubmittedEvent(storedId, proposal, sourceDraftId));
 
         return ContractProposalSubmissionResult.Pending(
             storedId, closestConflict?.Mismatches ?? Array.Empty<ContractMismatchReason>());
@@ -306,6 +318,107 @@ public sealed class GameSession
         });
     }
 
+    /// <summary>
+    /// Переговорщик передаёт управляющему своей команды черновик сделки (SPEC §3: переговорщик готовит
+    /// черновики, подаёт заявку только управляющий). Контрагент о черновике не узнаёт. Подающей стороной
+    /// в <paramref name="proposal"/> обязана быть команда переговорщика. Только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> PrepareContractDraft(ContractProposal proposal, string participantCode)
+    {
+        EnsureDecisionsAllowed();
+        ArgumentNullException.ThrowIfNull(proposal);
+
+        var participant = GetParticipant(participantCode);
+        if (participant.Role != ParticipantRole.Negotiator)
+        {
+            throw new InvalidOperationException("Only a negotiator can prepare a contract draft.");
+        }
+        if (participant.TeamId != proposal.SubmittedByTeamId)
+        {
+            throw new ArgumentException(
+                "A negotiator can only prepare a draft on behalf of their own team.", nameof(proposal));
+        }
+
+        var terms = proposal.Terms;
+        return _log.Append(new ContractDraftPrepared
+        {
+            Id = Ulid.NewUlid(),
+            DraftId = Ulid.NewUlid(),
+            PreparedByParticipantCode = participant.Code,
+            BuyerTeamId = proposal.BuyerTeamId,
+            SellerTeamId = proposal.SellerTeamId,
+            TeamId = proposal.SubmittedByTeamId,
+            Type = terms.Type,
+            MaterialId = terms.Material.Id,
+            Volume = terms.Volume,
+            UnitPrice = terms.UnitPrice,
+            PenaltyRate = terms.PenaltyRate,
+            EffectiveTurn = terms.EffectiveTurn,
+            SpotDeliveryTurn = terms.SpotDeliveryTurn,
+            RecurringEndTurn = terms.RecurringEndTurn,
+        });
+    }
+
+    /// <summary>
+    /// Управляющий возвращает черновик переговорщику, не подавая по нему заявку; причина необязательна.
+    /// Только в фазе решений.
+    /// </summary>
+    public EventLogEntry<GameSessionState> ReturnContractDraft(Ulid draftId, Ulid managerTeamId, string? reason = null)
+    {
+        EnsureDecisionsAllowed();
+
+        var draft = GetDraftAwaitingManager(draftId);
+        if (draft.TeamId != managerTeamId)
+        {
+            throw new ArgumentException("Only the manager of the draft's team can return it.", nameof(managerTeamId));
+        }
+
+        return _log.Append(new ContractDraftReturned
+        {
+            Id = Ulid.NewUlid(),
+            DraftId = draftId,
+            Reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim(),
+        });
+    }
+
+    /// <summary>Переговорщик забирает свой черновик, пока управляющий его не разобрал. Только в фазе решений.</summary>
+    public EventLogEntry<GameSessionState> WithdrawContractDraft(Ulid draftId, string participantCode)
+    {
+        EnsureDecisionsAllowed();
+
+        var draft = GetDraftAwaitingManager(draftId);
+        if (draft.PreparedByParticipantCode != participantCode)
+        {
+            throw new ArgumentException("Only the author of a draft can withdraw it.", nameof(participantCode));
+        }
+
+        return _log.Append(new ContractDraftWithdrawn { Id = Ulid.NewUlid(), DraftId = draftId });
+    }
+
+    private ContractDraft GetDraftAwaitingManager(Ulid draftId)
+    {
+        if (!State.ContractDrafts.TryGetValue(draftId, out var draft))
+        {
+            throw new ArgumentException($"Unknown contract draft '{draftId}'.", nameof(draftId));
+        }
+        if (draft.Status != ContractDraftStatus.AwaitingManager)
+        {
+            throw new InvalidOperationException($"Contract draft '{draftId}' is already '{draft.Status}'.");
+        }
+
+        return draft;
+    }
+
+    private ParticipantRegistration GetParticipant(string participantCode)
+    {
+        if (string.IsNullOrWhiteSpace(participantCode) || !State.Participants.TryGetValue(participantCode, out var participant))
+        {
+            throw new ArgumentException("Unknown participant.", nameof(participantCode));
+        }
+
+        return participant;
+    }
+
     private PendingContractProposal GetOpenContractProposal(Ulid proposalId)
     {
         if (!State.ContractProposals.TryGetValue(proposalId, out var proposal))
@@ -346,7 +459,7 @@ public sealed class GameSession
         }
     }
 
-    private static ContractProposalSubmitted ToSubmittedEvent(Ulid proposalId, ContractProposal proposal)
+    private static ContractProposalSubmitted ToSubmittedEvent(Ulid proposalId, ContractProposal proposal, Ulid? sourceDraftId)
     {
         var terms = proposal.Terms;
 
@@ -365,6 +478,7 @@ public sealed class GameSession
             EffectiveTurn = terms.EffectiveTurn,
             SpotDeliveryTurn = terms.SpotDeliveryTurn,
             RecurringEndTurn = terms.RecurringEndTurn,
+            SourceDraftId = sourceDraftId,
         };
     }
 

@@ -96,7 +96,17 @@ else
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("technology")" @onclick='() => _activePageTab = "technology"'>Технологии</button></li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("warehouse")" @onclick='() => _activePageTab = "warehouse"'>Склад</button></li>
     <li class="nav-item"><button type="button" class="nav-link @PageTabClass("finance")" @onclick='() => _activePageTab = "finance"'>Финансы</button></li>
-    <li class="nav-item"><button type="button" class="nav-link @PageTabClass("contracts")" @onclick='() => _activePageTab = "contracts"'>Контракты</button></li>
+    <li class="nav-item">
+        <button type="button" class="nav-link @PageTabClass("contracts")" @onclick='() => _activePageTab = "contracts"'>
+            Контракты
+            @* Счётчик из SPEC §3: черновики переговорщиков и контракты, которые ждут подтверждения именно
+               управляющего, — виден с любой вкладки, как и счётчик «Внимания». *@
+            @if (_awaitingManagerCount > 0 && !_isFinished)
+            {
+                <span class="badge rounded-pill bg-danger ms-1">@_awaitingManagerCount</span>
+            }
+        </button>
+    </li>
 </ul>
 
 @* Все вкладки страницы рендерятся всегда и только скрываются через display:none (а не @if), —
@@ -1008,9 +1018,13 @@ else
     <h2>Контракты</h2>
     <p><a href="/team/negotiate">Переговорная панель</a> · <a href="/team/needs">Доска потребностей</a></p>
 
+    <ContractDraftList TeamId="_teamId" Role="_role" ParticipantCode="@_participantCode" IsDecisionPhase="_isDecisionPhase"
+                       OnEdit="draftId => _editingDraftId = draftId" OnChanged="RefreshDashboard" />
+
     @if (_isDecisionPhase)
     {
-        <ContractDraftForm TeamId="_teamId" Role="_role" OnChanged="RefreshDashboard" />
+        <ContractDraftForm TeamId="_teamId" Role="_role" ParticipantCode="@_participantCode"
+                           @bind-EditingDraftId="_editingDraftId" OnChanged="RefreshDashboard" />
     }
 
     <h3 class="mt-4">Заявки на сделку</h3>
@@ -1259,6 +1273,11 @@ else
     private string _countdown = string.Empty;
     private string? _lastNewsHeadline;
     private Timer? _tickTimer;
+    private string? _participantCode;
+    private Ulid? _editingDraftId;
+
+    /// <summary>Сколько решений ждут именно управляющего: черновики переговорщиков плюс контракты на его подтверждение.</summary>
+    private int _awaitingManagerCount;
 
     private decimal _balance;
     private FinalScoreResult? _score;
@@ -1339,6 +1358,7 @@ else
 
         DisplayName = user.Identity?.Name;
         Role = user.FindFirst(ClaimTypes.Role)?.Value;
+        _participantCode = user.FindFirst("code")?.Value;
         Enum.TryParse(Role, out _role);
         _showWelcome = WelcomeParam == "1";
 
@@ -1671,6 +1691,11 @@ else
                         weAreTheProposer);
                 })
                 .ToList();
+
+            _awaitingManagerCount = _role != ParticipantRole.Manager
+                ? 0
+                : state.ContractDrafts.Values.Count(d => d.TeamId == _teamId && d.Status == ContractDraftStatus.AwaitingManager)
+                  + _contracts.Count(c => c.Status == ContractStatus.PendingConfirmation && !c.WeAreTheProposer);
         }
     }
 

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Game.Domain;
 
 namespace Game.Engine;
@@ -45,8 +46,24 @@ public sealed record ContractProposalSubmitted : Change<GameSessionState>
     /// <summary>Последний ход действия — только для срочного recurring.</summary>
     public required int? RecurringEndTurn { get; init; }
 
+    /// <summary>
+    /// Черновик переговорщика, по которому управляющий подал эту заявку (<see cref="ContractDraftPrepared"/>);
+    /// null — заявка набрана управляющим с нуля. Условия заявки могут отличаться от черновика: управляющий
+    /// вправе их поправить перед подачей.
+    /// <para>Пустое значение не пишется в JSON намеренно: хеш записи журнала считается по сериализованному
+    /// событию, и лишнее <c>"SourceDraftId": null</c> у заявок, поданных до появления черновиков, сломало бы
+    /// проверку хеш-цепочки уже записанных журналов.</para>
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Ulid? SourceDraftId { get; init; }
+
     public override void Apply(GameSessionState state)
     {
+        if (SourceDraftId is { } draftId)
+        {
+            state.ContractDrafts[draftId].MarkSubmitted(ProposalId);
+        }
+
         var material = state.Config.Materials[MaterialId];
         var terms = new ContractTerms(
             Type, material, Volume, UnitPrice, PenaltyRate, EffectiveTurn, SpotDeliveryTurn, RecurringEndTurn);

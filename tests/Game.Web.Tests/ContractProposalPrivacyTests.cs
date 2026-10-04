@@ -71,7 +71,8 @@ public class ContractProposalPrivacyTests
 
             var html = await RenderTeamPage(factory, negotiatorCode);
 
-            Assert.Contains("отправляет заявку управляющий команды", html);
+            Assert.Contains("заявку контрагенту подаёт он", html);
+            Assert.Contains("Передать управляющему", html);
         }
         finally
         {

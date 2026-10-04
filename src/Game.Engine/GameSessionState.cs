@@ -89,6 +89,20 @@ public sealed class GameSessionState
         _contractProposals.Add(proposal.Id, proposal);
     }
 
+    private readonly Dictionary<Ulid, ContractDraft> _contractDrafts = new();
+
+    /// <summary>
+    /// Черновики сделок, переданные переговорщиками управляющим (SPEC §3) — наполняется событием
+    /// <see cref="ContractDraftPrepared"/>. Как и заявки, не вычищаются, а меняют статус.
+    /// </summary>
+    public IReadOnlyDictionary<Ulid, ContractDraft> ContractDrafts => _contractDrafts;
+
+    /// <summary>Регистрирует черновик; вызывается только из <see cref="ContractDraftPrepared.Apply"/>.</summary>
+    internal void AddContractDraft(ContractDraft draft)
+    {
+        _contractDrafts.Add(draft.Id, draft);
+    }
+
     private readonly Dictionary<Ulid, NeedPosting> _needs = new();
 
     /// <summary>Записи доски потребностей по идентификатору (Блок 9.4, SPEC §9.2) — наполняется событием <see cref="NeedPosted"/>.</summary>
