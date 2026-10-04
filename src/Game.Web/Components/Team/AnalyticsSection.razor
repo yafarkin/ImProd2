@@ -61,6 +61,15 @@ else
     @ChartRenderer.Render(Screen.BuildCashFlowChartLayout())
     <h4 class="h6 mt-4">Репутация по ходам</h4>
     @ChartRenderer.Render(Screen.BuildReputationChartLayout())
+    @* Два графика ниже раньше стояли в «Производстве» (блок 3 перенёс их сюда, §4 «Склад: график
+       остатков → Аналитика»): «Производство» отвечает на «как работает цепочка сейчас», а не «почему так вышло». *@
+    <h4 class="h6 mt-4">Остатки на складе по ходам</h4>
+    @ChartRenderer.Render(Screen.BuildWarehouseStockChartLayout())
+    @if (Screen.History.ProfitByLevel.Count > 0)
+    {
+        <h4 class="h6 mt-4">Прибыльность по переделам по ходам</h4>
+        @ChartRenderer.Render(Screen.BuildProfitByLevelChartLayout())
+    }
 }
 
 <h3>Финансы</h3>

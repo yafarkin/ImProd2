@@ -1,0 +1,43 @@
+/* Страница фабрики (макет mockups/factory.html): на телефоне одна колонка, на широком экране слева
+   рычаги, справа подробности. */
+.factory-page {
+    display: grid;
+    gap: 1rem;
+}
+
+@media (min-width: 992px) {
+    .factory-page {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 1.5rem;
+    }
+}
+
+.min-w-0 {
+    min-width: 0;
+}
+
+.lever {
+    padding: 0.75rem 0;
+    border-top: 1px solid #dee2e6;
+}
+
+details.lever > summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.kv {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.15rem 1rem;
+    margin-bottom: 0;
+}
+
+.kv dt {
+    font-weight: normal;
+    color: #6c757d;
+}
+
+.kv dd {
+    margin: 0;
+}

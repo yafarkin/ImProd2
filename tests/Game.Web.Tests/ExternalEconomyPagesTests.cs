@@ -81,14 +81,18 @@ public class ExternalEconomyPagesTests
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
 
-            // Индекс живёт в «Аналитике», предпросмотр продажи — у склада в «Производстве».
+            // Индекс живёт в «Аналитике»; продажа — у склада в «Производстве», а её предпросмотр
+            // раскрывается по кнопке «Продать» (это уже интерактив), поэтому здесь проверяем, что
+            // кнопка стоит у руды, которую только что добыли.
             var analytics = await client.GetAsync("/team/analytics");
             Assert.Equal(HttpStatusCode.OK, analytics.StatusCode);
             Assert.Contains("Индекс деловой активности", WebUtility.HtmlDecode(await analytics.Content.ReadAsStringAsync()));
 
             var production = await client.GetAsync("/team/production");
             Assert.Equal(HttpStatusCode.OK, production.StatusCode);
-            Assert.Contains("Цена за единицу", WebUtility.HtmlDecode(await production.Content.ReadAsStringAsync()));
+            var productionHtml = WebUtility.HtmlDecode(await production.Content.ReadAsStringAsync());
+            Assert.Contains("Железная руда", productionHtml);
+            Assert.Contains(">Продать</button>", productionHtml);
         }
         finally
         {

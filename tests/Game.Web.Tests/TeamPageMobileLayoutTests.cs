@@ -77,16 +77,16 @@ public class TeamPageMobileLayoutTests
     }
 
     /// <summary>
-    /// Вкладки карточки фабрики переносятся, а не прокручиваются вбок: при <c>flex-nowrap</c> последние
-    /// оказывались за краем экрана без какого-либо признака, что они есть.
+    /// У фабрики больше нет вкладок, которые на 390px уезжали за край: с блока 3 редизайна она —
+    /// отдельная страница со всеми рычагами подряд (docs/manager-ui/README.md §4). Сторожим, чтобы
+    /// вкладки с горизонтальной прокруткой не вернулись ни в «Производство», ни на страницу фабрики.
     /// </summary>
     [Fact]
-    public async Task Factory_Card_Tabs_Wrap_Instead_Of_Scrolling_Sideways()
+    public async Task Production_Has_No_Sideways_Scrolling_Tabs()
     {
         var html = await RenderTeamPage("/team/production");
 
-        Assert.Equal(1, CountOccurrences(html, "nav nav-pills flex-wrap"));
-        Assert.DoesNotContain("nav nav-pills flex-nowrap", html);
+        Assert.DoesNotContain("nav nav-pills", html);
         Assert.DoesNotContain("overflow-x:auto; white-space:nowrap", html);
     }
 
@@ -104,18 +104,5 @@ public class TeamPageMobileLayoutTests
         // Ход и сумма скрываться не должны ни при какой ширине — на них таблица и держится.
         Assert.Contains("<th>Ход</th>", html);
         Assert.Contains("<th>Сумма</th>", html);
-    }
-
-    private static int CountOccurrences(string haystack, string needle)
-    {
-        var count = 0;
-        var index = haystack.IndexOf(needle, StringComparison.Ordinal);
-        while (index >= 0)
-        {
-            count++;
-            index = haystack.IndexOf(needle, index + needle.Length, StringComparison.Ordinal);
-        }
-
-        return count;
     }
 }

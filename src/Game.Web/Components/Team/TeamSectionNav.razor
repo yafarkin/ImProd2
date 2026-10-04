@@ -1,9 +1,10 @@
 @* Четыре раздела экрана команды (docs/manager-ui/README.md §4): на телефоне — панель снизу, под
    большим пальцем, на широком экране — вкладки под шапкой. Каждый раздел — свой адрес, поэтому кнопка
-   «Назад» браузера возвращает в предыдущий раздел, а не со страницы вовсе. *@
+   «Назад» браузера возвращает в предыдущий раздел, а не со страницы вовсе. Подсветку раздела задаёт
+   оболочка, а не NavLink по адресу: страница фабрики /team/factory/{id} — часть «Производства». *@
 
 <nav class="team-nav">
-    <NavLink href="team" Match="NavLinkMatch.All">
+    <a href="team" class="@ActiveClass("turn")">
         <span class="ico">◉</span><span class="label">Ход</span>
         @* Один счётчик на всё, что на «Ходе» требует взгляда: поводы «Требует внимания» и решения,
            которые ждут управляющего. *@
@@ -11,22 +12,28 @@
         {
             <span class="badge rounded-pill bg-danger">@HomeCount</span>
         }
-    </NavLink>
-    <NavLink href="team/production">
+    </a>
+    <a href="team/production" class="@ActiveClass("production")">
         <span class="ico">▤</span><span class="label">Производство</span>
-    </NavLink>
-    <NavLink href="team/deals">
+    </a>
+    <a href="team/deals" class="@ActiveClass("deals")">
         <span class="ico">⇄</span><span class="label">Сделки</span>
-    </NavLink>
-    <NavLink href="team/analytics">
+    </a>
+    <a href="team/analytics" class="@ActiveClass("analytics")">
         <span class="ico">∿</span><span class="label">Аналитика</span>
-    </NavLink>
+    </a>
 </nav>
 
 @code {
     /// <summary>Модель экрана команды — нужна только счётчикам на разделах.</summary>
     [Parameter, EditorRequired]
     public TeamScreen Screen { get; set; } = default!;
+
+    /// <summary>Открытый раздел: <c>turn</c>, <c>production</c>, <c>deals</c>, <c>analytics</c> или <c>members</c>.</summary>
+    [Parameter, EditorRequired]
+    public string ActiveSection { get; set; } = default!;
+
+    private string? ActiveClass(string section) => section == ActiveSection ? "active" : null;
 
     private int HomeCount => Screen.Attention.Count + Screen.AwaitingManagerCount;
 }

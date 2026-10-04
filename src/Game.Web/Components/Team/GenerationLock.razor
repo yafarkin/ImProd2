@@ -1,0 +1,60 @@
+@using System.Globalization
+
+@* «Замок» над закрытыми переделами (docs/manager-ui/README.md §4: «Технологии → строка „Поколение N“ над
+   закрытым переделом»). Раньше исследование поколений было отдельной вкладкой «Технологии», и связь
+   «вкладываю сюда — откроется вот этот передел» приходилось держать в голове. *@
+
+<div class="generation-lock border border-2 rounded p-2 mb-3" style="border-style:dashed !important">
+    <div>
+        🔒 <strong>@LockedText</strong>
+        @if (Screen.NextGenerationThreshold is { } threshold)
+        {
+            <span class="small text-muted"> — @Screen.GenerationResearchPoints.ToString("0.##") из @threshold.ToString("0.##") очков · @Screen.GenerationResearchCommitmentPerTurn.ToString("0.##") ¤/ход</span>
+        }
+    </div>
+    @if (Screen.NextGenerationThreshold is { } progressThreshold && progressThreshold > 0)
+    {
+        var percent = Math.Min(100m, Screen.GenerationResearchPoints / progressThreshold * 100m);
+        <div class="progress my-1" style="height:6px" role="progressbar" aria-label="Исследование поколения"
+             aria-valuenow="@percent.ToString("0", CultureInfo.InvariantCulture)" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width:@(percent.ToString("0.#", CultureInfo.InvariantCulture))%"></div>
+        </div>
+    }
+    <div class="small text-muted">Откроются: @string.Join(", ", Locked.TypeNames)</div>
+
+    <details class="mt-1" id="generation-research">
+        <summary class="small">Исследование поколений</summary>
+        <p class="small text-muted mt-1 mb-1">
+            Более глубокие переделы открываются не сразу, а через командное исследование — общий
+            счётчик на всю команду, не по фабрикам. Вложено всего: @Screen.GenerationResearchInvestment.ToString("0.##") ¤.
+        </p>
+        @if (Screen.CanManage)
+        {
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <input type="number" min="0" max="@Screen.MaxGenerationResearchCommitmentPerTurn" step="0.01" class="form-control form-control-sm" style="width:7em"
+                       @bind="Screen.GenerationResearchCommitmentInput" aria-label="Вложение в исследование, ¤ за ход" />
+                <span class="small">¤/ход</span>
+                <button type="button" class="btn btn-secondary btn-sm" @onclick="Screen.SetGenerationResearchCommitment">Изменить</button>
+            </div>
+            <p class="text-muted small mb-0">
+                Списывается автоматически каждый ход, до @Screen.MaxGenerationResearchCommitmentPerTurn.ToString("0.##") ¤/ход
+                на команду. Отдача от вложенных денег нелинейная — растянуть по ходам выгоднее, чем внести
+                всё сразу одним крупным платежом.
+            </p>
+        }
+    </details>
+</div>
+
+@code {
+    /// <summary>Модель экрана команды — общая для всех разделов, её держит оболочка страницы.</summary>
+    [Parameter, EditorRequired]
+    public TeamScreen Screen { get; set; } = default!;
+
+    /// <summary>Закрытые переделы цепочки.</summary>
+    [Parameter, EditorRequired]
+    public ProductionChain.LockedLevels Locked { get; set; } = default!;
+
+    private string LockedText => Locked.FirstLevel == Locked.LastLevel
+        ? $"Передел {Locked.FirstLevel} откроет поколение {Screen.UnlockedGeneration + 1}"
+        : $"Переделы {Locked.FirstLevel}–{Locked.LastLevel} закрыты; следующий откроет поколение {Screen.UnlockedGeneration + 1}";
+}

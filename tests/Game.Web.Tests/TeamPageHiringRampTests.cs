@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Game.Web.Tests;
 
 /// <summary>
-/// Подача инертного найма на карточке фабрики (docs/TODO.md №25). Механика растягивает наём на
+/// Подача инертного найма на странице фабрики (docs/TODO.md №25). Механика растягивает наём на
 /// несколько ходов, и без явного предупреждения объявленные 20 против нанятых 5 выглядят как сбой —
 /// игрок обязан заранее видеть, сколько человек выйдет на смену уже в этот ход, а сколько потом.
 ///
@@ -49,7 +49,7 @@ public class TeamPageHiringRampTests
             var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
             await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = manager.Code }));
 
-            var response = await client.GetAsync("/team/production");
+            var response = await client.GetAsync($"/team/factory/{built.FactoryId}");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
         }

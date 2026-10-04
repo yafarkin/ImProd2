@@ -1,0 +1,111 @@
+@using Game.Config.Economy
+
+@* Строка полосы склада в цепочке «Производства» (docs/manager-ui/README.md §4): остаток, движение за
+   прошлый ход — кто произвёл и кто сколько забрал — и быстрая продажа системе. Продажа раскрывается
+   по кнопке прямо под строкой, а не висит полем ввода у каждого материала: так полоса склада читается
+   как сводка, а форма появляется там, где игрок на неё нажал. Заявка уходит в «Приказ на ход», где её
+   видно вместе со всем остальным (§6 п.2). *@
+
+<div class="stock-line" id="@($"stock-{Line.Material.Id}")">
+    <div class="d-flex justify-content-between align-items-start gap-2">
+        <div class="min-w-0">
+            <strong>@Line.Material.Name</strong> <span class="num">@Line.Quantity.ToString("0.##")</span>
+            <div class="small text-muted">@FlowText</div>
+            @if (PendingSale > 0)
+            {
+                <div class="small">
+                    В приказе на ход: продать @PendingSale.ToString("0.##")
+                    @if (Screen.CanManage)
+                    {
+                        <button type="button" class="btn btn-link btn-sm p-0 ms-1 align-baseline" @onclick="() => Screen.CancelSaleToSystem(Line.Material.Id)">Отменить</button>
+                    }
+                </div>
+            }
+        </div>
+        @if (Screen.CanManage && Line.Quantity > 0 && !_selling)
+        {
+            <button type="button" class="btn btn-outline-secondary btn-sm flex-shrink-0" @onclick="OpenSale">Продать</button>
+        }
+    </div>
+
+    @if (_selling && Screen.CanManage)
+    {
+        var preview = Screen.SellPreview(StockRow);
+        <div class="sell-form border rounded p-2 mt-2">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <label class="small text-muted mb-0" for="@($"sell-volume-{Line.Material.Id}")">Объём</label>
+                <input id="@($"sell-volume-{Line.Material.Id}")" type="number" min="0" step="1" class="form-control form-control-sm" style="width:8em"
+                       @bind="Screen.SellVolumes[Line.Material.Id]" @bind:event="oninput" />
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => Screen.SellVolumes[Line.Material.Id] = WithoutTrailingZeros(Line.Quantity)">Всё (@Line.Quantity.ToString("0.##"))</button>
+            </div>
+            <p class="small text-muted mb-2">
+                @if (preview.HasQuote)
+                {
+                    <text>Цена за единицу: @DashboardDisplay.FormatUnitCost(preview.UnitPrice)</text>
+                    @if (preview.PriceImpactRate >= MarketSalePreview.NoticeablePriceImpactRate)
+                    {
+                        <text> (без вашей заявки — @DashboardDisplay.FormatUnitCost(preview.MarginalUnitPrice); этот объём просаживает цену на @preview.PriceImpactRate.ToString("P0"))</text>
+                    }
+                    @if (preview.OverflowVolume > 0)
+                    {
+                        <text> · из них @preview.OverflowVolume.ToString("0.##") сверх ёмкости рынка — рынок по этому материалу уже насыщен</text>
+                    }
+                    <text> · доход: @DashboardDisplay.FormatMoney(preview.Revenue) · прибыль: </text>
+                    <strong class="@(preview.Profit >= 0 ? "text-success" : "text-danger")">@DashboardDisplay.FormatMoney(preview.Profit)</strong>
+                }
+                else
+                {
+                    <em>Нет рыночной котировки — продажу и доход по этому материалу оценить пока нельзя.</em>
+                }
+            </p>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary btn-sm" @onclick="Sell">В приказ на ход</button>
+                <button type="button" class="btn btn-link btn-sm" @onclick="() => _selling = false">Закрыть</button>
+            </div>
+            <p class="small text-muted mb-0 mt-1">Спишется со склада и зачислится на баланс при ближайшем расчёте.</p>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Модель экрана команды — общая для всех разделов, её держит оболочка страницы.</summary>
+    [Parameter, EditorRequired]
+    public TeamScreen Screen { get; set; } = default!;
+
+    /// <summary>Материал склада и его движение за прошлый ход.</summary>
+    [Parameter, EditorRequired]
+    public ProductionChain.StockLine Line { get; set; } = default!;
+
+    private bool _selling;
+
+    private decimal PendingSale => Screen.PendingSaleVolumeByMaterial.GetValueOrDefault(Line.Material.Id);
+
+    private TeamScreen.StockRow StockRow => new(Line.Material.Id, Line.Material.Name, Line.Material, Line.Quantity);
+
+    private string FlowText => ProductionChainDisplay.FlowText(Line, Screen.Chain.HasLastTurn);
+
+    /// <summary>
+    /// Форма открывается сразу с остатком целиком (или с уже заявленным объёмом): объём по умолчанию
+    /// 1 давал в предпросмотре «доход 0 ¤ · прибыль 0 ¤» (живой обход 2026-10-04, §2 п.16).
+    /// </summary>
+    private void OpenSale()
+    {
+        Screen.SellVolumes[Line.Material.Id] = WithoutTrailingZeros(PendingSale > 0 ? PendingSale : Line.Quantity);
+        _selling = true;
+    }
+
+    /// <summary>
+    /// Остаток после расчёта несёт масштаб вычислений («8929.76000»), и поле ввода показывало эти нули.
+    /// Округлять нельзя: «Всё» обязано продать остаток целиком, без пыли и без превышения.
+    /// </summary>
+    private static decimal WithoutTrailingZeros(decimal value) => value / 1.0000000000000000000000000000m;
+
+    private void Sell()
+    {
+        Screen.SellToSystem(Line.Material.Id);
+        if (Screen.ErrorMessage is null)
+        {
+            _selling = false;
+        }
+    }
+}

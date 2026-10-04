@@ -63,10 +63,12 @@ public class TeamPageFactoryOverviewTests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
-            Assert.Contains("id=\"decide-now\"", html);
-            Assert.Contains($"factory-card-{host.Session!.State.Teams[team.Id].Factories.Single().Id}", html);
-            Assert.Contains("border-style:dashed", html); // хотя бы один непостроенный узел
-            Assert.Contains("не построена", html);
+            // Построенный рудник — ссылка на свою страницу; непостроенные переделы — со сводкой
+            // «не построено» и кнопкой постройки прямо в переделе.
+            Assert.Contains($"href=\"team/factory/{host.Session!.State.Teams[team.Id].Factories.Single().Id}\"", html);
+            Assert.Contains("Передел 1", html);
+            Assert.Contains("не построено", html);
+            Assert.Contains("+ Построить на переделе 1", html);
         }
         finally
         {
@@ -106,8 +108,9 @@ public class TeamPageFactoryOverviewTests
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var html = WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());
 
-            Assert.Contains("№2", html); // второй экземпляр того же типа пронумерован в списке
-            Assert.Contains("построить ещё", html); // плейсхолдер остался и когда экземпляры уже есть
+            Assert.Contains("Рудник ×2", html); // однотипные фабрики — одной строкой группы
+            Assert.Contains("Рудник №2", html); // второй экземпляр того же типа пронумерован
+            Assert.Contains("+ Построить на переделе 0", html); // строить ещё можно и когда экземпляры уже есть
         }
         finally
         {

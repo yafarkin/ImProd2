@@ -20,7 +20,7 @@ public class TeamShellTests
 
     [Theory]
     [InlineData("/team", "Требует внимания")]
-    [InlineData("/team/production", "Построить фабрику")]
+    [InlineData("/team/production", "Цепочка производства")]
     [InlineData("/team/deals", "Черновик сделки")]
     [InlineData("/team/analytics", "История операций")]
     [InlineData("/team/members", "Состав команды")]
@@ -44,7 +44,7 @@ public class TeamShellTests
         // Раньше все семь вкладок рендерились всегда и только прятались через display:none.
         var html = await RenderAsManager("/team/analytics");
 
-        Assert.DoesNotContain("Построить фабрику", html);
+        Assert.DoesNotContain("Цепочка производства", html);
         Assert.DoesNotContain("Черновик сделки", html);
     }
 
@@ -58,27 +58,70 @@ public class TeamShellTests
     }
 
     [Fact]
-    public async Task The_Factory_In_The_Address_Opens_Its_Card_On_Production()
+    public async Task The_Factory_Page_Opens_The_Factory_From_The_Address()
     {
         // Так «Требует внимания» ведёт к фабрике: разделы не делят экземпляр страницы, и какую фабрику
-        // открыть, передаётся через адрес. Без адреса открыта карточка первой фабрики.
-        string? firstCard = null;
-        string? secondCard = null;
+        // открыть, передаётся через адрес — /team/factory/{id}.
         var html = await RenderAsManager((session, teamId) =>
         {
-            var mineDefinitionId = session.State.Config.FactoryDefinitions
-                .First(d => d.Sector == session.State.Teams[teamId].Sector && d.Recipes[0].Output.Level == 0).Id;
+            var mineDefinitionId = MineDefinitionId(session, teamId);
             session.BuildFactory(teamId, mineDefinitionId);
             session.BuildFactory(teamId, mineDefinitionId);
             var factories = session.State.Teams[teamId].Factories.OrderBy(f => f.Id).ToList();
-            firstCard = $"factory-card-{factories[0].Id}";
-            secondCard = $"factory-card-{factories[1].Id}";
-            return $"/team/production?factory={factories[1].Id}";
+            return $"/team/factory/{factories[1].Id}?tab=wear";
         });
 
-        Assert.Contains(secondCard!, html);
-        Assert.DoesNotContain(firstCard!, html);
+        Assert.Contains("Рудник №2", html);
+        // Все рычаги — на одной странице, без вкладок.
+        Assert.Contains("id=\"factory-workers\"", html);
+        Assert.Contains("id=\"factory-wear\"", html);
+        Assert.Contains("id=\"factory-rnd\"", html);
+        Assert.Contains("id=\"factory-recipe\"", html);
+        Assert.Contains("← Цепочка производства", html);
+        // Страница фабрики — часть «Производства»: подсвечен он, а не «Ход».
+        Assert.Contains("<a href=\"team/production\" class=\"active\"", html);
+        Assert.DoesNotContain("<a href=\"team\" class=\"active\"", html);
     }
+
+    [Theory]
+    [InlineData("not-an-id")]
+    [InlineData("01ARZ3NDEKTSV4RRFFQ69G5FAV")] // правильный формат, но фабрики с таким Id у команды нет
+    public async Task An_Unknown_Factory_Address_Does_Not_Open_Another_Factory(string factoryId)
+    {
+        // Раньше неизвестный Id молча подменялся первой фабрикой команды — под чужим адресом
+        // управляющий оказывался у рычагов не той фабрики.
+        var html = await RenderAsManager((session, teamId) =>
+        {
+            session.BuildFactory(teamId, MineDefinitionId(session, teamId));
+            return $"/team/factory/{factoryId}";
+        });
+
+        Assert.Contains("Такой фабрики у вашей команды нет", html);
+        Assert.DoesNotContain("id=\"factory-workers\"", html);
+    }
+
+    [Fact]
+    public async Task Production_Groups_Same_Type_Factories_And_Puts_Stock_After_Its_Level()
+    {
+        var html = await RenderAsManager((session, teamId) =>
+        {
+            var mineDefinitionId = MineDefinitionId(session, teamId);
+            session.BuildFactory(teamId, mineDefinitionId);
+            session.BuildFactory(teamId, mineDefinitionId);
+            return "/team/production";
+        });
+
+        Assert.Contains("Передел 0", html);
+        Assert.Contains("Рудник ×2", html);
+        Assert.Contains("Склад после передела 0", html);
+        // Руда, которую некому забрать, так и подписана — до первого расчёта без «+0 · −0».
+        Assert.Contains("производит: Рудник · не потребляет ни одна ваша фабрика", html);
+        // Свёрнутость переделов запоминается в браузере — у каждого свой ключ.
+        Assert.Contains("data-collapse-key=", html);
+    }
+
+    private static string MineDefinitionId(GameSession session, Ulid teamId) => session.State.Config.FactoryDefinitions
+        .First(d => d.Sector == session.State.Teams[teamId].Sector && d.Recipes[0].Output.Level == 0).Id;
 
     private static Task<string> RenderAsManager(string path) => RenderAsManager((_, _) => path);
 

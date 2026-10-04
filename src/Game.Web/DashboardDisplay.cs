@@ -263,6 +263,33 @@ public static class DashboardDisplay
         _ => "workers",
     };
 
+    /// <summary>
+    /// Короткая причина повода для строки самой фабрики в цепочке «Производства» — без имени фабрики,
+    /// оно уже стоит в строке. <c>null</c> — повод не про эту фабрику. Те же факты, что и в
+    /// <see cref="AttentionText"/>, и то же правило: без единого «сделайте».
+    /// </summary>
+    public static string? AttentionFactoryReason(
+        TeamAttentionCalculator.AttentionItem item, Ulid factoryId, AttentionNaming naming)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(naming);
+
+        return item switch
+        {
+            TeamAttentionCalculator.AttentionItem.FactoryStarvedOfInput x when x.FactoryId == factoryId =>
+                $"{Turns(x.TurnsInARow)} подряд без полной загрузки: не хватает «{Material(naming, x.MaterialId)}»",
+            TeamAttentionCalculator.AttentionItem.FactoryWithoutWorkers x when x.FactoryId == factoryId =>
+                "нет рабочих",
+            TeamAttentionCalculator.AttentionItem.FactoryInForcedDowntime x when x.FactoryId == factoryId =>
+                $"вынужденный простой по износу, осталось {Turns(x.TurnsRemaining)}",
+            TeamAttentionCalculator.AttentionItem.OverhaulGetsMoreExpensive x when x.FactoryId == factoryId =>
+                $"капремонт подорожает через {Turns(x.TurnsUntil)}",
+            TeamAttentionCalculator.AttentionItem.MaterialRunningOut x when x.AffectedFactoryIds.Contains(factoryId) =>
+                $"«{Material(naming, x.MaterialId)}» кончится через {Turns(x.TurnsUntil)}",
+            _ => null,
+        };
+    }
+
     /// <summary>«1 фабрика», «3 фабрики», «5 фабрик».</summary>
     public static string Factories(int count)
     {

@@ -278,9 +278,8 @@
         (amount > 0 ? "+" : amount < 0 ? "−" : "") + DashboardDisplay.FormatMoney(Math.Abs(amount));
 
     /// <summary>
-    /// Переход из панели к самой фабрике — на ту вкладку её карточки, где лежит связанный с поводом
-    /// рычаг. Это навигация, не совет: панель показывает, где смотреть, а не что делать. Разделы не
-    /// делят экземпляр страницы, поэтому фабрика и вкладка передаются через адрес.
+    /// Переход из панели на страницу фабрики — к тому рычагу, который связан с поводом. Это навигация,
+    /// не совет: панель показывает, где смотреть, а не что делать.
     /// </summary>
-    private void OpenFactory(Ulid factoryId, string tab) => Nav.NavigateTo($"/team/production?factory={factoryId}&tab={tab}");
+    private void OpenFactory(Ulid factoryId, string tab) => Nav.NavigateTo($"/team/factory/{factoryId}?tab={tab}");
 }

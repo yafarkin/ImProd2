@@ -1,0 +1,20 @@
+@* Один экземпляр фабрики в цепочке «Производства» — ссылка на её страницу /team/factory/{id}. Поводы из
+   «Требует внимания» видны прямо в строке, без имени фабрики: оно уже стоит слева. *@
+
+<a class="fac @(Instance.Problems.Count > 0 ? "fac-problem" : null)" href="@($"team/factory/{Instance.FactoryId}")">
+    <span class="min-w-0">
+        <span class="d-block fw-semibold">@Instance.Title</span>
+        <span class="d-block small text-muted">@ProductionChainDisplay.InstanceSubtitle(Instance)</span>
+        @foreach (var problem in Instance.Problems)
+        {
+            <span class="d-block small text-danger">@problem</span>
+        }
+    </span>
+    <span class="text-end small fw-semibold flex-shrink-0">@ProductionChainDisplay.OutputText(Instance.LastTurnOutput, Instance.MaxOutput)</span>
+</a>
+
+@code {
+    /// <summary>Построенный экземпляр со сводкой для строки.</summary>
+    [Parameter, EditorRequired]
+    public ProductionChain.Instance Instance { get; set; } = default!;
+}

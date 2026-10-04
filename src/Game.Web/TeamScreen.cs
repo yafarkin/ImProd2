@@ -126,12 +126,6 @@ public sealed partial class TeamScreen
     public string? LastNewsHeadline { get; set; }
     public Ulid? EditingDraftId { get; set; }
 
-    /// <summary>
-    /// Элемент, к которому раздел должен прокрутить страницу после отрисовки, — например, карточка
-    /// фабрики после перехода к ней из «Требует внимания». Раздел сбрасывает его, как только прокрутил.
-    /// </summary>
-    public string? PendingScrollTargetId { get; set; }
-
     /// <summary>Сколько решений ждут именно управляющего: черновики переговорщиков плюс контракты на его подтверждение.</summary>
     public int AwaitingManagerCount { get; set; }
 
@@ -144,6 +138,9 @@ public sealed partial class TeamScreen
     public IReadOnlyList<FactoryRow> Factories { get; set; } = Array.Empty<FactoryRow>();
     public IReadOnlyList<BuildableDefinition> BuildableDefinitions { get; set; } = Array.Empty<BuildableDefinition>();
     public IReadOnlyList<FactoryOverviewList.Node> FactoryOverviewRows { get; set; } = Array.Empty<FactoryOverviewList.Node>();
+
+    /// <summary>Цепочка раздела «Производство»: переделы, типы, экземпляры и склад между переделами (<see cref="ProductionChain"/>).</summary>
+    public ProductionChain.Chain Chain { get; set; } = new([], null, [], 0, 0, HasLastTurn: false);
     public IReadOnlyList<TeamAttentionCalculator.AttentionItem> Attention { get; set; } = Array.Empty<TeamAttentionCalculator.AttentionItem>();
     public DashboardDisplay.AttentionNaming AttentionNaming { get; set; } = new(
         new Dictionary<Ulid, string>(), new Dictionary<string, string>(), new Dictionary<string, string>());
@@ -153,15 +150,20 @@ public sealed partial class TeamScreen
     public bool ShowEconomyIndex { get; set; }
     public EconomyIndexDisplay.IndexSummary EconomyIndex { get; set; } = EconomyIndexDisplay.Describe([]);
     public LineChartDiagram.ChartLayout EconomyIndexChart { get; set; } = new([], [], [], 900, 240);
-    public Ulid? SelectedFactoryId { get; set; }
     /// <summary>Отображаемое имя фабрики по Id — для истории операций (какая фабрика вызвала расход/доход), см. её построение в <see cref="Refresh"/>.</summary>
     public IReadOnlyDictionary<Ulid, string> FactoryDisplayNamesById { get; set; } = new Dictionary<Ulid, string>();
-    public FactoryRow? SelectedFactory => Factories.FirstOrDefault(f => f.FactoryId == SelectedFactoryId);
-    public string ActiveFactoryTab { get; set; } = "workers";
+
+    /// <summary>
+    /// Фабрика страницы <c>/team/factory/{id}</c>; <c>null</c> — такой фабрики у команды нет (чужая,
+    /// проданная или неверный адрес). Подмены на «первую попавшуюся» нет намеренно: под чужим адресом
+    /// управляющий не должен оказаться у рычагов другой фабрики.
+    /// </summary>
+    public FactoryRow? FactoryById(Ulid factoryId) => Factories.FirstOrDefault(f => f.FactoryId == factoryId);
     public decimal HireCostPerWorker { get; set; }
     public decimal FireCostPerWorker { get; set; }
     public int MaxHiresPerTurn { get; set; } = int.MaxValue;
     public int BaseWorkerCount { get; set; }
+    /// <summary>Остаток каждого материала на общем складе команды; нет ключа — материала нет.</summary>
     public Dictionary<string, decimal> TeamWarehouseByMaterialId { get; } = new();
     public Dictionary<string, decimal> BuildCosts { get; } = new();
     public Dictionary<string, decimal> UpkeepCosts { get; } = new();
@@ -422,10 +424,6 @@ public sealed partial class TeamScreen
                     consumingFactoryNames, profitabilityByFactoryId.GetValueOrDefault(factory.Id),
                     capacityBreakdown, activityHistory, liquidationValue, WorkforceStep.IsInstantHiring(factory));
             }).ToList();
-            if (SelectedFactoryId is null || Factories.All(f => f.FactoryId != SelectedFactoryId))
-            {
-                SelectedFactoryId = Factories.FirstOrDefault()?.FactoryId;
-            }
             // Раньше тип фабрики, который команда уже построила, пропадал из списка — ограничение
             // «один экземпляр на тип» было только здесь, в UI, а не в движке (GameSession.BuildFactory
             // его не проверяет). Команда осознанно может строить сколько угодно фабрик одного типа —
@@ -467,6 +465,7 @@ public sealed partial class TeamScreen
                 FactoryDisplayNamesById,
                 state.Config.Materials.ToDictionary(pair => pair.Key, pair => pair.Value.Name),
                 state.Config.Raw.Wear.OverhaulTiers.ToDictionary(tier => tier.Id, tier => tier.Name));
+            Chain = BuildChain(team);
 
             Proposals = state.ContractProposals.Values
                 .Where(p => p.Status == ContractProposalStatus.Open
@@ -552,8 +551,58 @@ public sealed partial class TeamScreen
         RunAction(() => Host.Session!.SellFactory(TeamId, factoryId));
     }
 
-    /// <summary>Клик по узлу на схеме построенных фабрик — открывает карточку деталей этого экземпляра ниже.</summary>
-    public void SelectFactory(Ulid factoryId) => SelectedFactoryId = factoryId;
+    /// <summary>
+    /// Цепочка «Производства» из уже собранных в <see cref="Refresh"/> данных. Выпуск и потребление —
+    /// последнего расчёта, в котором производила хоть одна фабрика команды: ряд фабрики, которая в
+    /// нём не участвовала (только что построена), в этот срез не попадает.
+    /// </summary>
+    private ProductionChain.Chain BuildChain(Team team)
+    {
+        var lastTurn = History is null || History.OutputByFactoryId.Count == 0
+            ? (int?)null
+            : History.OutputByFactoryId.Values.Where(series => series.Count > 0).Select(series => series[^1].Turn).DefaultIfEmpty().Max();
+
+        var produced = new Dictionary<Ulid, decimal>();
+        var consumed = new Dictionary<Ulid, IReadOnlyDictionary<string, decimal>>();
+        if (History is not null && lastTurn is { } turn)
+        {
+            foreach (var (factoryId, series) in History.OutputByFactoryId)
+            {
+                if (series.Count > 0 && series[^1].Turn == turn)
+                {
+                    produced[factoryId] = series[^1].OutputQuantity;
+                }
+            }
+
+            foreach (var (factoryId, series) in History.ConsumedInputsByFactoryId)
+            {
+                if (series.Count > 0 && series[^1].Turn == turn)
+                {
+                    consumed[factoryId] = series[^1].ConsumedInputs;
+                }
+            }
+        }
+
+        var problems = Factories.ToDictionary(
+            f => f.FactoryId,
+            f => (IReadOnlyList<string>)Attention
+                .Select(item => DashboardDisplay.AttentionFactoryReason(item, f.FactoryId, AttentionNaming))
+                .OfType<string>()
+                .ToList());
+
+        return ProductionChain.Build(
+            FactoryOverviewRows, FactoryDisplayNamesById, problems,
+            team.Warehouse.Stock.Select(s => (s.Material, s.Quantity)).ToList(),
+            produced, consumed, UnlockedGeneration);
+    }
+
+    /// <summary>
+    /// Нужно ли сырьё этой фабрики ещё какой-то фабрике команды — только тогда «доля при нехватке»
+    /// хоть на что-то влияет, и только тогда страница фабрики её показывает (макет factory.html).
+    /// </summary>
+    public bool SharesInputWithOtherFactories(FactoryRow factory) =>
+        Factories.Any(other => other.FactoryId != factory.FactoryId
+            && other.Inputs.Any(input => factory.Inputs.Any(own => own.Material.Id == input.Material.Id)));
 
     /// <summary>
     /// Фабрика, о которой говорит повод, — если он вообще про фабрику: у складского сбора и у
@@ -624,8 +673,6 @@ public sealed partial class TeamScreen
         RunAction(() => Host.Session!.SetWorkerCount(TeamId, factory.FactoryId, factory.Workers));
     }
 
-    public string TabClass(string tab) => ActiveFactoryTab == tab ? "active" : "";
-
     /// <summary>
     /// Остатки на складе команды по всей пирамиде сырья выбранной фабрики (руда → ... → продукт) —
     /// лог-шкала, потому что руды на складе обычно на порядки больше, чем готового продукта (запрос
@@ -651,7 +698,7 @@ public sealed partial class TeamScreen
 
     /// <summary>
     /// Остатки по ходам вообще всех материалов общего склада команды (не только пирамиды одной
-    /// фабрики, как <see cref="BuildStockChartLayout"/>) — для склада в разделе «Производство». Тот же источник
+    /// фабрики, как <see cref="BuildStockChartLayout"/>) — для «Аналитики». Тот же источник
     /// данных (<see cref="FactoryHistoryCalculator.TeamFactoryHistory.StockByMaterialId"/>) и та же
     /// лог-шкала: сырьё и готовый продукт отличаются на порядки.
     /// </summary>
@@ -678,13 +725,13 @@ public sealed partial class TeamScreen
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 180);
     }
 
-    /// <summary>Суммарная оценка прибыльности всей команды по уровням пирамиды сырья по ходам (не по одной фабрике — общекомандный блок страницы, см. разметку выше).</summary>
+    /// <summary>Суммарная оценка прибыльности всей команды по переделам по ходам (не по одной фабрике — общекомандный график «Аналитики»).</summary>
     public LineChartDiagram.ChartLayout BuildProfitByLevelChartLayout()
     {
         var series = History!.ProfitByLevel
             .OrderBy(pair => pair.Key)
             .Select(pair => new LineChartDiagram.ChartSeries(
-                $"Уровень {pair.Key}", SectorColors.Palette[pair.Key % SectorColors.Palette.Length], pair.Value))
+                $"Передел {pair.Key}", SectorColors.Palette[pair.Key % SectorColors.Palette.Length], pair.Value))
             .ToList();
 
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, DashboardDisplay.FormatMoney);
@@ -750,10 +797,6 @@ public sealed partial class TeamScreen
 
         return LineChartDiagram.Build(series, LineChartDiagram.ChartScale.Linear, 560, 220, value => value.ToString("0") + "%");
     }
-
-    public MarkupString RenderStockChart(FactoryRow factory) => ChartRenderer.Render(BuildStockChartLayout(factory));
-
-    public MarkupString RenderOutputChart(FactoryRow factory) => ChartRenderer.Render(BuildOutputChartLayout(factory));
 
     public void SelectRecipe(Ulid factoryId)
     {

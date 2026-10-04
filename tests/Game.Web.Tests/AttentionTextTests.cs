@@ -70,6 +70,35 @@ public class AttentionTextTests
         Assert.All(advice, word => Assert.DoesNotContain(word, text));
     }
 
+    /// <summary>
+    /// Короткая причина в строке фабрики «Производства» подчиняется тому же правилу, что и панель, и
+    /// не повторяет имя фабрики — оно уже стоит в строке.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(AllKinds))]
+    public void The_Factory_Row_Reason_Is_A_Fact_Without_The_Factory_Name(TeamAttentionCalculator.AttentionItem item)
+    {
+        if (DashboardDisplay.AttentionFactoryReason(item, MillId, Naming) is not { } reason)
+        {
+            // Повод не про фабрику — склад, поставка; в строке фабрики ему не место.
+            Assert.Null(TeamScreen.AttentionTargetFactoryId(item));
+            return;
+        }
+
+        Assert.DoesNotContain("Сталелитейный завод", reason);
+        string[] advice = ["постройте", "купите", "продайте", "наймите", "закажите", "вложите", "нужно "];
+        Assert.All(advice, word => Assert.DoesNotContain(word, reason.ToLowerInvariant()));
+    }
+
+    [Fact]
+    public void The_Factory_Row_Reason_Is_Only_Shown_On_The_Factory_It_Is_About()
+    {
+        var item = new TeamAttentionCalculator.AttentionItem.FactoryWithoutWorkers(MillId);
+
+        Assert.Equal("нет рабочих", DashboardDisplay.AttentionFactoryReason(item, MillId, Naming));
+        Assert.Null(DashboardDisplay.AttentionFactoryReason(item, Ulid.NewUlid(), Naming));
+    }
+
     [Fact]
     public void Same_Kind_Items_Get_One_Group_Headline_With_A_Count()
     {

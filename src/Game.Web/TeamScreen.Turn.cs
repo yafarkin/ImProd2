@@ -192,7 +192,7 @@ public sealed partial class TeamScreen
     public void CancelEmergencyPurchaseOf(string materialId) =>
         RunAction(() => Host.Session!.EmergencyPurchase(TeamId, materialId, 0m));
 
-    private static string FactoryHref(Ulid factoryId, string tab) => $"/team/production?factory={factoryId}&tab={tab}";
+    private static string FactoryHref(Ulid factoryId, string tab) => $"/team/factory/{factoryId}?tab={tab}";
 
     private static string TeamNameOf(GameSessionState state, Ulid teamId) =>
         state.Teams.TryGetValue(teamId, out var team) ? team.Name : "?";
