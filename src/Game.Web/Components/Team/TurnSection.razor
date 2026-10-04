@@ -187,7 +187,7 @@
                                                 <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => Screen.RejectRevision(item.Id)">Отклонить</button>
                                                 break;
                                             case TeamScreen.AwaitingKind.IncomingProposal:
-                                                <a class="btn btn-primary btn-sm" href="/team/deals">Ответить заявкой</a>
+                                                <a class="btn btn-primary btn-sm" href="@($"/team/deals?reply={item.Id}")">Ответить заявкой</a>
                                                 <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => Screen.RejectProposal(item.Id)">Отклонить</button>
                                                 break;
                                         }

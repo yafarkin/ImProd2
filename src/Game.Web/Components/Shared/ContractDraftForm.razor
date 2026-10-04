@@ -1,33 +1,45 @@
 @inject GameSessionHost Host
 
-<h3>Черновик сделки</h3>
+@* Форма заявки на сделку (docs/manager-ui/README.md §4, блок 4, макет mockups/deals.html). Поля стоят
+   ровной сеткой: подпись сверху в одну строку, подсказка под полем всегда занимает место, даже пустая,
+   поэтому соседние поля не прыгают. Объём и цена по умолчанию пустые: раньше форма предлагала
+   «10 × 10 ¤» при рыночной цене 0.61 ¤ (живой обход 2026-10-04, §2 п.17). *@
 
-<p class="form-text mb-2">
-    Условия вводит каждая сторона отдельно, и контрагент ваших цифр не видит — договоритесь лично,
-    затем оба введите одно и то же. Совпадут — сделка заключена.
+<h3 class="h5">@(CanSubmit ? "Новая заявка" : "Черновик сделки")</h3>
+
+<p class="form-text mt-0 mb-2">
+    Условия вводит каждая сторона отдельно, и контрагент ваших цифр не видит — договариваются лично,
+    затем обе стороны вводят одно и то же. Совпадут — сделка заключена.
 </p>
 
 @if (!CanSubmit)
 {
-    <div class="alert alert-info">
+    <div class="alert alert-info py-2">
         Черновик уйдёт вашему управляющему — заявку контрагенту подаёт он, как есть или поправив условия.
     </div>
 }
 @if (_editingDraftAuthor is not null)
 {
-    <div class="alert alert-secondary d-flex flex-wrap align-items-center gap-2">
-        <span>Правка черновика от <strong>@_editingDraftAuthor</strong>. Отправка подаст заявку и закроет черновик.</span>
+    <div class="alert alert-secondary py-2 d-flex flex-wrap align-items-center gap-2">
+        <span>Правка черновика от <strong>@_editingDraftAuthor</strong>. Подача закроет черновик.</span>
         <button type="button" class="btn btn-link btn-sm p-0" @onclick="CancelDraftEditing">Не править</button>
+    </div>
+}
+@if (_replyingTo is not null)
+{
+    <div class="alert alert-secondary py-2 d-flex flex-wrap align-items-center gap-2">
+        <span>Ответ на заявку команды <strong>«@_replyingTo»</strong>: контрагент, сторона и материал уже выбраны, условия называются лично.</span>
+        <button type="button" class="btn btn-link btn-sm p-0" @onclick="CancelReply">Не отвечать</button>
     </div>
 }
 
 @if (_errorMessage is not null)
 {
-    <div class="alert alert-danger">@_errorMessage</div>
+    <div class="alert alert-danger py-2">@_errorMessage</div>
 }
 @if (_successMessage is not null)
 {
-    <div class="alert alert-success">@_successMessage</div>
+    <div class="alert alert-success py-2">@_successMessage</div>
 }
 
 @if (_counterparties.Count == 0)
@@ -36,145 +48,127 @@
 }
 else
 {
-    <div class="row row-cols-auto g-3 align-items-end mb-2">
-        <div>
-            <label class="form-label mb-0">Контрагент</label>
-            <select class="form-select" @bind="_counterpartyTeamId" @bind:after="Refresh">
+    <div class="deal-form">
+        <label class="fld">
+            <span class="lbl">Контрагент</span>
+            <select class="form-select form-select-sm" @bind="_counterpartyTeamId" @bind:after="Refresh">
                 @foreach (var team in _counterparties)
                 {
                     <option value="@team.Id">@team.Name</option>
                 }
             </select>
-        </div>
+            <span class="hint">@CounterpartyReputationHint</span>
+        </label>
 
-        <div>
-            <label class="form-label mb-0">Наша роль</label>
-            <select class="form-select" @bind="_role" @bind:after="RecomputeMaterials">
-                <option value="buyer">Покупатель</option>
-                <option value="seller">Продавец</option>
+        <label class="fld">
+            <span class="lbl">Мы</span>
+            <select class="form-select form-select-sm" @bind="_role" @bind:after="RecomputeMaterials">
+                <option value="buyer">Покупаем</option>
+                <option value="seller">Продаём</option>
             </select>
-        </div>
-    </div>
+            <span class="hint"></span>
+        </label>
 
-    <div class="row row-cols-auto g-3 align-items-end mb-2">
-        <div>
-            <label class="form-label mb-0">Материал</label>
+        <label class="fld">
+            <span class="lbl">Материал</span>
             @if (_materials.Count == 0)
             {
-                <div class="form-text text-danger" style="max-width:16em">
+                <span class="form-text text-danger mt-0">
                     @(_role == "seller"
                         ? "Нечего продавать — нет построенной фабрики с таким продуктом."
                         : "Контрагент ничего не производит — нет построенных фабрик, готовых это продать.")
-                </div>
+                </span>
             }
             else
             {
-                <select class="form-select" @bind="_materialId" @bind:after="RecomputePriceHint">
+                <select class="form-select form-select-sm" @bind="_materialId" @bind:after="RecomputePriceHint">
                     @foreach (var material in _materials)
                     {
                         <option value="@material.Id">@material.Name</option>
                     }
                 </select>
-                @if (_role == "seller" && _sellerStockQuantity is { } stockQuantity)
-                {
-                    <div class="form-text">На складе: @stockQuantity.ToString("0.##") ед.</div>
-                }
             }
-        </div>
+            <span class="hint">@(_stockQuantity is { } stock && stock > 0 ? $"на складе у нас {stock:0.##}" : "")</span>
+        </label>
 
-        <div>
-            <label class="form-label mb-0">Тип</label>
-            <select class="form-select" @bind="_type">
+        <label class="fld">
+            <span class="lbl">Тип</span>
+            <select class="form-select form-select-sm" @bind="_type">
                 <option value="@ContractType.Spot">Разовый</option>
                 <option value="@ContractType.Recurring">Регулярный</option>
             </select>
-        </div>
-    </div>
+            <span class="hint">@(_type == ContractType.Spot ? "одна поставка" : "поставка каждый ход")</span>
+        </label>
 
-    <div class="row row-cols-auto g-3 align-items-end mb-2">
-        <div>
-            <label class="form-label mb-0">Объём</label>
-            <input type="number" min="0.01" step="0.01" class="form-control" style="width:7em" @bind="_volume" />
-        </div>
-        <div>
-            <label class="form-label mb-0">Цена за единицу</label>
-            <input type="number" min="0.01" step="0.01" class="form-control" style="width:7em" @bind="_unitPrice" />
-            @if (_role == "seller")
-            {
-                @if (_sellerUnitCost is { } sellerUnitCost)
-                {
-                    <div class="form-text">
-                        Себестоимость@(_sellerUnitCostIsEstimate ? " (оценка по рецепту)" : ""): @DashboardDisplay.FormatUnitCost(sellerUnitCost)
-                    </div>
-                }
-                else
-                {
-                    <div class="form-text text-muted">Себестоимость неизвестна</div>
-                }
-            }
-            else
-            {
-                @if (_buyerMarketPrice is { } buyerMarketPrice)
-                {
-                    <div class="form-text">Рыночная цена: @DashboardDisplay.FormatUnitCost(buyerMarketPrice)</div>
-                }
-                else
-                {
-                    <div class="form-text text-muted">Нет рыночной котировки</div>
-                }
-            }
-        </div>
-        <div>
-            <label class="form-label mb-0">Ставка штрафа за срыв</label>
-            <input type="number" min="0" max="1" step="0.01" class="form-control" style="width:6em" @bind="_penaltyRate" />
-        </div>
-    </div>
+        <label class="fld">
+            <span class="lbl">Объём@(_type == ContractType.Recurring ? ", ед./ход" : ", ед.")</span>
+            <input type="number" min="0.01" step="0.01" class="form-control form-control-sm" placeholder="ед." @bind="_volume" />
+            <span class="hint"></span>
+        </label>
 
-    @if (_role == "seller")
-    {
-        var revenue = _volume * _unitPrice;
-        <div class="row row-cols-auto g-3 align-items-end mb-2">
-            <div>
-                <div class="form-text">Доход @DeliveryPeriodLabel: @DashboardDisplay.FormatMoney(revenue)</div>
-                @if (_sellerUnitCost is { } sellerUnitCostForProfit)
-                {
-                    var profit = revenue - sellerUnitCostForProfit * _volume;
-                    <div class="form-text @(profit >= 0 ? "text-success" : "text-danger")">
-                        Прибыль @DeliveryPeriodLabel: @DashboardDisplay.FormatMoney(profit)
-                    </div>
-                }
-            </div>
-        </div>
-    }
+        <label class="fld">
+            <span class="lbl">Цена за ед., ¤</span>
+            <input type="number" min="0.0001" step="0.0001" class="form-control form-control-sm" placeholder="¤" @bind="_unitPrice" />
+            <span class="hint">@PriceHint</span>
+        </label>
 
-    <div class="row row-cols-auto g-3 align-items-end mb-3">
+        <label class="fld">
+            <span class="lbl">Штраф за срыв, %</span>
+            <input type="number" min="0" max="100" step="1" class="form-control form-control-sm" @bind="_penaltyPercent" />
+            <span class="hint">от суммы поставки</span>
+        </label>
+
         @if (_type == ContractType.Spot)
         {
-            <div>
-                <label class="form-label mb-0">Ход поставки</label>
-                <input type="number" min="1" class="form-control" style="width:6em" @bind="_spotDeliveryTurn" />
-            </div>
+            <label class="fld">
+                <span class="lbl">Ход поставки</span>
+                <input type="number" min="@_currentTurn" class="form-control form-control-sm" @bind="_spotDeliveryTurn" />
+                <span class="hint">ближайший — @_currentTurn</span>
+            </label>
         }
         else
         {
-            <div>
-                <label class="form-label mb-0">Длительность, ходов</label>
-                <div class="form-check mb-1">
-                    <input type="checkbox" class="form-check-input" id="recurringIndefinite" @bind="_recurringIndefinite" />
-                    <label class="form-check-label" for="recurringIndefinite">Бессрочно — до расторжения</label>
-                </div>
-                @if (!_recurringIndefinite)
+            <div class="fld">
+                <span class="lbl">Длительность, ходов</span>
+                @if (_recurringIndefinite)
                 {
-                    <input type="number" min="1" class="form-control" style="width:6em" @bind="_recurringDurationTurns" />
+                    <input type="text" class="form-control form-control-sm" value="бессрочно" disabled />
                 }
-                <div class="form-text">Начнётся с хода, на котором контрагент подтвердит сделку.</div>
+                else
+                {
+                    <input type="number" min="1" class="form-control form-control-sm" @bind="_recurringDurationTurns" aria-label="Длительность, ходов" />
+                }
+                <span class="hint">
+                    <label class="form-check-label"><input type="checkbox" class="form-check-input me-1" @bind="_recurringIndefinite" />бессрочно</label>
+                </span>
             </div>
         }
     </div>
 
+    <p class="small mb-2">
+        @if (_volume is { } volume && _unitPrice is { } price && volume > 0 && price > 0)
+        {
+            var sum = volume * price;
+            <span>Сумма сделки: @volume.ToString("0.##") × @DashboardDisplay.FormatUnitCost(price) = <strong>@DashboardDisplay.FormatUnitCost(sum)</strong> @DeliveryPeriodLabel</span>
+            @if (_role == "seller" && _sellerUnitCost is { } unitCost)
+            {
+                var profit = sum - unitCost * volume;
+                <span class="@(profit >= 0 ? "text-success" : "text-danger")"> · прибыль @DashboardDisplay.FormatUnitCost(profit) @DeliveryPeriodLabel</span>
+            }
+            @if (_type == ContractType.Recurring)
+            {
+                <span class="text-muted"> · начнётся с хода, на котором контрагент подтвердит сделку</span>
+            }
+        }
+        else
+        {
+            <span class="text-muted">Сумма сделки появится, когда будут введены объём и цена.</span>
+        }
+    </p>
+
     @if (CanSubmit)
     {
-        <button type="button" class="btn btn-primary" @onclick="SubmitDraft">Отправить</button>
+        <button type="button" class="btn btn-primary" @onclick="SubmitDraft">Подать заявку</button>
     }
     else
     {
@@ -207,12 +201,28 @@ else
     [Parameter]
     public EventCallback<Ulid?> EditingDraftIdChanged { get; set; }
 
+    /// <summary>
+    /// Входящая заявка, на которую управляющий отвечает встречной: форма сама выбирает контрагента,
+    /// нашу сторону и материал. Условий заявки не берёт — их контрагенту не показывают (№16), они
+    /// называются лично. После подачи форма сбрасывает его в null.
+    /// </summary>
+    [Parameter]
+    public Ulid? ReplyToProposalId { get; set; }
+
+    [Parameter]
+    public EventCallback<Ulid?> ReplyToProposalIdChanged { get; set; }
+
     private bool CanSubmit => Role == ParticipantRole.Manager;
 
     private bool CanHandOver => Role == ParticipantRole.Negotiator && !string.IsNullOrEmpty(ParticipantCode);
 
     private Ulid? _loadedDraftId;
     private string? _editingDraftAuthor;
+    private Ulid? _loadedReplyId;
+    private string? _replyingTo;
+
+    /// <summary>Материал, выбранный черновиком или ответом на заявку: держится в списке, даже если сейчас его никто не производит.</summary>
+    private string? _pinnedMaterialId;
 
     private IReadOnlyList<(Ulid Id, string Name)> _counterparties = Array.Empty<(Ulid, string)>();
     private IReadOnlyList<Factory> _ourFactories = Array.Empty<Factory>();
@@ -223,13 +233,18 @@ else
     private string _role = "buyer";
     private string? _materialId;
     private ContractType _type = ContractType.Spot;
-    private decimal _volume = 10m;
-    private decimal _unitPrice = 10m;
+    private decimal? _volume;
+    private decimal? _unitPrice;
     private decimal? _sellerUnitCost;
     private bool _sellerUnitCostIsEstimate;
-    private decimal? _sellerStockQuantity;
-    private decimal? _buyerMarketPrice;
-    private decimal _penaltyRate = 0.1m;
+    private decimal? _stockQuantity;
+    private decimal? _marketPrice;
+    private decimal? _counterpartyReputation;
+    private int _counterpartyReputationSamples;
+
+    /// <summary>Штраф в процентах, как его называют вслух; в условия уходит долей (<see cref="ContractTerms.PenaltyRate"/>).</summary>
+    private decimal _penaltyPercent = 10m;
+    private int _currentTurn = 1;
     private int _spotDeliveryTurn = 1;
     private bool _recurringIndefinite;
     private int _recurringDurationTurns = 10;
@@ -242,14 +257,80 @@ else
     /// ходу действия контракта.</summary>
     private string DeliveryPeriodLabel => _type == ContractType.Spot ? "разово" : "за ход";
 
+    private string CounterpartyReputationHint => _counterpartyReputation is { } percentage
+        ? $"репутация {percentage:F0} % ({_counterpartyReputationSamples})"
+        : "";
+
+    /// <summary>
+    /// Опора для цены: рыночная котировка — обеим сторонам, себестоимость — продавцу. Только факты:
+    /// какую цену назвать, решают люди в зале.
+    /// </summary>
+    private string PriceHint
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (_marketPrice is { } market)
+            {
+                parts.Add($"рынок {DashboardDisplay.FormatUnitCost(market)}");
+            }
+            if (_role == "seller" && _sellerUnitCost is { } cost)
+            {
+                parts.Add($"себест.{(_sellerUnitCostIsEstimate ? " (оценка)" : "")} {DashboardDisplay.FormatUnitCost(cost)}");
+            }
+            return string.Join(" · ", parts);
+        }
+    }
+
     protected override void OnParametersSet()
     {
         if (EditingDraftId != _loadedDraftId)
         {
             LoadDraft(EditingDraftId);
         }
+        if (ReplyToProposalId != _loadedReplyId)
+        {
+            LoadReply(ReplyToProposalId);
+        }
 
         Refresh();
+    }
+
+    /// <summary>
+    /// Ответ на входящую заявку: стороны и материал — из неё, один раз при смене
+    /// <see cref="ReplyToProposalId"/>, как и черновик. Объём и цену не трогаем.
+    /// </summary>
+    private void LoadReply(Ulid? proposalId)
+    {
+        _loadedReplyId = proposalId;
+        _replyingTo = null;
+        if (proposalId is not { } id)
+        {
+            return;
+        }
+
+        lock (Host.SyncRoot)
+        {
+            if (Host.Session is null || !Host.Session.State.ContractProposals.TryGetValue(id, out var pending))
+            {
+                return;
+            }
+
+            var proposal = pending.Proposal;
+            var weAreBuyer = proposal.BuyerTeamId == TeamId;
+            _counterpartyTeamId = proposal.SubmittedByTeamId;
+            _role = weAreBuyer ? "buyer" : "seller";
+            _materialId = proposal.Terms.Material.Id;
+            _pinnedMaterialId = _materialId;
+            _replyingTo = Host.Session.State.Teams.TryGetValue(proposal.SubmittedByTeamId, out var team) ? team.Name : "?";
+        }
+    }
+
+    private async Task CancelReply()
+    {
+        LoadReply(null);
+        _pinnedMaterialId = null;
+        await ReplyToProposalIdChanged.InvokeAsync(null);
     }
 
     /// <summary>
@@ -278,10 +359,11 @@ else
             _counterpartyTeamId = weAreBuyer ? proposal.SellerTeamId : proposal.BuyerTeamId;
             _role = weAreBuyer ? "buyer" : "seller";
             _materialId = terms.Material.Id;
+            _pinnedMaterialId = _materialId;
             _type = terms.Type;
             _volume = terms.Volume;
             _unitPrice = terms.UnitPrice;
-            _penaltyRate = terms.PenaltyRate;
+            _penaltyPercent = terms.PenaltyRate * 100m;
             if (terms.SpotDeliveryTurn is { } deliveryTurn)
             {
                 _spotDeliveryTurn = deliveryTurn;
@@ -331,7 +413,18 @@ else
             _counterpartyFactories = _counterpartyTeamId is { } counterpartyId && state.Teams.TryGetValue(counterpartyId, out var counterpartyTeam)
                 ? counterpartyTeam.Factories
                 : Array.Empty<Factory>();
+            if (_counterpartyTeamId is { } reputationTeamId)
+            {
+                var reputation = Host.Session.GetReputation(reputationTeamId);
+                _counterpartyReputation = reputation.Percentage;
+                _counterpartyReputationSamples = reputation.SampleCount;
+            }
+            else
+            {
+                _counterpartyReputation = null;
+            }
         }
+        _currentTurn = currentTurn;
 
         RecomputeMaterials();
 
@@ -357,12 +450,22 @@ else
     private void RecomputeMaterials()
     {
         var sellerFactories = _role == "seller" ? _ourFactories : _counterpartyFactories;
-        _materials = sellerFactories
+        var materials = sellerFactories
             .Select(f => f.SelectedRecipe.Output)
             .DistinctBy(m => m.Id)
             .Select(m => (m.Id, m.Name))
-            .OrderBy(m => m.Name, StringComparer.Ordinal)
             .ToList();
+        if (_pinnedMaterialId is { } pinnedId && materials.All(m => m.Id != pinnedId))
+        {
+            lock (Host.SyncRoot)
+            {
+                if (Host.Session?.State.Config.Materials.TryGetValue(pinnedId, out var pinned) == true)
+                {
+                    materials.Add((pinned.Id, pinned.Name));
+                }
+            }
+        }
+        _materials = materials.OrderBy(m => m.Name, StringComparer.Ordinal).ToList();
 
         if (_materialId is null || _materials.All(m => m.Id != _materialId))
         {
@@ -388,8 +491,8 @@ else
     {
         _sellerUnitCost = null;
         _sellerUnitCostIsEstimate = false;
-        _sellerStockQuantity = null;
-        _buyerMarketPrice = null;
+        _stockQuantity = null;
+        _marketPrice = null;
 
         if (_materialId is null)
         {
@@ -409,15 +512,19 @@ else
                 return;
             }
 
+            if (state.Market.HasQuote(_materialId))
+            {
+                _marketPrice = state.Market.QuoteOf(_materialId).Price;
+            }
+
+            if (!state.Teams.TryGetValue(TeamId, out var ourTeam))
+            {
+                return;
+            }
+
+            _stockQuantity = ourTeam.Warehouse.QuantityOf(material);
             if (_role == "seller")
             {
-                if (!state.Teams.TryGetValue(TeamId, out var ourTeam))
-                {
-                    return;
-                }
-
-                _sellerStockQuantity = ourTeam.Warehouse.QuantityOf(material);
-
                 var realCost = ourTeam.Warehouse.AverageCostOf(material);
                 if (realCost > 0m)
                 {
@@ -429,10 +536,6 @@ else
                     _sellerUnitCostIsEstimate = true;
                 }
             }
-            else if (state.Market.HasQuote(_materialId))
-            {
-                _buyerMarketPrice = state.Market.QuoteOf(_materialId).Price;
-            }
         }
     }
 
@@ -442,6 +545,10 @@ else
         _successMessage = null;
 
         if (_counterpartyTeamId is not { } counterpartyId || _materialId is null)
+        {
+            return;
+        }
+        if (!HasTerms())
         {
             return;
         }
@@ -465,24 +572,19 @@ else
             if (result is not null)
             {
                 LoadDraft(null);
+                LoadReply(null);
+                _pinnedMaterialId = null;
                 await EditingDraftIdChanged.InvokeAsync(null);
+                await ReplyToProposalIdChanged.InvokeAsync(null);
 
-                if (result.IsMatched)
+                var message = TeamScreen.DescribeSubmission(result, out var mismatch);
+                if (mismatch)
                 {
-                    _successMessage = "Условия сошлись — сделка заключена, ждёт подтверждения управляющего контрагента.";
-                }
-                else if (result.HasCounterpartyProposal)
-                {
-                    // Встречная заявка есть, но условия разошлись. Называем только поля — чужие
-                    // числа контрагенту не показываем, иначе сверка выродится в копирование (№16).
-                    _errorMessage =
-                        "Заявка от контрагента уже есть, но условия не сошлись: "
-                        + string.Join("; ", result.Mismatches.Select(DashboardDisplay.ContractMismatchLabel))
-                        + ". Заявка сохранена — уточните расхождение лично и подайте заново.";
+                    _errorMessage = message;
                 }
                 else
                 {
-                    _successMessage = "Заявка подана и ждёт встречной от контрагента.";
+                    _successMessage = message;
                 }
             }
         }
@@ -493,6 +595,18 @@ else
 
         Refresh();
         await OnChanged.InvokeAsync();
+    }
+
+    /// <summary>Объём и цена введены — без них заявку не собрать; иначе показывает, чего не хватает.</summary>
+    private bool HasTerms()
+    {
+        if (_volume is > 0 && _unitPrice is > 0)
+        {
+            return true;
+        }
+
+        _errorMessage = "Заявке нужны объём и цена за единицу больше нуля.";
+        return false;
     }
 
     /// <summary>Собирает заявку нашей команды из полей формы — общая для подачи управляющим и для черновика переговорщика.</summary>
@@ -511,7 +625,7 @@ else
         // (_recurringIndefinite) — null и остаётся null через всю активацию.
         const int effectiveTurnPlaceholder = 1;
         var terms = new ContractTerms(
-            _type, material, _volume, _unitPrice, _penaltyRate, effectiveTurnPlaceholder,
+            _type, material, _volume!.Value, _unitPrice!.Value, _penaltyPercent / 100m, effectiveTurnPlaceholder,
             _type == ContractType.Spot ? _spotDeliveryTurn : null,
             _type == ContractType.Recurring && !_recurringIndefinite ? effectiveTurnPlaceholder + _recurringDurationTurns - 1 : null);
 
@@ -524,6 +638,10 @@ else
         _successMessage = null;
 
         if (_counterpartyTeamId is not { } counterpartyId || _materialId is null || ParticipantCode is null)
+        {
+            return;
+        }
+        if (!HasTerms())
         {
             return;
         }

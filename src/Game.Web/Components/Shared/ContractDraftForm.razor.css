@@ -1,0 +1,32 @@
+/* Ровная сетка полей формы заявки (макет mockups/deals.html): подпись сверху в одну строку, подсказка
+   снизу всегда занимает строку — даже пустая, иначе поля соседних колонок съезжают по вертикали.
+   Две колонки при любой ширине: на широком экране форма стоит в узкой правой колонке «Сделок». */
+.deal-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.fld {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+}
+
+.lbl {
+    font-size: 0.8rem;
+    color: #6c757d;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hint {
+    min-height: 1.2em;
+    font-size: 0.75rem;
+    color: #6c757d;
+    line-height: 1.2;
+    margin-top: 0.15rem;
+}

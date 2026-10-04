@@ -36,12 +36,13 @@ public class ContractDraftPagesTests
 
             var html = await RenderTeamPage(factory, codes.ManagerCode);
 
-            Assert.Contains("Черновики от переговорщиков", html);
-            Assert.Contains("Переговорщик Ню", html);
-            Assert.Contains("покупка у команды «Кси»", html);
+            // Черновик — в «Ждёт моего ответа» раздела «Сделки», с условиями и всеми тремя действиями.
+            Assert.Contains("Ждёт моего ответа", html);
+            Assert.Contains("Черновик от Переговорщик Ню: покупка у команды «Кси»", html);
             Assert.Contains("4321 ед. × 0.47 ¤", html);
-            Assert.Contains("Подать как есть", html);
-            Assert.Contains("Вернуть", html);
+            Assert.Contains(">Подать заявку</button>", html);
+            Assert.Contains(">Поправить</button>", html);
+            Assert.Contains(">Вернуть</button>", html);
             // Счётчик из SPEC §3 — в шапке, виден из любого раздела.
             Assert.Matches(@"Ждёт меня\s*<span[^>]*>1</span>", html);
         }
@@ -66,8 +67,9 @@ public class ContractDraftPagesTests
             var html = await RenderTeamPage(factory, codes.CounterpartyManagerCode);
 
             // Имя переговорщика тут не проверяется: в отладочном режиме оно есть в переключателе участников.
-            Assert.DoesNotContain("4321", html);
-            Assert.Contains("Новых черновиков нет.", html);
+            // Видимый текст, а не HTML: в атрибутах есть случайные Ulid, где «4321» изредка встречается само.
+            Assert.DoesNotContain("4321", System.Text.RegularExpressions.Regex.Replace(html, "<[^>]*>", " "));
+            Assert.Contains("Ничего не ждёт", html);
         }
         finally
         {

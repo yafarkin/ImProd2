@@ -17,7 +17,7 @@
 {
     <div class="team-chrome">
         <TeamTopBar Screen="_screen" />
-        <TeamSectionNav Screen="_screen" ActiveSection="@ActiveSection" />
+        <TeamSectionNav Screen="_screen" ActiveSection="@NavSection" />
     </div>
 
     <div class="team-body">
@@ -59,6 +59,10 @@
         {
             <div class="alert alert-danger">@_screen.ErrorMessage</div>
         }
+        @if (_screen.InfoMessage is not null)
+        {
+            <div class="alert alert-success">@_screen.InfoMessage</div>
+        }
 
         @if (FactoryIdText is not null)
         {
@@ -72,7 +76,10 @@
                     <ProductionSection Screen="_screen" />
                     break;
                 case "deals":
-                    <DealsSection Screen="_screen" />
+                    <DealsSection Screen="_screen" ReplyToProposalId="@ReplyToProposalId" />
+                    break;
+                case "needs":
+                    <NeedsSection Screen="_screen" />
                     break;
                 case "analytics":
                     <AnalyticsSection Screen="_screen" />
@@ -93,7 +100,7 @@
 
     private static readonly HashSet<string> KnownSections = new(StringComparer.Ordinal)
     {
-        "production", "deals", "analytics", "members",
+        "production", "deals", "needs", "analytics", "members",
     };
 
     [CascadingParameter]
@@ -127,6 +134,15 @@
         : Section is { } section && KnownSections.Contains(section) ? section : TurnSectionName;
 
     private Ulid? FactoryId => Ulid.TryParse(FactoryIdText, out var factoryId) ? factoryId : null;
+
+    /// <summary>Доска потребностей — часть «Сделок»: в навигации подсвечены они.</summary>
+    private string NavSection => ActiveSection == "needs" ? "deals" : ActiveSection;
+
+    /// <summary>Входящая заявка, на которую отвечают: <c>/team/deals?reply={id}</c> — так ведёт «Ответить заявкой» с «Хода».</summary>
+    [SupplyParameterFromQuery(Name = "reply")]
+    public string? ReplyParam { get; set; }
+
+    private Ulid? ReplyToProposalId => Ulid.TryParse(ReplyParam, out var proposalId) ? proposalId : null;
 
     protected override async Task OnInitializedAsync()
     {

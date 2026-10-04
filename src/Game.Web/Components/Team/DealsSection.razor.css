@@ -1,0 +1,27 @@
+/* «Сделки» (макет mockups/deals.html): на телефоне одна колонка, на широком экране слева то, что уже
+   идёт (ждёт ответа, контракты, заявки), справа — новая заявка и «Для переговоров». */
+.deals-layout {
+    display: grid;
+    gap: 1rem;
+}
+
+@media (min-width: 992px) {
+    .deals-layout {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+        gap: 1.5rem;
+    }
+}
+
+.min-w-0 {
+    min-width: 0;
+}
+
+.awaiting {
+    border-color: #0d6efd !important;
+    border-left-width: 4px !important;
+    background: #0d6efd0f;
+}
+
+.deal-card {
+    overflow-wrap: anywhere;
+}

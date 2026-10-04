@@ -1,0 +1,28 @@
+/* Поля пересмотра контракта — той же ровной сеткой, что и форма заявки: подпись сверху, две колонки. */
+.revision-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.fld {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+}
+
+.lbl {
+    font-size: 0.8rem;
+    color: #6c757d;
+    white-space: nowrap;
+}
+
+.deal-card {
+    overflow-wrap: anywhere;
+}
+
+details > summary {
+    cursor: pointer;
+}

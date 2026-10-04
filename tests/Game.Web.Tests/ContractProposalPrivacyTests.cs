@@ -39,17 +39,48 @@ public class ContractProposalPrivacyTests
             var counterpartyHtml = await RenderTeamPage(factory, counterpartyManagerCode);
 
             // Факт заявки виден — иначе непонятно, к кому идти договариваться.
-            Assert.Contains("Скрыты — узнайте у контрагента лично", counterpartyHtml);
-            Assert.Contains("Заявки на сделку", counterpartyHtml);
+            Assert.Contains("подала заявку на сделку", counterpartyHtml);
+            Assert.Contains("Условия скрыты — их назовут лично", counterpartyHtml);
 
-            // Сами условия — нет.
-            Assert.DoesNotContain("777", counterpartyHtml);
-            Assert.DoesNotContain("1234", counterpartyHtml);
+            // Сами условия — нет. Проверяем видимый текст: в атрибутах страницы есть случайные Ulid, и
+            // «777» или «1234» в них изредка попадается само по себе.
+            Assert.DoesNotContain("777", VisibleText(counterpartyHtml));
+            Assert.DoesNotContain("1234", VisibleText(counterpartyHtml));
 
             // У автора его собственные условия при этом на экране есть.
             var authorHtml = await RenderTeamPage(factory, authorManagerCode);
             Assert.Contains("777", authorHtml);
             Assert.Contains("1234", authorHtml);
+        }
+        finally
+        {
+            host.HardReset();
+        }
+    }
+
+    /// <summary>
+    /// «Ответить заявкой» (блок 4 редизайна) предзаполняет форму контрагентом, стороной и материалом —
+    /// но не условиями: их по-прежнему называют лично, иначе сверка выродилась бы в копирование (№16).
+    /// </summary>
+    [Fact]
+    public async Task Replying_To_A_Proposal_Prefills_The_Parties_But_Never_The_Numbers()
+    {
+        using var factory = new WebApplicationFactory<Program>();
+        var host = factory.Services.GetRequiredService<GameSessionHost>();
+        host.HardReset();
+
+        try
+        {
+            var (author, counterparty, _, counterpartyManagerCode, _) = StartTwoTeams(host);
+            SubmitProposal(host.Session!, author, counterparty);
+            var proposalId = host.Session!.State.ContractProposals.Keys.Single();
+
+            var html = await RenderTeamPage(factory, counterpartyManagerCode, $"/team/deals?reply={proposalId}");
+
+            Assert.Matches("Ответ на заявку команды <strong[^>]*>«Ню»</strong>", html);
+            Assert.Matches("<option value=\"buyer\"[^>]*selected>Покупаем</option>", html); // заявку подали нам как продавцу
+            Assert.DoesNotContain("777", VisibleText(html));
+            Assert.DoesNotContain("1234", VisibleText(html));
         }
         finally
         {
@@ -113,12 +144,15 @@ public class ContractProposalPrivacyTests
             new ContractProposal(counterpartyId, authorId, authorId, terms), TeamRole.Manager, new Random(1));
     }
 
-    private static async Task<string> RenderTeamPage(WebApplicationFactory<Program> factory, string loginCode)
+    /// <summary>Текст страницы без тегов и атрибутов — то, что видит игрок.</summary>
+    private static string VisibleText(string html) => System.Text.RegularExpressions.Regex.Replace(html, "<[^>]*>", " ");
+
+    private static async Task<string> RenderTeamPage(WebApplicationFactory<Program> factory, string loginCode, string path = "/team/deals")
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await client.PostAsync("/auth/login", new FormUrlEncodedContent(new Dictionary<string, string> { ["code"] = loginCode }));
 
-        var response = await client.GetAsync("/team/deals");
+        var response = await client.GetAsync(path);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         return WebUtility.HtmlDecode(await response.Content.ReadAsStringAsync());

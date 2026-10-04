@@ -1,0 +1,110 @@
+@* Контракт карточкой (docs/manager-ui/README.md §4, блок 4, макет mockups/deals.html). Было: таблица из
+   11 колонок, на телефоне строка высотой ~400px, статус и кнопки за правым краем, цена 0.5 ¤ показана
+   как «1 ¤» (§2 п.12, п.15). Стало: кто → кому и что, условия одной строкой с ценой за единицу,
+   поставки, редкие действия — пересмотр и расторжение — свёрнуты. *@
+
+<div class="deal-card border rounded p-2 mb-2">
+    <div class="d-flex flex-wrap align-items-baseline gap-2">
+        <strong>@Direction</strong>
+        <span>@Contract.MaterialName</span>
+        <span class="badge @BadgeClass ms-auto">@Contract.StatusLabel</span>
+    </div>
+    <div class="small">@ContractDisplay.TermsLine(Contract)</div>
+    @if (Deliveries is { } stats)
+    {
+        <div class="small text-muted">@ContractDisplay.DeliveriesLine(stats)</div>
+    }
+    @if (Contract.HasPendingRevision)
+    {
+        <div class="small text-muted">
+            @(Contract.PendingRevisionIsMine
+                ? "Мы предложили пересмотр — ждём ответа второй стороны."
+                : "Контрагент предлагает пересмотр — ответ в «Ждёт моего ответа» выше.")
+        </div>
+    }
+
+    @if (Screen.CanManage && Contract.Status == ContractStatus.Active)
+    {
+        <details class="mt-1">
+            <summary class="small">@(Contract.Type == ContractType.Recurring ? "Пересмотреть или расторгнуть" : "Расторгнуть")</summary>
+            @if (Contract.Type == ContractType.Recurring && !Contract.HasPendingRevision)
+            {
+                <div class="revision-form mt-2">
+                    <label class="fld">
+                        <span class="lbl">Объём/ход</span>
+                        <input type="number" min="0.01" step="0.01" class="form-control form-control-sm" @bind="Screen.RevisionVolumes[Contract.ContractId]" />
+                    </label>
+                    <label class="fld">
+                        <span class="lbl">Цена за ед., ¤</span>
+                        <input type="number" min="0.0001" step="0.0001" class="form-control form-control-sm" @bind="Screen.RevisionUnitPrices[Contract.ContractId]" />
+                    </label>
+                    <label class="fld">
+                        <span class="lbl">Штраф, %</span>
+                        <input type="number" min="0" max="100" step="1" class="form-control form-control-sm" @bind="PenaltyPercent" />
+                    </label>
+                    <label class="fld">
+                        <span class="lbl">До хода</span>
+                        <input type="number" min="1" class="form-control form-control-sm" @bind="Screen.RevisionEndTurns[Contract.ContractId]" />
+                    </label>
+                </div>
+                <p class="small text-muted mb-1">
+                    Пересмотр всегда задаёт ход окончания@(Contract.RecurringEndTurn is null ? " — сейчас контракт бессрочный" : "").
+                    Новые условия вступят в силу, только если вторая сторона примет их.
+                </p>
+            }
+            <div class="d-flex flex-wrap gap-2 mt-1">
+                @if (Contract.Type == ContractType.Recurring && !Contract.HasPendingRevision)
+                {
+                    <button type="button" class="btn btn-secondary btn-sm" @onclick="() => Screen.ProposeRevision(Contract.ContractId)">Предложить пересмотр</button>
+                }
+                <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="() => Screen.TerminateMutual(Contract.ContractId)">Расторгнуть по согласию</button>
+                @if (_confirmVoluntary)
+                {
+                    <span class="small text-danger align-self-center">Плата @DashboardDisplay.FormatMoney(Screen.VoluntaryTerminationFee) и удар по репутации. Точно?</span>
+                    <button type="button" class="btn btn-danger btn-sm" @onclick="TerminateVoluntary">Да, расторгнуть</button>
+                    <button type="button" class="btn btn-link btn-sm" @onclick="() => _confirmVoluntary = false">Отмена</button>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => _confirmVoluntary = true">Расторгнуть в одностороннем…</button>
+                }
+            </div>
+        </details>
+    }
+</div>
+
+@code {
+    /// <summary>Модель экрана команды — общая для всех разделов, её держит оболочка страницы.</summary>
+    [Parameter, EditorRequired]
+    public TeamScreen Screen { get; set; } = default!;
+
+    /// <summary>Контракт команды.</summary>
+    [Parameter, EditorRequired]
+    public TeamScreen.ContractRow Contract { get; set; } = default!;
+
+    private bool _confirmVoluntary;
+
+    private TeamScreen.DeliveryStats? Deliveries => Screen.DeliveriesByContractId.GetValueOrDefault(Contract.ContractId);
+
+    private string Direction => Contract.Role == "Покупатель" ? $"{Contract.CounterpartyName} → нам" : $"мы → {Contract.CounterpartyName}";
+
+    private string BadgeClass => Contract.Status switch
+    {
+        ContractStatus.Active => "text-bg-success",
+        ContractStatus.PendingConfirmation => "text-bg-warning",
+        _ => "text-bg-secondary",
+    };
+
+    /// <summary>Штраф в процентах, как его называют вслух; модель хранит долю.</summary>
+    private decimal PenaltyPercent
+    {
+        get => Screen.RevisionPenaltyRates.GetValueOrDefault(Contract.ContractId) * 100m;
+        set => Screen.RevisionPenaltyRates[Contract.ContractId] = value / 100m;
+    }
+
+    private void TerminateVoluntary()
+    {
+        _confirmVoluntary = false;
+        Screen.TerminateVoluntary(Contract.ContractId);
+    }
+}

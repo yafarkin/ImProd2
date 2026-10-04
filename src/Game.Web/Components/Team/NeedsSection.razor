@@ -1,0 +1,155 @@
+@* Доска потребностей зала (docs/manager-ui/README.md §4, блок 4, макет mockups/needs.html) — отдельный
+   экран «Сделок», /team/needs. Записи сгруппированы по материалу: сразу видно, где по одному товару есть
+   и спрос, и предложение. Раньше это была отдельная страница с таблицей «одна запись — одна строка»,
+   без шапки и навигации экрана команды. *@
+
+<p class="mb-2"><a href="team/deals">← Сделки</a></p>
+
+<div class="needs-layout">
+    <div class="min-w-0">
+        <h2 class="h5">Доска потребностей зала <span class="text-muted fs-6 fw-normal">@TotalEntries</span></h2>
+
+        <div class="btn-group btn-group-sm flex-wrap mb-3" role="group" aria-label="Какие записи показать">
+            @foreach (var (filter, label) in Filters)
+            {
+                <button type="button" class="btn @(_filter == filter ? "btn-primary" : "btn-outline-primary")" @onclick="() => _filter = filter">@label</button>
+            }
+        </div>
+
+        @if (VisibleGroups.Count == 0)
+        {
+            <p class="text-muted">@(TotalEntries == 0 ? "Записей пока нет." : "Под этот фильтр записей нет.")</p>
+        }
+        @foreach (var group in VisibleGroups)
+        {
+            <div class="need-group border rounded p-2 mb-2">
+                <div class="d-flex flex-wrap align-items-baseline gap-2 mb-1">
+                    <strong>@group.Material.Name</strong>
+                    @if (group.OurStock > 0)
+                    {
+                        <span class="badge rounded-pill text-bg-light border fw-normal">у нас @group.OurStock.ToString("0.##")</span>
+                    }
+                    @if (group.NeededByUs)
+                    {
+                        <span class="badge rounded-pill text-bg-light border fw-normal">нужно нашим фабрикам</span>
+                    }
+                </div>
+                @foreach (var entry in VisibleEntries(group))
+                {
+                    <div class="need-entry small">
+                        <span class="badge @(entry.Direction == NeedDirection.Deficit ? "text-bg-warning" : "text-bg-info")">@NeedsBoard.DirectionVerb(entry.Direction, entry.IsOurs)</span>
+                        <strong>@(entry.IsOurs ? "мы" : entry.TeamName)</strong>
+                        · @DashboardDisplay.NeedVolumeOrderLabel(entry.VolumeOrder).ToLowerInvariant() объём
+                        @if (entry.IsOurs)
+                        {
+                            <button type="button" class="btn btn-link btn-sm p-0 ms-1 align-baseline" @onclick="() => Screen.WithdrawNeed(entry.NeedId)">отозвать</button>
+                        }
+                        @if (entry.Comment is not null)
+                        {
+                            <div class="text-muted">«@entry.Comment»</div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="min-w-0">
+        <section class="mb-4">
+            <h2 class="h5">Новая запись</h2>
+            <div class="need-form">
+                <label class="fld">
+                    <span class="lbl">Материал</span>
+                    <select class="form-select form-select-sm" @bind="MaterialId">
+                        @foreach (var material in Screen.AllMaterials)
+                        {
+                            <option value="@material.Id">@material.Name</option>
+                        }
+                    </select>
+                    <span class="hint">@(MaterialId is { } id && Screen.TeamWarehouseByMaterialId.GetValueOrDefault(id) is var stock && stock > 0 ? $"у нас {stock:0.##}" : "")</span>
+                </label>
+                <label class="fld">
+                    <span class="lbl">Мы</span>
+                    <select class="form-select form-select-sm" @bind="_direction">
+                        <option value="@NeedDirection.Deficit">Ищем</option>
+                        <option value="@NeedDirection.Surplus">Предлагаем</option>
+                    </select>
+                    <span class="hint"></span>
+                </label>
+                <label class="fld">
+                    <span class="lbl">Объём</span>
+                    <select class="form-select form-select-sm" @bind="_volumeOrder">
+                        <option value="@NeedVolumeOrder.Small">Небольшой</option>
+                        <option value="@NeedVolumeOrder.Medium">Средний</option>
+                        <option value="@NeedVolumeOrder.Large">Крупный</option>
+                    </select>
+                    <span class="hint">грубо, без цифр</span>
+                </label>
+                <label class="fld full">
+                    <span class="lbl">Комментарий (необязательно)</span>
+                    <input type="text" class="form-control form-control-sm" placeholder="например: к ходу 20, регулярно" @bind="_comment" />
+                    <span class="hint"></span>
+                </label>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" @onclick="Post">Опубликовать</button>
+            <p class="small text-muted mt-2 mb-0">Записи видят все команды. Проверки нет — за недостоверное отвечает репутация.</p>
+        </section>
+    </div>
+</div>
+
+@code {
+    /// <summary>Модель экрана команды — общая для всех разделов, её держит оболочка страницы.</summary>
+    [Parameter, EditorRequired]
+    public TeamScreen Screen { get; set; } = default!;
+
+    private enum BoardFilter { All, Deficit, Surplus, Ours }
+
+    private static readonly (BoardFilter Filter, string Label)[] Filters =
+    [
+        (BoardFilter.All, "Все"),
+        (BoardFilter.Deficit, "Ищут"),
+        (BoardFilter.Surplus, "Предлагают"),
+        (BoardFilter.Ours, "По нашим материалам"),
+    ];
+
+    private BoardFilter _filter = BoardFilter.All;
+    private string? _materialId;
+    private NeedDirection _direction = NeedDirection.Surplus;
+    private NeedVolumeOrder _volumeOrder = NeedVolumeOrder.Medium;
+    private string? _comment;
+
+    /// <summary>Выбранный материал формы; по умолчанию — первый в списке.</summary>
+    private string? MaterialId
+    {
+        get => _materialId ?? Screen.AllMaterials.FirstOrDefault()?.Id;
+        set => _materialId = value;
+    }
+
+    private int TotalEntries => Screen.Board.Sum(group => group.Entries.Count);
+
+    private IReadOnlyList<NeedsBoard.MaterialGroup> VisibleGroups => Screen.Board
+        .Where(group => _filter != BoardFilter.Ours || group.ConcernsUs)
+        .Where(group => VisibleEntries(group).Any())
+        .ToList();
+
+    private IEnumerable<NeedsBoard.Entry> VisibleEntries(NeedsBoard.MaterialGroup group) => _filter switch
+    {
+        BoardFilter.Deficit => group.Entries.Where(entry => entry.Direction == NeedDirection.Deficit),
+        BoardFilter.Surplus => group.Entries.Where(entry => entry.Direction == NeedDirection.Surplus),
+        _ => group.Entries,
+    };
+
+    private void Post()
+    {
+        if (MaterialId is not { } materialId)
+        {
+            return;
+        }
+
+        Screen.PostNeed(materialId, _direction, _volumeOrder, _comment);
+        if (Screen.ErrorMessage is null)
+        {
+            _comment = null;
+        }
+    }
+}

@@ -21,7 +21,8 @@ public class TeamShellTests
     [Theory]
     [InlineData("/team", "Требует внимания")]
     [InlineData("/team/production", "Цепочка производства")]
-    [InlineData("/team/deals", "Черновик сделки")]
+    [InlineData("/team/deals", "Новая заявка")]
+    [InlineData("/team/needs", "Доска потребностей зала")]
     [InlineData("/team/analytics", "История операций")]
     [InlineData("/team/members", "Состав команды")]
     [InlineData("/team/no-such-section", "Требует внимания")]
@@ -45,7 +46,7 @@ public class TeamShellTests
         var html = await RenderAsManager("/team/analytics");
 
         Assert.DoesNotContain("Цепочка производства", html);
-        Assert.DoesNotContain("Черновик сделки", html);
+        Assert.DoesNotContain("Новая заявка", html);
     }
 
     [Fact]
@@ -118,6 +119,25 @@ public class TeamShellTests
         Assert.Contains("производит: Рудник · не потребляет ни одна ваша фабрика", html);
         // Свёрнутость переделов запоминается в браузере — у каждого свой ключ.
         Assert.Contains("data-collapse-key=", html);
+    }
+
+    [Fact]
+    public async Task The_Needs_Board_Groups_Entries_By_Material_Inside_The_Team_Screen()
+    {
+        // Раньше доска была отдельной страницей без шапки и навигации, таблицей «одна запись — строка».
+        var html = await RenderAsManager((session, teamId) =>
+        {
+            var ore = session.State.Config.Materials.Values.Single(m => m.Name == "Железная руда");
+            session.PostNeed(teamId, ore.Id, NeedDirection.Surplus, NeedVolumeOrder.Large, "склад забит");
+            return "/team/needs";
+        });
+
+        Assert.Contains("team-topbar", html);
+        Assert.Contains("<a href=\"team/deals\" class=\"active\"", html); // доска — часть «Сделок»
+        Assert.Contains("Железная руда", html);
+        Assert.Contains(">предлагаем</span>", html);
+        Assert.Contains("«склад забит»", html);
+        Assert.Contains(">отозвать</button>", html);
     }
 
     private static string MineDefinitionId(GameSession session, Ulid teamId) => session.State.Config.FactoryDefinitions

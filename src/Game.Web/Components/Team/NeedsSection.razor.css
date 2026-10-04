@@ -1,0 +1,60 @@
+/* Доска потребностей (макет mockups/needs.html): слева записи по материалам, справа новая запись. */
+.needs-layout {
+    display: grid;
+    gap: 1rem;
+}
+
+@media (min-width: 992px) {
+    .needs-layout {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+        gap: 1.5rem;
+    }
+}
+
+.min-w-0 {
+    min-width: 0;
+}
+
+.need-group {
+    overflow-wrap: anywhere;
+}
+
+.need-entry {
+    padding: 0.2rem 0;
+}
+
+.need-entry + .need-entry {
+    border-top: 1px solid #f1f3f5;
+}
+
+/* Та же ровная сетка полей, что у формы заявки. */
+.need-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.fld {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+}
+
+.fld.full {
+    grid-column: 1 / -1;
+}
+
+.lbl {
+    font-size: 0.8rem;
+    color: #6c757d;
+    white-space: nowrap;
+}
+
+.hint {
+    min-height: 1.2em;
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 0.15rem;
+}

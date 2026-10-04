@@ -53,7 +53,7 @@ public sealed partial class TeamScreen
     /// </summary>
     public sealed record ProposalRow(
         Ulid ProposalId, bool Incoming, string CounterpartyName, string MaterialName,
-        decimal? Volume, decimal? UnitPrice, int SubmittedOnTurn);
+        decimal? Volume, decimal? UnitPrice, int SubmittedOnTurn, bool WeAreBuyer);
 
     public sealed record StockRow(string MaterialId, string MaterialName, Material Material, decimal Quantity);
 
@@ -482,7 +482,8 @@ public sealed partial class TeamScreen
                         p.Id, incoming, counterpartyName, p.Proposal.Terms.Material.Name,
                         incoming ? null : p.Proposal.Terms.Volume,
                         incoming ? null : p.Proposal.Terms.UnitPrice,
-                        p.SubmittedOnTurn);
+                        p.SubmittedOnTurn,
+                        p.Proposal.BuyerTeamId == TeamId);
                 })
                 .ToList();
 
@@ -515,6 +516,7 @@ public sealed partial class TeamScreen
                 .ToList();
 
             RefreshTurnSection(state, team);
+            RefreshDealsSection(state, team);
         }
     }
 
@@ -1016,6 +1018,7 @@ public sealed partial class TeamScreen
     public void RunAction(Action action)
     {
         ErrorMessage = null;
+        InfoMessage = null;
         try
         {
             lock (Host.SyncRoot)
