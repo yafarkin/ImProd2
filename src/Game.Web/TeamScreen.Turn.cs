@@ -78,12 +78,14 @@ public sealed partial class TeamScreen
             var proposal = draft.Proposal;
             var weAreBuyer = proposal.BuyerTeamId == TeamId;
             var counterpartyId = weAreBuyer ? proposal.SellerTeamId : proposal.BuyerTeamId;
+            // Имя не склоняется («Черновик от Петя» — живой обход 2026-10-04), поэтому оно стоит
+            // приложением к «переговорщика», а не после «от».
             var author = state.Participants.TryGetValue(draft.PreparedByParticipantCode, out var participant)
-                ? participant.DisplayName
-                : "переговорщика";
+                ? $"Черновик переговорщика {participant.DisplayName}"
+                : "Черновик переговорщика";
             items.Add(new AwaitingItem(
                 AwaitingKind.Draft, draft.Id,
-                $"Черновик от {author}: {(weAreBuyer ? "покупка у команды" : "продажа команде")} «{TeamNameOf(state, counterpartyId)}», {proposal.Terms.Material.Name}",
+                $"{author}: {(weAreBuyer ? "покупка у команды" : "продажа команде")} «{TeamNameOf(state, counterpartyId)}», {proposal.Terms.Material.Name}",
                 DashboardDisplay.DraftTermsLabel(proposal.Terms)));
         }
 

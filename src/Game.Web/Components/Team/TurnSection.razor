@@ -177,7 +177,8 @@
                                         @switch (item.Kind)
                                         {
                                             case TeamScreen.AwaitingKind.Draft:
-                                                <a class="btn btn-primary btn-sm" href="/team/deals">Разобрать в «Сделках»</a>
+                                                <button type="button" class="btn btn-primary btn-sm" @onclick="() => Screen.SubmitDraftAsIs(item.Id)">Подать заявку</button>
+                                                <a class="btn btn-outline-secondary btn-sm" href="/team/deals">Поправить или вернуть в «Сделках»</a>
                                                 break;
                                             case TeamScreen.AwaitingKind.Confirmation:
                                                 <button type="button" class="btn btn-primary btn-sm" @onclick="() => Screen.ConfirmContract(item.Id)">Подтвердить</button>

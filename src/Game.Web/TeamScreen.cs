@@ -121,7 +121,6 @@ public sealed partial class TeamScreen
     /// сделку и принять пересмотр может только управляющий) — этот раздел не трогаем.
     /// </summary>
     public bool CanManage { get; set; }
-    public string PhaseDuration { get; set; } = string.Empty;
     public string Countdown { get; set; } = string.Empty;
     public string? LastNewsHeadline { get; set; }
     public Ulid? EditingDraftId { get; set; }
@@ -249,7 +248,6 @@ public sealed partial class TeamScreen
             PhaseExplanation = PhaseDisplay.PhaseExplanation(state.CurrentPhase);
             IsDecisionPhase = state.CurrentPhase == TurnPhase.Decision;
             CanManage = IsDecisionPhase && Role == ParticipantRole.Manager;
-            PhaseDuration = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.TotalDuration(Host.Session!));
             Countdown = PhaseDisplay.FormatCountdown(PhaseTimerCalculator.Remaining(Host.Session!, DateTimeOffset.UtcNow));
             LastNewsHeadline = PhaseDisplay.FindLastNewsHeadline(Host.Session!);
             FreeCapacity = state.Config.Raw.Warehouse.FreeCapacity;
@@ -519,15 +517,6 @@ public sealed partial class TeamScreen
             RefreshDealsSection(state, team);
         }
     }
-
-    public BuildableDefinition? SelectedBuildableDefinition =>
-        BuildableDefinitions.FirstOrDefault(d => d.Id == SelectedFactoryDefinitionId);
-
-    /// <summary>
-    /// Не блокирует постройку (баланс может свободно уйти в минус, docs/TODO.md #23) — только
-    /// управляет информационной подсказкой рядом с кнопкой «Построить».
-    /// </summary>
-    public bool CanAffordSelectedBuild => SelectedBuildableDefinition is not { } definition || Balance >= definition.BuildCost;
 
     public void BuildFactory()
     {
@@ -898,8 +887,7 @@ public sealed partial class TeamScreen
     /// <summary>
     /// Та же цена, что посчитает <see cref="Game.Engine.GameSession.EmergencyPurchase"/> — рыночная
     /// котировка × эффективный множитель (см. <see cref="EmergencyPurchaseEffectiveMultiplier"/>) —
-    /// здесь только для предпросмотра стоимости и проверки баланса до отправки действия (тот же
-    /// приём, что <see cref="CanAffordSelectedBuild"/>).
+    /// здесь только для предпросмотра стоимости и проверки баланса до отправки действия.
     /// </summary>
     public decimal EmergencyPurchaseCost
     {

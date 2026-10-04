@@ -139,6 +139,17 @@ public class ProductionChainTests
     }
 
     [Fact]
+    public void Other_Stock_Does_Not_Repeat_That_No_Sector_Factory_Makes_It()
+    {
+        // Заголовок блока «Прочее на складе» уже это говорит (приёмка 2026-10-04).
+        var oil = Config.Materials.Values.Single(m => m.Name == "Нефть");
+        var line = Build([NewFactory(Mine)], stock: [(oil, 5m)]).OtherStock.Single();
+
+        Assert.Equal("не потребляет ни одна ваша фабрика", ProductionChainDisplay.FlowText(line, hasLastTurn: true, inOtherStock: true));
+        Assert.StartsWith("не производит ни одна ваша фабрика", ProductionChainDisplay.FlowText(line, hasLastTurn: true));
+    }
+
+    [Fact]
     public void A_Material_Nobody_Takes_Says_So()
     {
         // Живой обход 2026-10-04: руда копилась тысячами, а со склада не было видно, что её не берёт никто.

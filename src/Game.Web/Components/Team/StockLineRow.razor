@@ -82,7 +82,11 @@
 
     private TeamScreen.StockRow StockRow => new(Line.Material.Id, Line.Material.Name, Line.Material, Line.Quantity);
 
-    private string FlowText => ProductionChainDisplay.FlowText(Line, Screen.Chain.HasLastTurn);
+    /// <summary>Строка блока «Прочее на складе» — без повтора «не производит ни одна ваша фабрика».</summary>
+    [Parameter]
+    public bool InOtherStock { get; set; }
+
+    private string FlowText => ProductionChainDisplay.FlowText(Line, Screen.Chain.HasLastTurn, InOtherStock);
 
     /// <summary>
     /// Форма открывается сразу с остатком целиком (или с уже заявленным объёмом): объём по умолчанию

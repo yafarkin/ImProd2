@@ -12,14 +12,21 @@ public static class ProductionChainDisplay
     /// между переделами, поэтому важнее всего видно, кто материал забирает, — и что его не забирает
     /// никто (§2 п.8: руда копилась тысячами, и со склада этого видно не было).
     /// </summary>
-    public static string FlowText(ProductionChain.StockLine line, bool hasLastTurn)
+    /// <param name="inOtherStock">
+    /// Строка блока «Прочее на складе»: его заголовок уже говорит, что материал не производит ни одна
+    /// фабрика сектора, и повторять это в каждой строке незачем.
+    /// </param>
+    public static string FlowText(ProductionChain.StockLine line, bool hasLastTurn, bool inOtherStock = false)
     {
         ArgumentNullException.ThrowIfNull(line);
 
         var parts = new List<string>();
         if (line.ProducerNames.Count == 0)
         {
-            parts.Add("не производит ни одна ваша фабрика");
+            if (!inOtherStock)
+            {
+                parts.Add("не производит ни одна ваша фабрика");
+            }
         }
         else
         {

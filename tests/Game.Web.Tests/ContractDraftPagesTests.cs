@@ -38,7 +38,7 @@ public class ContractDraftPagesTests
 
             // Черновик — в «Ждёт моего ответа» раздела «Сделки», с условиями и всеми тремя действиями.
             Assert.Contains("Ждёт моего ответа", html);
-            Assert.Contains("Черновик от Переговорщик Ню: покупка у команды «Кси»", html);
+            Assert.Contains("Черновик переговорщика Переговорщик Ню: покупка у команды «Кси»", html);
             Assert.Contains("4321 ед. × 0.47 ¤", html);
             Assert.Contains(">Подать заявку</button>", html);
             Assert.Contains(">Поправить</button>", html);

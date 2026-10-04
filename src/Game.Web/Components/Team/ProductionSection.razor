@@ -139,7 +139,7 @@
                     <p class="small text-muted mb-1">Этого не производит ни одна фабрика вашего сектора: куплено по контракту или аварийной закупкой.</p>
                     @foreach (var line in Chain.OtherStock)
                     {
-                        <StockLineRow Screen="Screen" Line="line" />
+                        <StockLineRow Screen="Screen" Line="line" InOtherStock="true" />
                     }
                 </div>
             }
