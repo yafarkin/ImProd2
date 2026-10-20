@@ -1,0 +1,20 @@
+{
+  "requests": 374,
+  "actions": {
+    "build": 6,
+    "workers": 6,
+    "sell": 263,
+    "finish": 97,
+    "repair": 2
+  },
+  "outcomes": {
+    "success": 277,
+    "finish": 97
+  },
+  "request_and_execution_seconds": 654.9316151999994,
+  "median_ms": 1533.9503,
+  "p95_ms": 2547.428,
+  "max_ms": 15562.5734,
+  "research_offered_in_requests": 374,
+  "max_input_tokens": 7324
+}
