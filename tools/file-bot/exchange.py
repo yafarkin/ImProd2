@@ -20,12 +20,21 @@ def main():
     parser.add_argument('operation', choices=['init', 'show', 'answer', 'status'])
     parser.add_argument('directory', type=Path)
     parser.add_argument('turn', type=int, nargs='?')
+    # Лимиты задаются только при init (docs/ASSISTANT-BOT.md: раньше 8000/500/10 были зашиты
+    # в прототипе). Значения по умолчанию сохранены для совместимости с прежними опытами;
+    # для новой партии они обязаны совпадать с TurnLimit и горизонтом, согласованным до старта.
+    parser.add_argument('--limit', type=int, default=8000)
+    parser.add_argument('--max-response', type=int, default=500)
+    parser.add_argument('--max-turns', type=int, default=10)
     args = parser.parse_args()
     path = args.directory / 'budget.json'
     if args.operation == 'init':
         if path.exists():
             raise SystemExit('Budget already initialized.')
-        atomic(path, json.dumps(dict(limit=8000, max_response=500, max_turns=10,
+        if not 1 <= args.limit or not 1 <= args.max_response <= args.limit or not 1 <= args.max_turns:
+            raise SystemExit('Limits must be positive; max-response cannot exceed the limit.')
+        atomic(path, json.dumps(dict(limit=args.limit, max_response=args.max_response,
+                                    max_turns=args.max_turns,
                                     encoding='o200k_base', tokenizer_version=tiktoken.__version__,
                                     used=0, messages=[]), indent=2))
     budget = json.loads(path.read_text())

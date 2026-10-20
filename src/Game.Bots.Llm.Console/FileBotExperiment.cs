@@ -15,7 +15,10 @@ internal static class FileBotExperiment
     public static async Task RunAsync(string settingsPath)
     {
         var settings = JsonSerializer.Deserialize<Settings>(await File.ReadAllTextAsync(settingsPath)) ?? throw new JsonException();
-        if (settings.TurnLimit is < 1 or > 10 || settings.MaxActions < 1 || settings.WaitSeconds < 1) throw new ArgumentException("Invalid short test settings.");
+        // Верхняя граница TurnLimit — только sanity-проверка формы; настоящий бюджет и горизонт
+        // считает счётчик exchange.py (--limit/--max-response/--max-turns при init по этому же
+        // каталогу). Числа должны быть согласованы до старта — см. docs/ASSISTANT-BOT.md.
+        if (settings.TurnLimit is < 1 or > 120 || settings.MaxActions < 1 || settings.WaitSeconds < 1) throw new ArgumentException("Invalid file-bot settings.");
         Directory.CreateDirectory(settings.Directory);
         if (Directory.EnumerateFileSystemEntries(settings.Directory).Any()) throw new IOException("Use a fresh directory.");
         await File.WriteAllTextAsync(Path.Combine(settings.Directory, "settings.json"), JsonSerializer.Serialize(settings));

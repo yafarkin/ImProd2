@@ -19,13 +19,39 @@ class ExchangeTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def run_gate(self, operation, turn=None, text=None, success=True):
+    def run_gate(self, operation, turn=None, text=None, success=True, extra=None):
         args = [sys.executable, str(SCRIPT), operation, str(self.directory)]
         if turn is not None:
             args.append(str(turn))
+        if extra is not None:
+            args.extend(extra)
         result = subprocess.run(args, input=text, text=True, capture_output=True)
         self.assertEqual(result.returncode == 0, success, result.stderr)
         return result
+
+    def test_custom_limits_are_recorded_and_horizon_is_enforced(self):
+        with tempfile.TemporaryDirectory() as temp:
+            (Path(temp) / '001.request.json').write_text('{"requestId":"turn-1"}')
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), 'init', temp,
+                 '--limit', '40000', '--max-response', '800', '--max-turns', '30'],
+                text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            budget = json.loads((Path(temp) / 'budget.json').read_text())
+            self.assertEqual((budget['limit'], budget['max_response'], budget['max_turns']),
+                             (40000, 800, 30))
+            # Ход за согласованным горизонтом не выдаётся.
+            beyond = subprocess.run([sys.executable, str(SCRIPT), 'show', temp, '31'],
+                                    text=True, capture_output=True)
+            self.assertNotEqual(beyond.returncode, 0)
+            # Ответ крупнее оставленного резерва не одобряется — при кастомном запасе 800.
+            oversize = '{"requestId":"turn-1","actions":[],"note":"' + 'x' * 20000 + '"}'
+            subprocess.run([sys.executable, str(SCRIPT), 'show', temp, '1'],
+                           text=True, capture_output=True)
+            answer = subprocess.run([sys.executable, str(SCRIPT), 'answer', temp, '1'],
+                                    input=oversize, text=True, capture_output=True)
+            self.assertNotEqual(answer.returncode, 0)
+            self.assertFalse((Path(temp) / '001.approved').exists())
 
     def test_delivery_and_approval_match_exact_bytes(self):
         self.run_gate('show', 1)
