@@ -1,0 +1,8 @@
+{
+  "Directory": "_bots_llm/assistant-01",
+  "ProductionModel": "training-1-sector.json",
+  "TurnLimit": 10,
+  "Seed": 42,
+  "MaxActions": 12,
+  "WaitSeconds": 300
+}

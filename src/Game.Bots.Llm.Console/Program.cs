@@ -38,6 +38,12 @@ catch (IOException)
     // ничего страшного, сама запись в файл всё равно останется в UTF-8 (StreamWriter ниже).
 }
 
+if (args.Length == 2 && args[0] == "--file-bot")
+{
+    await FileBotExperiment.RunAsync(args[1]);
+    return;
+}
+
 if (args.Length == 2 && args[0] == "--jev")
 {
     await JevExperiment.RunAsync(args[1]);
