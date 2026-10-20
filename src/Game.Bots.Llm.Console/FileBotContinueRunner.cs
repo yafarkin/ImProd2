@@ -73,6 +73,9 @@ internal static class FileBotContinueRunner
             ? JsonSerializer.Deserialize<MetricsLine>(lastLine)?.Results ?? []
             : [];
         var costs = MaterialCostCalculator.CalculateAll(config);
+        // Фаза stopped-session: ход currentTurn в Decision, его решение исполнено. Цикл ходов
+        // начинается с расчёта следующего хода — переводим фазу Decision в Settlement того хода.
+        session.AdvancePhase(PhaseTransitionTrigger.Facilitator);
         using var metrics = new StreamWriter(metricsPath, append: true) { AutoFlush = true };
         var (previous, completed) = await FileBotTurnLoop.RunDecisionLoopAsync(
             session, teamId, config, directoryPath, settings, costs,
