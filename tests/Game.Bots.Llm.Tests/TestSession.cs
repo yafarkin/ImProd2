@@ -9,6 +9,9 @@ internal static class TestSession
 {
     private static string ConfigPath => Path.Combine(AppContext.BaseDirectory, "Fixtures", "legacy-combined-gameconfig.json");
 
+    /// <summary>Для тестов возобновления: конфиг нужен отдельно, чтобы открыть durable-журнал до старта сессии.</summary>
+    public static ResolvedGameConfig LoadConfig() => GameConfigLoader.LoadFromFile(ConfigPath);
+
     /// <summary>Одна команда в секторе А, достаточно долгая сессия, чтобы фаза решений точно была открыта.</summary>
     public static (GameSession Session, Ulid TeamId) StartSingleTeamSession(int endTurn = 20)
     {

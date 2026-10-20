@@ -81,7 +81,10 @@ internal static class FileBotExperiment
         { stopReason,completedTurns,gameFinished=session.State.IsFinished,final.Balance,score=FinalScoreCalculator.Calculate(final,costs,config.Raw.FactoryDefinitions),journalIntegrity=log.VerifyIntegrity() }));
         Console.WriteLine($"STOP {stopReason}: {completedTurns} decisions");
     }
-    private sealed record Settings
+    // internal: тот же вид настроек читает FileBotResumeRunner при возобновлении остановленного
+    // опыта (docs/ASSISTANT-BOT-NEXT-STEP.md) — settings.json каталога прогона остаётся единым
+    // описанием каталога, нового файла настроек для resume не заводится.
+    internal sealed record Settings
     {
         public string Directory { get; init; } = "_bots_llm/assistant-01";
         public string ProductionModel { get; init; } = "training-1-sector.json";

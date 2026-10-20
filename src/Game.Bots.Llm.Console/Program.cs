@@ -44,6 +44,12 @@ if (args.Length == 2 && args[0] == "--file-bot")
     return;
 }
 
+if (args.Length == 2 && args[0] == "--file-resume")
+{
+    await FileBotResumeRunner.RunAsync(args[1]);
+    return;
+}
+
 if (args.Length == 2 && args[0] == "--jev")
 {
     await JevExperiment.RunAsync(args[1]);
