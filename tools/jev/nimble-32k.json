@@ -1,0 +1,8 @@
+{
+  "model": "nimble-improd-32k-20261020",
+  "from": "nimble:latest",
+  "parameters": {
+    "num_ctx": 32768
+  },
+  "stream": false
+}

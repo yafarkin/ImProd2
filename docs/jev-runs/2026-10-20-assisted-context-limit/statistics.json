@@ -1,0 +1,13 @@
+{
+  "fully_successful_turns": 11,
+  "mean_turn_seconds": 8.899127872727274,
+  "median_turn_seconds": 8.1321971,
+  "planning_mean_seconds": 1.2992461181818182,
+  "outcomes": {
+    "success": 40,
+    "finish": 10,
+    "fallback: JevResponseException: JEV HTTP 400: {\"error\":\"request (8503 tokens) exceeds the available context size (8448 tokens), try increasing it\"}": 1,
+    "fallback: JevResponseException: JEV HTTP 400: {\"error\":\"request (8577 tokens) exceeds the available context size (8448 tokens), try increasing it\"}": 1,
+    "fallback: JevResponseException: JEV HTTP 400: {\"error\":\"request (8571 tokens) exceeds the available context size (8448 tokens), try increasing it\"}": 1
+  }
+}

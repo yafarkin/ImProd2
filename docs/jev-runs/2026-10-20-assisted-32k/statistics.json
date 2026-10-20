@@ -1,0 +1,68 @@
+{
+  "planning_requests": 98,
+  "action_requests": 639,
+  "total_requests": 737,
+  "actions": {
+    "build": 22,
+    "workers": 80,
+    "research": 70,
+    "finish": 88,
+    "sell": 351,
+    "repair": 28
+  },
+  "action_outcomes": {
+    "success": 551,
+    "finish": 88
+  },
+  "planning_outcomes": {
+    "success": 98
+  },
+  "request_and_execution_seconds": 3299.9223578000006,
+  "journal_wall_seconds": 3303.91706,
+  "mean_turn_seconds": 33.67267712040816,
+  "median_turn_seconds": 31.74545205,
+  "min_turn_seconds": 7.9132231,
+  "max_turn_seconds": 74.877073,
+  "planning_mean_ms": 2391.2979989795917,
+  "action_median_ms": 4939.739,
+  "action_p95_ms": 5976.921,
+  "max_action_ms": 6435.3416,
+  "max_action_input_tokens": 12752,
+  "first_generation_turn": {
+    "1": 1,
+    "2": 6,
+    "3": 12,
+    "4": 26,
+    "5": 42,
+    "6": 76
+  },
+  "first_recipe_built_turn": {
+    "coking-coal-recipe": 1,
+    "iron-ore-recipe": 1,
+    "limestone-recipe": 1,
+    "sinter-recipe": 1,
+    "scrap-metal-recipe": 1,
+    "coke-recipe": 1,
+    "pig-iron-recipe": 6,
+    "crude-steel-recipe": 12,
+    "billet-recipe": 26,
+    "slab-recipe": 26,
+    "forging-bar-recipe": 42,
+    "hot-rolled-sheet-recipe": 42,
+    "steel-structure-recipe": 76
+  },
+  "first_material_produced_turn": {
+    "coking-coal": 2,
+    "iron-ore": 2,
+    "scrap-metal": 2,
+    "coke": 2,
+    "limestone": 3,
+    "sinter": 3,
+    "pig-iron": 7,
+    "crude-steel": 13,
+    "billet": 35,
+    "slab": 35,
+    "forging-bar": 43,
+    "hot-rolled-sheet": 43
+  }
+}

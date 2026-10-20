@@ -1,0 +1,172 @@
+{
+  "income": "136581.3274474408738747417635738181",
+  "expenses": {
+    "construction": "70000",
+    "hiring": "12250.0",
+    "salaries": "54478.80",
+    "upkeep": "187457.93375",
+    "research": "5187.50",
+    "electricity": "22060.4982250000000000000000000202",
+    "firing": "5700",
+    "overhaul": "4117.60",
+    "repair_salaries": "8286.0390",
+    "repair_upkeep": "18255.5"
+  },
+  "reconstructed_balance": "-251212.5435275591261252582364262021",
+  "upper_factory_inputs": [
+    {
+      "turn": 77,
+      "capacity": "0.0",
+      "output": "0.0",
+      "sheet_before": "66.6000000000000000000000000",
+      "bar_before": "53.2800000000000000000000000000"
+    },
+    {
+      "turn": 78,
+      "capacity": "0.0",
+      "output": "0.0",
+      "sheet_before": "53.2800000000000000000000000",
+      "bar_before": "39.2400000000000000000000000000"
+    },
+    {
+      "turn": 79,
+      "capacity": "25.0",
+      "output": "0E-26",
+      "sheet_before": "39.2400000000000000000000000",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 80,
+      "capacity": "50.0",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 81,
+      "capacity": "50.0",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 82,
+      "capacity": "50.0",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 83,
+      "capacity": "50.0",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 84,
+      "capacity": "50.0",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 85,
+      "capacity": "49.3000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 86,
+      "capacity": "48.4000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 87,
+      "capacity": "47.3000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "153.0000000000000000000000000000"
+    },
+    {
+      "turn": 88,
+      "capacity": "46.0000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "6.8125000000000000000000000000"
+    },
+    {
+      "turn": 89,
+      "capacity": "44.5000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "3.4062500000000000000000000000"
+    },
+    {
+      "turn": 90,
+      "capacity": "42.8000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 91,
+      "capacity": "40.9000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 92,
+      "capacity": "38.8000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 93,
+      "capacity": "36.5000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 94,
+      "capacity": "34.0000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 95,
+      "capacity": "31.3000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 96,
+      "capacity": "28.4000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 97,
+      "capacity": "25.3000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    },
+    {
+      "turn": 98,
+      "capacity": "22.0000",
+      "output": "0E-25",
+      "sheet_before": "0E-26",
+      "bar_before": "0E-28"
+    }
+  ]
+}
