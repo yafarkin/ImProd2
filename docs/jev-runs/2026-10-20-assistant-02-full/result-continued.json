@@ -1,0 +1,14 @@
+{
+  "stopReason": "turn-limit",
+  "completedTurns": 98,
+  "gameFinished": false,
+  "Balance": -320529.18141435410447603005674,
+  "score": {
+    "TeamId": "01M5DABZ9Z5E6TERWSM4KH8H8H",
+    "Cash": -320529.18141435410447603005674,
+    "WarehouseValue": 9794.911425131729991677608231,
+    "FactoriesValue": 41812.4800,
+    "Score": -268921.78998922237448435244851
+  },
+  "journalIntegrity": true
+}
