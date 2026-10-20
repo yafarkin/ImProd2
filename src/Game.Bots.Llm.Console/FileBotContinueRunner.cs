@@ -47,9 +47,10 @@ internal static class FileBotContinueRunner
         var teamId = session.State.Teams.Keys.Single();
         var currentTurn = session.State.CurrentTurn;
 
-        if (FileBotResume.FindApproved(directoryPath, currentTurn) is not null)
-            throw new InvalidOperationException(
-                $"Turn {currentTurn} has an approved undelivered response — this is a resume case, use --file-resume first.");
+        // Отличие от resume: решение текущего хода уже исполнено — это гарантирует проверка
+        // metrics.jsonl ниже (число решений == текущему ходу); одобренный файл ответа остаётся
+        // на диске как история, и его не нужно исполнять повторно. Если же ответ исполнен не был
+        // (metrics отстают), это был бы resume-кейс, и сессия была бы не согласована — бросаем.
 
         var metricsPath = Path.Combine(directoryPath, "metrics.jsonl");
         if (!File.Exists(metricsPath)) throw new IOException("No metrics.jsonl in the run directory.");
