@@ -1,0 +1,17 @@
+{
+  "BaseUrl": "http://192.168.0.2:11434",
+  "Model": "nimble",
+  "ProductionModel": "training-1-sector.json",
+  "Turns": 98,
+  "Seed": 42,
+  "TimeoutSeconds": 30,
+  "MaxConsecutiveFailures": 3,
+  "OutputDirectory": "_bots_llm/jev-training-02",
+  "Policy": {
+    "MaxActionsPerTurn": 12,
+    "MaxFactoriesPerRecipe": 2,
+    "InputReserveTurns": 1,
+    "WorkerMultipliers": [0, 1, 2],
+    "ResearchFractions": [0, 0.25, 1]
+  }
+}

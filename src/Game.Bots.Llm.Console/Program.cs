@@ -38,6 +38,12 @@ catch (IOException)
     // ничего страшного, сама запись в файл всё равно останется в UTF-8 (StreamWriter ниже).
 }
 
+if (args.Length == 2 && args[0] == "--jev")
+{
+    await JevExperiment.RunAsync(args[1]);
+    return;
+}
+
 var settings = RunSettings.FromEnvironment();
 var logPath = Path.Combine(AppContext.BaseDirectory, $"run-{DateTimeOffset.Now:yyyyMMdd-HHmmss}.log");
 using var logFile = new StreamWriter(logPath, append: false, Encoding.UTF8) { AutoFlush = true };
