@@ -38,6 +38,7 @@ internal static class JevExperiment
         ConsoleCancelEventHandler cancel = (_, e) => { e.Cancel = true; cancellation.Cancel(); };
         Console.CancelKeyPress += cancel;
         using var decisions = new StreamWriter(Path.Combine(settings.OutputDirectory, "decisions.jsonl")) { AutoFlush = true };
+        using var planning = new StreamWriter(Path.Combine(settings.OutputDirectory, "planning.jsonl")) { AutoFlush = true };
         using var metrics = new StreamWriter(Path.Combine(settings.OutputDirectory, "metrics.jsonl")) { AutoFlush = true };
         var failureStreak = 0;
         var stopReason = "completed";
@@ -62,7 +63,11 @@ internal static class JevExperiment
                 {
                     await decisions.WriteLineAsync(JsonSerializer.Serialize(record));
                     Console.WriteLine($"turn {record.Turn}, step {record.Step}: {record.Selected} [{record.Outcome}], {record.ElapsedMilliseconds:0} ms");
-                }, cancellation.Token);
+                }, cancellation.Token, async record =>
+                {
+                    await planning.WriteLineAsync(JsonSerializer.Serialize(record));
+                    Console.WriteLine($"turn {record.Turn}, assessment: {record.Answer?.Priority}/{record.Answer?.TargetRecipe}, research={record.Answer?.ResearchNowProbability:0.00} [{record.Outcome}], {record.ElapsedMilliseconds:0} ms");
+                });
                 failureStreak = failed ? failureStreak + 1 : 0;
                 if (failureStreak >= settings.MaxConsecutiveFailures)
                 {

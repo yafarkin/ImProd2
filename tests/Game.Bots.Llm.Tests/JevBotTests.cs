@@ -148,7 +148,7 @@ public sealed class JevBotTests
                 ?? "finish";
             return Task.FromResult(new JevAnswer(choice, "scripted"));
         });
-        var bot = new JevBot(client, new() { MaxFactoriesPerRecipe = 1, ResearchFractions = [0, 1] });
+        var bot = new JevBot(client, new() { MaxFactoriesPerRecipe = 1, ResearchFractions = [0, 1], UseAnalytics = true });
         var random = new Random(42);
         while (!session.State.IsFinished)
         {
@@ -182,6 +182,7 @@ public sealed class JevBotTests
 
     private sealed class FakeClient(Func<JevRequest, Task<JevAnswer>> choose) : IJevClient
     {
+        public Task<JevPlan> AssessAsync(JevPlanningRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<JevAnswer> ChooseAsync(JevRequest request, CancellationToken cancellationToken) => choose(request);
     }
 

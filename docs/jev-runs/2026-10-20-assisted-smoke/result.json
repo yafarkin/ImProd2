@@ -1,0 +1,33 @@
+{
+  "completed": true,
+  "stopReason": "completed",
+  "turn": 3,
+  "Balance": -16320.1000,
+  "score": {
+    "TeamId": "01M5C50B84R36XCHYD5TYYXQSD",
+    "Cash": -16320.1000,
+    "WarehouseValue": 872.2007530120481927710843373,
+    "FactoriesValue": 13390.0,
+    "Score": -2057.899246987951807228915663
+  },
+  "producedByMaterial": {
+    "coking-coal": 3360.0,
+    "iron-ore": 9200.0,
+    "limestone": 770.0,
+    "scrap-metal": 1200.0,
+    "coke": 1560.0,
+    "sinter": 3585.0
+  },
+  "factories": 7,
+  "UnlockedGeneration": 1,
+  "recipes": [
+    "coking-coal-recipe",
+    "iron-ore-recipe",
+    "limestone-recipe",
+    "scrap-metal-recipe",
+    "coke-recipe",
+    "sinter-recipe",
+    "sinter-recipe"
+  ],
+  "journalIntegrity": true
+}

@@ -3,6 +3,10 @@ namespace Game.Bots.Llm.Jev;
 /// <summary>Experimental policy limits, separate from game rules. Requires calibration.</summary>
 public sealed record JevBotOptions
 {
+    public bool UseAnalytics { get; init; }
+    public bool UsePlanning { get; init; }
+    public int AnalyticsHistoryTurns { get; init; } = 5;
+    public int MaxDevelopmentCandidates { get; init; } = 4;
     public int MaxActionsPerTurn { get; init; } = 12;
     public int MaxFactoriesPerRecipe { get; init; } = 2;
     public decimal InputReserveTurns { get; init; } = 1;
@@ -11,7 +15,7 @@ public sealed record JevBotOptions
 
     public void Validate()
     {
-        if (MaxActionsPerTurn < 1 || MaxFactoriesPerRecipe < 1 || InputReserveTurns < 0
+        if ((UsePlanning && !UseAnalytics) || AnalyticsHistoryTurns < 1 || MaxDevelopmentCandidates < 1 || MaxActionsPerTurn < 1 || MaxFactoriesPerRecipe < 1 || InputReserveTurns < 0
             || WorkerMultipliers.Length == 0 || WorkerMultipliers.Any(x => x < 0 || x > 100)
             || ResearchFractions.Length == 0 || ResearchFractions.Any(x => x < 0 || x > 1))
             throw new ArgumentException("Invalid JEV experimental policy options.");

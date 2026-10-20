@@ -1,0 +1,29 @@
+{
+  "BaseUrl": "http://192.168.0.2:11434",
+  "Model": "nimble",
+  "ProductionModel": "training-1-sector.json",
+  "Turns": 3,
+  "Seed": 42,
+  "MaxConsecutiveFailures": 3,
+  "TimeoutSeconds": 30,
+  "OutputDirectory": "_bots_llm/jev-assisted-smoke-01",
+  "Policy": {
+    "UseAnalytics": true,
+    "UsePlanning": true,
+    "AnalyticsHistoryTurns": 5,
+    "MaxDevelopmentCandidates": 4,
+    "MaxActionsPerTurn": 12,
+    "MaxFactoriesPerRecipe": 2,
+    "InputReserveTurns": 1,
+    "WorkerMultipliers": [
+      0,
+      1,
+      2
+    ],
+    "ResearchFractions": [
+      0,
+      0.25,
+      1
+    ]
+  }
+}

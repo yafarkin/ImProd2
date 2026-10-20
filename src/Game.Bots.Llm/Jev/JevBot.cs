@@ -11,16 +11,44 @@ public sealed class JevBot(IJevClient client, JevBotOptions options)
 {
     /// <returns>True when this turn ended because of a service or command failure.</returns>
     public async Task<bool> TakeTurnAsync(GameSession session, Ulid teamId, Random random,
-        Func<JevDecisionRecord, Task> writeLog, CancellationToken cancellationToken = default)
+        Func<JevDecisionRecord, Task> writeLog, CancellationToken cancellationToken = default, Func<JevPlanningRecord, Task>? writePlanningLog = null)
     {
         options.Validate();
+        JevPlan? plan = null;
+        if (options.UsePlanning)
+        {
+            var analysis = new JevAnalytics(options).Build(session, teamId);
+            var planningRequest = JevPlanning.Create(AssistedState(session, analysis), analysis);
+            var planningWatch = Stopwatch.StartNew();
+            try
+            {
+                plan = await client.AssessAsync(planningRequest, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or JsonException || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+            {
+                var raw = (ex as JevResponseException)?.RawResponse;
+                var outcome = $"fallback: {ex.GetType().Name}: {ex.Message}";
+                if (writePlanningLog is not null)
+                    await writePlanningLog(new(session.State.CurrentTurn, planningRequest, null, raw, outcome, planningWatch.Elapsed.TotalMilliseconds)).ConfigureAwait(false);
+                return true;
+            }
+            if (writePlanningLog is not null)
+                await writePlanningLog(new(session.State.CurrentTurn, planningRequest, plan, plan.RawResponse, "success", planningWatch.Elapsed.TotalMilliseconds)).ConfigureAwait(false);
+        }
         var used = new HashSet<string>(StringComparer.Ordinal);
         for (var step = 0; step < options.MaxActionsPerTurn; step++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var candidates = new JevActionCatalog(options).Build(session, teamId)
                 .Where(a => !used.Contains(Slot(a))).ToDictionary(a => a.Id, StringComparer.Ordinal);
-            var request = new JevRequest(BuildState(session, teamId), candidates.ToDictionary(a => a.Key, a => a.Value.Description, StringComparer.Ordinal));
+            var observation = options.UseAnalytics ? AssistedState(session, new JevAnalytics(options).Build(session, teamId)) : BuildState(session, teamId);
+            object state = plan is null ? observation : new
+            {
+                observation,
+                earlierAssessment = new { plan.Priority, plan.TargetRecipe, plan.ResearchNowProbability },
+                note = "This assessment was made at turn start. Reconsider if completed actions or current numbers change the situation.",
+            };
+            var request = new JevRequest(state, candidates.ToDictionary(a => a.Key, a => a.Value.Description, StringComparer.Ordinal));
             var watch = Stopwatch.StartNew();
             string? raw = null;
             var selected = "finish";
@@ -63,6 +91,25 @@ public sealed class JevBot(IJevClient client, JevBotOptions options)
         BotCommandKind.SellToSystem => $"sale:{action.Command.MaterialId}",
         BotCommandKind.SetGenerationResearchCommitment => "research",
         _ => action.Id,
+    };
+
+    private static object AssistedState(GameSession session, JevAnalysis analysis) => new
+    {
+        game = "Production-chain business simulation. Production runs lower to higher levels, then system sales settle. " +
+            "A new factory starts without workers. Hiring ramps over turns. Negative balance is allowed but recurring costs continue. " +
+            "Research unlocks higher generation factories. System sales last one tick; research and staffing commitments persist. " +
+            "Goal: a profitable complete production chain, not just many factories. Exact end turn is hidden.",
+        handbook = new[]
+        {
+            "Research is the prerequisite for locked higher processing. Check investment needed and time to unlock against the remaining horizon.",
+            "A new factory needs workers and input supply; do not count nominal full-supply profit as guaranteed cash.",
+            "Sell surplus, retaining inputs for own processing. Unsold inventory is not cash and can incur storage fees.",
+            "Falling condition reduces output and raises upkeep. Compare timely overhaul cost with forced downtime.",
+            "Persistent research is a recurring expense: reduce or cancel it when the target is unlocked or no longer justified.",
+            "Cash trend includes investment. A temporary negative balance alone does not prove a productive investment is bad.",
+        },
+        analysis,
+        warehouse = session.State.Config.Raw.Warehouse,
     };
 
     private static object BuildState(GameSession session, Ulid teamId)
