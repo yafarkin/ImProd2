@@ -56,6 +56,12 @@ if (args.Length == 2 && args[0] == "--file-continue")
     return;
 }
 
+if (args.Length == 2 && args[0] == "--file-bot-multi")
+{
+    await FileBotMultiExperiment.RunAsync(args[1]);
+    return;
+}
+
 if (args.Length == 2 && args[0] == "--jev")
 {
     await JevExperiment.RunAsync(args[1]);

@@ -1,0 +1,28 @@
+{
+  "Directory": "_bots_llm/2026-10-21-multi-3sectors",
+  "ProductionModel": "main-3-sectors.json",
+  "TurnLimit": 40,
+  "Seed": 42,
+  "MaxActions": 12,
+  "WaitSeconds": 600,
+  "Teams": [
+    {
+      "Name": "assistant-04-metal",
+      "Directory": "assistant-04-metal",
+      "SectorId": "A",
+      "Rules": "You are the metallurgy team (sector A). Go depth-first: secure your raw material base first, then climb your own chain level by level. Your chain's key recipes consume foreign intermediates (lumber, industrial-gas, polymer-granulate) that sector A cannot produce: prefer buying them from other teams on the public offer board (postBuyOffer early, then fulfillTradeOffer), and use emergencyPurchase only as the last resort when a stalled chain costs more than the markup. Sell your finished products mostly to the system, but keep an eye on what other sectors are short of — steel-sheet, coke, pig-iron and crude-steel are in demand by other teams."
+    },
+    {
+      "Name": "assistant-05-petrochem",
+      "Directory": "assistant-05-petrochem",
+      "SectorId": "B",
+      "Rules": "You are the petrochemical team (sector B). Be aggressive and volume-first: saturate your raw output early, expand mid-chain capacity while margins are wide, and monetize intermediates (naphtha, industrial-gas, polymer-granulate) both to the system and to other teams via the offer board. Your chain consumes foreign intermediates (coke, steel-sheet, pulp, plywood) that sector B cannot produce: buying on the board is normal business for you, not a fallback — post persistent buy offers. Use emergencyPurchase only when a full stop of a factory would cost more than the expensive volitional margin."
+    },
+    {
+      "Name": "assistant-06-forest",
+      "Directory": "assistant-06-forest",
+      "SectorId": "V",
+      "Rules": "You are the forest industry team (sector V). Be frugal: keep a cash buffer, never plan to be broke at the end of a turn, and prefer the shortest profitable chain over maximal depth. Your chain consumes foreign intermediates (naphtha, pig-iron, crude-steel, polymer-granulate) that sector V cannot produce: buy small volumes as needed on the offer board, and keep purchases small and punctual (recurring offers suit you well). Use emergencyPurchase only to avoid a catastrophic chain stopover. Sell sparingly: never dump below the market price to the system when another team might pay better on the board."
+    }
+  ]
+}

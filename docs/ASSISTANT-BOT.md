@@ -102,6 +102,68 @@ PYTHONPATH=/private/tmp/improd-tokenizer python3 tools/file-bot/test_exchange.py
 dotnet test tests/Game.Bots.Llm.Tests --no-restore --disable-build-servers
 ```
 
+## Мультипрогон на трёх секторах (--file-bot-multi, 2026-10-21)
+
+Блок A, согласованный с пользователем: **три LLM-бота на трёх секторах
+(`main-3-sectors.json`) в одной сессии** — проверка «живого стола»: общие
+котировки рынка, межкомандная доска заявок, общая ёмкость спроса. Соло-раннеры
+(`--file-bot`, `--file-resume`, `--file-continue`) заморожены для
+воспроизводимости архивов и не менялись; вся логика мультипрогона живёт рядом:
+`FileBotMultiExperiment` + `FileBotMultiTurnLoop` в `Game.Bots.Llm`, консоль
+добавляет только флаг `--file-bot-multi tools/file-bot/assistant-multi-3sectors.json`.
+
+### Механика мультипрогона
+
+- Один durable-журнал и одна сессия — в базовом каталоге; каждая команда —
+  свой подкаталог (как соло: `settings.json`, `{n:000}.request/.response/.approved`,
+  `metrics.jsonl`). Стем хода `{n:000}` одинаковый во всех каталогах.
+- **Тик один на всех**: `RunTick` → фаза решений → все N команд отвечают →
+  исполнение → следующий тик. Ход ждёт одобрения всех команд с **общим
+  дедлайном на ход** (`WaitSeconds`, не на команду); STOP в базовом каталоге
+  или в любом подкаталоге останавливает всю партию — `result.json` в базе
+  содержит честный частичный итог ( причины `stopped:stop-file:<ход>`,
+  `stopped:waiting-approval:<ход>`).
+- Первый запрос каждой команды: свой `rules`-текст (персона — это и есть
+  «разные боты»), общий протокольный текст, **каталог только своего сектора**,
+  обзор команд (T1..TN — стабильные алиасы по порядку настроек), правила
+  экономики. Дальше: фабрики/склад (свой), **рынок — все материалы всех
+  секторов**, доска (`tradeOffers`/`needs`) и свои предыдущие результаты.
+
+### Список команд мультипогона (полный)
+
+`buildFactory(factoryDefinitionId[,recipeId])`, `setWorkerCount(factory,count)`,
+`sellToSystem(materialId,volume)`,
+`emergencyPurchase(materialId,volume)` — исполняется на **следующем**
+расчёте, цена = котировка × множитель (`EmergencyPurchaseBaseMultiplier`),
+дорого, «последний ресурс»;
+`setGenerationResearchCommitment(amount)`, `setOverhaulRequested(factory,enabled)`,
+доска потребностей: `postNeed(direction,materialId,volumeOrder[,comment])`
+(direction=surplus|deficit, объём=small|medium|large), `withdrawNeed(needId)`;
+доска заявок: `postSellOffer(materialId,volume,minPrice,maxPrice[,recurring])`,
+`postBuyOffer(...)` — та же форма с вилкой цен вместо торга, живёт **3 хода**;
+`fulfillTradeOffer(tradeOfferId[,volume][,unitPrice])` — исполняет чужую
+заявку внутри вилки (sell offer — покупаешь у владельца, buy — продаёшь ему;
+контракт формируется сразу, spot-поставка на следующий расчёт);
+`withdrawTradeOffer(tradeOfferId)`.
+
+### Запуск
+
+Отвечающего эмулирует тот же `exchange.py`, **инициализация по КАЖДОМУ
+каталогу команды** (бюджет согласуется до старта на все три):
+
+```sh
+dotnet src/Game.Bots.Llm.Console/bin/Debug/net8.0/Game.Bots.Llm.Console.dll \
+  --file-bot-multi tools/file-bot/assistant-multi-3sectors.json
+# затем для каждого X из {assistant-04-metal,assistant-05-petrochem,assistant-06-forest}:
+PYTHONPATH=/private/tmp/improd-tokenizer python3 tools/file-bot/exchange.py init \
+  _bots_llm/<база>/X --limit <бюджет> --max-turns <TurnLimit>
+```
+
+Ориентир бюджета прежний: ~950 токенов/ход на каталог (~700 запрос + ~200
+ответ); на первом ходу запросы крупнее (правила + протокол + каталог).
+Resume/continue мультипрогона не реализованы — останавливать только по STOP,
+не прерывать процесс.
+
 ## Если пользователь решит продолжить
 
 Сначала согласовать новый предел, поскольку текущий опыт остановлен явно.
